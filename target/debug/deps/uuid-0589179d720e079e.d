@@ -1,0 +1,13 @@
+/home/feanor/Projects/SynCore/syncore/target/debug/deps/uuid-0589179d720e079e.d: /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/lib.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/macros.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/builder.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/error.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/non_nil.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/parser.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/fmt.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/timestamp.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/external.rs
+
+/home/feanor/Projects/SynCore/syncore/target/debug/deps/libuuid-0589179d720e079e.rmeta: /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/lib.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/macros.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/builder.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/error.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/non_nil.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/parser.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/fmt.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/timestamp.rs /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/external.rs
+
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/lib.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/macros.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/builder.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/error.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/non_nil.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/parser.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/fmt.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/timestamp.rs:
+/home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.18.1/src/external.rs:

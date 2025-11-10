@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CogState"],"struct":["CogStep","Task"]};

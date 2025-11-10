@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "description": "ISO timestamp"
+          },
+          "level": {
+            "type": "string",
+            "enum": ["info", "debug", "warn", "error"],
+            "description": "Log level"
+          },
+          "message": {
+            "type": "string",
+            "description": "Log message"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata"
+          }
+        },
+        "required": ["timestamp", "level", "message"]
+      },
+      "description": "Log entries"
+    }
+  },
+  "required": ["entries"]
+}

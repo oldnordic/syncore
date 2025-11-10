@@ -1,0 +1,1 @@
+{"rustc":11410426090777951712,"features":"","declared_features":"","target":0,"profile":0,"path":0,"deps":[[12832915883349295919,"build_script_build",false,12116036992556813068]],"local":[{"RerunIfChanged":{"output":"debug/build/serde_json-7a85958d83a19cbd/output","paths":["build.rs"]}}],"rustflags":["-L","/home/feanor/.local/lib"],"config":0,"compile_kind":0}

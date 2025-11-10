@@ -1,0 +1,79 @@
+   0.088313473s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("syncore", ["lib"], "/home/feanor/Projects/SynCore/syncore/src/lib.rs", Edition2021) }
+   0.088326553s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.092623214s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { name_inferred: true, ..: lib_target("syncore", ["lib"], "/home/feanor/Projects/SynCore/syncore/src/lib.rs", Edition2021) }
+   0.092630014s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.093032554s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: false }/TargetInner { name: "syncore", doc: true, ..: with_path("/home/feanor/Projects/SynCore/syncore/src/main.rs", Edition2021) }
+   0.093037484s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.093403465s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { name: "syncore", doc: true, ..: with_path("/home/feanor/Projects/SynCore/syncore/src/main.rs", Edition2021) }
+   0.093412195s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="syncore"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.093775145s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="cognition_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "cognition_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/cognition_tests.rs", Edition2021) }
+   0.093779415s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="cognition_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.094136305s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="crud_fk_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "crud_fk_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/crud_fk_tests.rs", Edition2021) }
+   0.094140065s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="crud_fk_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.094526475s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="e2e_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "e2e_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/e2e_tests.rs", Edition2021) }
+   0.094531815s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="e2e_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.094896595s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="integration_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "integration_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/integration_tests.rs", Edition2021) }
+   0.094900585s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="integration_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.095272025s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="mcp_crud_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "mcp_crud_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/mcp_crud_tests.rs", Edition2021) }
+   0.095275715s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="mcp_crud_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.096202986s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="mcp_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "mcp_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/mcp_tests.rs", Edition2021) }
+   0.096209266s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="mcp_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.096592156s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="memory_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "memory_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/memory_tests.rs", Edition2021) }
+   0.096596396s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="memory_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.096954926s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="minimal_crud_test"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "minimal_crud_test", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/minimal_crud_test.rs", Edition2021) }
+   0.096958666s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="minimal_crud_test"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.097314156s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="protocol_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "protocol_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/protocol_tests.rs", Edition2021) }
+   0.097317806s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="protocol_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.097678206s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="sequential_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "sequential_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/sequential_tests.rs", Edition2021) }
+   0.097682186s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="sequential_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.098042606s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="simple_crud_test"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "simple_crud_test", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/simple_crud_test.rs", Edition2021) }
+   0.098046326s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="simple_crud_test"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+   0.098463886s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="standalone_test"}: cargo::core::compiler::fingerprint: fingerprint error for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "standalone_test", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/standalone_test.rs", Edition2021) }
+   0.098468546s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="standalone_test"}: cargo::core::compiler::fingerprint:     err: failed to read `/home/feanor/Projects/SynCore/syncore/target/debug/.fingerprint/syncore-e5f305b90b83b82e/test-integration-test-standalone_test`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: cargo_util::paths::read_bytes
+   1: cargo_util::paths::read
+   2: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   3: cargo::core::compiler::fingerprint::prepare_target
+   4: cargo::core::compiler::compile
+   5: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   6: cargo::ops::cargo_compile::compile_ws
+   7: cargo::ops::cargo_compile::compile_with_exec
+   8: cargo::ops::cargo_compile::compile
+   9: cargo::commands::check::exec
+  10: <cargo::cli::Exec>::exec
+  11: cargo::main
+  12: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  13: std::rt::lang_start::<()>::{closure#0}
+  14: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/core/src/ops/function.rs:284:13
+  15: std::panicking::try::do_call
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/panicking.rs:589:40
+  16: std::panicking::try
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/panicking.rs:552:19
+  17: std::panic::catch_unwind
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/panic.rs:359:14
+  18: std::rt::lang_start_internal::{{closure}}
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/rt.rs:168:24
+  19: std::panicking::try::do_call
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/panicking.rs:589:40
+  20: std::panicking::try
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/panicking.rs:552:19
+  21: std::panic::catch_unwind
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/panic.rs:359:14
+  22: std::rt::lang_start_internal
+             at /rustc/6b00bc3880198600130e1cf62b8f8a93494488cc/library/std/src/rt.rs:164:5
+  23: main
+  24: <unknown>
+  25: __libc_start_main
+  26: <unknown>
+   0.104214508s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="taskmaster_tests"}: cargo::core::compiler::fingerprint: fingerprint dirty for syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)/Check { test: true }/TargetInner { kind: "test", name: "taskmaster_tests", benched: false, ..: with_path("/home/feanor/Projects/SynCore/syncore/tests/taskmaster_tests.rs", Edition2021) }
+   0.104220468s  INFO prepare_target{force=false package_id=syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore) target="taskmaster_tests"}: cargo::core::compiler::fingerprint:     dirty: FsStatusOutdated(Stale)
+    Checking syncore v0.1.0 (/home/feanor/Projects/SynCore/syncore)
+error: could not compile `syncore` (lib) due to 8 previous errors; 16 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `syncore` (lib test) due to 8 previous errors; 17 warnings emitted

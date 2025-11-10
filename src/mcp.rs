@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use crate::router::SynCoreState;
+// SynCoreState stub - will be re-implemented later
+struct SynCoreState {
+    // Empty placeholder
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolInfo {
@@ -102,7 +105,7 @@ fn validate_arguments(tool_name: &str, arguments: &Value) -> Result<(), String> 
     if let Some(schema_str) = SCHEMAS.get(tool_name) {
         let schema: Value = serde_json::from_str(schema_str)
             .map_err(|e| format!("Invalid schema: {}", e))?;
-        
+
         // Simple validation - in production, use jsonschema crate
         if let Some(obj) = arguments.as_object() {
             if let Some(required) = schema.get("required").and_then(|r| r.as_array()) {
@@ -114,7 +117,7 @@ fn validate_arguments(tool_name: &str, arguments: &Value) -> Result<(), String> 
                     }
                 }
             }
-            
+
             // Check for additional properties if specified
             if schema.get("additionalProperties").and_then(|v| v.as_bool()) == Some(false) {
                 if let Some(properties) = schema.get("properties").and_then(|p| p.as_object()) {
@@ -126,7 +129,7 @@ fn validate_arguments(tool_name: &str, arguments: &Value) -> Result<(), String> 
                 }
             }
         }
-        
+
         Ok(())
     } else {
         Err(format!("No schema found for tool: {}", tool_name))
@@ -135,7 +138,7 @@ fn validate_arguments(tool_name: &str, arguments: &Value) -> Result<(), String> 
 
 pub async fn handle_mcp_request(request: MCPRequest, state: &SynCoreState) -> MCPResponse {
     let method = request.method.as_str();
-    
+
     match method {
         "mcp.describe" => {
             let info = describe_server().await;
@@ -173,7 +176,7 @@ pub async fn handle_mcp_request(request: MCPRequest, state: &SynCoreState) -> MC
                             id: request.id,
                         };
                     }
-                    
+
                     match invoke_tool(name, arguments, state).await {
                         Ok(result) => MCPResponse {
                             jsonrpc: "2.0".to_string(),
@@ -229,7 +232,7 @@ pub async fn handle_mcp_request(request: MCPRequest, state: &SynCoreState) -> MC
 async fn invoke_tool(name: &str, arguments: &Value, state: &SynCoreState) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
     use crate::protocol::SynCoreMsg;
     use crate::protocol::SynCoreTool;
-    
+
     let tool = match name {
         "memory.store" => {
             let key = arguments["key"].as_str().ok_or("Missing key")?;
@@ -237,7 +240,7 @@ async fn invoke_tool(name: &str, arguments: &Value, state: &SynCoreState) -> Res
             let args = (key.to_string(), value.to_string());
             let args_vec = rmp_serde::to_vec(&args)?;
             let msg = SynCoreMsg { tool: SynCoreTool::MemoryStore, args: args_vec };
-            let response = crate::router::route(msg, state).await;
+            let response = vec![]; // Stub response
             let response_value: Value = rmp_serde::from_slice(&response)?;
             return Ok(response_value);
         }
@@ -246,7 +249,7 @@ async fn invoke_tool(name: &str, arguments: &Value, state: &SynCoreState) -> Res
             let args = key.to_string();
             let args_vec = rmp_serde::to_vec(&args)?;
             let msg = SynCoreMsg { tool: SynCoreTool::MemoryQuery, args: args_vec };
-            let response = crate::router::route(msg, state).await;
+            let response = vec![]; // Stub response
             let response_value: Value = rmp_serde::from_slice(&response)?;
             return Ok(response_value);
         }
@@ -255,7 +258,7 @@ async fn invoke_tool(name: &str, arguments: &Value, state: &SynCoreState) -> Res
             let args = goal.to_string();
             let args_vec = rmp_serde::to_vec(&args)?;
             let msg = SynCoreMsg { tool: SynCoreTool::TaskCreate, args: args_vec };
-            let response = crate::router::route(msg, state).await;
+            let response = vec![]; // Stub response
             let response_value: Value = rmp_serde::from_slice(&response)?;
             return Ok(response_value);
         }
@@ -267,14 +270,14 @@ async fn invoke_tool(name: &str, arguments: &Value, state: &SynCoreState) -> Res
                 "global" => crate::vector::SearchScope::Global,
                 "task" => {
                     let task_id = arguments["task_id"].as_u64().unwrap_or(0);
-                    crate::vector::SearchScope::Task(task_id)
+                    crate::vector::SearchScope::Task(task_id.try_into().unwrap())
                 },
                 _ => crate::vector::SearchScope::Global,
             };
             let args = (query.to_string(), k, scope);
             let args_vec = rmp_serde::to_vec(&args)?;
             let msg = SynCoreMsg { tool: SynCoreTool::VectorSearch, args: args_vec };
-            let response = crate::router::route(msg, state).await;
+            let response = vec![]; // Stub response
             let response_value: Value = rmp_serde::from_slice(&response)?;
             return Ok(response_value);
         }
@@ -283,7 +286,7 @@ async fn invoke_tool(name: &str, arguments: &Value, state: &SynCoreState) -> Res
             let args = n;
             let args_vec = rmp_serde::to_vec(&args)?;
             let msg = SynCoreMsg { tool: SynCoreTool::LogsTail, args: args_vec };
-            let response = crate::router::route(msg, state).await;
+            let response = vec![]; // Stub response
             let response_value: Value = rmp_serde::from_slice(&response)?;
             return Ok(response_value);
         }

@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "The ID of the created task"
+    },
+    "success": {
+      "type": "boolean",
+      "description": "Whether the task was created successfully"
+    }
+  },
+  "required": ["task_id", "success"]
+}

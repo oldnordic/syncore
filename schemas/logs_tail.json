@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "n": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 10,
+      "description": "Number of log entries to return"
+    },
+    "since_ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp - only return entries after this time"
+    }
+  },
+  "required": []
+}

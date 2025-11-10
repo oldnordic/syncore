@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["MarkdownLogger"],"trait":["CogLogger"]};

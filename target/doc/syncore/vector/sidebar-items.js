@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SearchScope"],"struct":["MockEmbeddings","VectorMeta","VectorStore"],"trait":["Embeddings"]};

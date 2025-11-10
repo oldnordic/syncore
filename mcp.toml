@@ -1,0 +1,15 @@
+[server]
+name = "syncore"
+version = "0.1.0"
+description = "SynCore Cognitive Micro-Kernel - Sequential thinking, memory, and task management"
+
+[transport]
+type = "tcp"
+host = "127.0.0.1"
+port = 8080
+
+[capabilities]
+tools = true
+logging = true
+prompts = false
+resources = false

@@ -45,38 +45,35 @@ impl TaskMaster {
         Ok(db.last_insert_rowid())
     }
 
-    pub fn update_task(&self, id: i64, status: Option<&str>, priority: Option<i32>, desc: Option<&str>) -> Result<()> {
-        let db = self.db.lock().unwrap();
+    pub fn update_task(db: &Connection, id: i64, status: Option<&str>, prio: Option<i32>, desc: Option<&str>) -> Result<()> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs() as i64;
 
-        let mut query = "UPDATE tasks SET updated_at = ?1".to_string();
-        let mut params: Vec<&dyn rusqlite::ToSql> = vec![&now];
+        let mut query_parts = vec!["UPDATE tasks SET updated_at = ?1"];
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(now), Box::new(id)];
         let mut param_count = 2;
 
         if let Some(s) = status {
-            query.push_str(&format!(", status = ?{}", param_count));
-            params.push(s);
+            query_parts.push(&format!(", status = ?{}", param_count));
+            params.push(Box::new(s.to_string()));
             param_count += 1;
         }
 
-        if let Some(p) = priority {
-            query.push_str(&format!(", priority = ?{}", param_count));
-            params.push(&p);
+        if let Some(p) = prio {
+            query_parts.push(&format!(", priority = ?{}", param_count));
+            params.push(Box::new(p));
             param_count += 1;
         }
 
         if let Some(d) = desc {
-            query.push_str(&format!(", description = ?{}", param_count));
-            params.push(d);
+            query_parts.push(&format!(", description = ?{}", param_count));
+            params.push(Box::new(d.to_string()));
             param_count += 1;
         }
 
-        query.push_str(&format!(" WHERE id = ?{}", param_count));
-        params.push(&id);
-
+        let query = query_parts.join("");
         db.execute(&query, rusqlite::params_from_iter(params))?;
         Ok(())
     }
@@ -102,7 +99,7 @@ impl TaskMaster {
 
         if let Some(min_prio) = min_prio {
             query.push_str(&format!(" AND priority <= ?{}", params.len() + 1));
-            params.push(&min_prio);
+            params.push(min_prio);
         }
 
         query.push_str(" ORDER BY priority ASC, created_at ASC LIMIT 1");
@@ -211,24 +208,24 @@ pub fn update_task(db: &Connection, id: i64, status: Option<&str>, prio: Option<
         .as_secs() as i64;
 
     let mut query = "UPDATE tasks SET updated_at = ?1".to_string();
-    let mut params: Vec<&dyn rusqlite::ToSql> = vec![&now];
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
     let mut param_count = 2;
 
     if let Some(s) = status {
         query.push_str(&format!(", status = ?{}", param_count));
-        params.push(&s);
+        params.push(Box::new(s.to_string()));
         param_count += 1;
     }
 
     if let Some(p) = prio {
         query.push_str(&format!(", priority = ?{}", param_count));
-        params.push(&p);
+        params.push(Box::new(p));
         param_count += 1;
     }
 
     if let Some(d) = desc {
         query.push_str(&format!(", description = ?{}", param_count));
-        params.push(&d);
+        params.push(Box::new(d.to_string()));
         param_count += 1;
     }
 
@@ -240,28 +237,31 @@ pub fn update_task(db: &Connection, id: i64, status: Option<&str>, prio: Option<
 }
 
 pub fn next_task(db: &Connection, statuses: Option<&[&str]>, min_prio: Option<i32>) -> Result<Option<Task>> {
-    let mut query = "
-        SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
-        FROM tasks
-        WHERE status != 'done' AND status != 'cancelled'
-    ".to_string();
-
-    let mut params: Vec<&dyn rusqlite::ToSql> = vec![];
+    let mut query_parts = vec![
+        "SELECT id, goal, description, status, priority, parent_id, created_at, updated_at",
+        "FROM tasks",
+        "WHERE status != 'done' AND status != 'cancelled'"
+    ];
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
+    let mut param_count = 2;
 
     if let Some(statuses) = statuses {
         let placeholders: Vec<String> = statuses.iter().enumerate()
             .map(|(i, _)| format!("?{}", i + 1))
             .collect();
-        query.push_str(&format!(" AND status IN ({})", placeholders.join(", ")));
-        params.extend(statuses.iter().map(|s| s as &dyn rusqlite::ToSql));
+        query_parts.push(&format!("AND status IN ({})", placeholders.join(", ")));
+        for s in statuses {
+            params.push(Box::new(s.to_string()));
+        }
     }
 
     if let Some(min_prio) = min_prio {
-        query.push_str(&format!(" AND priority <= ?{}", params.len() + 1));
-        params.push(&min_prio);
+        query_parts.push(&format!("AND priority <= ?{}", params.len() + 1));
+        params.push(Box::new(min_prio));
     }
 
-    query.push_str(" ORDER BY priority ASC, created_at ASC LIMIT 1");
+    let query = query_parts.join(" ");
+    query_parts.push("ORDER BY priority ASC, created_at ASC LIMIT 1");
 
     let mut stmt = db.prepare(&query)?;
     let task = stmt.query_row(rusqlite::params_from_iter(params), |row| {
