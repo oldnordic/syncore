@@ -1,4 +1,0 @@
-name = "logs.tail"
-description = "Returns the last N entries from the markdown logs"
-input_schema = "schemas/logs_tail.json"
-output_schema = "schemas/log_entries.json"

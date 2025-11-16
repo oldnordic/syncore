@@ -1,4 +1,0 @@
-name = "memory.store"
-description = "Stores a key-value pair into SynCore's memory"
-input_schema = "schemas/memory_store.json"
-output_schema = "schemas/ok.json"

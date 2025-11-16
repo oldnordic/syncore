@@ -1,3 +1,0 @@
-socket_path = "/tmp/syncore.sock"
-db_path = "syncore.db"
-cache_path = "cache"

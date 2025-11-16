@@ -1,4 +1,0 @@
-name = "task.create"
-description = "Creates a new task with a goal"
-input_schema = "schemas/task_create.json"
-output_schema = "schemas/task_id.json"

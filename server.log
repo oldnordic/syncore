@@ -1,6 +1,0 @@
-SynCore mcp server listening on 127.0.0.1:8080
-Metrics available on 127.0.0.1:9090
-Daily backups enabled
-Autonomy features active (heartbeat, nudges)
-✅ Created backup: backups/2025-11-10.tar.gz
-Failed to deserialize MCP request: expected value at line 1 column 1

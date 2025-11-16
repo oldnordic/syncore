@@ -1,4 +1,0 @@
-name = "memory.query"
-description = "Queries a value from SynCore's memory by key"
-input_schema = "schemas/memory_query.json"
-output_schema = "schemas/memory_value.json"

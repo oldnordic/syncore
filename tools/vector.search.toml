@@ -1,4 +1,0 @@
-name = "vector.search"
-description = "Searches vector memory for semantically similar content"
-input_schema = "schemas/vector_search.json"
-output_schema = "schemas/vector_results.json"
