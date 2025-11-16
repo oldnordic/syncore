@@ -1,0 +1,17 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "statuses": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Optional filter for task statuses"
+        },
+        "min_prio": {
+            "type": "integer",
+            "description": "Optional minimum priority filter"
+        }
+    }
+}

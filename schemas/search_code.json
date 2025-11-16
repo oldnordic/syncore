@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Search Code",
+  "description": "Search for patterns in source code files using ripgrep with context",
+  "type": "object",
+  "properties": {
+    "pattern": {
+      "type": "string",
+      "description": "Regular expression pattern to search for"
+    },
+    "directory": {
+      "type": "string",
+      "description": "Directory path to search in (defaults to current directory)"
+    },
+    "file_types": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "File types to include in search (e.g., ['rust', 'python', 'javascript'])",
+      "default": []
+    },
+    "context_lines": {
+      "type": "integer",
+      "description": "Number of context lines to include around matches",
+      "default": 2,
+      "minimum": 0,
+      "maximum": 10
+    },
+    "case_sensitive": {
+      "type": "boolean",
+      "description": "Whether the search should be case sensitive",
+      "default": false
+    },
+    "max_results": {
+      "type": "integer",
+      "description": "Maximum number of results to return",
+      "default": 50,
+      "minimum": 1,
+      "maximum": 200
+    }
+  },
+  "required": ["pattern"]
+}

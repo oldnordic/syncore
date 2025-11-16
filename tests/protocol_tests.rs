@@ -18,7 +18,7 @@ fn test_protocol_serialization() {
     // Verify the tool matches
     match deserialized.tool {
         SynCoreTool::MemoryStore => {}, // Expected
-        _ => panic!("Expected MemoryStore tool"),
+        _ => assert!(false, "Expected MemoryStore tool"),
     }
     
     // Verify the args can be deserialized back
@@ -45,7 +45,7 @@ fn test_protocol_memory_query() {
     // Verify the tool matches
     match deserialized.tool {
         SynCoreTool::MemoryQuery => {}, // Expected
-        _ => panic!("Expected MemoryQuery tool"),
+        _ => assert!(false, "Expected MemoryQuery tool"),
     }
     
     // Verify the args can be deserialized back

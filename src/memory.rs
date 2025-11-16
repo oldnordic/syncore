@@ -3,6 +3,7 @@ use sled::Db;
 use std::sync::{Arc, Mutex};
 use anyhow::Result;
 
+#[derive(Debug)]
 pub struct Memory {
     db: Arc<Mutex<Connection>>,
     cache: Arc<Db>,
@@ -26,9 +27,30 @@ impl Memory {
         // Create unique cache directory based on the database path
         let cache_path = format!("{}_cache", db_path);
 
+        // Try to open cache, if corrupted, clean it and try again
+        let cache = match sled::open(&cache_path) {
+            Ok(cache) => cache,
+            Err(e) => {
+                // Check if it's a corruption error and clean up if needed
+                if e.to_string().contains("corrupted") || e.to_string().contains("offset None") {
+                    eprintln!("Warning: Cache corrupted, attempting cleanup: {}", e);
+                    // Remove corrupted cache directory
+                    if let Err(cleanup_err) = std::fs::remove_dir_all(&cache_path) {
+                        eprintln!("Failed to remove corrupted cache: {}", cleanup_err);
+                    }
+                    // Try to create fresh cache
+                    sled::open(&cache_path).map_err(|err| {
+                        anyhow::anyhow!("Failed to create fresh cache after cleanup: {}", err)
+                    })?
+                } else {
+                    return Err(anyhow::anyhow!("Failed to open cache: {}", e));
+                }
+            }
+        };
+
         Ok(Self {
             db: Arc::new(Mutex::new(conn)),
-            cache: Arc::new(sled::open(cache_path)?),
+            cache: Arc::new(cache),
         })
     }
 

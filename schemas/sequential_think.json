@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "type": "integer",
+      "description": "Optional specific task ID to run sequential thinking on. If not provided, will use the next available task."
+    },
+    "context": {
+      "type": "string",
+      "description": "Additional context to provide for the thinking process"
+    },
+    "iterations": {
+      "type": "integer",
+      "description": "Number of thinking cycles to run (default: 1)",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 10
+    }
+  },
+  "description": "Parameters for sequential thinking cognitive cycle"
+}

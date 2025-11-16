@@ -4,7 +4,7 @@ pub mod router;
 pub mod config;
 pub mod cli;
 pub mod cognition;
-pub mod taskmaster;
+pub mod tasks;
 pub mod sequential;
 pub mod logger;
 pub mod vector;
@@ -15,8 +15,24 @@ pub mod cognitive;
 pub mod autonomy;
 pub mod db;
 pub mod cognitive_db;
+pub mod mcp_stdio;
+pub mod mcp_server;
+pub mod parser;
+pub mod ollama;
+pub mod intellitask;
+pub mod circuit_breaker;
+pub mod meta_cognition;
+pub mod code_graph;
+pub mod code_explainer;
+pub mod code_directory_indexer;
+pub mod intellitask_persistence;
+pub mod schema_migration;
+pub mod global_store;
+pub mod document_indexer;
 
-// Re-export the exact functions users requested
-pub use taskmaster::{add_task, update_task, next_task, link_tasks};
+// Re-export exact functions users requested
+pub use tasks::{add_task, update_task, next_task, link_tasks};
+pub use mcp_stdio::run_stdio_server;
+pub use mcp_server::run_mcp_stdio_server;
 pub use cognitive_db::{store_step, recent_steps};
 pub use vector::{insert_text, search};

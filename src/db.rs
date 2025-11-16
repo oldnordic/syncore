@@ -1,6 +1,7 @@
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use std::path::Path;
+use crate::schema_migration;
 
 pub fn open_db_with_wal(path: &str) -> rusqlite::Result<Connection> {
     let db = Connection::open(path)?;
@@ -8,6 +9,12 @@ pub fn open_db_with_wal(path: &str) -> rusqlite::Result<Connection> {
     db.pragma_update(None, "synchronous", &"NORMAL")?;
     db.pragma_update(None, "cache_size", &1000)?;
     db.pragma_update(None, "foreign_keys", &"ON")?;
+
+    // Auto-migrate schema to current version
+    // Migration failure is critical - database would be in inconsistent state
+    schema_migration::run_migrations(&db)
+        .expect("Failed to run schema migrations - database may be corrupted");
+
     Ok(db)
 }
 
@@ -35,6 +42,21 @@ pub fn ensure_schema(db_path: &str) -> anyhow::Result<()> {
         }
     }
 
+    // Check if code_entities table exists for code graph migration
+    let mut stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='code_entities'")?;
+    let has_code_entities = stmt.exists([])?;
+
+    if !has_code_entities {
+        // Run the v2 code graph migration
+        let migration_path = "migrations/02_code_graph.sql";
+        if Path::new(migration_path).exists() {
+            run_migration(&db, migration_path)?;
+        } else {
+            // Fallback: create code graph schema inline
+            db.execute_batch(include_str!("../migrations/02_code_graph.sql"))?;
+        }
+    }
+
     Ok(())
 }
 
@@ -52,7 +74,7 @@ impl DbPool {
         })
     }
 
-    pub fn get(&self) -> std::sync::MutexGuard<Connection> {
+    pub fn get(&self) -> std::sync::MutexGuard<'_, Connection> {
         self.conn.lock().unwrap()
     }
 }

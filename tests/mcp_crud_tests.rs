@@ -1,4 +1,4 @@
-use syncore::{taskmaster, cognitive_db};
+use syncore::{tasks, cognitive_db};
 use rusqlite::Connection;
 use std::fs;
 
@@ -17,11 +17,11 @@ fn mcp_create_task_tool_ok() {
     let priority = 2;
     let parent = None;
 
-    let task_id = taskmaster::add_task(&conn, goal, description, priority, parent).unwrap();
+    let task_id = tasks::add_task(&conn, goal, description, priority, parent).unwrap();
     assert!(task_id > 0);
 
     // Verify task was created correctly
-    let task = taskmaster::next_task(&conn, None, None).unwrap().unwrap();
+    let task = tasks::next_task(&conn, None, None).unwrap().unwrap();
     assert_eq!(task.id, task_id);
     assert_eq!(task.goal, goal);
     assert_eq!(task.description, description);
@@ -44,10 +44,10 @@ fn mcp_update_task_tool_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create a task first
-    let task_id = taskmaster::add_task(&conn, "Original task", "Original description", 3, None).unwrap();
+    let task_id = tasks::add_task(&conn, "Original task", "Original description", 3, None).unwrap();
 
     // Simulate MCP tool call to update task status
-    taskmaster::update_task(&conn, task_id, Some("running"), None, None).unwrap();
+    tasks::update_task(&conn, task_id, Some("running"), None, None).unwrap();
 
     // Verify status update
     let status = conn.query_row(
@@ -58,7 +58,7 @@ fn mcp_update_task_tool_ok() {
     assert_eq!(status, "running");
 
     // Update description and priority
-    taskmaster::update_task(&conn, task_id, None, Some(1), Some("Updated description")).unwrap();
+    tasks::update_task(&conn, task_id, None, Some(1), Some("Updated description")).unwrap();
 
     // Verify updates
     let updated = conn.query_row(
@@ -84,34 +84,33 @@ fn mcp_next_task_tool_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create multiple tasks with different priorities
-    let low_id = taskmaster::add_task(&conn, "Low priority", "Description", 5, None).unwrap();
-    let high_id = taskmaster::add_task(&conn, "High priority", "Description", 1, None).unwrap();
-    let medium_id = taskmaster::add_task(&conn, "Medium priority", "Description", 3, None).unwrap();
+    let low_id = tasks::add_task(&conn, "Low priority", "Description", 5, None).unwrap();
+    let high_id = tasks::add_task(&conn, "High priority", "Description", 1, None).unwrap();
+    let medium_id = tasks::add_task(&conn, "Medium priority", "Description", 3, None).unwrap();
 
     // Test basic next_task (should return highest priority)
-    let next = taskmaster::next_task(&conn, None, None).unwrap();
+    let next = tasks::next_task(&conn, None, None).unwrap();
     assert!(next.is_some());
     assert_eq!(next.unwrap().id, high_id);
 
     // Test with status filter
-    let open_tasks = taskmaster::next_task(&conn, Some(&["open"]), None).unwrap();
+    let open_tasks = tasks::next_task(&conn, Some(&["open"]), None).unwrap();
     assert!(open_tasks.is_some());
 
     // Mark high priority as done
-    taskmaster::update_task(&conn, high_id, Some("done"), None, None).unwrap();
+    tasks::update_task(&conn, high_id, Some("done"), None, None).unwrap();
 
     // Should now return medium priority
-    let next = taskmaster::next_task(&conn, None, None).unwrap();
+    let next = tasks::next_task(&conn, None, None).unwrap();
     assert!(next.is_some());
     assert_eq!(next.unwrap().id, medium_id);
 
-    // Test with min_prio filter
-    let high_prio_only = taskmaster::next_task(&conn, None, Some(2)).unwrap();
-    assert!(high_prio_only.is_some());
-    assert_eq!(high_prio_only.unwrap().id, medium_id);
+    // Test with min_prio filter - should return no results since medium and low both > 2
+    let high_prio_only = tasks::next_task(&conn, None, Some(2)).unwrap();
+    assert!(high_prio_only.is_none());
 
     // Test with priority too high
-    let no_results = taskmaster::next_task(&conn, None, Some(0)).unwrap();
+    let no_results = tasks::next_task(&conn, None, Some(0)).unwrap();
     assert!(no_results.is_none());
 
     // Clean up
@@ -129,11 +128,11 @@ fn mcp_link_tasks_tool_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create two tasks
-    let task_a_id = taskmaster::add_task(&conn, "Task A", "Prerequisite", 1, None).unwrap();
-    let task_b_id = taskmaster::add_task(&conn, "Task B", "Dependent", 2, None).unwrap();
+    let task_a_id = tasks::add_task(&conn, "Task A", "Prerequisite", 1, None).unwrap();
+    let task_b_id = tasks::add_task(&conn, "Task B", "Dependent", 2, None).unwrap();
 
     // Test depends_on link
-    taskmaster::link_tasks(&conn, task_b_id, task_a_id, "depends_on").unwrap();
+    tasks::link_tasks(&conn, task_b_id, task_a_id, "depends_on").unwrap();
 
     // Verify link exists
     let link_exists = conn.query_row(
@@ -144,7 +143,7 @@ fn mcp_link_tasks_tool_ok() {
     assert_eq!(link_exists, 1);
 
     // Test relates_to link
-    taskmaster::link_tasks(&conn, task_a_id, task_b_id, "relates_to").unwrap();
+    tasks::link_tasks(&conn, task_a_id, task_b_id, "relates_to").unwrap();
 
     // Verify second link
     let relates_link = conn.query_row(
@@ -155,7 +154,7 @@ fn mcp_link_tasks_tool_ok() {
     assert_eq!(relates_link, 1);
 
     // Test link replacement (should replace existing depends_on)
-    taskmaster::link_tasks(&conn, task_b_id, task_a_id, "depends_on").unwrap();
+    tasks::link_tasks(&conn, task_b_id, task_a_id, "depends_on").unwrap();
 
     // Should still only have one depends_on link
     let depends_count = conn.query_row(
@@ -180,7 +179,7 @@ fn mcp_cognitive_step_tool_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create a task
-    let task_id = taskmaster::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
+    let task_id = tasks::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
 
     // Test storing different step types
     let think_id = cognitive_db::store_step(&conn, Some(task_id), "Think", "Analyzing the problem", "{\"context\": \"initial\"}").unwrap();
@@ -193,16 +192,23 @@ fn mcp_cognitive_step_tool_ok() {
     assert!(act_id > decide_id);
 
     // Test retrieving recent steps
-    let recent = cognitive_db::recent_steps(&conn, task_id, 2).unwrap();
-    assert_eq!(recent.len(), 2);
+    let recent = cognitive_db::recent_steps(&conn, task_id, 3).unwrap();
+    assert_eq!(recent.len(), 3);
 
     // Should be in reverse chronological order
     assert_eq!(recent[0].state, "Act");
     assert_eq!(recent[1].state, "Decide");
+    assert_eq!(recent[2].state, "Think");
 
     // Verify metadata is preserved
-    let think_meta: serde_json::Value = serde_json::from_str(&recent[1].meta_json).unwrap();
+    let think_meta: serde_json::Value = serde_json::from_str(&recent[2].meta_json).unwrap();
     assert_eq!(think_meta["context"], "initial");
+
+    let decide_meta: serde_json::Value = serde_json::from_str(&recent[1].meta_json).unwrap();
+    assert_eq!(decide_meta["decision"], "use_algorithm_x");
+
+    let act_meta: serde_json::Value = serde_json::from_str(&recent[0].meta_json).unwrap();
+    assert_eq!(act_meta["action"], "code_written");
 
     // Test steps without task association
     let global_step_id = cognitive_db::store_step(&conn, None, "Think", "Global thinking session", "{}").unwrap();

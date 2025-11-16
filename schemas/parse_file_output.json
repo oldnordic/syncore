@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parse File Output",
+  "description": "Output structure for parsed source code file",
+  "type": "object",
+  "properties": {
+    "file_path": {
+      "type": "string",
+      "description": "Path to the parsed file"
+    },
+    "language": {
+      "type": "string",
+      "description": "Detected programming language"
+    },
+    "functions": {
+      "type": "array",
+      "description": "List of functions found in the file",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Function name"
+          },
+          "line_number": {
+            "type": "integer",
+            "description": "Line number where function is defined"
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of parameter names"
+          },
+          "return_type": {
+            "type": "string",
+            "description": "Return type of the function"
+          },
+          "docstring": {
+            "type": "string",
+            "description": "Documentation string for the function"
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Visibility modifier (pub, private, etc.)"
+          }
+        }
+      }
+    },
+    "classes": {
+      "type": "array",
+      "description": "List of classes found in the file",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Class name"
+          },
+          "line_number": {
+            "type": "integer",
+            "description": "Line number where class is defined"
+          },
+          "methods": {
+            "type": "array",
+            "description": "List of methods in the class",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Method name"
+                },
+                "line_number": {
+                  "type": "integer",
+                  "description": "Line number where method is defined"
+                },
+                "parameters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of parameter names"
+                },
+                "return_type": {
+                  "type": "string",
+                  "description": "Return type of the method"
+                },
+                "docstring": {
+                  "type": "string",
+                  "description": "Documentation string for the method"
+                },
+                "visibility": {
+                  "type": "string",
+                  "description": "Visibility modifier"
+                }
+              }
+            }
+          },
+          "fields": {
+            "type": "array",
+            "description": "List of fields in the class",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Field name"
+                },
+                "line_number": {
+                  "type": "integer",
+                  "description": "Line number where field is defined"
+                },
+                "var_type": {
+                  "type": "string",
+                  "description": "Type of the field"
+                },
+                "value": {
+                  "type": "string",
+                  "description": "Initial value of the field"
+                },
+                "visibility": {
+                  "type": "string",
+                  "description": "Visibility modifier"
+                }
+              }
+            }
+          },
+          "docstring": {
+            "type": "string",
+            "description": "Documentation string for the class"
+          }
+        }
+      }
+    },
+    "imports": {
+      "type": "array",
+      "description": "List of imports found in the file",
+      "items": {
+        "type": "object",
+        "properties": {
+          "module": {
+            "type": "string",
+            "description": "Module being imported"
+          },
+          "alias": {
+            "type": "string",
+            "description": "Alias for the imported module"
+          },
+          "line_number": {
+            "type": "integer",
+            "description": "Line number where import is located"
+          },
+          "import_type": {
+            "type": "string",
+            "description": "Type of import (use, import, from_import, etc.)"
+          }
+        }
+      }
+    },
+    "variables": {
+      "type": "array",
+      "description": "List of variables found in the file",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Variable name"
+          },
+          "line_number": {
+            "type": "integer",
+            "description": "Line number where variable is defined"
+          },
+          "var_type": {
+            "type": "string",
+            "description": "Type of the variable"
+          },
+          "value": {
+            "type": "string",
+            "description": "Initial value of the variable"
+          },
+          "visibility": {
+            "type": "string",
+            "description": "Visibility modifier"
+          }
+        }
+      }
+    }
+  },
+  "required": ["file_path", "language", "functions", "classes", "imports", "variables"]
+}

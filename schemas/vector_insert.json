@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["id", "text", "kind"],
+  "properties": {
+    "id": { 
+      "type": "integer", 
+      "minimum": 1,
+      "description": "Unique identifier for the vector"
+    },
+    "text": { 
+      "type": "string", 
+      "minLength": 1,
+      "description": "The text content to embed and store"
+    },
+    "kind": { 
+      "type": "string", 
+      "enum": ["note", "task", "log", "code"],
+      "default": "note",
+      "description": "Type of content being stored"
+    },
+    "task_id": { 
+      "type": "integer", 
+      "minimum": 0,
+      "description": "Optional task ID to associate this vector with"
+    }
+  }
+}

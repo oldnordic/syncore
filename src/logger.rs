@@ -3,7 +3,7 @@ use std::io::{BufReader, BufWriter, Write, BufRead};
 use std::path::Path;
 use anyhow::Result;
 use chrono::{Local, NaiveDate};
-use crate::taskmaster::Task;
+use crate::tasks::Task;
 
 pub trait CogLogger: Send + Sync {
     fn log_step(&self, step: &crate::cognitive_db::Step, task: &Task) -> std::io::Result<()>;
@@ -191,7 +191,7 @@ impl CogLogger for MarkdownLogger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cognitive_db::{CogState, Step};
+    use crate::cognitive_db::Step;
     use std::fs;
     use tempfile::TempDir;
 

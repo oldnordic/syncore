@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-// SynCoreState stub - will be re-implemented later
-struct SynCoreState {
-    // Empty placeholder
-}
+pub use crate::router::SynCoreState;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ToolInfo {
@@ -57,6 +54,12 @@ pub async fn list_tools() -> Vec<ToolInfo> {
             output_schema: "schemas/task_id.json".into(),
         },
         ToolInfo {
+            name: "vector.insert".into(),
+            description: "Inserts text into vector memory for semantic search".into(),
+            input_schema: "schemas/vector_insert.json".into(),
+            output_schema: "schemas/vector_insert_response.json".into(),
+        },
+        ToolInfo {
             name: "vector.search".into(),
             description: "Searches vector memory for semantically similar content".into(),
             input_schema: "schemas/vector_search.json".into(),
@@ -68,6 +71,30 @@ pub async fn list_tools() -> Vec<ToolInfo> {
             input_schema: "schemas/logs_tail.json".into(),
             output_schema: "schemas/log_entries.json".into(),
         },
+        ToolInfo {
+            name: "parser.analyze".into(),
+            description: "Analyzes code structure and extracts functions, classes, imports, and variables".into(),
+            input_schema: "schemas/parse_file.json".into(),
+            output_schema: "schemas/parse_file_output.json".into(),
+        },
+        ToolInfo {
+            name: "parser.search".into(),
+            description: "Searches for patterns in code files using ripgrep".into(),
+            input_schema: "schemas/search_code.json".into(),
+            output_schema: "schemas/search_code_output.json".into(),
+        },
+        ToolInfo {
+            name: "code.explain".into(),
+            description: "Explains code using local Ollama LLM. Can explain specific functions or entire files.".into(),
+            input_schema: "schemas/code_explain.json".into(),
+            output_schema: "schemas/code_explain_output.json".into(),
+        },
+        ToolInfo {
+            name: "code.index_directory".into(),
+            description: "Index all code files in a directory matching a glob pattern. Extracts functions, classes, and relationships for semantic search.".into(),
+            input_schema: "schemas/code_index_directory.json".into(),
+            output_schema: "schemas/code_index_directory_output.json".into(),
+        },
     ]
 }
 
@@ -77,7 +104,7 @@ pub async fn describe_server() -> serde_json::Value {
         "version": env!("CARGO_PKG_VERSION"),
         "description": "Cognitive micro-kernel with sequential thinking, memory, and task management",
         "encodings": ["json", "msgpack"],
-        "tools_count": 5,
+        "tools_count": 6,
         "capabilities": {
             "memory": true,
             "vector_search": true,
@@ -95,8 +122,11 @@ lazy_static::lazy_static! {
         schemas.insert("memory.store".to_string(), include_str!("../schemas/memory_store.json").to_string());
         schemas.insert("memory.query".to_string(), include_str!("../schemas/memory_query.json").to_string());
         schemas.insert("task.create".to_string(), include_str!("../schemas/task_create.json").to_string());
+        schemas.insert("vector.insert".to_string(), include_str!("../schemas/vector_insert.json").to_string());
         schemas.insert("vector.search".to_string(), include_str!("../schemas/vector_search.json").to_string());
         schemas.insert("logs.tail".to_string(), include_str!("../schemas/logs_tail.json").to_string());
+        schemas.insert("parser.analyze".to_string(), include_str!("../schemas/parse_file.json").to_string());
+        schemas.insert("parser.search".to_string(), include_str!("../schemas/search_code.json").to_string());
         schemas
     };
 }
@@ -230,66 +260,92 @@ pub async fn handle_mcp_request(request: MCPRequest, state: &SynCoreState) -> MC
 }
 
 async fn invoke_tool(name: &str, arguments: &Value, state: &SynCoreState) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
-    use crate::protocol::SynCoreMsg;
-    use crate::protocol::SynCoreTool;
-
-    let tool = match name {
+    // Convert JSON arguments to MessagePack format for router
+    let args_vec = match name {
         "memory.store" => {
             let key = arguments["key"].as_str().ok_or("Missing key")?;
             let value = arguments["value"].as_str().ok_or("Missing value")?;
-            let args = (key.to_string(), value.to_string());
-            let args_vec = rmp_serde::to_vec(&args)?;
-            let msg = SynCoreMsg { tool: SynCoreTool::MemoryStore, args: args_vec };
-            let response = vec![]; // Stub response
-            let response_value: Value = rmp_serde::from_slice(&response)?;
-            return Ok(response_value);
+            rmp_serde::to_vec(&(key.to_string(), value.to_string()))?
         }
         "memory.query" => {
             let key = arguments["key"].as_str().ok_or("Missing key")?;
-            let args = key.to_string();
-            let args_vec = rmp_serde::to_vec(&args)?;
-            let msg = SynCoreMsg { tool: SynCoreTool::MemoryQuery, args: args_vec };
-            let response = vec![]; // Stub response
-            let response_value: Value = rmp_serde::from_slice(&response)?;
-            return Ok(response_value);
+            rmp_serde::to_vec(&key.to_string())?
         }
         "task.create" => {
             let goal = arguments["goal"].as_str().ok_or("Missing goal")?;
-            let args = goal.to_string();
-            let args_vec = rmp_serde::to_vec(&args)?;
-            let msg = SynCoreMsg { tool: SynCoreTool::TaskCreate, args: args_vec };
-            let response = vec![]; // Stub response
-            let response_value: Value = rmp_serde::from_slice(&response)?;
-            return Ok(response_value);
+            rmp_serde::to_vec(&goal.to_string())?
+        }
+        "vector.insert" => {
+            let id = arguments["id"].as_i64().ok_or("Missing id")?;
+            let task_id = arguments.get("task_id").and_then(|v| v.as_i64());
+            let text = arguments["text"].as_str().ok_or("Missing text")?;
+            let kind = arguments["kind"].as_str().unwrap_or("note");
+            rmp_serde::to_vec(&(id, task_id, text.to_string(), kind.to_string()))?
         }
         "vector.search" => {
             let query = arguments["query"].as_str().ok_or("Missing query")?;
             let k = arguments["k"].as_u64().unwrap_or(5) as usize;
-            let scope_str = arguments["scope"].as_str().unwrap_or("global");
-            let scope = match scope_str {
-                "global" => crate::vector::SearchScope::Global,
-                "task" => {
-                    let task_id = arguments["task_id"].as_u64().unwrap_or(0);
+            let scope = if let Some(scope_obj) = arguments.get("scope").and_then(|v| v.as_object()) {
+                if let Some(task_obj) = scope_obj.get("task").and_then(|v| v.as_object()) {
+                    let task_id = task_obj["task_id"].as_u64().ok_or("Missing task_id in task scope")?;
                     crate::vector::SearchScope::Task(task_id.try_into().unwrap())
-                },
-                _ => crate::vector::SearchScope::Global,
+                } else {
+                    return Err("Invalid scope format".into());
+                }
+            } else {
+                crate::vector::SearchScope::Global
             };
-            let args = (query.to_string(), k, scope);
-            let args_vec = rmp_serde::to_vec(&args)?;
-            let msg = SynCoreMsg { tool: SynCoreTool::VectorSearch, args: args_vec };
-            let response = vec![]; // Stub response
-            let response_value: Value = rmp_serde::from_slice(&response)?;
-            return Ok(response_value);
+            rmp_serde::to_vec(&(query.to_string(), k, scope))?
+        }
+        "graph.link" => {
+            let src_id = arguments["src_id"].as_i64().ok_or("Missing src_id")?;
+            let dst_id = arguments["dst_id"].as_i64().ok_or("Missing dst_id")?;
+            let kind = arguments["kind"].as_str().ok_or("Missing kind")?;
+            rmp_serde::to_vec(&(src_id, dst_id, kind.to_string()))?
+        }
+        "graph.query" => {
+            let task_id = arguments["task_id"].as_i64().ok_or("Missing task_id")?;
+            let direction = arguments["direction"].as_str().unwrap_or("both");
+            rmp_serde::to_vec(&(task_id, direction.to_string()))?
         }
         "logs.tail" => {
             let n = arguments["n"].as_u64().unwrap_or(10) as usize;
-            let args = n;
-            let args_vec = rmp_serde::to_vec(&args)?;
-            let msg = SynCoreMsg { tool: SynCoreTool::LogsTail, args: args_vec };
-            let response = vec![]; // Stub response
-            let response_value: Value = rmp_serde::from_slice(&response)?;
-            return Ok(response_value);
+            rmp_serde::to_vec(&n)?
+        }
+        "parser.analyze" => {
+            let file_path = arguments["file_path"].as_str().ok_or("Missing file_path")?;
+            rmp_serde::to_vec(&file_path.to_string())?
+        }
+        "parser.search" => {
+            let pattern = arguments["pattern"].as_str().ok_or("Missing pattern")?;
+            let directory = arguments.get("directory").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let context_lines = arguments.get("context_lines").and_then(|v| v.as_u64()).map(|n| n as usize);
+            rmp_serde::to_vec(&(pattern.to_string(), directory, context_lines))?
+        }
+        "code.explain" => {
+            use crate::code_explainer::ExplainRequest;
+            let request = ExplainRequest {
+                file_path: arguments["file_path"].as_str().ok_or("Missing file_path")?.to_string(),
+                function_name: arguments.get("function_name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                model: arguments.get("model").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            };
+            rmp_serde::to_vec(&request)?
+        }
+        "code.index_directory" => {
+            use crate::code_directory_indexer::DirectoryIndexRequest;
+            let request = DirectoryIndexRequest {
+                directory: arguments["directory"].as_str().ok_or("Missing directory")?.to_string(),
+                pattern: arguments["pattern"].as_str().ok_or("Missing pattern")?.to_string(),
+            };
+            rmp_serde::to_vec(&request)?
         }
         _ => return Err(format!("Unknown tool: {}", name).into()),
     };
+
+    // Use router to handle the tool call
+    let response_bytes = crate::router::route_tool(name, &args_vec, state)?;
+
+    // Convert MessagePack response back to JSON
+    let response_value: Value = rmp_serde::from_slice(&response_bytes)?;
+    Ok(response_value)
 }

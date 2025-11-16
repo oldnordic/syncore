@@ -1,5 +1,5 @@
-use syncore::{taskmaster, cognitive_db, vector};
-use rusqlite::Connection;
+use syncore::{tasks, cognitive_db, vector};
+use rusqlite::{Connection, OptionalExtension};
 use std::fs;
 
 #[test]
@@ -13,15 +13,15 @@ fn tasks_hierarchy_fk_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create parent task
-    let parent_id = taskmaster::add_task(&conn, "Parent task", "Main goal", 1, None).unwrap();
+    let parent_id = tasks::add_task(&conn, "Parent task", "Main goal", 1, None).unwrap();
     assert!(parent_id > 0);
 
     // Create child tasks
-    let child1_id = taskmaster::add_task(&conn, "Child 1", "First subtask", 2, Some(parent_id)).unwrap();
-    let child2_id = taskmaster::add_task(&conn, "Child 2", "Second subtask", 3, Some(parent_id)).unwrap();
+    let child1_id = tasks::add_task(&conn, "Child 1", "First subtask", 2, Some(parent_id)).unwrap();
+    let child2_id = tasks::add_task(&conn, "Child 2", "Second subtask", 3, Some(parent_id)).unwrap();
 
     // Verify hierarchy exists
-    let parent = taskmaster::next_task(&conn, None, None).unwrap().unwrap();
+    let parent = tasks::next_task(&conn, None, None).unwrap().unwrap();
     assert_eq!(parent.id, parent_id);
     assert_eq!(parent.goal, "Parent task");
 
@@ -50,15 +50,15 @@ fn task_link_depends_on_enforced_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create two tasks
-    let task_a_id = taskmaster::add_task(&conn, "Task A", "Prerequisite", 1, None).unwrap();
-    let task_b_id = taskmaster::add_task(&conn, "Task B", "Dependent task", 2, None).unwrap();
+    let task_a_id = tasks::add_task(&conn, "Task A", "Prerequisite", 1, None).unwrap();
+    let task_b_id = tasks::add_task(&conn, "Task B", "Dependent task", 2, None).unwrap();
 
     // Link them: B depends on A
-    taskmaster::link_tasks(&conn, task_b_id, task_a_id, "depends_on").unwrap();
+    tasks::link_tasks(&conn, task_b_id, task_a_id, "depends_on").unwrap();
 
     // Try to mark B as done while A is still open - this should be allowed at DB level
     // but we need to check dependencies at application level
-    taskmaster::update_task(&conn, task_b_id, Some("done"), None, None).unwrap();
+    tasks::update_task(&conn, task_b_id, Some("done"), None, None).unwrap();
 
     // Verify B is marked done
     let task_b = conn.query_row(
@@ -77,7 +77,7 @@ fn task_link_depends_on_enforced_ok() {
     assert_eq!(task_a, "open");
 
     // Test application-level dependency checking
-    let deps = conn.prepare(
+    let mut deps = conn.prepare(
         "SELECT t.id, t.status FROM tasks t
          JOIN task_links tl ON t.id = tl.dst_id
          WHERE tl.src_id = ?1 AND tl.kind = 'depends_on' AND t.status != 'done'"
@@ -92,6 +92,7 @@ fn task_link_depends_on_enforced_ok() {
     assert_eq!(outstanding_deps[0].1, "open");
 
     // Clean up
+    drop(deps);
     drop(conn);
     let _ = fs::remove_file(test_db);
 }
@@ -106,11 +107,11 @@ fn task_crud_operations_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // CREATE
-    let task_id = taskmaster::add_task(&conn, "Test task", "Description", 3, None).unwrap();
+    let task_id = tasks::add_task(&conn, "Test task", "Description", 3, None).unwrap();
     assert!(task_id > 0);
 
     // READ
-    let task = taskmaster::next_task(&conn, None, None).unwrap().unwrap();
+    let task = tasks::next_task(&conn, None, None).unwrap().unwrap();
     assert_eq!(task.id, task_id);
     assert_eq!(task.goal, "Test task");
     assert_eq!(task.description, "Description");
@@ -118,7 +119,7 @@ fn task_crud_operations_ok() {
     assert_eq!(task.status, "open");
 
     // UPDATE - change status and priority
-    taskmaster::update_task(&conn, task_id, Some("running"), Some(1), Some("Updated description")).unwrap();
+    tasks::update_task(&conn, task_id, Some("running"), Some(1), Some("Updated description")).unwrap();
 
     // Verify update
     let updated = conn.query_row(
@@ -152,7 +153,7 @@ fn cognitive_crud_operations_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create a task first
-    let task_id = taskmaster::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
+    let task_id = tasks::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
 
     // CREATE cognitive steps
     let step1_id = cognitive_db::store_step(&conn, Some(task_id), "Think", "Initial thinking", "{}").unwrap();
@@ -192,7 +193,7 @@ fn vector_crud_operations_ok() {
     let _ = fs::remove_file(test_db);
 
     // Initialize vector store
-    let embeddings = Box::new(syncore::vector::MockEmbeddings::new(384));
+    let embeddings = Box::new(syncore::vector::RealEmbeddings::new(384).unwrap());
     let mut vector_store = syncore::vector::VectorStore::new(embeddings);
 
     // INSERT text

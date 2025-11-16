@@ -1,0 +1,92 @@
+# Build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# Database files (generated at runtime)
+*.db
+*.db-shm
+*.db-wal
+syncore.db_cache/
+
+# Logs
+/logs/
+*.log
+server.log
+build.log
+mcp_server.log
+
+# Cache directories
+/cache/
+/.fastembed_cache/
+/backups/
+/test_logs/
+/test_simple/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Development artifacts
+/ai-dev-tasks/
+/.taskmaster/
+/tools/
+
+# Test artifacts (regenerated during tests)
+test_*.db
+*.pyc
+__pycache__/
+
+# Demo and temporary files
+demo_*.py
+demo_*.rs
+test_*.rs
+!tests/*.rs
+*.py
+final_*.py
+crush_ai_config.json
+RECOMMENDED_CLAUDE_CONFIG.json
+
+# Internal documentation (not for public repo)
+ACHIEVEMENT_SUMMARY.md
+CIRCUIT_BREAKER*.md
+CRUSH_AI_MCP_GUIDE.md
+INTELLITASK*.md
+MCP_*.md
+OLLAMA_INTEGRATION.md
+QUALITY_AUDIT_REPORT.md
+SESSION_SUMMARY*.md
+TDD_*.md
+VERIFICATION_*.md
+
+# Environment and secrets
+.env
+.env.*
+*.key
+*.pem
+*.cert
+
+# Temporary files
+/1
+/kill
+*.tmp
+*.bak
+*.orig
+
+# OS generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Profiling
+perf.data
+perf.data.old
+flamegraph.svg

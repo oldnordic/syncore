@@ -1,4 +1,4 @@
-use syncore::{taskmaster, cognitive_db, vector};
+use syncore::{tasks, cognitive_db, vector};
 use rusqlite::Connection;
 use std::fs;
 
@@ -12,18 +12,18 @@ fn test_basic_task_crud() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Test add_task
-    let task_id = taskmaster::add_task(&conn, "Test goal", "Test description", 3, None).unwrap();
+    let task_id = tasks::add_task(&conn, "Test goal", "Test description", 3, None).unwrap();
     assert!(task_id > 0);
 
     // Test next_task
-    let task = taskmaster::next_task(&conn, None, None).unwrap();
+    let task = tasks::next_task(&conn, None, None).unwrap();
     assert!(task.is_some());
     let task = task.unwrap();
     assert_eq!(task.id, task_id);
     assert_eq!(task.goal, "Test goal");
 
     // Test update_task
-    taskmaster::update_task(&conn, task_id, Some("done"), None, None).unwrap();
+    tasks::update_task(&conn, task_id, Some("done"), None, None).unwrap();
 
     // Verify update
     let status = conn.query_row("SELECT status FROM tasks WHERE id = ?1", [task_id], |row| {
@@ -32,8 +32,8 @@ fn test_basic_task_crud() {
     assert_eq!(status, "done");
 
     // Test link_tasks
-    let task2_id = taskmaster::add_task(&conn, "Task 2", "Description 2", 2, None).unwrap();
-    taskmaster::link_tasks(&conn, task2_id, task_id, "depends_on").unwrap();
+    let task2_id = tasks::add_task(&conn, "Task 2", "Description 2", 2, None).unwrap();
+    tasks::link_tasks(&conn, task2_id, task_id, "depends_on").unwrap();
 
     // Verify link
     let link_count = conn.query_row(
@@ -57,7 +57,7 @@ fn test_cognitive_step_crud() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create a task
-    let task_id = taskmaster::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
+    let task_id = tasks::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
 
     // Test store_step
     let step1_id = cognitive_db::store_step(&conn, Some(task_id), "Think", "Initial thought", "{}").unwrap();
@@ -80,7 +80,7 @@ fn test_cognitive_step_crud() {
 #[test]
 fn test_vector_operations() {
     // Setup vector store
-    let embeddings = Box::new(syncore::vector::MockEmbeddings::new(384));
+    let embeddings = Box::new(syncore::vector::RealEmbeddings::new(384).unwrap());
     let mut vector_store = syncore::vector::VectorStore::new(embeddings);
 
     // Test insert_text

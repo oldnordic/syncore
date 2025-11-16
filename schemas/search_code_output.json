@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Search Code Output",
+  "description": "Output structure for code search results using ripgrep",
+  "type": "object",
+  "properties": {
+    "matches": {
+      "type": "array",
+      "description": "List of search matches found",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "description": "Path to the file containing the match"
+          },
+          "line_number": {
+            "type": "integer",
+            "description": "Line number where the match was found"
+          },
+          "line_content": {
+            "type": "string",
+            "description": "Full line content containing the match"
+          },
+          "match_text": {
+            "type": "string",
+            "description": "The actual text that matched the pattern"
+          },
+          "context_before": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Lines of code before the match for context"
+          },
+          "context_after": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Lines of code after the match for context"
+          }
+        },
+        "required": ["file_path", "line_number", "line_content", "match_text", "context_before", "context_after"]
+      }
+    },
+    "total_matches": {
+      "type": "integer",
+      "description": "Total number of matches found"
+    },
+    "search_pattern": {
+      "type": "string",
+      "description": "The pattern that was searched for"
+    },
+    "search_directory": {
+      "type": "string",
+      "description": "The directory that was searched"
+    },
+    "file_types_searched": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "File types that were included in the search"
+    },
+    "search_duration_ms": {
+      "type": "integer",
+      "description": "Time taken to perform the search in milliseconds"
+    }
+  },
+  "required": ["matches", "total_matches", "search_pattern"]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parse File Structure",
+  "description": "Parse a source code file to extract its structure including functions, classes, imports, and variables",
+  "type": "object",
+  "properties": {
+    "file_path": {
+      "type": "string",
+      "description": "Path to the file to parse"
+    }
+  },
+  "required": ["file_path"]
+}
