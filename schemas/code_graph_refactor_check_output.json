@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "long_functions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "integer"
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "dead_code": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "duplicate_functions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "function1": {
+            "type": "string"
+          },
+          "function2": {
+            "type": "string"
+          },
+          "similarity": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "total_issues": {
+      "type": "integer"
+    }
+  },
+  "required": ["long_functions", "dead_code", "duplicate_functions", "total_issues"]
+}

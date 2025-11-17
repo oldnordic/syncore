@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean"
+    },
+    "file_path": {
+      "type": "string"
+    },
+    "functions_indexed": {
+      "type": "integer"
+    },
+    "imports_indexed": {
+      "type": "integer"
+    },
+    "calls_indexed": {
+      "type": "integer"
+    },
+    "structs_indexed": {
+      "type": "integer"
+    },
+    "traits_indexed": {
+      "type": "integer"
+    },
+    "implementations_indexed": {
+      "type": "integer"
+    }
+  },
+  "required": ["success", "file_path", "functions_indexed"]
+}

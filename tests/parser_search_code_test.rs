@@ -51,6 +51,12 @@ fn sync_function() -> i32 {
         tasks: Arc::new(tasks),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Create MCP request to search for async patterns
@@ -104,6 +110,12 @@ async fn test_parser_search_code_should_handle_missing_pattern() {
         tasks: Arc::new(tasks),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Create request missing pattern parameter
@@ -144,6 +156,12 @@ async fn test_parser_search_code_should_handle_nonexistent_path() {
         tasks: Arc::new(tasks),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Create request for nonexistent path
@@ -209,6 +227,12 @@ async fn test_parser_search_code_should_support_file_patterns() {
         tasks: Arc::new(tasks),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Test different search patterns
@@ -303,6 +327,12 @@ fn cleanup_function() {
         tasks: Arc::new(tasks),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Create MCP request to search with context

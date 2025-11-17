@@ -4,6 +4,9 @@ use crate::memory::Memory;
 use crate::tasks::Tasks;
 use crate::vector::{VectorStore, SearchScope};
 use crate::logger::{MarkdownLogger, CogLogger};
+use crate::message_bus::MessageBus;
+use crate::storage::{WriteQueue, ReadPool, create_read_pool, FaissQueue, FaissPool};
+use crate::graph::Neo4jClient;
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
@@ -12,6 +15,12 @@ pub struct SynCoreState {
     pub tasks: Arc<Tasks>,
     pub vector_store: Arc<Mutex<VectorStore>>,
     pub logger: Arc<dyn CogLogger>,
+    pub message_bus: Option<Arc<MessageBus>>,
+    pub write_queue: Option<Arc<WriteQueue>>,
+    pub read_pool: Option<Arc<ReadPool>>,
+    pub faiss_queue: Option<Arc<FaissQueue>>,
+    pub faiss_pool: Option<Arc<FaissPool>>,
+    pub neo4j: Option<Arc<Neo4jClient>>,
 }
 
 impl SynCoreState {
@@ -22,9 +31,71 @@ impl SynCoreState {
             tasks: Arc::new(tasks),
             vector_store,
             logger,
+            message_bus: None,
+            write_queue: None,
+            read_pool: None,
+            faiss_queue: None,
+            faiss_pool: None,
+            neo4j: None,
+        }
+    }
+
+    /// Add message bus to state (builder pattern)
+    pub fn with_message_bus(mut self, bus: MessageBus) -> Self {
+        self.message_bus = Some(Arc::new(bus));
+        self
+    }
+
+    /// Add Neo4j client to state (builder pattern)
+    pub fn with_neo4j(mut self, client: Arc<Neo4jClient>) -> Self {
+        self.neo4j = Some(client);
+        self
+    }
+
+    /// Add write queue and read pool for deadlock-free SQLite (builder pattern)
+    pub fn with_sqlite_pool(mut self, db_path: &str) -> Self {
+        let write_queue = WriteQueue::start(db_path.to_string());
+        let read_pool = create_read_pool(db_path.to_string(), 8);
+        self.write_queue = Some(Arc::new(write_queue));
+        self.read_pool = Some(Arc::new(read_pool));
+        self
+    }
+
+    /// Add FAISS queue and pool for deadlock-free vector operations (builder pattern)
+    pub fn with_faiss(mut self, path: &str) -> Self {
+        self.faiss_queue = Some(FaissQueue::new(128));
+        self.faiss_pool = Some(FaissPool::new(path, 8));
+        self
+    }
+
+    /// Create a minimal state with only FAISS infrastructure (for testing)
+    pub fn faiss_only(path: &str) -> Self {
+        // Use unique temp paths to avoid lock conflicts in tests
+        let id = std::process::id();
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let mem_path = format!("/tmp/syncore_test_mem_{}_{}.db", id, ts);
+        let task_path = format!("/tmp/syncore_test_task_{}_{}.db", id, ts);
+
+        Self {
+            memory: Arc::new(crate::memory::Memory::new(&mem_path).unwrap()),
+            tasks: Arc::new(crate::tasks::Tasks::new(&task_path).unwrap()),
+            vector_store: Arc::new(Mutex::new(crate::vector::VectorStore::new(
+                Box::new(crate::vector::RealEmbeddings::new(384).unwrap()),
+            ))),
+            logger: Arc::new(MarkdownLogger::new("./logs")),
+            message_bus: None,
+            write_queue: None,
+            read_pool: None,
+            faiss_queue: Some(FaissQueue::new(128)),
+            faiss_pool: Some(FaissPool::new(path, 8)),
+            neo4j: None,
         }
     }
 }
+
 
 pub fn route_tool(name: &str, args: &[u8], state: &SynCoreState) -> Result<Vec<u8>> {
     let tool = match name {

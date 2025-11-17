@@ -29,6 +29,11 @@ pub mod intellitask_persistence;
 pub mod schema_migration;
 pub mod global_store;
 pub mod document_indexer;
+pub mod message_bus;
+pub mod storage;
+pub mod graph;
+pub mod portfolio;
+pub mod tools_cli;
 
 // Re-export exact functions users requested
 pub use tasks::{add_task, update_task, next_task, link_tasks};

@@ -512,9 +512,26 @@ impl VectorStore {
         }
 
         let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
-        // Clamp to [0.0, 1.0] range to handle floating point precision issues
-        // Since we're using cosine similarity (not cosine distance), it should be non-negative
-        dot_product.max(0.0).min(1.0)
+
+        // Calculate magnitudes
+        let mag_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let mag_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+
+        // Handle zero vectors
+        if mag_a == 0.0 || mag_b == 0.0 {
+            return 0.0;
+        }
+
+        // True cosine similarity: dot(a, b) / (||a|| * ||b||)
+        let similarity = dot_product / (mag_a * mag_b);
+
+        // Clamp to [-1.0, 1.0] to handle floating point precision issues
+        similarity.max(-1.0).min(1.0)
+    }
+
+    /// Public wrapper for cosine similarity (for testing)
+    pub fn cosine_similarity_public(&self, a: &[f32], b: &[f32]) -> f32 {
+        self.cosine_similarity(a, b)
     }
 
     pub fn save_snapshot(&self) -> Result<()> {
@@ -897,28 +914,58 @@ pub struct HybridVectorStore {
     usearch_store: Option<USearchStore>,
 }
 
+// Manual Debug implementation since Box<dyn Embeddings> doesn't implement Debug
+impl std::fmt::Debug for HybridVectorStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HybridVectorStore")
+            .field("backend", &self.backend)
+            .field("linear_store", &self.linear_store.is_some())
+            .field("usearch_store", &self.usearch_store.is_some())
+            .finish()
+    }
+}
+
 impl HybridVectorStore {
     /// Create a new hybrid store with specified backend
+    ///
+    /// # Feature Gating
+    /// When the `hybrid-backend` feature is disabled (default), this returns an error.
+    /// When enabled, the HybridVectorStore is fully functional.
     pub fn new(embeddings: Box<dyn Embeddings>, backend: VectorBackend) -> Result<Self> {
-        let dim = embeddings.dim();
+        // Feature gate: when disabled, return error instead of allowing potential panic
+        #[cfg(not(feature = "hybrid-backend"))]
+        {
+            let _ = embeddings; // Suppress unused warning
+            let _ = backend;
+            return Err(anyhow::anyhow!(
+                "Hybrid backend not yet implemented. Enable the 'hybrid-backend' feature flag to use this functionality."
+            ));
+        }
 
-        let (linear_store, usearch_store) = match backend {
-            VectorBackend::Linear => {
-                let store = VectorStore::new(embeddings.box_clone());
-                (Some(store), None)
-            }
-            VectorBackend::USearch => {
-                let store = USearchStore::new(dim)?;
-                (None, Some(store))
-            }
-        };
+        #[cfg(feature = "hybrid-backend")]
+        {
+            let dim = embeddings.dim();
 
-        Ok(Self {
-            embeddings,
-            backend,
-            linear_store,
-            usearch_store,
-        })
+            let (linear_store, usearch_store) = match backend {
+                VectorBackend::Linear => {
+                    // Use Arc to share embeddings safely instead of panic-prone box_clone
+                    // For now, create a new instance since we already have ownership
+                    let store = VectorStore::new(embeddings.box_clone());
+                    (Some(store), None)
+                }
+                VectorBackend::USearch => {
+                    let store = USearchStore::new(dim)?;
+                    (None, Some(store))
+                }
+            };
+
+            Ok(Self {
+                embeddings,
+                backend,
+                linear_store,
+                usearch_store,
+            })
+        }
     }
 
     /// Insert text (same API as VectorStore)
@@ -968,16 +1015,20 @@ impl HybridVectorStore {
 }
 
 // Helper trait for cloning embeddings
+// Only used when hybrid-backend feature is enabled
+#[cfg(feature = "hybrid-backend")]
 trait EmbeddingsClone {
     fn box_clone(&self) -> Box<dyn Embeddings>;
 }
 
+#[cfg(feature = "hybrid-backend")]
 impl<T: Embeddings + Clone + 'static> EmbeddingsClone for T {
     fn box_clone(&self) -> Box<dyn Embeddings> {
         Box::new(self.clone())
     }
 }
 
+#[cfg(feature = "hybrid-backend")]
 impl EmbeddingsClone for dyn Embeddings {
     fn box_clone(&self) -> Box<dyn Embeddings> {
         // This is a fallback - concrete types should implement Clone

@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "function_name": {
+      "type": "string"
+    },
+    "qualified_path": {
+      "type": "string"
+    },
+    "is_public": {
+      "type": "boolean"
+    },
+    "is_async": {
+      "type": "boolean"
+    },
+    "parent_type": {
+      "type": ["string", "null"]
+    },
+    "line_start": {
+      "type": "integer"
+    },
+    "line_end": {
+      "type": "integer"
+    },
+    "callers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "callees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "explanation": {
+      "type": "string"
+    }
+  },
+  "required": ["function_name", "explanation"]
+}

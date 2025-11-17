@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "directory": {
+      "type": "string",
+      "description": "Directory path to index"
+    },
+    "pattern": {
+      "type": "string",
+      "description": "Glob pattern for files to index (e.g., '**/*.rs')"
+    }
+  },
+  "required": ["directory", "pattern"],
+  "additionalProperties": false
+}

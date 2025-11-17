@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "function_name": {
+      "type": "string",
+      "description": "Name of the function to analyze impact for"
+    }
+  },
+  "required": ["function_name"],
+  "additionalProperties": false
+}

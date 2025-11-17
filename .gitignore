@@ -51,17 +51,19 @@ final_*.py
 crush_ai_config.json
 RECOMMENDED_CLAUDE_CONFIG.json
 
-# Internal documentation (not for public repo)
-ACHIEVEMENT_SUMMARY.md
-CIRCUIT_BREAKER*.md
-CRUSH_AI_MCP_GUIDE.md
-INTELLITASK*.md
-MCP_*.md
-OLLAMA_INTEGRATION.md
-QUALITY_AUDIT_REPORT.md
-SESSION_SUMMARY*.md
-TDD_*.md
-VERIFICATION_*.md
+# Research and internal documentation (not for public repo)
+/research/
+
+# Vector index files
+vector.index.*
+*.vectors
+*.meta
+
+# Code graph databases
+*_code_graph.db
+
+# Memory cache directories
+:memory:_cache/
 
 # Environment and secrets
 .env

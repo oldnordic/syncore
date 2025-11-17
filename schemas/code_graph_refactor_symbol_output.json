@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "symbol_name": {
+      "type": "string"
+    },
+    "symbol_kind": {
+      "type": "string"
+    },
+    "refactoring_plan": {
+      "type": "object",
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"]
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "step_number": {
+                "type": "integer"
+              },
+              "action": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "files_affected": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "estimated_effort": {
+          "type": "string"
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": ["symbol_name", "symbol_kind", "refactoring_plan"]
+}

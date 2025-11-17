@@ -3,7 +3,7 @@
 // shared across all SynCore projects
 
 use anyhow::{Result, Context};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
@@ -64,11 +64,23 @@ impl GlobalDbPool {
 
         // Open global database with WAL mode and auto-migration
         let db_path = get_global_db_path();
+        Self::new_with_path(&db_path)
+    }
+
+    /// Create a new database connection pool with custom path
+    /// Use this for testing to avoid touching ~/.syncore
+    pub fn new_with_path(db_path: &Path) -> Result<Self> {
+        // Ensure parent directory exists
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)
+                .context("Failed to create database directory")?;
+        }
+
         let db_path_str = db_path.to_str()
-            .context("Global DB path contains invalid UTF-8")?;
+            .context("Database path contains invalid UTF-8")?;
 
         let conn = crate::db::open_db_with_wal(db_path_str)
-            .context("Failed to open global database")?;
+            .context("Failed to open database")?;
 
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -93,9 +105,18 @@ impl GlobalVectorStore {
     pub fn new() -> Result<Self> {
         init_global_dirs()?;
         let vectors_dir = get_global_vectors_dir();
+        Self::new_with_path(&vectors_dir)
+    }
+
+    /// Create a new vector store with custom directory path
+    /// Use this for testing to avoid touching ~/.syncore
+    pub fn new_with_path(vectors_dir: &Path) -> Result<Self> {
+        // Ensure vectors directory exists
+        std::fs::create_dir_all(vectors_dir)
+            .context("Failed to create vectors directory")?;
 
         Ok(Self {
-            vectors_dir,
+            vectors_dir: vectors_dir.to_path_buf(),
             stores: Arc::new(Mutex::new(HashMap::new())),
         })
     }

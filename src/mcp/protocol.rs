@@ -1,3 +1,7 @@
+//! MCP Protocol Types and JSON-RPC Handling
+//!
+//! Original protocol implementation moved from src/mcp.rs
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -95,6 +99,44 @@ pub async fn list_tools() -> Vec<ToolInfo> {
             input_schema: "schemas/code_index_directory.json".into(),
             output_schema: "schemas/code_index_directory_output.json".into(),
         },
+        // Code Graph Tools (PHASE 5)
+        ToolInfo {
+            name: "code_graph.index".into(),
+            description: "Index a Rust source file into the Code Intelligence Graph. Extracts imports, functions, calls, structs, traits, and implementations with semantic embeddings.".into(),
+            input_schema: "schemas/code_graph_index.json".into(),
+            output_schema: "schemas/code_graph_index_output.json".into(),
+        },
+        ToolInfo {
+            name: "code_graph.query".into(),
+            description: "Query the Code Intelligence Graph for function relationships including callers, callees, and semantically similar functions.".into(),
+            input_schema: "schemas/code_graph_query.json".into(),
+            output_schema: "schemas/code_graph_query_output.json".into(),
+        },
+        ToolInfo {
+            name: "code_graph.explain".into(),
+            description: "Get a comprehensive explanation of a function including its signature, callers, callees, and implementation context.".into(),
+            input_schema: "schemas/code_graph_explain.json".into(),
+            output_schema: "schemas/code_graph_explain_output.json".into(),
+        },
+        ToolInfo {
+            name: "code_graph.impact".into(),
+            description: "Analyze the impact of modifying a function by finding all callers and dependent code paths.".into(),
+            input_schema: "schemas/code_graph_impact.json".into(),
+            output_schema: "schemas/code_graph_impact_output.json".into(),
+        },
+        // Refactoring Tools (PHASE 7)
+        ToolInfo {
+            name: "code_graph.refactor_check".into(),
+            description: "Run comprehensive refactoring analysis detecting long functions, dead code, and duplicate functions.".into(),
+            input_schema: "schemas/code_graph_refactor_check.json".into(),
+            output_schema: "schemas/code_graph_refactor_check_output.json".into(),
+        },
+        ToolInfo {
+            name: "code_graph.refactor_symbol".into(),
+            description: "Generate a detailed refactoring plan for a specific symbol (function, struct, or trait).".into(),
+            input_schema: "schemas/code_graph_refactor_symbol.json".into(),
+            output_schema: "schemas/code_graph_refactor_symbol_output.json".into(),
+        },
     ]
 }
 
@@ -104,13 +146,15 @@ pub async fn describe_server() -> serde_json::Value {
         "version": env!("CARGO_PKG_VERSION"),
         "description": "Cognitive micro-kernel with sequential thinking, memory, and task management",
         "encodings": ["json", "msgpack"],
-        "tools_count": 6,
+        "tools_count": 16,
         "capabilities": {
             "memory": true,
             "vector_search": true,
             "task_management": true,
             "logging": true,
-            "mcp_compliant": true
+            "mcp_compliant": true,
+            "code_intelligence": true,
+            "refactoring_analysis": true
         }
     })
 }
@@ -119,14 +163,14 @@ pub async fn describe_server() -> serde_json::Value {
 lazy_static::lazy_static! {
     static ref SCHEMAS: HashMap<String, String> = {
         let mut schemas = HashMap::new();
-        schemas.insert("memory.store".to_string(), include_str!("../schemas/memory_store.json").to_string());
-        schemas.insert("memory.query".to_string(), include_str!("../schemas/memory_query.json").to_string());
-        schemas.insert("task.create".to_string(), include_str!("../schemas/task_create.json").to_string());
-        schemas.insert("vector.insert".to_string(), include_str!("../schemas/vector_insert.json").to_string());
-        schemas.insert("vector.search".to_string(), include_str!("../schemas/vector_search.json").to_string());
-        schemas.insert("logs.tail".to_string(), include_str!("../schemas/logs_tail.json").to_string());
-        schemas.insert("parser.analyze".to_string(), include_str!("../schemas/parse_file.json").to_string());
-        schemas.insert("parser.search".to_string(), include_str!("../schemas/search_code.json").to_string());
+        schemas.insert("memory.store".to_string(), include_str!("../../schemas/memory_store.json").to_string());
+        schemas.insert("memory.query".to_string(), include_str!("../../schemas/memory_query.json").to_string());
+        schemas.insert("task.create".to_string(), include_str!("../../schemas/task_create.json").to_string());
+        schemas.insert("vector.insert".to_string(), include_str!("../../schemas/vector_insert.json").to_string());
+        schemas.insert("vector.search".to_string(), include_str!("../../schemas/vector_search.json").to_string());
+        schemas.insert("logs.tail".to_string(), include_str!("../../schemas/logs_tail.json").to_string());
+        schemas.insert("parser.analyze".to_string(), include_str!("../../schemas/parse_file.json").to_string());
+        schemas.insert("parser.search".to_string(), include_str!("../../schemas/search_code.json").to_string());
         schemas
     };
 }

@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "file_path": {
+      "type": "string",
+      "description": "Path to the source file to explain"
+    },
+    "function_name": {
+      "type": "string",
+      "description": "Optional specific function to explain"
+    },
+    "model": {
+      "type": "string",
+      "description": "Optional Ollama model to use (default: codellama)"
+    }
+  },
+  "required": ["file_path"],
+  "additionalProperties": false
+}

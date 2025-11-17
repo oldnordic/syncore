@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "symbol_name": {
+      "type": "string",
+      "description": "Name of the symbol (function, struct, or trait) to refactor"
+    },
+    "symbol_kind": {
+      "type": "string",
+      "enum": ["function", "struct", "trait"],
+      "description": "Type of symbol"
+    }
+  },
+  "required": ["symbol_name", "symbol_kind"],
+  "additionalProperties": false
+}

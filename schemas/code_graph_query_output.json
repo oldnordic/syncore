@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "function_name": {
+      "type": "string"
+    },
+    "callers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "callees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "similar_functions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "similarity": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "required": ["function_name"]
+}

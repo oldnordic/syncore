@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "file_path": {
+      "type": "string",
+      "description": "Path to the Rust source file to index"
+    }
+  },
+  "required": ["file_path"],
+  "additionalProperties": false
+}

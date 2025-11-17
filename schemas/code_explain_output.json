@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "explanation": {
+      "type": "string",
+      "description": "LLM-generated explanation of the code"
+    },
+    "model_used": {
+      "type": "string",
+      "description": "Name of the Ollama model used"
+    },
+    "tokens_used": {
+      "type": "integer",
+      "description": "Number of tokens used in the response"
+    }
+  },
+  "required": ["explanation"]
+}

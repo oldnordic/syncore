@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "function_name": {
+      "type": "string",
+      "description": "Name of the function to query"
+    },
+    "include_callers": {
+      "type": "boolean",
+      "description": "Include functions that call this function",
+      "default": true
+    },
+    "include_callees": {
+      "type": "boolean",
+      "description": "Include functions called by this function",
+      "default": true
+    },
+    "include_semantic": {
+      "type": "boolean",
+      "description": "Include semantically similar functions",
+      "default": false
+    },
+    "semantic_limit": {
+      "type": "integer",
+      "description": "Maximum number of similar functions to return",
+      "default": 5
+    }
+  },
+  "required": ["function_name"],
+  "additionalProperties": false
+}

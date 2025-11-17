@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "files_indexed": {
+      "type": "integer",
+      "description": "Number of files indexed"
+    },
+    "functions_found": {
+      "type": "integer",
+      "description": "Total number of functions found"
+    },
+    "classes_found": {
+      "type": "integer",
+      "description": "Total number of classes/structs found"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Any errors encountered during indexing"
+    }
+  },
+  "required": ["files_indexed", "functions_found"]
+}

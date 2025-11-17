@@ -1,0 +1,231 @@
+//! TDD Tests for CodeGraphExtractor
+//! Verifies extraction of imports, functions, calls, structs, traits, and impl blocks from Rust code.
+
+use syncore::portfolio::code_graph_extractor::{CodeGraphExtractor, CodeGraph, NodeKind};
+use tempfile::TempDir;
+use std::fs;
+
+/// Helper to create test Rust file
+fn create_test_file(dir: &std::path::Path, name: &str, content: &str) -> std::path::PathBuf {
+    let path = dir.join(name);
+    fs::write(&path, content).unwrap();
+    path
+}
+
+#[test]
+fn test_extract_imports() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+use std::collections::HashMap;
+use crate::memory::MemoryStore;
+use super::utils;
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    assert_eq!(graph.imports.len(), 3, "Should find 3 imports");
+    assert!(graph.imports.iter().any(|i| i.path.contains("HashMap")));
+    assert!(graph.imports.iter().any(|i| i.path.contains("MemoryStore")));
+    assert!(graph.imports.iter().any(|i| i.path.contains("utils")));
+}
+
+#[test]
+fn test_extract_function_definitions() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+pub fn public_function() -> i32 {
+    42
+}
+
+fn private_function(x: i32) -> i32 {
+    x * 2
+}
+
+async fn async_function() {
+    // async code
+}
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    assert_eq!(graph.functions.len(), 3, "Should find 3 functions");
+
+    let public_fn = graph.functions.iter().find(|f| f.name == "public_function");
+    assert!(public_fn.is_some(), "Should find public_function");
+    assert!(public_fn.unwrap().is_public, "public_function should be public");
+
+    let private_fn = graph.functions.iter().find(|f| f.name == "private_function");
+    assert!(private_fn.is_some(), "Should find private_function");
+    assert!(!private_fn.unwrap().is_public, "private_function should not be public");
+
+    let async_fn = graph.functions.iter().find(|f| f.name == "async_function");
+    assert!(async_fn.is_some(), "Should find async_function");
+}
+
+#[test]
+fn test_extract_function_calls() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+fn caller() {
+    helper();
+    process_data(42);
+    self.method_call();
+}
+
+fn helper() {}
+fn process_data(x: i32) {}
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    // Should find callgraph edges: caller -> helper, caller -> process_data
+    let caller_edges: Vec<_> = graph.calls.iter()
+        .filter(|e| e.from == "caller")
+        .collect();
+
+    assert!(caller_edges.len() >= 2, "Should find at least 2 calls from caller");
+    assert!(caller_edges.iter().any(|e| e.to == "helper"), "Should find caller -> helper");
+    assert!(caller_edges.iter().any(|e| e.to == "process_data"), "Should find caller -> process_data");
+}
+
+#[test]
+fn test_extract_structs() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+pub struct PublicStruct {
+    field: i32,
+}
+
+struct PrivateStruct;
+
+#[derive(Debug)]
+struct DerivedStruct {
+    name: String,
+}
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    assert_eq!(graph.structs.len(), 3, "Should find 3 structs");
+    assert!(graph.structs.iter().any(|s| s.name == "PublicStruct"));
+    assert!(graph.structs.iter().any(|s| s.name == "PrivateStruct"));
+    assert!(graph.structs.iter().any(|s| s.name == "DerivedStruct"));
+}
+
+#[test]
+fn test_extract_traits() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+pub trait Runnable {
+    fn run(&self);
+}
+
+trait Serializable {
+    fn serialize(&self) -> String;
+    fn deserialize(data: &str) -> Self;
+}
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    assert_eq!(graph.traits.len(), 2, "Should find 2 traits");
+    assert!(graph.traits.iter().any(|t| t.name == "Runnable"));
+    assert!(graph.traits.iter().any(|t| t.name == "Serializable"));
+}
+
+#[test]
+fn test_extract_impl_blocks() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+struct MyStruct;
+
+trait MyTrait {
+    fn method(&self);
+}
+
+impl MyStruct {
+    fn inherent_method(&self) {}
+}
+
+impl MyTrait for MyStruct {
+    fn method(&self) {}
+}
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    // Should find struct -> trait implementation edge
+    let impl_edges: Vec<_> = graph.implementations.iter()
+        .filter(|e| e.struct_name == "MyStruct")
+        .collect();
+
+    assert!(!impl_edges.is_empty(), "Should find implementations for MyStruct");
+    assert!(impl_edges.iter().any(|e| e.trait_name == Some("MyTrait".to_string())));
+}
+
+#[test]
+fn test_extract_nested_modules() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+mod outer {
+    pub fn outer_fn() {}
+
+    mod inner {
+        pub fn inner_fn() {
+            super::outer_fn();
+        }
+    }
+}
+
+fn top_level() {}
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    // Should find functions in nested modules
+    assert!(graph.functions.iter().any(|f| f.name == "outer_fn" || f.qualified_path.contains("outer")));
+    assert!(graph.functions.iter().any(|f| f.name == "inner_fn" || f.qualified_path.contains("inner")));
+    assert!(graph.functions.iter().any(|f| f.name == "top_level"));
+}
+
+#[test]
+fn test_extract_methods_in_impl() {
+    let temp_dir = TempDir::new().unwrap();
+    let file = create_test_file(temp_dir.path(), "lib.rs", r#"
+struct Calculator;
+
+impl Calculator {
+    pub fn new() -> Self {
+        Calculator
+    }
+
+    pub fn add(&self, a: i32, b: i32) -> i32 {
+        a + b
+    }
+
+    fn internal_helper(&self) {
+        // private method
+    }
+}
+"#);
+
+    let extractor = CodeGraphExtractor::new();
+    let graph = extractor.extract_file(&file).expect("Should extract file");
+
+    // Methods in impl blocks should be extracted
+    let methods: Vec<_> = graph.functions.iter()
+        .filter(|f| f.parent_type == Some("Calculator".to_string()))
+        .collect();
+
+    assert!(methods.len() >= 3, "Should find at least 3 methods in Calculator");
+    assert!(methods.iter().any(|m| m.name == "new"));
+    assert!(methods.iter().any(|m| m.name == "add"));
+    assert!(methods.iter().any(|m| m.name == "internal_helper"));
+}

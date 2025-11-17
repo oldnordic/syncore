@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "namespace": {
+      "type": "string",
+      "description": "Namespace to analyze for refactoring opportunities"
+    },
+    "max_function_lines": {
+      "type": "integer",
+      "description": "Maximum lines before considering function too long",
+      "default": 50
+    },
+    "similarity_threshold": {
+      "type": "number",
+      "description": "Minimum similarity score for duplicate detection",
+      "default": 0.85
+    }
+  },
+  "required": ["namespace"],
+  "additionalProperties": false
+}

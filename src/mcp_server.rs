@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::sync::Arc;
+use std::time::SystemTime;
 use rmcp::{
     ErrorData as McpError,
     ServerHandler,
@@ -10,6 +11,7 @@ use rmcp::{
     ServiceExt, transport::stdio,
 };
 use crate::router::SynCoreState;
+use crate::message_bus::message::{AgentId, Msg, MsgKind};
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct MemoryStoreRequest {
@@ -100,6 +102,28 @@ fn default_doc_search_limit() -> usize {
     5
 }
 
+// Neo4j Graph Tools
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct GraphQueryRequest {
+    pub cypher: String,
+    pub params: Option<serde_json::Value>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct GraphInsertRequest {
+    pub cypher: String,
+    pub params: Option<serde_json::Value>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct GraphRelateRequest {
+    pub from_id: i64,
+    pub to_id: i64,
+    pub rel_type: String,
+    pub from_label: Option<String>,
+    pub to_label: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct IntelliTaskGenerateRequest {
     pub prd_content: String,
@@ -166,6 +190,127 @@ pub struct TaskStatisticsRequest {
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct PrdStatisticsRequest {
     pub prd_title: String,
+}
+
+// Message Bus Tools
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentSendRequest {
+    pub to: String,
+    pub message: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentRecvRequest {
+    pub agent: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentPollRequest {
+    pub agent: String,
+    pub timeout_ms: u64,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentRegisterRequest {
+    pub id: String,
+    pub capabilities: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentListRequest {}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentStatusRequest {
+    pub id: String,
+    pub status: serde_json::Value,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentTaskRequest {
+    pub to: String,
+    pub task_id: String,
+    pub task_type: String,
+    pub payload: serde_json::Value,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AgentResultRequest {
+    pub from: String,
+    pub task_id: String,
+    pub result: serde_json::Value,
+}
+
+// Portfolio Enhancement Tools
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct MappingRecordRequest {
+    pub path: String,
+    pub kind: String,
+    pub language: Option<String>,
+    pub imports: Vec<String>,
+    pub exports: Vec<String>,
+    pub dependencies: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct MappingGetRequest {
+    pub path: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct MappingSearchRequest {
+    pub query: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct MappingDepsRequest {
+    pub path: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialRecordRequest {
+    pub task_id: Option<i64>,
+    pub step_number: i32,
+    pub thought: String,
+    pub action: Option<String>,
+    pub observation: Option<String>,
+    pub reasoning: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialGetRequest {
+    pub task_id: i64,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialSearchRequest {
+    pub query: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ApplicationRecordRequest {
+    pub file_path: String,
+    pub change_type: String,
+    pub old_content: Option<String>,
+    pub new_content: Option<String>,
+    pub line_start: i32,
+    pub line_end: i32,
+    pub description: String,
+    pub task_id: Option<i64>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ApplicationGetRequest {
+    pub task_id: i64,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ApplicationHistoryRequest {
+    pub file_path: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ApplicationSearchRequest {
+    pub query: String,
 }
 
 #[derive(Clone)]
@@ -1121,6 +1266,826 @@ impl SynCoreMCPServer {
             )])),
         }
     }
+
+    // Message Bus Tool
+    #[tool(description = "Send message to another agent via message bus")]
+    async fn agent_send(
+        &self,
+        Parameters(params): Parameters<AgentSendRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::message_bus::message::{AgentId, Msg, MsgKind};
+        use std::time::SystemTime;
+
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Parse target agent ID
+        let (to_agent, kind, target_str) = if params.to.trim().is_empty() {
+            // Broadcast
+            (None, MsgKind::Broadcast, "broadcast".to_string())
+        } else {
+            // Direct message - parse AgentId from string
+            let agent_id = match params.to.to_lowercase().as_str() {
+                "claude" => AgentId::Claude,
+                "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
+                other => AgentId::Custom(other.to_string()),
+            };
+            let target = params.to.clone();
+            (Some(agent_id), MsgKind::Direct, target)
+        };
+
+        // Get next message ID
+        let msg_id = bus.next_message_id();
+
+        // Construct message
+        let msg = Msg {
+            id: msg_id,
+            from: AgentId::Internal("mcp_server".to_string()),
+            to: to_agent,
+            kind,
+            payload: serde_json::json!({ "message": params.message }),
+            timestamp: SystemTime::now(),
+        };
+
+        // Send message
+        bus.send(msg);
+
+        // Return success
+        let response = serde_json::json!({
+            "status": "sent",
+            "to": target_str,
+            "message_id": msg_id
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "Receive pending messages for a given agent ID")]
+    async fn agent_recv(
+        &self,
+        Parameters(params): Parameters<AgentRecvRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::message_bus::message::AgentId;
+
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Parse agent ID from string
+        let agent_id = match params.agent.to_lowercase().as_str() {
+            "claude" => AgentId::Claude,
+            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
+            "" => AgentId::Internal("mcp_server".to_string()),
+            other => AgentId::Custom(other.to_string()),
+        };
+
+        // Drain pending messages for this agent
+        let messages = bus.drain_for(&agent_id);
+
+        // Return success with messages
+        let response = serde_json::json!({
+            "status": "ok",
+            "agent": params.agent,
+            "messages": messages
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "Wait for the next message addressed to the specified agent")]
+    async fn agent_poll(
+        &self,
+        Parameters(params): Parameters<AgentPollRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::message_bus::message::AgentId;
+
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Parse agent ID from string
+        let agent_id = match params.agent.to_lowercase().as_str() {
+            "claude" => AgentId::Claude,
+            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
+            "" => AgentId::Internal("mcp_server".to_string()),
+            other => AgentId::Custom(other.to_string()),
+        };
+
+        // Try to receive immediately first
+        if let Some(msg) = bus.try_recv_for(&agent_id) {
+            let response = serde_json::json!({
+                "status": "ok",
+                "agent": params.agent,
+                "message": msg
+            });
+            return Ok(CallToolResult::success(vec![Content::text(
+                serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+            )]));
+        }
+
+        // Otherwise wait with timeout
+        let msg = bus.wait_for(&agent_id, params.timeout_ms);
+
+        let response = serde_json::json!({
+            "status": "ok",
+            "agent": params.agent,
+            "message": msg
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "Register an agent ID and its capabilities")]
+    async fn agent_register(
+        &self,
+        Parameters(params): Parameters<AgentRegisterRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::message_bus::message::AgentId;
+
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Parse agent ID from string
+        let agent_id = match params.id.to_lowercase().as_str() {
+            "claude" => AgentId::Claude,
+            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
+            other => AgentId::Custom(other.to_string()),
+        };
+
+        // Register agent metadata
+        bus.register_agent_info(agent_id, params.id.clone(), params.capabilities.clone());
+
+        // Return success
+        let response = serde_json::json!({
+            "status": "registered",
+            "id": params.id,
+            "capabilities": params.capabilities
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "List all registered agents and their metadata")]
+    async fn agent_list(
+        &self,
+        Parameters(_params): Parameters<AgentListRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Get list of registered agent names
+        let list = bus.list_registered_agents();
+
+        // Retrieve full metadata for each agent
+        let full: Vec<serde_json::Value> = list
+            .iter()
+            .filter_map(|name| {
+                bus.get_agent_info(name).map(|info| {
+                    serde_json::json!({
+                        "id": format!("{:?}", info.id),
+                        "name": info.name,
+                        "capabilities": info.capabilities,
+                        "registered_at_ms": info.registered_at.elapsed().as_millis()
+                    })
+                })
+            })
+            .collect();
+
+        let response = serde_json::json!({
+            "status": "ok",
+            "agents": full
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "Update the status of the specified agent")]
+    async fn agent_status(
+        &self,
+        Parameters(params): Parameters<AgentStatusRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Update agent status
+        bus.update_agent_status(&params.id, params.status.clone());
+
+        // Return success
+        let response = serde_json::json!({
+            "status": "ok",
+            "id": params.id,
+            "updated": params.status
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "Send a structured task envelope to a specified agent")]
+    async fn agent_task(
+        &self,
+        Parameters(params): Parameters<AgentTaskRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Map string to AgentId
+        let to_agent = match params.to.to_lowercase().as_str() {
+            "claude" => AgentId::Claude,
+            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
+            "router" => AgentId::Internal("router".to_string()),
+            other => AgentId::Custom(other.to_string()),
+        };
+
+        // Create task envelope message
+        let msg = Msg {
+            id: bus.next_message_id(),
+            from: AgentId::Internal("mcp_server".to_string()),
+            to: Some(to_agent),
+            kind: MsgKind::Direct,
+            payload: serde_json::json!({
+                "task_id": params.task_id,
+                "task_type": params.task_type,
+                "payload": params.payload
+            }),
+            timestamp: SystemTime::now(),
+        };
+
+        bus.send(msg);
+
+        // Return success
+        let response = serde_json::json!({
+            "status": "sent",
+            "to": params.to,
+            "task_id": params.task_id,
+            "task_type": params.task_type
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "Submit the result of a completed task to the router")]
+    async fn agent_result(
+        &self,
+        Parameters(params): Parameters<AgentResultRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        // Check if message bus is configured
+        let bus = match &self.state.message_bus {
+            Some(b) => b.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Message bus not configured".to_string(),
+                )]));
+            }
+        };
+
+        // Map string to AgentId
+        let from_agent = match params.from.to_lowercase().as_str() {
+            "claude" => AgentId::Claude,
+            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
+            other => AgentId::Custom(other.to_string()),
+        };
+
+        // Create result message to router
+        let msg = Msg {
+            id: bus.next_message_id(),
+            from: from_agent,
+            to: Some(AgentId::Internal("router".to_string())),
+            kind: MsgKind::Direct,
+            payload: serde_json::json!({
+                "task_id": params.task_id,
+                "result": params.result
+            }),
+            timestamp: SystemTime::now(),
+        };
+
+        bus.send(msg);
+
+        // Return success
+        let response = serde_json::json!({
+            "status": "accepted",
+            "from": params.from,
+            "task_id": params.task_id
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+        )]))
+    }
+
+    #[tool(description = "Execute a Cypher query on Neo4j graph database and return results")]
+    async fn graph_query(
+        &self,
+        Parameters(params): Parameters<GraphQueryRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let neo4j = match &self.state.neo4j {
+            Some(client) => client.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Neo4j not configured. Use SynCoreState::with_neo4j() to add Neo4j support.".to_string(),
+                )]));
+            }
+        };
+
+        // Convert params to Vec<(&str, Value)>
+        let query_params: Vec<(&str, serde_json::Value)> = if let Some(obj) = params.params {
+            if let serde_json::Value::Object(map) = obj {
+                map.into_iter()
+                    .map(|(k, v)| (Box::leak(k.into_boxed_str()) as &str, v))
+                    .collect()
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        };
+
+        match neo4j.execute_query(&params.cypher, query_params).await {
+            Ok(results) => {
+                let response = serde_json::json!({
+                    "success": true,
+                    "rows": results,
+                    "count": results.len()
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Neo4j query error: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Execute a Cypher write query (CREATE, MERGE, SET) on Neo4j")]
+    async fn graph_insert(
+        &self,
+        Parameters(params): Parameters<GraphInsertRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let neo4j = match &self.state.neo4j {
+            Some(client) => client.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Neo4j not configured. Use SynCoreState::with_neo4j() to add Neo4j support.".to_string(),
+                )]));
+            }
+        };
+
+        // Convert params to Vec<(&str, Value)>
+        let query_params: Vec<(&str, serde_json::Value)> = if let Some(obj) = params.params {
+            if let serde_json::Value::Object(map) = obj {
+                map.into_iter()
+                    .map(|(k, v)| (Box::leak(k.into_boxed_str()) as &str, v))
+                    .collect()
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        };
+
+        match neo4j.execute_query(&params.cypher, query_params).await {
+            Ok(_) => {
+                let response = serde_json::json!({
+                    "success": true,
+                    "message": "Graph insert executed successfully"
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Neo4j insert error: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Create a relationship between two nodes in Neo4j")]
+    async fn graph_relate(
+        &self,
+        Parameters(params): Parameters<GraphRelateRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let neo4j = match &self.state.neo4j {
+            Some(client) => client.clone(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "Neo4j not configured. Use SynCoreState::with_neo4j() to add Neo4j support.".to_string(),
+                )]));
+            }
+        };
+
+        let from_label = params.from_label.unwrap_or_else(|| "Node".to_string());
+        let to_label = params.to_label.unwrap_or_else(|| "Node".to_string());
+
+        match neo4j
+            .create_relationship(&from_label, params.from_id, &to_label, params.to_id, &params.rel_type)
+            .await
+        {
+            Ok(_) => {
+                let response = serde_json::json!({
+                    "success": true,
+                    "from_id": params.from_id,
+                    "to_id": params.to_id,
+                    "rel_type": params.rel_type
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Neo4j relate error: {}",
+                e
+            ))])),
+        }
+    }
+
+    // Portfolio Enhancement Tools
+
+    #[tool(description = "Record a file node in the application structure map")]
+    async fn mapping_record(
+        &self,
+        Parameters(params): Parameters<MappingRecordRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::mapping_tool::{MappingTool, FileNode};
+
+        let mapper = MappingTool::new((*self.state).clone());
+        let node = FileNode {
+            path: params.path.clone(),
+            kind: params.kind,
+            language: params.language,
+            imports: params.imports,
+            exports: params.exports,
+            dependencies: params.dependencies,
+        };
+
+        match mapper.record_file(&node) {
+            Ok(_) => {
+                let response = serde_json::json!({
+                    "success": true,
+                    "path": params.path,
+                    "message": "File node recorded successfully"
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to record file: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Get a file node from the application structure map")]
+    async fn mapping_get(
+        &self,
+        Parameters(params): Parameters<MappingGetRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::mapping_tool::MappingTool;
+
+        let mapper = MappingTool::new((*self.state).clone());
+
+        match mapper.get_file(&params.path) {
+            Ok(Some(node)) => {
+                let response = serde_json::to_value(&node)
+                    .unwrap_or_else(|_| serde_json::json!({"error": "Serialization failed"}));
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Ok(None) => Ok(CallToolResult::success(vec![Content::text(format!(
+                "File not found: {}",
+                params.path
+            ))])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to get file: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Search for files related to a query using semantic search")]
+    async fn mapping_search(
+        &self,
+        Parameters(params): Parameters<MappingSearchRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::mapping_tool::MappingTool;
+
+        let mapper = MappingTool::new((*self.state).clone());
+
+        match mapper.search_related(&params.query) {
+            Ok(nodes) => {
+                let response = serde_json::json!({
+                    "count": nodes.len(),
+                    "files": nodes
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Search failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Get all transitive dependencies for a file")]
+    async fn mapping_deps(
+        &self,
+        Parameters(params): Parameters<MappingDepsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::mapping_tool::MappingTool;
+
+        let mapper = MappingTool::new((*self.state).clone());
+
+        match mapper.get_all_dependencies(&params.path) {
+            Ok(deps) => {
+                let response = serde_json::json!({
+                    "path": params.path,
+                    "dependencies": deps,
+                    "count": deps.len()
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to get dependencies: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Record a thought step in the reasoning chain")]
+    async fn sequential_record(
+        &self,
+        Parameters(params): Parameters<SequentialRecordRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::sequential_step::{SequentialStep, ThoughtStep};
+
+        let sequential = SequentialStep::new((*self.state).clone());
+        let step = ThoughtStep {
+            task_id: params.task_id,
+            step_number: params.step_number,
+            thought: params.thought,
+            action: params.action,
+            observation: params.observation,
+            reasoning: params.reasoning,
+        };
+
+        match sequential.record_step(&step) {
+            Ok(step_id) => {
+                let response = serde_json::json!({
+                    "success": true,
+                    "step_id": step_id,
+                    "message": "Thought step recorded successfully"
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to record step: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Get all thought steps for a task")]
+    async fn sequential_get(
+        &self,
+        Parameters(params): Parameters<SequentialGetRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::sequential_step::SequentialStep;
+
+        let sequential = SequentialStep::new((*self.state).clone());
+
+        match sequential.get_steps_for_task(params.task_id) {
+            Ok(steps) => {
+                let response = serde_json::json!({
+                    "task_id": params.task_id,
+                    "steps": steps,
+                    "count": steps.len()
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to get steps: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Search thought steps by semantic content")]
+    async fn sequential_search(
+        &self,
+        Parameters(params): Parameters<SequentialSearchRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::sequential_step::SequentialStep;
+
+        let sequential = SequentialStep::new((*self.state).clone());
+
+        match sequential.search_steps(&params.query) {
+            Ok(steps) => {
+                let response = serde_json::json!({
+                    "query": params.query,
+                    "results": steps,
+                    "count": steps.len()
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Search failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Record a code change in the application")]
+    async fn application_record(
+        &self,
+        Parameters(params): Parameters<ApplicationRecordRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::application_tool::{ApplicationTool, CodeChange};
+
+        let app_tool = ApplicationTool::new((*self.state).clone());
+        let change = CodeChange {
+            file_path: params.file_path.clone(),
+            change_type: params.change_type,
+            old_content: params.old_content,
+            new_content: params.new_content,
+            line_start: params.line_start,
+            line_end: params.line_end,
+            description: params.description,
+            task_id: params.task_id,
+        };
+
+        match app_tool.record_change(&change) {
+            Ok(change_id) => {
+                let response = serde_json::json!({
+                    "success": true,
+                    "change_id": change_id,
+                    "file_path": params.file_path,
+                    "message": "Code change recorded successfully"
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to record change: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Get all code changes for a task")]
+    async fn application_get(
+        &self,
+        Parameters(params): Parameters<ApplicationGetRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::application_tool::ApplicationTool;
+
+        let app_tool = ApplicationTool::new((*self.state).clone());
+
+        match app_tool.get_changes_for_task(params.task_id) {
+            Ok(changes) => {
+                let response = serde_json::json!({
+                    "task_id": params.task_id,
+                    "changes": changes,
+                    "count": changes.len()
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to get changes: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Get change history for a specific file")]
+    async fn application_history(
+        &self,
+        Parameters(params): Parameters<ApplicationHistoryRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::application_tool::ApplicationTool;
+
+        let app_tool = ApplicationTool::new((*self.state).clone());
+
+        match app_tool.get_file_history(&params.file_path) {
+            Ok(changes) => {
+                let response = serde_json::json!({
+                    "file_path": params.file_path,
+                    "history": changes,
+                    "count": changes.len()
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to get history: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Search code changes by semantic content")]
+    async fn application_search(
+        &self,
+        Parameters(params): Parameters<ApplicationSearchRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::portfolio::application_tool::ApplicationTool;
+
+        let app_tool = ApplicationTool::new((*self.state).clone());
+
+        match app_tool.search_changes(&params.query) {
+            Ok(changes) => {
+                let response = serde_json::json!({
+                    "query": params.query,
+                    "results": changes,
+                    "count": changes.len()
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Search failed: {}",
+                e
+            ))])),
+        }
+    }
 }
 
 #[tool_handler]
@@ -1143,7 +2108,132 @@ impl ServerHandler for SynCoreMCPServer {
     }
 }
 
+/// Background router loop that forwards messages based on agent capabilities
+async fn router_loop(state: SynCoreState) {
+    // Router registers itself
+    if let Some(bus) = &state.message_bus {
+        bus.register_agent_info(
+            AgentId::Internal("router".to_string()),
+            "router".to_string(),
+            vec!["routing".to_string()],
+        );
+    }
+
+    loop {
+        // Block until a message arrives for router (2 second timeout)
+        let msg = {
+            let bus = match &state.message_bus {
+                Some(b) => b.clone(),
+                None => {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                    continue;
+                }
+            };
+            bus.wait_for(&AgentId::Internal("router".to_string()), 2000)
+        };
+
+        if msg.is_none() {
+            continue;
+        }
+
+        let msg = msg.unwrap();
+
+        // Extract task_type from envelope payload
+        let task_type = msg.payload
+            .get("task_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("nlp");
+
+        // Map task_type to capability
+        let cap = match task_type {
+            "code" => "coding",
+            "analysis" => "analysis",
+            _ => "nlp",
+        };
+
+        // Determine which agent can handle this message
+        let chosen = {
+            let bus = match &state.message_bus {
+                Some(b) => b,
+                None => continue,
+            };
+            let mut target_agents = bus.agents_with_capability(cap);
+
+            // Fallback to any registered agent if none match capability
+            if target_agents.is_empty() {
+                target_agents = bus.list_registered_agents();
+            }
+
+            // Score candidate agents
+            let mut best: Option<(String, f64)> = None;
+
+            for name in &target_agents {
+                if let Some(status) = bus.get_agent_status(name) {
+                    // Extract simple metrics
+                    let load = status.get("load")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+
+                    let busy = status.get("busy")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+
+                    let errors = status.get("errors")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+
+                    // Weighted scoring formula:
+                    // lower load = better
+                    // not busy = better
+                    // fewer errors = better
+                    let score =
+                        load * 1.0 +
+                        if busy { 5.0 } else { 0.0 } +
+                        (errors as f64) * 3.0;
+
+                    match &mut best {
+                        None => best = Some((name.clone(), score)),
+                        Some((_, best_score)) => {
+                            if score < *best_score {
+                                best = Some((name.clone(), score));
+                            }
+                        }
+                    }
+                } else {
+                    // Agent has no status yet - treat as available with score 0
+                    if best.is_none() {
+                        best = Some((name.clone(), 0.0));
+                    }
+                }
+            }
+
+            best.map(|(name, _)| name)
+        };
+
+        if let Some(agent_name) = chosen {
+            if let Some(bus) = &state.message_bus {
+                bus.send(Msg {
+                    id: bus.next_message_id(),
+                    from: AgentId::Internal("router".to_string()),
+                    to: Some(AgentId::Custom(agent_name.clone())),
+                    kind: MsgKind::Direct,
+                    payload: msg.payload.clone(),
+                    timestamp: SystemTime::now(),
+                });
+            }
+        }
+    }
+}
+
 pub async fn run_mcp_stdio_server(state: SynCoreState) -> Result<()> {
+    // Spawn background router task
+    {
+        let state_clone = state.clone();
+        tokio::task::spawn(async move {
+            router_loop(state_clone).await;
+        });
+    }
+
     let server = SynCoreMCPServer::new(state);
 
     let service = server.serve(stdio()).await.inspect_err(|e| {

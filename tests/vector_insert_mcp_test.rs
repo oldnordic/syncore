@@ -22,6 +22,12 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
         tasks: tasks.clone(),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Create MCP request to insert vector
@@ -65,6 +71,12 @@ async fn test_vector_insert_should_handle_missing_text() {
         tasks: tasks.clone(),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Create request missing text parameter
@@ -107,6 +119,12 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         tasks: tasks.clone(),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Test valid scopes
@@ -149,6 +167,12 @@ async fn test_vector_insert_should_store_in_vector_store() {
         tasks: tasks.clone(),
         vector_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
+        message_bus: None,
+        write_queue: None,
+        read_pool: None,
+        faiss_queue: None,
+        faiss_pool: None,
+        neo4j: None,
     };
 
     // Insert a document

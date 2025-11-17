@@ -316,6 +316,75 @@ impl DocumentIndexer {
 
         Ok(total_chunks)
     }
+
+    /// Index a directory with custom storage paths (for testing)
+    /// This avoids touching ~/.syncore and allows full isolation
+    pub fn index_directory_with_storage(
+        &self,
+        dir_path: &Path,
+        db_path: &Path,
+        vectors_dir: &Path,
+    ) -> Result<usize> {
+        // Scan for documents
+        let documents = self.scan_directory(dir_path)?;
+
+        let mut total_chunks = 0;
+        let db_pool = GlobalDbPool::new_with_path(db_path)?;
+        let db = db_pool.get();
+        let mut vector_store = GlobalVectorStore::new_with_path(vectors_dir)?;
+
+        // Process each document
+        for doc in documents {
+            // Extract text
+            let text = match self.extract_text(&doc) {
+                Ok(t) => t,
+                Err(e) => {
+                    eprintln!("Warning: Failed to extract text from {}: {}", doc.path.display(), e);
+                    continue;
+                }
+            };
+
+            // Chunk the document
+            let chunks = self.chunk_document(&text, &doc);
+
+            // Store each chunk in database with embeddings
+            for chunk in &chunks {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs() as i64;
+
+                // Create unique key and ID for this chunk
+                let key = format!("doc:{}:chunk:{}",
+                    chunk.source_file.display(),
+                    chunk.chunk_index
+                );
+
+                // Generate unique ID based on hash of the key
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                key.hash(&mut hasher);
+                let chunk_id = hasher.finish() as i64;
+
+                // Store chunk text in SQLite database
+                db.execute(
+                    "INSERT OR REPLACE INTO memory (k, v, ts) VALUES (?1, ?2, ?3)",
+                    (&key, &chunk.text, now),
+                )?;
+
+                // Store vector embedding in FAISS index
+                vector_store.insert_text(chunk_id, &chunk.text, "documents")
+                    .unwrap_or_else(|e| {
+                        eprintln!("Warning: Failed to store embedding for {}: {}", key, e);
+                    });
+            }
+
+            total_chunks += chunks.len();
+        }
+
+        Ok(total_chunks)
+    }
 }
 
 #[cfg(test)]
