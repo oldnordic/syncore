@@ -20,7 +20,7 @@ SynCore is an experimental MCP server that connects Claude Code (or other MCP cl
 
 ### What Works
 
-- **16 MCP tools** accessible via Claude Code
+- **49 MCP tools** accessible via Claude Code (auto-generated via RMCP macros)
 - **Dual transport**: STDIO (Claude Code) and HTTP/SSE (GLM-4.6, other clients)
 - **Neo4j integration**: Full Cypher query support for graph operations
 - **Semantic code search**: Index and search code by meaning, not just keywords
@@ -151,37 +151,82 @@ DB_PATH=./my.db NEO4J_PASS=mypassword ./target/release/syncore_mcp_stdio
 #   - ...
 ```
 
-## Available MCP Tools (16)
+## Available MCP Tools (49)
+
+All tools are auto-generated via RMCP `#[tool]` macros in `src/mcp_server.rs`.
 
 ### Memory (2 tools)
-- `memory.store` - Store key-value pairs
-- `memory.query` - Retrieve values by key
+- `memory_store` - Store key-value pairs
+- `memory_query` - Retrieve values by key
 
 ### Task Management (1 tool)
-- `task.create` - Create simple tasks
+- `task_create` - Create simple tasks
 
 ### Vector Search (2 tools)
-- `vector.insert` - Insert text with embeddings
-- `vector.search` - Semantic similarity search
+- `vector_insert` - Insert text with embeddings
+- `vector_search` - Semantic similarity search
 
 ### Code Parsing (2 tools)
-- `parser.analyze` - Analyze code structure (functions, classes, imports)
-- `parser.search` - Ripgrep pattern search
+- `parser_analyze` - Analyze code structure (functions, classes, imports)
+- `parser_search` - Ripgrep pattern search
 
-### Code Intelligence (7 tools)
-- `code.explain` - Explain code using local Ollama LLM
-- `code.index_directory` - Batch index files with glob pattern
-- `code_graph.index` - Index Rust source into Code Intelligence Graph
-- `code_graph.query` - Query function relationships
-- `code_graph.explain` - Get comprehensive function explanation
-- `code_graph.impact` - Analyze impact of modifying a function
-- `code_graph.refactor_check` - Run comprehensive refactoring analysis
-- `code_graph.refactor_symbol` - Generate refactoring plan for symbol
+### Code Intelligence (3 tools)
+- `code_index` - Index file for semantic search
+- `code_search` - Semantic code search
+- `code_index_directory` - Batch index files
 
-### Logging (1 tool)
-- `logs.tail` - Get recent log entries
+### Graph Database (3 tools)
+- `graph_query` - Execute Cypher read queries
+- `graph_insert` - Execute Cypher write queries
+- `graph_relate` - Create relationships between nodes
 
-**Note:** Additional tools (IntelliTask, Graph Database, Sequential Reasoning, Agent Communication) are implemented in the codebase but not yet exposed in the MCP tool registry. See `src/mcp/protocol.rs` for the current list.
+### Application Mapping (6 tools)
+- `mapping_record` - Record file in structure map
+- `mapping_get` - Get file node
+- `mapping_search` - Search for related files
+- `mapping_deps` - Get transitive dependencies
+- `application_record` - Record code changes
+- `application_search` - Search code change history
+- `application_history` - Get file change history
+- `application_get` - Get task code changes
+
+### Sequential Reasoning (4 tools)
+- `sequential_record` - Record thought step
+- `sequential_get` - Get all steps for task
+- `sequential_search` - Search thoughts semantically
+- `sequential_cycle` - Run reasoning cycles (requires Ollama)
+
+### IntelliTask (11 tools)
+- `intellitask_generate` - Generate task breakdown from PRD
+- `intellitask_subtasks` - Generate subtasks for parent task
+- `intellitask_prioritize` - Prioritize tasks using AI
+- `intellitask_next` - Suggest next task to work on
+- `intellitask_save` - Save task breakdown to database
+- `intellitask_list` - List tasks with filtering
+- `intellitask_get` - Get task details
+- `intellitask_update_status` - Update task status
+- `intellitask_get_subtasks` - Get subtasks for parent
+- `intellitask_subtask_stats` - Subtask statistics
+- `intellitask_task_statistics` - Overall task stats
+- `intellitask_prd_statistics` - PRD-specific stats
+- `intellitask_next_ready` - Get next ready task
+
+### Agent Communication (8 tools)
+- `agent_register` - Register agent with capabilities
+- `agent_send` - Send message to agent
+- `agent_recv` - Receive pending messages
+- `agent_poll` - Wait for next message
+- `agent_task` - Send structured task
+- `agent_result` - Submit task result
+- `agent_status` - Update agent status
+- `agent_list` - List all agents
+
+### Document Management (2 tools)
+- `document_index` - Index documents into global store
+- `document_search` - Semantic document search
+
+### Other (1 tool)
+- `logs_tail` - Get recent log entries
 
 ## Architecture
 
