@@ -70,8 +70,6 @@ SynCore is an **experimental cognitive AI server** that provides 70+ tools for i
 
 **Architecture:**
 - ❌ **HNSW indexing**: Listed in Cargo.toml, NOT IMPLEMENTED (uses linear scan)
-- ❌ **Petgraph usage**: Dependency present but graph storage uses SQLite tables
-- ❌ **Redis integration**: Planned for agent bus, not implemented
 - ❌ **Distributed mode**: Single-node only, no replication
 - ❌ **Authentication**: No security, access controls, or encryption
 
