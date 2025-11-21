@@ -92,3 +92,9 @@ Thumbs.db
 perf.data
 perf.data.old
 flamegraph.svg
+
+# Test database files
+:memory:*
+*.db
+*.db-shm
+*.db-wal
