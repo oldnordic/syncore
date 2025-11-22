@@ -1,17 +1,16 @@
 /// Comprehensive functionality verification test
 /// Tests memory, sequential thinking, and IntelliTask to verify they work as intended
-
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
 
 use syncore::{
-    sequential::{SequentialCore, LanguageModel},
-    tasks::Tasks,
-    vector::{VectorStore, RealEmbeddings},
-    memory::Memory,
-    logger::MarkdownLogger,
     cognitive_db::CogState,
+    logger::MarkdownLogger,
+    memory::Memory,
+    sequential::{LanguageModel, SequentialCore},
+    tasks::Tasks,
+    vector::{RealEmbeddings, VectorStore},
 };
 
 // Real test language model that simulates realistic AI behavior
@@ -29,7 +28,10 @@ impl LanguageModel for RealTestLanguageModel {
         if context.contains("test task") {
             Ok("I need to understand this test task. Let me analyze the requirements and create a plan to accomplish the goal.".to_string())
         } else {
-            Ok(format!("Analyzing context: {}", context.chars().take(100).collect::<String>()))
+            Ok(format!(
+                "Analyzing context: {}",
+                context.chars().take(100).collect::<String>()
+            ))
         }
     }
 
@@ -43,7 +45,10 @@ impl LanguageModel for RealTestLanguageModel {
     }
 
     fn reflect(&self, goal: &str) -> Result<String> {
-        Ok(format!("Completed the goal successfully: {}. This was a productive cognitive cycle.", goal))
+        Ok(format!(
+            "Completed the goal successfully: {}. This was a productive cognitive cycle.",
+            goal
+        ))
     }
 }
 
@@ -119,7 +124,10 @@ fn test_vector_search_functionality() -> Result<()> {
 
     // Check that semantic similarity is working
     let first_result = &results[0];
-    assert!(first_result.score > 0.0, "Similarity scores should be positive");
+    assert!(
+        first_result.score > 0.0,
+        "Similarity scores should be positive"
+    );
     println!("✅ Vector search is functional with similarity scores");
 
     Ok(())
@@ -141,7 +149,12 @@ fn test_sequential_thinking_execution() -> Result<()> {
     let logger = MarkdownLogger::new("./test_logs");
 
     // Create a task
-    let task_id = tasks.add_task("Test sequential thinking task", "Verify cognitive cycle works", 1, None)?;
+    let task_id = tasks.add_task(
+        "Test sequential thinking task",
+        "Verify cognitive cycle works",
+        1,
+        None,
+    )?;
     println!("✅ Created task with ID: {}", task_id);
 
     // Create sequential core
@@ -159,13 +172,29 @@ fn test_sequential_thinking_execution() -> Result<()> {
     println!("✅ Cognitive cycle completed");
 
     match result {
-        syncore::sequential::CycleResult::Completed { task_id, thought, decision, actions, action_results, reflection } => {
+        syncore::sequential::CycleResult::Completed {
+            task_id,
+            thought,
+            decision,
+            actions,
+            action_results,
+            reflection,
+        } => {
             println!("  Task ID: {}", task_id);
-            println!("  Thought: {}", thought.chars().take(80).collect::<String>());
-            println!("  Decision: {}", decision.chars().take(80).collect::<String>());
+            println!(
+                "  Thought: {}",
+                thought.chars().take(80).collect::<String>()
+            );
+            println!(
+                "  Decision: {}",
+                decision.chars().take(80).collect::<String>()
+            );
             println!("  Actions: {} parsed", actions.len());
             println!("  Action Results: {} executed", action_results.len());
-            println!("  Reflection: {}", reflection.chars().take(80).collect::<String>());
+            println!(
+                "  Reflection: {}",
+                reflection.chars().take(80).collect::<String>()
+            );
 
             assert!(!thought.is_empty(), "Thought should not be empty");
             assert!(!decision.is_empty(), "Decision should not be empty");

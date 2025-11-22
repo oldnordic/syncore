@@ -4,10 +4,7 @@ mod tests {
     use rusqlite::{Connection, OptionalExtension};
     // std::fs is imported but not used - removed to fix warning
 
-
     fn test_db() -> Result<Connection> {
-
-
         let temp_dir = tempfile::tempdir()?;
         let db_path = temp_dir.path().join("test.db");
         let db_path_str = db_path.to_str().unwrap();
@@ -50,7 +47,13 @@ mod tests {
         Ok(db)
     }
 
-    fn add_task(db: &Connection, goal: &str, description: &str, priority: i32, parent_id: Option<i64>) -> Result<i64> {
+    fn add_task(
+        db: &Connection,
+        goal: &str,
+        description: &str,
+        priority: i32,
+        parent_id: Option<i64>,
+    ) -> Result<i64> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -65,7 +68,13 @@ mod tests {
         Ok(db.last_insert_rowid())
     }
 
-    fn update_task(db: &Connection, id: i64, status: Option<&str>, priority: Option<i32>, description: Option<&str>) -> Result<()> {
+    fn update_task(
+        db: &Connection,
+        id: i64,
+        status: Option<&str>,
+        priority: Option<i32>,
+        description: Option<&str>,
+    ) -> Result<()> {
         let mut updates = Vec::new();
         let mut params = Vec::new();
 
@@ -89,10 +98,13 @@ mod tests {
         }
 
         updates.push("updated_at = ?".to_string());
-        params.push(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs().to_string());
+        params.push(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                .to_string(),
+        );
 
         params.push(id.to_string());
 
@@ -128,7 +140,9 @@ mod tests {
             }
             if let Some(ref desc) = self.description {
                 if desc.len() > 1000 {
-                    return Err(anyhow::anyhow!("Task description too long (max 1000 chars)"));
+                    return Err(anyhow::anyhow!(
+                        "Task description too long (max 1000 chars)"
+                    ));
                 }
             }
             Ok(())
@@ -145,23 +159,20 @@ mod tests {
             };
 
             let priority_marker = "⚡".repeat(self.priority as usize);
-            let parent_info = self.parent_id
+            let parent_info = self
+                .parent_id
                 .map(|p| format!(" (parent: {})", p))
                 .unwrap_or_default();
 
-            let description_info = self.description
+            let description_info = self
+                .description
                 .as_ref()
                 .map(|d| format!(" - {}", d))
                 .unwrap_or_default();
 
             format!(
                 "{} {}[{}]: {}{}{}",
-                status_icon,
-                priority_marker,
-                self.id,
-                self.goal,
-                parent_info,
-                description_info
+                status_icon, priority_marker, self.id, self.goal, parent_info, description_info
             )
         }
 
@@ -171,12 +182,17 @@ mod tests {
         }
     }
 
-    fn next_task(db: &Connection, statuses: Option<&[&str]>, min_prio: Option<i32>) -> Result<Option<Task>> {
+    fn next_task(
+        db: &Connection,
+        statuses: Option<&[&str]>,
+        min_prio: Option<i32>,
+    ) -> Result<Option<Task>> {
         let mut query = "
             SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
             FROM tasks
             WHERE status != 'done' AND status != 'cancelled'
-        ".to_string();
+        "
+        .to_string();
 
         if let Some(statuses) = statuses {
             let status_list: Vec<String> = statuses.iter().map(|s| format!("'{}'", s)).collect();
@@ -190,18 +206,20 @@ mod tests {
         query.push_str(" ORDER BY priority ASC, created_at ASC LIMIT 1");
 
         let mut stmt = db.prepare(&query)?;
-        let task = stmt.query_row([], |row| {
-            Ok(Task {
-                id: row.get(0)?,
-                goal: row.get(1)?,
-                description: row.get(2)?,
-                status: row.get(3)?,
-                priority: row.get(4)?,
-                parent_id: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+        let task = stmt
+            .query_row([], |row| {
+                Ok(Task {
+                    id: row.get(0)?,
+                    goal: row.get(1)?,
+                    description: row.get(2)?,
+                    status: row.get(3)?,
+                    priority: row.get(4)?,
+                    parent_id: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
             })
-        }).optional()?;
+            .optional()?;
 
         Ok(task)
     }
@@ -238,7 +256,10 @@ mod tests {
         println!("✓ Created 3 tasks with priorities 3, 1, 2");
 
         // Verify task IDs are unique and sequential (real functionality)
-        assert!(id1 != id2 && id2 != id3 && id1 != id3, "Task IDs should be unique");
+        assert!(
+            id1 != id2 && id2 != id3 && id1 != id3,
+            "Task IDs should be unique"
+        );
         assert!(id1 < id2 && id2 < id3, "Task IDs should be sequential");
 
         // Get next task - should be highest priority (lowest number)
@@ -250,7 +271,10 @@ mod tests {
         // Use real Task functionality to verify priority
         task.validate()?;
         println!("✓ Priority task validated: {}", task.format_display());
-        assert!(task.is_ready_for_work(), "High priority task should be ready");
+        assert!(
+            task.is_ready_for_work(),
+            "High priority task should be ready"
+        );
 
         println!("✓ Confirmed priority ordering works");
 
@@ -267,7 +291,10 @@ mod tests {
         let id3 = add_task(&db, "Done Task", "Should NOT appear", 3, None)?;
 
         // Verify all task IDs were created successfully
-        assert!(id1 > 0 && id2 > 0 && id3 > 0, "All task IDs should be positive");
+        assert!(
+            id1 > 0 && id2 > 0 && id3 > 0,
+            "All task IDs should be positive"
+        );
 
         // Mark one as done
         update_task(&db, id3, Some("done"), None, None)?;

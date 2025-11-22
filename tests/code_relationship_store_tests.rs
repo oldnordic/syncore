@@ -11,9 +11,18 @@ async fn test_store_and_retrieve_imports() {
     let store = CodeRelationshipStore::new(&db_path).await.unwrap();
 
     // Store imports
-    store.store_import("src/main.rs", "std::collections::HashMap").await.unwrap();
-    store.store_import("src/main.rs", "anyhow::Result").await.unwrap();
-    store.store_import("src/lib.rs", "serde::Serialize").await.unwrap();
+    store
+        .store_import("src/main.rs", "std::collections::HashMap")
+        .await
+        .unwrap();
+    store
+        .store_import("src/main.rs", "anyhow::Result")
+        .await
+        .unwrap();
+    store
+        .store_import("src/lib.rs", "serde::Serialize")
+        .await
+        .unwrap();
 
     // Retrieve imports for main.rs
     let main_imports = store.get_imports("src/main.rs").await.unwrap();
@@ -34,9 +43,18 @@ async fn test_store_and_retrieve_calls() {
     let store = CodeRelationshipStore::new(&db_path).await.unwrap();
 
     // Store function calls
-    store.store_call("src/main.rs", "main", "init_database").await.unwrap();
-    store.store_call("src/main.rs", "main", "start_server").await.unwrap();
-    store.store_call("src/lib.rs", "process", "validate").await.unwrap();
+    store
+        .store_call("src/main.rs", "main", "init_database")
+        .await
+        .unwrap();
+    store
+        .store_call("src/main.rs", "main", "start_server")
+        .await
+        .unwrap();
+    store
+        .store_call("src/lib.rs", "process", "validate")
+        .await
+        .unwrap();
 
     // Retrieve calls from main
     let main_calls = store.get_calls_from("src/main.rs", "main").await.unwrap();
@@ -57,9 +75,18 @@ async fn test_store_trait_impls() {
     let store = CodeRelationshipStore::new(&db_path).await.unwrap();
 
     // Store trait implementations
-    store.store_impl("src/models.rs", "User", "Default").await.unwrap();
-    store.store_impl("src/models.rs", "User", "Clone").await.unwrap();
-    store.store_impl("src/models.rs", "Session", "Drop").await.unwrap();
+    store
+        .store_impl("src/models.rs", "User", "Default")
+        .await
+        .unwrap();
+    store
+        .store_impl("src/models.rs", "User", "Clone")
+        .await
+        .unwrap();
+    store
+        .store_impl("src/models.rs", "Session", "Drop")
+        .await
+        .unwrap();
 
     // Retrieve impls for User
     let user_impls = store.get_impls_for("User").await.unwrap();
@@ -97,7 +124,10 @@ async fn test_neo4j_call_relationship() {
     let store = CodeRelationshipStore::new(&db_path).await.unwrap();
 
     // Store call and sync to Neo4j
-    store.store_call("src/lib.rs", "handler", "validate_request").await.unwrap();
+    store
+        .store_call("src/lib.rs", "handler", "validate_request")
+        .await
+        .unwrap();
     store.sync_to_neo4j().await.unwrap();
 
     // Query Neo4j for call relationship
@@ -112,21 +142,38 @@ async fn test_faiss_similarity_query() {
     let store = CodeRelationshipStore::new(&db_path).await.unwrap();
 
     // Index function bodies
-    let func1_body = "fn validate_user(user: &User) -> bool { user.is_active && user.has_permission() }";
+    let func1_body =
+        "fn validate_user(user: &User) -> bool { user.is_active && user.has_permission() }";
     let func2_body = "fn check_user_valid(u: &User) -> bool { u.active && u.permission_granted() }";
     let func3_body = "fn compute_sum(a: i32, b: i32) -> i32 { a + b }";
 
-    store.index_function("src/auth.rs", "validate_user", func1_body).await.unwrap();
-    store.index_function("src/auth2.rs", "check_user_valid", func2_body).await.unwrap();
-    store.index_function("src/math.rs", "compute_sum", func3_body).await.unwrap();
+    store
+        .index_function("src/auth.rs", "validate_user", func1_body)
+        .await
+        .unwrap();
+    store
+        .index_function("src/auth2.rs", "check_user_valid", func2_body)
+        .await
+        .unwrap();
+    store
+        .index_function("src/math.rs", "compute_sum", func3_body)
+        .await
+        .unwrap();
 
     // Search for similar to validate_user
-    let similar = store.find_similar_functions("validate user permissions check", 2).await.unwrap();
+    let similar = store
+        .find_similar_functions("validate user permissions check", 2)
+        .await
+        .unwrap();
 
     // Should find validate_user and check_user_valid, not compute_sum
     assert_eq!(similar.len(), 2);
-    assert!(similar.iter().any(|(file, func, _)| file == "src/auth.rs" && func == "validate_user"));
-    assert!(similar.iter().any(|(file, func, _)| file == "src/auth2.rs" && func == "check_user_valid"));
+    assert!(similar
+        .iter()
+        .any(|(file, func, _)| file == "src/auth.rs" && func == "validate_user"));
+    assert!(similar
+        .iter()
+        .any(|(file, func, _)| file == "src/auth2.rs" && func == "check_user_valid"));
 }
 
 #[tokio::test]
@@ -136,9 +183,18 @@ async fn test_get_all_files_importing() {
     let store = CodeRelationshipStore::new(&db_path).await.unwrap();
 
     // Multiple files importing the same module
-    store.store_import("src/main.rs", "anyhow::Result").await.unwrap();
-    store.store_import("src/lib.rs", "anyhow::Result").await.unwrap();
-    store.store_import("src/utils.rs", "anyhow::Result").await.unwrap();
+    store
+        .store_import("src/main.rs", "anyhow::Result")
+        .await
+        .unwrap();
+    store
+        .store_import("src/lib.rs", "anyhow::Result")
+        .await
+        .unwrap();
+    store
+        .store_import("src/utils.rs", "anyhow::Result")
+        .await
+        .unwrap();
 
     let files = store.get_files_importing("anyhow::Result").await.unwrap();
     assert_eq!(files.len(), 3);
@@ -154,13 +210,28 @@ async fn test_get_callers_of() {
     let store = CodeRelationshipStore::new(&db_path).await.unwrap();
 
     // Multiple functions calling the same function
-    store.store_call("src/main.rs", "main", "validate").await.unwrap();
-    store.store_call("src/lib.rs", "process", "validate").await.unwrap();
-    store.store_call("src/test.rs", "test_fn", "validate").await.unwrap();
+    store
+        .store_call("src/main.rs", "main", "validate")
+        .await
+        .unwrap();
+    store
+        .store_call("src/lib.rs", "process", "validate")
+        .await
+        .unwrap();
+    store
+        .store_call("src/test.rs", "test_fn", "validate")
+        .await
+        .unwrap();
 
     let callers = store.get_callers_of("validate").await.unwrap();
     assert_eq!(callers.len(), 3);
-    assert!(callers.iter().any(|(file, func)| file == "src/main.rs" && func == "main"));
-    assert!(callers.iter().any(|(file, func)| file == "src/lib.rs" && func == "process"));
-    assert!(callers.iter().any(|(file, func)| file == "src/test.rs" && func == "test_fn"));
+    assert!(callers
+        .iter()
+        .any(|(file, func)| file == "src/main.rs" && func == "main"));
+    assert!(callers
+        .iter()
+        .any(|(file, func)| file == "src/lib.rs" && func == "process"));
+    assert!(callers
+        .iter()
+        .any(|(file, func)| file == "src/test.rs" && func == "test_fn"));
 }

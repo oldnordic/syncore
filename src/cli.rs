@@ -1,6 +1,6 @@
+use crate::protocol::{SynCoreMsg, SynCoreTool};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
-use crate::protocol::{SynCoreMsg, SynCoreTool};
 
 pub struct Client {
     stream: UnixStream,
@@ -18,13 +18,13 @@ impl Client {
             tool: SynCoreTool::MemoryStore,
             args,
         };
-        
+
         let msg_bytes = rmp_serde::to_vec(&msg)?;
         self.stream.write_all(&msg_bytes).await?;
-        
+
         let mut response = Vec::new();
         self.stream.read_to_end(&mut response).await?;
-        
+
         let result: String = rmp_serde::from_slice(&response)?;
         Ok(result)
     }
@@ -35,13 +35,13 @@ impl Client {
             tool: SynCoreTool::MemoryQuery,
             args,
         };
-        
+
         let msg_bytes = rmp_serde::to_vec(&msg)?;
         self.stream.write_all(&msg_bytes).await?;
-        
+
         let mut response = Vec::new();
         self.stream.read_to_end(&mut response).await?;
-        
+
         let result: Option<String> = rmp_serde::from_slice(&response)?;
         Ok(result)
     }

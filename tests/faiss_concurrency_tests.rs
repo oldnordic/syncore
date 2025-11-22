@@ -1,7 +1,7 @@
-use std::sync::Arc;
 use anyhow::Result;
-use tokio::task;
+use std::sync::Arc;
 use syncore::router::SynCoreState;
+use tokio::task;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn faiss_concurrent_reads_and_writes_do_not_deadlock() -> Result<()> {

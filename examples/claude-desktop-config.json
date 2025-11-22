@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "syncore": {
+      "command": "cargo",
+      "args": ["run", "--bin", "syncore_mcp_stdio"],
+      "cwd": "/home/feanor/Projects/SynCore/syncore",
+      "env": {
+        "RUST_LOG": "info",
+        "DB_PATH": "syncore.db"
+      }
+    }
+  }
+}

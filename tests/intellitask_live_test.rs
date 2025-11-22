@@ -5,7 +5,6 @@
 /// Pull model: ollama pull qwen2.5-coder:3B
 ///
 /// To run this test: cargo test --test intellitask_live_test -- --nocapture --ignored
-
 use anyhow::Result;
 use syncore::intellitask::IntelliTask;
 use syncore::ollama::{OllamaClient, OllamaConfig};
@@ -74,7 +73,10 @@ Implement a secure user authentication system with JWT tokens, password hashing,
                 println!("   Complexity: {:?}", task.complexity);
                 println!("   Estimated Hours: {}", task.estimated_hours);
                 println!("   Dependencies: {:?}", task.dependencies);
-                println!("   Subtasks: {} (to be generated later)", task.subtasks.len());
+                println!(
+                    "   Subtasks: {} (to be generated later)",
+                    task.subtasks.len()
+                );
             }
 
             println!("\n\nRelevant Files ({}):", breakdown.relevant_files.len());
@@ -83,8 +85,14 @@ Implement a secure user authentication system with JWT tokens, password hashing,
             }
 
             // Verify structure
-            assert!(!breakdown.parent_tasks.is_empty(), "Should generate parent tasks");
-            assert!(!breakdown.relevant_files.is_empty(), "Should identify relevant files");
+            assert!(
+                !breakdown.parent_tasks.is_empty(),
+                "Should generate parent tasks"
+            );
+            assert!(
+                !breakdown.relevant_files.is_empty(),
+                "Should identify relevant files"
+            );
 
             println!("\n✅ IntelliTask is fully functional with real Ollama!");
         }
@@ -110,7 +118,8 @@ fn test_intellitask_subtask_generation() -> Result<()> {
     let parent_task = syncore::intellitask::ParentTask {
         id: "1.0".to_string(),
         title: "Implement User Registration".to_string(),
-        description: "Create user registration endpoint with email validation and password hashing".to_string(),
+        description: "Create user registration endpoint with email validation and password hashing"
+            .to_string(),
         subtasks: vec![],
         dependencies: vec![],
         complexity: syncore::intellitask::Complexity::Moderate,
@@ -240,7 +249,9 @@ fn test_intellitask_without_ollama_shows_clear_error() -> Result<()> {
             let error_msg = e.to_string();
             println!("✅ Got expected error: {}", error_msg);
             assert!(
-                error_msg.contains("error") || error_msg.contains("connection") || error_msg.contains("failed"),
+                error_msg.contains("error")
+                    || error_msg.contains("connection")
+                    || error_msg.contains("failed"),
                 "Error message should indicate connection failure"
             );
             println!("✅ IntelliTask properly reports when Ollama is not available");

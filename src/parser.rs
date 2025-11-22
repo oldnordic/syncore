@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -18,7 +18,7 @@ pub struct CodeStructure {
 pub struct FunctionInfo {
     pub name: String,
     pub line_number: usize,
-    pub end_line: usize,  // End line of the function
+    pub end_line: usize, // End line of the function
     pub parameters: Vec<String>,
     pub return_type: Option<String>,
     pub docstring: Option<String>,
@@ -86,14 +86,17 @@ impl Parser {
 
     pub fn parse_file(&self, file_path: &Path) -> Result<CodeStructure> {
         let language = self.detect_language(file_path)?;
-        let language_parser = self.languages.get(&language)
+        let language_parser = self
+            .languages
+            .get(&language)
             .ok_or_else(|| anyhow!("Unsupported language: {language}"))?;
 
         let source_code = std::fs::read_to_string(file_path)?;
         let mut parser = tree_sitter::Parser::new();
         parser.set_language(*language_parser)?;
 
-        let tree = parser.parse(&source_code, None)
+        let tree = parser
+            .parse(&source_code, None)
             .ok_or_else(|| anyhow!("Failed to parse file: {file_path:?}"))?;
 
         let root_node = tree.root_node();
@@ -104,14 +107,43 @@ impl Parser {
         let mut variables = Vec::new();
 
         match language.as_str() {
-            "rust" => self.extract_rust_info(&source_code, &root_node, &mut functions, &mut classes, &mut imports, &mut variables),
-            "python" => self.extract_python_info(&source_code, &root_node, &mut functions, &mut classes, &mut imports, &mut variables),
-            "javascript" | "typescript" => self.extract_js_info(&source_code, &root_node, &mut functions, &mut classes, &mut imports, &mut variables),
+            "rust" => self.extract_rust_info(
+                &source_code,
+                &root_node,
+                &mut functions,
+                &mut classes,
+                &mut imports,
+                &mut variables,
+            ),
+            "python" => self.extract_python_info(
+                &source_code,
+                &root_node,
+                &mut functions,
+                &mut classes,
+                &mut imports,
+                &mut variables,
+            ),
+            "javascript" | "typescript" => self.extract_js_info(
+                &source_code,
+                &root_node,
+                &mut functions,
+                &mut classes,
+                &mut imports,
+                &mut variables,
+            ),
             _ => {}
         }
 
+        // Normalize path to canonical form to prevent duplicate entries
+        // (e.g., "./src/main.rs" vs "/home/user/project/src/main.rs")
+        let normalized_path = file_path
+            .canonicalize()
+            .unwrap_or_else(|_| file_path.to_path_buf())
+            .to_string_lossy()
+            .to_string();
+
         Ok(CodeStructure {
-            file_path: file_path.to_string_lossy().to_string(),
+            file_path: normalized_path,
             language,
             functions,
             classes,
@@ -121,7 +153,8 @@ impl Parser {
     }
 
     fn detect_language(&self, file_path: &Path) -> Result<String> {
-        let extension = file_path.extension()
+        let extension = file_path
+            .extension()
             .and_then(|ext| ext.to_str())
             .ok_or_else(|| anyhow!("No file extension found"))?;
 
@@ -137,9 +170,15 @@ impl Parser {
         }
     }
 
-    fn extract_rust_info(&self, source: &str, root: &tree_sitter::Node,
-                        functions: &mut Vec<FunctionInfo>, classes: &mut Vec<ClassInfo>,
-                        imports: &mut Vec<ImportInfo>, variables: &mut Vec<VariableInfo>) {
+    fn extract_rust_info(
+        &self,
+        source: &str,
+        root: &tree_sitter::Node,
+        functions: &mut Vec<FunctionInfo>,
+        classes: &mut Vec<ClassInfo>,
+        imports: &mut Vec<ImportInfo>,
+        variables: &mut Vec<VariableInfo>,
+    ) {
         let mut cursor = root.walk();
 
         for child in root.children(&mut cursor) {
@@ -159,7 +198,9 @@ impl Parser {
                             let mut decl_cursor = impl_child.walk();
                             for decl_child in impl_child.children(&mut decl_cursor) {
                                 if decl_child.kind() == "function_item" {
-                                    if let Some(func) = self.extract_rust_function(source, &decl_child) {
+                                    if let Some(func) =
+                                        self.extract_rust_function(source, &decl_child)
+                                    {
                                         functions.push(func);
                                     }
                                 }
@@ -187,7 +228,11 @@ impl Parser {
         }
     }
 
-    fn extract_rust_function(&self, source: &str, node: &tree_sitter::Node) -> Option<FunctionInfo> {
+    fn extract_rust_function(
+        &self,
+        source: &str,
+        node: &tree_sitter::Node,
+    ) -> Option<FunctionInfo> {
         let mut name = None;
         let mut parameters = Vec::new();
         let mut return_type = None;
@@ -282,7 +327,11 @@ impl Parser {
         fields
     }
 
-    fn extract_rust_variable(&self, source: &str, node: &tree_sitter::Node) -> Option<VariableInfo> {
+    fn extract_rust_variable(
+        &self,
+        source: &str,
+        node: &tree_sitter::Node,
+    ) -> Option<VariableInfo> {
         let mut name = None;
         let mut var_type = None;
         let mut value = None;
@@ -371,9 +420,15 @@ impl Parser {
         parameters
     }
 
-    fn extract_python_info(&self, source: &str, root: &tree_sitter::Node,
-                           functions: &mut Vec<FunctionInfo>, classes: &mut Vec<ClassInfo>,
-                           imports: &mut Vec<ImportInfo>, variables: &mut Vec<VariableInfo>) {
+    fn extract_python_info(
+        &self,
+        source: &str,
+        root: &tree_sitter::Node,
+        functions: &mut Vec<FunctionInfo>,
+        classes: &mut Vec<ClassInfo>,
+        imports: &mut Vec<ImportInfo>,
+        variables: &mut Vec<VariableInfo>,
+    ) {
         let mut cursor = root.walk();
 
         for child in root.children(&mut cursor) {
@@ -403,7 +458,11 @@ impl Parser {
         }
     }
 
-    fn extract_python_function(&self, source: &str, node: &tree_sitter::Node) -> Option<FunctionInfo> {
+    fn extract_python_function(
+        &self,
+        source: &str,
+        node: &tree_sitter::Node,
+    ) -> Option<FunctionInfo> {
         let mut name = None;
         let mut parameters = Vec::new();
         let mut return_type = None;
@@ -466,12 +525,16 @@ impl Parser {
                     for class_child in child.children(&mut block_cursor) {
                         match class_child.kind() {
                             "function_definition" => {
-                                if let Some(method) = self.extract_python_function(source, &class_child) {
+                                if let Some(method) =
+                                    self.extract_python_function(source, &class_child)
+                                {
                                     methods.push(method);
                                 }
                             }
                             "assignment" => {
-                                if let Some(field) = self.extract_python_variable(source, &class_child) {
+                                if let Some(field) =
+                                    self.extract_python_variable(source, &class_child)
+                                {
                                     fields.push(field);
                                 }
                             }
@@ -539,7 +602,11 @@ impl Parser {
         })
     }
 
-    fn extract_python_variable(&self, source: &str, node: &tree_sitter::Node) -> Option<VariableInfo> {
+    fn extract_python_variable(
+        &self,
+        source: &str,
+        node: &tree_sitter::Node,
+    ) -> Option<VariableInfo> {
         let mut name = None;
         let mut value = None;
 
@@ -580,9 +647,15 @@ impl Parser {
         parameters
     }
 
-    fn extract_js_info(&self, source: &str, root: &tree_sitter::Node,
-                       functions: &mut Vec<FunctionInfo>, classes: &mut Vec<ClassInfo>,
-                       imports: &mut Vec<ImportInfo>, variables: &mut Vec<VariableInfo>) {
+    fn extract_js_info(
+        &self,
+        source: &str,
+        root: &tree_sitter::Node,
+        functions: &mut Vec<FunctionInfo>,
+        classes: &mut Vec<ClassInfo>,
+        imports: &mut Vec<ImportInfo>,
+        variables: &mut Vec<VariableInfo>,
+    ) {
         let mut cursor = root.walk();
 
         for child in root.children(&mut cursor) {
@@ -669,12 +742,14 @@ impl Parser {
                     for class_child in child.children(&mut body_cursor) {
                         match class_child.kind() {
                             "method_definition" => {
-                                if let Some(method) = self.extract_js_function(source, &class_child) {
+                                if let Some(method) = self.extract_js_function(source, &class_child)
+                                {
                                     methods.push(method);
                                 }
                             }
                             "field_definition" => {
-                                if let Some(field) = self.extract_js_variable(source, &class_child) {
+                                if let Some(field) = self.extract_js_variable(source, &class_child)
+                                {
                                     fields.push(field);
                                 }
                             }
@@ -777,55 +852,68 @@ impl Parser {
 
 pub struct RipgrepSearcher;
 
+pub fn search_with_file_types(
+    pattern: &str,
+    directory: &Path,
+    file_types: &[&str],
+    context_lines: usize,
+) -> Result<Vec<RipgrepMatch>> {
+    let mut cmd = Command::new("rg");
+    cmd.arg("--json")
+        .arg("--heading")
+        .arg("--line-number")
+        .arg(format!("--context={context_lines}"));
 
+    for file_type in file_types {
+        cmd.arg("--type").arg(file_type);
+    }
 
-    pub fn search_with_file_types(pattern: &str, directory: &Path, file_types: &[&str], context_lines: usize) -> Result<Vec<RipgrepMatch>> {
-        let mut cmd = Command::new("rg");
-        cmd.arg("--json")
-            .arg("--heading")
-            .arg("--line-number")
-            .arg(format!("--context={context_lines}"));
+    cmd.arg(pattern).arg(directory);
 
-        for file_type in file_types {
-            cmd.arg("--type").arg(file_type);
+    let output = cmd.output()?;
+
+    // Handle ripgrep exit codes: 0 = matches found, 1 = no matches, 2+ = error
+    match output.status.code() {
+        Some(0) => { /* matches found, continue */ }
+        Some(1) => return Ok(Vec::new()), // no matches found, return empty
+        _ => {
+            return Err(anyhow!(
+                "ripgrep failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ))
         }
-        
-        cmd.arg(pattern)
-            .arg(directory);
+    }
 
-        let output = cmd.output()?;
+    // Parse JSON output from ripgrep
+    let mut matches = Vec::new();
+    let stdout_str = String::from_utf8_lossy(&output.stdout);
 
-        if !output.status.success() {
-            return Err(anyhow!("ripgrep failed: {}", String::from_utf8_lossy(&output.stderr)));
+    for line in stdout_str.lines() {
+        if line.trim().is_empty() {
+            continue;
         }
 
         // Parse JSON output from ripgrep
-        let mut matches = Vec::new();
-        let stdout_str = String::from_utf8_lossy(&output.stdout);
-        
-        for line in stdout_str.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
-            
-            // Parse JSON output from ripgrep
-            if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(line) {
-                if let Some(obj) = json_value.as_object() {
-                    if let Some("match") = obj.get("type").and_then(|v| v.as_str()) {
-                        if let Some(data) = obj.get("data") {
-                            if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
-                                if let Some(line_number) = data.get("line_number").and_then(|v| v.as_u64()) {
-                                    if let Some(lines) = data.get("lines").and_then(|v| v.as_object()) {
-                                        if let Some(content) = lines.get("text").and_then(|v| v.as_str()) {
-                                            matches.push(RipgrepMatch {
-                                                file_path: path.to_string(),
-                                                line_number: line_number as usize,
-                                                line_content: content.to_string(),
-                                                match_text: pattern.to_string(),
-                                                context_before: Vec::new(),
-                                                context_after: Vec::new(),
-                                            });
-                                        }
+        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(line) {
+            if let Some(obj) = json_value.as_object() {
+                if let Some("match") = obj.get("type").and_then(|v| v.as_str()) {
+                    if let Some(data) = obj.get("data") {
+                        if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
+                            if let Some(line_number) =
+                                data.get("line_number").and_then(|v| v.as_u64())
+                            {
+                                if let Some(lines) = data.get("lines").and_then(|v| v.as_object()) {
+                                    if let Some(content) =
+                                        lines.get("text").and_then(|v| v.as_str())
+                                    {
+                                        matches.push(RipgrepMatch {
+                                            file_path: path.to_string(),
+                                            line_number: line_number as usize,
+                                            line_content: content.to_string(),
+                                            match_text: pattern.to_string(),
+                                            context_before: Vec::new(),
+                                            context_after: Vec::new(),
+                                        });
                                     }
                                 }
                             }
@@ -834,53 +922,68 @@ pub struct RipgrepSearcher;
                 }
             }
         }
-
-        Ok(matches)
     }
 
-    impl RipgrepSearcher {
-        pub fn search(pattern: &str, directory: &Path, _context_lines: usize) -> Result<Vec<RipgrepMatch>> {
-            let output = Command::new("rg")
-                .arg("--line-number")
-                .arg(pattern)
-                .arg(directory)
-                .output()?;
+    Ok(matches)
+}
 
-            if !output.status.success() {
-                return Err(anyhow!("ripgrep failed: {}", String::from_utf8_lossy(&output.stderr)));
+impl RipgrepSearcher {
+    pub fn search(
+        pattern: &str,
+        directory: &Path,
+        _context_lines: usize,
+    ) -> Result<Vec<RipgrepMatch>> {
+        let output = Command::new("rg")
+            .arg("--line-number")
+            .arg(pattern)
+            .arg(directory)
+            .output()?;
+
+        // Handle ripgrep exit codes: 0 = matches found, 1 = no matches, 2+ = error
+        match output.status.code() {
+            Some(0) => { /* matches found, continue */ }
+            Some(1) => return Ok(Vec::new()), // no matches found, return empty
+            _ => {
+                return Err(anyhow!(
+                    "ripgrep failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ))
+            }
+        }
+
+        let mut matches = Vec::new();
+        let stdout_str = String::from_utf8_lossy(&output.stdout);
+
+        // Parse ripgrep output format: "file_path:line_number:content"
+        for line in stdout_str.lines() {
+            if line.trim().is_empty() {
+                continue;
             }
 
-            let mut matches = Vec::new();
-            let stdout_str = String::from_utf8_lossy(&output.stdout);
-
-            // Parse ripgrep output format: "file_path:line_number:content"
-            for line in stdout_str.lines() {
-                if line.trim().is_empty() {
-                    continue;
-                }
-
-                // Parse "path:line:content" format
-                if let Some((prefix, content)) = line.split_once(':') {
-                    if let Some((file_path, line_number_str)) = prefix.rsplit_once(':') {
-                        if let Ok(line_number) = line_number_str.parse::<usize>() {
-                            if content.contains(pattern) {
-                                matches.push(RipgrepMatch {
-                                    file_path: file_path.to_string(),
-                                    line_number,
-                                    line_content: content.to_string(),
-                                    match_text: pattern.to_string(),
-                                    context_before: Vec::new(),
-                                    context_after: Vec::new(),
-                                });
-                            }
-                        }
+            // Parse "path:line:content" format
+            // We need to find the first two colons: path:line:content
+            let parts: Vec<&str> = line.splitn(3, ':').collect();
+            if parts.len() >= 3 {
+                let file_path = parts[0];
+                if let Ok(line_number) = parts[1].parse::<usize>() {
+                    let content = parts[2];
+                    if content.contains(pattern) {
+                        matches.push(RipgrepMatch {
+                            file_path: file_path.to_string(),
+                            line_number,
+                            line_content: content.to_string(),
+                            match_text: pattern.to_string(),
+                            context_before: Vec::new(),
+                            context_after: Vec::new(),
+                        });
                     }
                 }
             }
-
-            Ok(matches)
         }
+
+        Ok(matches)
     }
+}
 
 // MCP handler functions
 pub fn handle_parse_file(args: &[u8]) -> Result<Vec<u8>> {
@@ -902,7 +1005,14 @@ pub fn handle_parse_file(args: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub fn handle_search_code(args: &[u8]) -> Result<Vec<u8>> {
-    let (pattern, directory, file_types, context_lines, _case_sensitive, max_results): (String, String, Vec<String>, usize, bool, usize) = rmp_serde::from_slice(args)?;
+    let (pattern, directory, file_types, context_lines, _case_sensitive, max_results): (
+        String,
+        String,
+        Vec<String>,
+        usize,
+        bool,
+        usize,
+    ) = rmp_serde::from_slice(args)?;
 
     let start_time = std::time::Instant::now();
 
@@ -911,7 +1021,12 @@ pub fn handle_search_code(args: &[u8]) -> Result<Vec<u8>> {
     } else {
         // Use proper file type filtering with ripgrep
         let file_type_refs: Vec<&str> = file_types.iter().map(|s| s.as_str()).collect();
-        search_with_file_types(&pattern, Path::new(&directory), &file_type_refs, context_lines)?
+        search_with_file_types(
+            &pattern,
+            Path::new(&directory),
+            &file_type_refs,
+            context_lines,
+        )?
     };
 
     let limited_matches = matches.into_iter().take(max_results).collect::<Vec<_>>();
@@ -928,7 +1043,6 @@ pub fn handle_search_code(args: &[u8]) -> Result<Vec<u8>> {
 
     Ok(rmp_serde::to_vec(&response)?)
 }
-
 
 pub fn handle_parse_file_with_state(args: &[u8]) -> Result<Vec<u8>> {
     let (file_path,): (String,) = rmp_serde::from_slice(args)?;
@@ -951,8 +1065,6 @@ pub fn handle_parse_file_with_state(args: &[u8]) -> Result<Vec<u8>> {
 pub fn handle_search_code_with_state(args: &[u8]) -> Result<Vec<u8>> {
     handle_search_code(args)
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -995,13 +1107,31 @@ impl TestStruct {
 
         assert_eq!(structure.language, "rust");
         // Should have 3 functions: test_function, new, get_field
-        assert_eq!(structure.functions.len(), 3, "Expected 3 functions but got {}", structure.functions.len());
+        assert_eq!(
+            structure.functions.len(),
+            3,
+            "Expected 3 functions but got {}",
+            structure.functions.len()
+        );
 
         // Verify all function names are captured
-        let func_names: Vec<&str> = structure.functions.iter().map(|f| f.name.as_str()).collect();
-        assert!(func_names.contains(&"test_function"), "Missing test_function");
-        assert!(func_names.contains(&"new"), "Missing new method from impl block");
-        assert!(func_names.contains(&"get_field"), "Missing get_field method from impl block");
+        let func_names: Vec<&str> = structure
+            .functions
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect();
+        assert!(
+            func_names.contains(&"test_function"),
+            "Missing test_function"
+        );
+        assert!(
+            func_names.contains(&"new"),
+            "Missing new method from impl block"
+        );
+        assert!(
+            func_names.contains(&"get_field"),
+            "Missing get_field method from impl block"
+        );
 
         assert_eq!(structure.classes.len(), 1);
         assert_eq!(structure.classes[0].name, "TestStruct");

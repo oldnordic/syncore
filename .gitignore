@@ -22,6 +22,8 @@ mcp_server.log
 /backups/
 /test_logs/
 /test_simple/
+*_cache/
+/config/
 
 # IDE and editor
 .idea/
@@ -62,8 +64,8 @@ vector.index.*
 # Code graph databases
 *_code_graph.db
 
-# Memory cache directories
-:memory:_cache/
+# Memory test artifacts
+:memory:*
 
 # Environment and secrets
 .env
@@ -92,9 +94,3 @@ Thumbs.db
 perf.data
 perf.data.old
 flamegraph.svg
-
-# Test database files
-:memory:*
-*.db
-*.db-shm
-*.db-wal

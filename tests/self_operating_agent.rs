@@ -1,16 +1,16 @@
 // Self-Operating Agent Demonstration Test
 // This test demonstrates the complete CREATE → THINK → ACT → REFLECT → MARK DONE loop
 
+use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
-use anyhow::Result;
 
-use syncore::sequential::{SequentialCore, LanguageModel};
+use syncore::cognitive_db;
 use syncore::logger::CogLogger;
 use syncore::memory::Memory;
-use syncore::vector::VectorStore;
+use syncore::sequential::{LanguageModel, SequentialCore};
 use syncore::tasks::Tasks;
-use syncore::cognitive_db;
+use syncore::vector::VectorStore;
 
 // Enhanced GLM client for demonstration
 struct DemoGlmClient {
@@ -82,14 +82,21 @@ impl DemoLogger {
 }
 
 impl CogLogger for DemoLogger {
-    fn log_step(&self, step: &crate::cognitive_db::Step, task: &syncore::tasks::Task) -> std::io::Result<()> {
+    fn log_step(
+        &self,
+        step: &crate::cognitive_db::Step,
+        task: &syncore::tasks::Task,
+    ) -> std::io::Result<()> {
         let entry = format!("📝 STEP - Task {}: {} - {}", task.id, task.goal, step.state);
         self.log_entries.lock().unwrap().push(entry);
         Ok(())
     }
 
     fn log_summary(&self, task: &syncore::tasks::Task, reflection: &str) -> std::io::Result<()> {
-        let entry = format!("🪞 SUMMARY - Task {}: {} - {}", task.id, task.goal, reflection);
+        let entry = format!(
+            "🪞 SUMMARY - Task {}: {} - {}",
+            task.id, task.goal, reflection
+        );
         self.log_entries.lock().unwrap().push(entry);
         Ok(())
     }
@@ -112,7 +119,9 @@ fn test_self_operating_agent() -> Result<()> {
     // Initialize core components
     let memory = Arc::new(Memory::new(db_path)?);
     let tasks = Arc::new(Tasks::new(db_path)?);
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let glm_client = Arc::new(Mutex::new(DemoGlmClient::new())) as Arc<Mutex<dyn LanguageModel>>;
     let logger = Arc::new(DemoLogger::new());
     let logger_ref = logger.clone();
@@ -140,18 +149,26 @@ fn test_self_operating_agent() -> Result<()> {
         "Analyze system performance metrics",
         "Optimize database query efficiency",
         "Implement user authentication system",
-        "Deploy application to production"
+        "Deploy application to production",
     ];
 
     let mut task_ids = Vec::new();
 
     for (i, goal) in task_goals.iter().enumerate() {
-        let task_id = tasks.add_task(goal, &format!("Autonomous task {}", i + 1), (i + 1) as i32, None)?;
+        let task_id = tasks.add_task(
+            goal,
+            &format!("Autonomous task {}", i + 1),
+            (i + 1) as i32,
+            None,
+        )?;
         task_ids.push(task_id);
         println!("   📋 Task {} created: '{}'", task_id, goal);
     }
 
-    println!("   ✅ {} autonomous tasks created successfully!\n", task_ids.len());
+    println!(
+        "   ✅ {} autonomous tasks created successfully!\n",
+        task_ids.len()
+    );
 
     // ==================== PHASE 2-5: THINK → ACT → REFLECT → DONE ====================
     println!("🧠 PHASES 2-5: Autonomous Cognition Loop Execution");
@@ -184,7 +201,10 @@ fn test_self_operating_agent() -> Result<()> {
 
         if tasks_completed_this_cycle > 0 {
             completed_tasks += tasks_completed_this_cycle;
-            println!("   ✅ {} task(s) completed in this cycle", tasks_completed_this_cycle);
+            println!(
+                "   ✅ {} task(s) completed in this cycle",
+                tasks_completed_this_cycle
+            );
         } else {
             println!("   ⏳ No tasks completed in this cycle");
         }
@@ -200,7 +220,10 @@ fn test_self_operating_agent() -> Result<()> {
     let mut final_completed = 0;
     for &task_id in &task_ids {
         if let Ok(Some(task)) = tasks.get_task(task_id) {
-            println!("   📋 Task {}: {} - Status: {}", task_id, task.goal, task.status);
+            println!(
+                "   📋 Task {}: {} - Status: {}",
+                task_id, task.goal, task.status
+            );
             if task.status == "done" {
                 final_completed += 1;
             }
@@ -208,11 +231,16 @@ fn test_self_operating_agent() -> Result<()> {
     }
 
     // Cognitive steps analysis
-    let total_cognitive_steps = task_ids.iter().map(|&task_id| {
-        let db = tasks.get_db();
-        let db_guard = db.lock().unwrap();
-        cognitive_db::recent_steps(&db_guard, task_id, 100).unwrap_or_default().len()
-    }).sum::<usize>();
+    let total_cognitive_steps = task_ids
+        .iter()
+        .map(|&task_id| {
+            let db = tasks.get_db();
+            let db_guard = db.lock().unwrap();
+            cognitive_db::recent_steps(&db_guard, task_id, 100)
+                .unwrap_or_default()
+                .len()
+        })
+        .sum::<usize>();
 
     // Agent metrics (simplified for test)
     let agent_cycles = cycle_count; // Use actual cycle count as proxy
@@ -220,15 +248,24 @@ fn test_self_operating_agent() -> Result<()> {
     println!("\n🎯 PERFORMANCE METRICS:");
     println!("   Tasks Created: {}", task_ids.len());
     println!("   Tasks Completed: {}/{}", final_completed, task_ids.len());
-    println!("   Success Rate: {:.1}%", (final_completed as f64 / task_ids.len() as f64) * 100.0);
+    println!(
+        "   Success Rate: {:.1}%",
+        (final_completed as f64 / task_ids.len() as f64) * 100.0
+    );
     println!("   Total Cognition Cycles: {}", cycle_count);
     println!("   Agent Thinking Cycles: {}", agent_cycles);
     println!("   Total Cognitive Steps: {}", total_cognitive_steps);
-    println!("   Average Steps per Task: {:.1}", total_cognitive_steps as f64 / task_ids.len() as f64);
+    println!(
+        "   Average Steps per Task: {:.1}",
+        total_cognitive_steps as f64 / task_ids.len() as f64
+    );
 
     // Show cognitive log (simplified)
     println!("\n📝 COGNITIVE LOG:");
-    println!("   Cognitive steps recorded in database: {}", total_cognitive_steps);
+    println!(
+        "   Cognitive steps recorded in database: {}",
+        total_cognitive_steps
+    );
 
     // ==================== VALIDATION ====================
     println!("\n✅ SELF-OPERATING AGENT VALIDATION:");
@@ -248,7 +285,8 @@ fn test_self_operating_agent() -> Result<()> {
 
     // Validate THINK phase
     validation_total += 1;
-    if total_cognitive_steps >= task_ids.len() * 2 { // At least Think + Reflect per task
+    if total_cognitive_steps >= task_ids.len() * 2 {
+        // At least Think + Reflect per task
         println!("   ✅ THINK: Cognitive steps recorded");
         validation_passed += 1;
     } else {
@@ -266,7 +304,8 @@ fn test_self_operating_agent() -> Result<()> {
 
     // Validate REFLECT phase
     validation_total += 1;
-    if total_cognitive_steps >= task_ids.len() * 3 { // Think + Decide + Reflect per task
+    if total_cognitive_steps >= task_ids.len() * 3 {
+        // Think + Decide + Reflect per task
         println!("   ✅ REFLECT: Reflection steps completed");
         validation_passed += 1;
     } else {
@@ -279,16 +318,37 @@ fn test_self_operating_agent() -> Result<()> {
         println!("   ✅ DONE: All tasks marked as complete");
         validation_passed += 1;
     } else {
-        println!("   ⚠️  DONE: Some tasks incomplete ({} of {})", final_completed, task_ids.len());
+        println!(
+            "   ⚠️  DONE: Some tasks incomplete ({} of {})",
+            final_completed,
+            task_ids.len()
+        );
     }
 
     let success_rate = (validation_passed as f64 / validation_total as f64) * 100.0;
-    println!("\n🎉 OVERALL SUCCESS RATE: {:.1}% ({}/{})", success_rate, validation_passed, validation_total);
+    println!(
+        "\n🎉 OVERALL SUCCESS RATE: {:.1}% ({}/{})",
+        success_rate, validation_passed, validation_total
+    );
 
     // Assert that the demonstration was successful
-    assert!(success_rate >= 60.0, "Self-operating agent success rate too low: {:.1}%", success_rate);
-    assert!(final_completed >= task_ids.len() / 2, "Too few tasks completed: {}/{}", final_completed, task_ids.len());
-    assert!(total_cognitive_steps >= task_ids.len() * 2, "Too few cognitive steps: {} for {} tasks", total_cognitive_steps, task_ids.len());
+    assert!(
+        success_rate >= 60.0,
+        "Self-operating agent success rate too low: {:.1}%",
+        success_rate
+    );
+    assert!(
+        final_completed >= task_ids.len() / 2,
+        "Too few tasks completed: {}/{}",
+        final_completed,
+        task_ids.len()
+    );
+    assert!(
+        total_cognitive_steps >= task_ids.len() * 2,
+        "Too few cognitive steps: {} for {} tasks",
+        total_cognitive_steps,
+        task_ids.len()
+    );
 
     if success_rate >= 80.0 {
         println!("🚀 SYNCore Self-Operating Agent: MISSION ACCOMPLISHED!");

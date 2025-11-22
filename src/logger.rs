@@ -1,9 +1,9 @@
-use std::fs::{File, OpenOptions};
-use std::io::{BufReader, BufWriter, Write, BufRead};
-use std::path::Path;
+use crate::tasks::Task;
 use anyhow::Result;
 use chrono::{Local, NaiveDate};
-use crate::tasks::Task;
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::path::Path;
 
 pub trait CogLogger: Send + Sync {
     fn log_step(&self, step: &crate::cognitive_db::Step, task: &Task) -> std::io::Result<()>;
@@ -38,10 +38,7 @@ impl MarkdownLogger {
     fn open_file(&self) -> std::io::Result<BufWriter<File>> {
         self.ensure_dir()?;
         let path = self.get_file_path();
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
+        let file = OpenOptions::new().create(true).append(true).open(&path)?;
         Ok(BufWriter::new(file))
     }
 
@@ -51,8 +48,7 @@ impl MarkdownLogger {
     }
 
     fn format_time(timestamp: i64) -> String {
-        let dt = chrono::DateTime::from_timestamp(timestamp, 0)
-            .unwrap_or_default();
+        let dt = chrono::DateTime::from_timestamp(timestamp, 0).unwrap_or_default();
         dt.format("%H:%M:%S").to_string()
     }
 
@@ -158,7 +154,7 @@ impl CogLogger for MarkdownLogger {
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_secs() as i64
+                .as_secs() as i64,
         );
         let escaped_reflection = Self::escape_backticks(reflection);
 

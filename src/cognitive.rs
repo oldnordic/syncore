@@ -1,9 +1,9 @@
-use crate::vector::{VectorStore, SearchScope};
-use crate::logger::MarkdownLogger;
 use crate::cognitive_db::CognitiveEngine;
+use crate::logger::MarkdownLogger;
+use crate::vector::{SearchScope, VectorStore};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CognitiveStep {
@@ -33,13 +33,21 @@ impl CognitiveEnhancer {
     }
 
     // Context stitcher: hybrid recall combining semantic + temporal
-    pub fn get_context_for_task(&self, task_id: u64, k: usize) -> anyhow::Result<Vec<CognitiveStep>> {
+    pub fn get_context_for_task(
+        &self,
+        task_id: u64,
+        k: usize,
+    ) -> anyhow::Result<Vec<CognitiveStep>> {
         // Track cognitive operations count (real functionality)
         let _start_time = std::time::Instant::now();
         let _logger_used = &self.logger; // Reference to show real usage
 
         // Get semantic matches for this task
-        let semantic_hits = self.vector_store.search(&format!("task {}", task_id), k, SearchScope::Task(task_id.try_into().unwrap()))?;
+        let semantic_hits = self.vector_store.search(
+            &format!("task {}", task_id),
+            k,
+            SearchScope::Task(task_id.try_into().unwrap()),
+        )?;
 
         // Get recent chronological steps
         let recent_steps = self.get_recent_steps_for_task(task_id, k)?;
@@ -89,15 +97,23 @@ impl CognitiveEnhancer {
     }
 
     // Reflect guard: check consistency and suggest completion
-    pub fn validate_reflection(&self, reflect_content: &str, observe_content: Option<&str>) -> Option<String> {
+    pub fn validate_reflection(
+        &self,
+        reflect_content: &str,
+        observe_content: Option<&str>,
+    ) -> Option<String> {
         let reflect_lower = reflect_content.to_lowercase();
 
         // Check if reflection mentions completion but observe shows success
         if let Some(observe) = observe_content {
             let observe_lower = observe.to_lowercase();
 
-            if (observe_lower.contains("success") || observe_lower.contains("complete") || observe_lower.contains("done"))
-                && !reflect_lower.contains("complete") && !reflect_lower.contains("finish") {
+            if (observe_lower.contains("success")
+                || observe_lower.contains("complete")
+                || observe_lower.contains("done"))
+                && !reflect_lower.contains("complete")
+                && !reflect_lower.contains("finish")
+            {
                 return Some(" (suggested: mark complete)".to_string());
             }
 
@@ -147,7 +163,11 @@ impl CognitiveEnhancer {
     }
 
     // Real implementations using cognitive_db
-    fn get_recent_steps_for_task(&self, task_id: u64, k: usize) -> anyhow::Result<Vec<CognitiveStep>> {
+    fn get_recent_steps_for_task(
+        &self,
+        task_id: u64,
+        k: usize,
+    ) -> anyhow::Result<Vec<CognitiveStep>> {
         let steps = self.cognitive_engine.recent_steps(task_id as i64, k)?;
         let mut cognitive_steps = Vec::new();
 
@@ -157,7 +177,8 @@ impl CognitiveEnhancer {
                 task_id: step.task_id.unwrap_or(0) as u64,
                 step_type: step.state,
                 content: step.content,
-                timestamp: chrono::DateTime::from_timestamp(step.created_at, 0).unwrap_or(chrono::Utc::now()),
+                timestamp: chrono::DateTime::from_timestamp(step.created_at, 0)
+                    .unwrap_or(chrono::Utc::now()),
             });
         }
 
@@ -171,7 +192,8 @@ impl CognitiveEnhancer {
                 task_id: step.task_id.unwrap_or(0) as u64,
                 step_type: step.state,
                 content: step.content,
-                timestamp: chrono::DateTime::from_timestamp(step.created_at, 0).unwrap_or(chrono::Utc::now()),
+                timestamp: chrono::DateTime::from_timestamp(step.created_at, 0)
+                    .unwrap_or(chrono::Utc::now()),
             }))
         } else {
             Ok(None)
@@ -187,8 +209,8 @@ pub fn get_nudge_count() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use crate::vector::HuggingFaceEmbeddings;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_cognitive_enhancer_creation() {
@@ -241,7 +263,10 @@ mod tests {
 
         let suggestion = enhancer.validate_reflection(reflect_content, Some(observe_content));
 
-        assert!(suggestion.is_none(), "Should not suggest anything for consistent reflection");
+        assert!(
+            suggestion.is_none(),
+            "Should not suggest anything for consistent reflection"
+        );
     }
 
     #[test]
@@ -258,7 +283,10 @@ mod tests {
         let reflect_content = "I made some progress";
         let suggestion = enhancer.validate_reflection(reflect_content, None);
 
-        assert!(suggestion.is_none(), "Should not suggest anything without observe content");
+        assert!(
+            suggestion.is_none(),
+            "Should not suggest anything without observe content"
+        );
     }
 
     #[test]
@@ -278,7 +306,10 @@ mod tests {
 
         let nudge = enhancer.generate_nudge(state_text, tool_used);
 
-        assert!(nudge.is_some(), "Should generate nudge for high confidence state");
+        assert!(
+            nudge.is_some(),
+            "Should generate nudge for high confidence state"
+        );
         assert!(nudge.unwrap().contains("high confidence"));
     }
 
@@ -301,7 +332,10 @@ mod tests {
         let nudge = enhancer.generate_nudge(state_text, tool_used);
 
         // Should not generate nudge for medium confidence (0.5)
-        assert!(nudge.is_none(), "Should not generate nudge for medium confidence state");
+        assert!(
+            nudge.is_none(),
+            "Should not generate nudge for medium confidence state"
+        );
     }
 
     #[test]
@@ -321,7 +355,10 @@ mod tests {
         let nudge = enhancer.generate_nudge(state_text, tool_used);
 
         // Medium confidence should not generate a nudge
-        assert!(nudge.is_none(), "Should not generate nudge for medium confidence");
+        assert!(
+            nudge.is_none(),
+            "Should not generate nudge for medium confidence"
+        );
     }
 
     #[test]
@@ -337,7 +374,11 @@ mod tests {
 
         let context = enhancer.get_context_for_task(42, 5)?;
 
-        assert_eq!(context.len(), 0, "Should return empty context when no relevant documents exist");
+        assert_eq!(
+            context.len(),
+            0,
+            "Should return empty context when no relevant documents exist"
+        );
         Ok(())
     }
 
@@ -346,6 +387,9 @@ mod tests {
         let initial_count = get_nudge_count();
 
         // Nudge counter should be atomic and start at 0 or higher
-        assert!(initial_count == 0 || initial_count > 0, "Nudge count should be a valid number");
+        assert!(
+            initial_count == 0 || initial_count > 0,
+            "Nudge count should be a valid number"
+        );
     }
 }

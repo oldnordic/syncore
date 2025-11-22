@@ -1,0 +1,21 @@
+{
+  "experimental": {
+    "modelContextProtocol": true
+  },
+  "providers": [
+    {
+      "name": "syncore",
+      "type": "mcp",
+      "mcpServers": [
+        {
+          "name": "syncore",
+          "command": "cargo",
+          "args": ["run", "--bin", "syncore_mcp_stdio"],
+          "env": {
+            "RUST_LOG": "info"
+          }
+        }
+      ]
+    }
+  ]
+}

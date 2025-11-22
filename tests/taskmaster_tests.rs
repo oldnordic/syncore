@@ -1,5 +1,5 @@
-use syncore::tasks::{Tasks, Task};
 use std::fs;
+use syncore::tasks::{Task, Tasks};
 
 #[test]
 fn test_tasks_add_and_retrieve_task() {
@@ -9,12 +9,9 @@ fn test_tasks_add_and_retrieve_task() {
     let tasks = Tasks::new("test_tasks.db").unwrap();
 
     // Add a task
-    let task_id = tasks.add_task(
-        "Optimize SIMD kernel",
-        "Created via test",
-        8,
-        None
-    ).unwrap();
+    let task_id = tasks
+        .add_task("Optimize SIMD kernel", "Created via test", 8, None)
+        .unwrap();
 
     assert!(task_id > 0);
 
@@ -39,9 +36,20 @@ fn test_tasks_priority_ordering() {
     let tasks = Tasks::new("test_tasks_priority.db").unwrap();
 
     // Add tasks with different priorities
-    let _low_id = tasks.add_task("Low priority task", "Low priority description", 2, None).unwrap();
-    let high_id = tasks.add_task("High priority task", "High priority description", 9, None).unwrap();
-    let _medium_id = tasks.add_task("Medium priority task", "Medium priority description", 5, None).unwrap();
+    let _low_id = tasks
+        .add_task("Low priority task", "Low priority description", 2, None)
+        .unwrap();
+    let high_id = tasks
+        .add_task("High priority task", "High priority description", 9, None)
+        .unwrap();
+    let _medium_id = tasks
+        .add_task(
+            "Medium priority task",
+            "Medium priority description",
+            5,
+            None,
+        )
+        .unwrap();
 
     // Should get highest priority task first (lowest number first in Tasks implementation)
     let task = tasks.next_task(None, None).unwrap().unwrap();
@@ -50,8 +58,14 @@ fn test_tasks_priority_ordering() {
 
     // Verify high_id task exists with correct priority (real functionality)
     let high_task = tasks.get_task(high_id).unwrap().unwrap();
-    assert_eq!(high_task.priority, 9, "High priority task should have priority 9");
-    assert_eq!(high_task.goal, "High priority task", "High priority task should have correct goal");
+    assert_eq!(
+        high_task.priority, 9,
+        "High priority task should have priority 9"
+    );
+    assert_eq!(
+        high_task.goal, "High priority task",
+        "High priority task should have correct goal"
+    );
 
     // Clean up
     let _ = fs::remove_file("test_tasks_priority.db");
@@ -63,7 +77,9 @@ fn test_tasks_update_status() {
 
     let tasks = Tasks::new("test_tasks_update.db").unwrap();
 
-    let task_id = tasks.add_task("Test task", "Test description", 5, None).unwrap();
+    let task_id = tasks
+        .add_task("Test task", "Test description", 5, None)
+        .unwrap();
 
     // Mark task as complete
     let db = tasks.get_db();
@@ -100,24 +116,28 @@ fn test_tasks_list_all() {
     // List all tasks by querying directly
     let db = tasks.get_db();
     let conn = db.lock().unwrap();
-    let mut stmt = conn.prepare(
-        "SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
          FROM tasks
-         ORDER BY priority DESC, created_at ASC"
-    ).unwrap();
+         ORDER BY priority DESC, created_at ASC",
+        )
+        .unwrap();
 
-    let task_list = stmt.query_map([], |row| {
-        Ok(Task {
-            id: row.get(0)?,
-            goal: row.get(1)?,
-            description: row.get(2)?,
-            status: row.get(3)?,
-            priority: row.get(4)?,
-            parent_id: row.get(5)?,
-            created_at: row.get(6)?,
-            updated_at: row.get(7)?,
+    let task_list = stmt
+        .query_map([], |row| {
+            Ok(Task {
+                id: row.get(0)?,
+                goal: row.get(1)?,
+                description: row.get(2)?,
+                status: row.get(3)?,
+                priority: row.get(4)?,
+                parent_id: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
         })
-    }).unwrap();
+        .unwrap();
 
     let mut collected_tasks = Vec::new();
     for task in task_list {

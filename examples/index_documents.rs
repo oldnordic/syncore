@@ -3,9 +3,9 @@
 // and stores in global knowledge database for efficient retrieval
 
 use anyhow::Result;
+use std::env;
 use syncore::document_indexer::DocumentIndexer;
 use syncore::global_store::get_global_db_path;
-use std::env;
 
 fn main() -> Result<()> {
     println!("=== SynCore Document Indexer ===\n");

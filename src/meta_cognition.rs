@@ -97,8 +97,8 @@ IMPORTANT: Be strict - only mark as stuck if clearly unproductive."#,
         let response = self.call_ollama(&prompt)?;
 
         // Parse JSON response
-        let analysis: MetaCognitiveAnalysis = serde_json::from_str(&response)
-            .context("Failed to parse meta-cognitive analysis")?;
+        let analysis: MetaCognitiveAnalysis =
+            serde_json::from_str(&response).context("Failed to parse meta-cognitive analysis")?;
 
         if analysis.is_stuck && analysis.confidence > 0.7 {
             warn!(
@@ -157,8 +157,8 @@ Example bad steps:
             steps: Vec<String>,
         }
 
-        let parsed: StepsResponse = serde_json::from_str(&response)
-            .context("Failed to parse problem decomposition")?;
+        let parsed: StepsResponse =
+            serde_json::from_str(&response).context("Failed to parse problem decomposition")?;
 
         info!("Decomposed problem into {} steps", parsed.steps.len());
 
@@ -166,9 +166,11 @@ Example bad steps:
     }
 
     /// Suggest next action based on current state
-    pub fn suggest_next_action(&self,
-                                 current_situation: &str,
-                                 recent_tools: &[ToolCall]) -> Result<String> {
+    pub fn suggest_next_action(
+        &self,
+        current_situation: &str,
+        recent_tools: &[ToolCall],
+    ) -> Result<String> {
         let history_summary = self.summarize_tool_history(recent_tools);
 
         let prompt = format!(
@@ -209,10 +211,13 @@ Examples:
             reasoning: String,
         }
 
-        let parsed: ActionResponse = serde_json::from_str(&response)
-            .context("Failed to parse action suggestion")?;
+        let parsed: ActionResponse =
+            serde_json::from_str(&response).context("Failed to parse action suggestion")?;
 
-        info!("Meta-cognition suggests: {} ({})", parsed.action, parsed.reasoning);
+        info!(
+            "Meta-cognition suggests: {} ({})",
+            parsed.action, parsed.reasoning
+        );
 
         Ok(parsed.action)
     }
@@ -235,15 +240,16 @@ Examples:
             );
         }
 
-        let response = String::from_utf8(output.stdout)
-            .context("Invalid UTF-8 in Ollama response")?;
+        let response =
+            String::from_utf8(output.stdout).context("Invalid UTF-8 in Ollama response")?;
 
         Ok(response.trim().to_string())
     }
 
     /// Summarize tool call history for LLM context
     fn summarize_tool_history(&self, tool_calls: &[ToolCall]) -> String {
-        tool_calls.iter()
+        tool_calls
+            .iter()
             .enumerate()
             .map(|(i, call)| {
                 format!(
@@ -251,7 +257,11 @@ Examples:
                     i + 1,
                     call.tool_name,
                     call.short_params(),
-                    if call.had_output { "✓ output" } else { "✗ no output" }
+                    if call.had_output {
+                        "✓ output"
+                    } else {
+                        "✗ no output"
+                    }
                 )
             })
             .collect::<Vec<_>>()
@@ -321,10 +331,12 @@ mod tests {
     fn test_problem_decomposition() {
         let engine = MetaCognitionEngine::new();
 
-        let steps = engine.decompose_problem(
-            "Implement multi-GPU orchestration for ROCm backend",
-            "Current implementation only uses device 0, need to distribute work across 2 GPUs"
-        ).unwrap();
+        let steps = engine
+            .decompose_problem(
+                "Implement multi-GPU orchestration for ROCm backend",
+                "Current implementation only uses device 0, need to distribute work across 2 GPUs",
+            )
+            .unwrap();
 
         assert!(!steps.is_empty());
         assert!(steps.len() <= 5);

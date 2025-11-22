@@ -1,10 +1,10 @@
 //! TDD Tests for MCP Code Relationship Tools Integration
 //! Tests MCP tool handlers for indexing and querying code relationships.
 
-use syncore::mcp::McpServer;
 use serde_json::json;
-use tempfile::{tempdir, TempDir};
 use std::sync::Arc;
+use syncore::mcp::McpServer;
+use tempfile::{tempdir, TempDir};
 use tokio::sync::Mutex;
 
 async fn create_test_server() -> (McpServer, TempDir) {
@@ -21,7 +21,9 @@ async fn test_mcp_index_file() {
     // Create a temporary Rust file to index
     let temp = tempdir().unwrap();
     let file_path = temp.path().join("sample.rs");
-    std::fs::write(&file_path, r#"
+    std::fs::write(
+        &file_path,
+        r#"
 use std::io::Result;
 use anyhow::Context;
 
@@ -42,7 +44,9 @@ fn process() -> i32 {
 
 fn validate() {}
 fn compute() -> i32 { 42 }
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     // Call MCP tool to index the file
     let params = json!({
@@ -68,25 +72,39 @@ async fn test_mcp_query_import_graph() {
     let file1 = temp.path().join("main.rs");
     let file2 = temp.path().join("lib.rs");
 
-    std::fs::write(&file1, r#"
+    std::fs::write(
+        &file1,
+        r#"
 use std::collections::HashMap;
 use crate::lib::process;
 fn main() {}
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
-    std::fs::write(&file2, r#"
+    std::fs::write(
+        &file2,
+        r#"
 use serde::Serialize;
 pub fn process() {}
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     // Index both files
-    server.handle_code_relationship_index(json!({
-        "file_path": file1.to_str().unwrap()
-    })).await.unwrap();
+    server
+        .handle_code_relationship_index(json!({
+            "file_path": file1.to_str().unwrap()
+        }))
+        .await
+        .unwrap();
 
-    server.handle_code_relationship_index(json!({
-        "file_path": file2.to_str().unwrap()
-    })).await.unwrap();
+    server
+        .handle_code_relationship_index(json!({
+            "file_path": file2.to_str().unwrap()
+        }))
+        .await
+        .unwrap();
 
     // Query import graph
     let params = json!({
@@ -97,8 +115,12 @@ pub fn process() {}
     let result = server.handle_code_relationship_query(params).await.unwrap();
 
     let imports = result["imports"].as_array().unwrap();
-    assert!(imports.iter().any(|v| v.as_str().unwrap().contains("HashMap")));
-    assert!(imports.iter().any(|v| v.as_str().unwrap().contains("process")));
+    assert!(imports
+        .iter()
+        .any(|v| v.as_str().unwrap().contains("HashMap")));
+    assert!(imports
+        .iter()
+        .any(|v| v.as_str().unwrap().contains("process")));
 }
 
 #[tokio::test]
@@ -108,7 +130,9 @@ async fn test_mcp_query_call_graph() {
     let temp = tempdir().unwrap();
     let file_path = temp.path().join("calls.rs");
 
-    std::fs::write(&file_path, r#"
+    std::fs::write(
+        &file_path,
+        r#"
 fn main() {
     init();
     process_request();
@@ -126,12 +150,17 @@ fn process_request() {
 fn setup_config() {}
 fn validate_input() {}
 fn execute_action() {}
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     // Index the file
-    server.handle_code_relationship_index(json!({
-        "file_path": file_path.to_str().unwrap()
-    })).await.unwrap();
+    server
+        .handle_code_relationship_index(json!({
+            "file_path": file_path.to_str().unwrap()
+        }))
+        .await
+        .unwrap();
 
     // Query call graph for main
     let params = json!({
@@ -143,7 +172,9 @@ fn execute_action() {}
 
     let calls = result["calls"].as_array().unwrap();
     assert!(calls.iter().any(|v| v.as_str().unwrap() == "init"));
-    assert!(calls.iter().any(|v| v.as_str().unwrap() == "process_request"));
+    assert!(calls
+        .iter()
+        .any(|v| v.as_str().unwrap() == "process_request"));
 }
 
 #[tokio::test]
@@ -154,31 +185,46 @@ async fn test_mcp_similarity_search() {
 
     // Create files with similar functions
     let file1 = temp.path().join("auth.rs");
-    std::fs::write(&file1, r#"
+    std::fs::write(
+        &file1,
+        r#"
 fn validate_user_credentials(user: &User, password: &str) -> bool {
     user.check_password(password) && user.is_active()
 }
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let file2 = temp.path().join("auth2.rs");
-    std::fs::write(&file2, r#"
+    std::fs::write(
+        &file2,
+        r#"
 fn verify_user_login(usr: &User, pwd: &str) -> bool {
     usr.password_matches(pwd) && usr.active()
 }
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let file3 = temp.path().join("math.rs");
-    std::fs::write(&file3, r#"
+    std::fs::write(
+        &file3,
+        r#"
 fn calculate_sum(a: i32, b: i32) -> i32 {
     a + b
 }
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     // Index all files
     for f in [&file1, &file2, &file3] {
-        server.handle_code_relationship_index(json!({
-            "file_path": f.to_str().unwrap()
-        })).await.unwrap();
+        server
+            .handle_code_relationship_index(json!({
+                "file_path": f.to_str().unwrap()
+            }))
+            .await
+            .unwrap();
     }
 
     // Search for similar functions
@@ -193,12 +239,15 @@ fn calculate_sum(a: i32, b: i32) -> i32 {
     assert_eq!(matches.len(), 2);
 
     // Should find auth functions, not math
-    let function_names: Vec<&str> = matches.iter()
+    let function_names: Vec<&str> = matches
+        .iter()
         .map(|m| m["function"].as_str().unwrap())
         .collect();
 
-    assert!(function_names.contains(&"validate_user_credentials") ||
-            function_names.contains(&"verify_user_login"));
+    assert!(
+        function_names.contains(&"validate_user_credentials")
+            || function_names.contains(&"verify_user_login")
+    );
     assert!(!function_names.contains(&"calculate_sum"));
 }
 
@@ -210,22 +259,27 @@ async fn test_mcp_broadcasts_events() {
     let events: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     let events_clone = events.clone();
 
-    server.subscribe_to_events(move |event_name, _data| {
-        let events = events_clone.clone();
-        let event_name_owned = event_name.to_string();
-        Box::pin(async move {
-            events.lock().await.push(event_name_owned);
+    server
+        .subscribe_to_events(move |event_name, _data| {
+            let events = events_clone.clone();
+            let event_name_owned = event_name.to_string();
+            Box::pin(async move {
+                events.lock().await.push(event_name_owned);
+            })
         })
-    }).await;
+        .await;
 
     // Index a file
     let temp = tempdir().unwrap();
     let file_path = temp.path().join("event_test.rs");
     std::fs::write(&file_path, "fn test() {}").unwrap();
 
-    server.handle_code_relationship_index(json!({
-        "file_path": file_path.to_str().unwrap()
-    })).await.unwrap();
+    server
+        .handle_code_relationship_index(json!({
+            "file_path": file_path.to_str().unwrap()
+        }))
+        .await
+        .unwrap();
 
     // Check events were broadcast
     let captured_events = events.lock().await;
@@ -239,7 +293,9 @@ async fn test_mcp_query_implementors() {
     let temp = tempdir().unwrap();
     let file_path = temp.path().join("impls.rs");
 
-    std::fs::write(&file_path, r#"
+    std::fs::write(
+        &file_path,
+        r#"
 struct TypeA;
 struct TypeB;
 struct TypeC;
@@ -255,12 +311,17 @@ impl Clone for TypeB {
 impl Default for TypeC {
     fn default() -> Self { TypeC }
 }
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     // Index the file
-    server.handle_code_relationship_index(json!({
-        "file_path": file_path.to_str().unwrap()
-    })).await.unwrap();
+    server
+        .handle_code_relationship_index(json!({
+            "file_path": file_path.to_str().unwrap()
+        }))
+        .await
+        .unwrap();
 
     // Query implementors of Clone trait
     let params = json!({

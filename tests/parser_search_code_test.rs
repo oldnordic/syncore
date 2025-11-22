@@ -1,13 +1,14 @@
 //! Test-Driven Development for parser.search_code MCP tool functionality
 
 use serde_json::json;
-use syncore::mcp::{handle_mcp_request, MCPRequest};
-use syncore::router::SynCoreState;
-use syncore::memory::Memory;
-use syncore::tasks::Tasks;
-use syncore::vector::{VectorStore, RealEmbeddings};
-use std::sync::{Arc, Mutex};
 use std::fs;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+use syncore::mcp::{handle_mcp_request, MCPRequest};
+use syncore::memory::Memory;
+use syncore::router::SynCoreState;
+use syncore::tasks::Tasks;
+use syncore::vector::{RealEmbeddings, VectorStore};
 use tempfile::TempDir;
 
 #[tokio::test]
@@ -44,9 +45,17 @@ fn sync_function() -> i32 {
     // Create test state
     let memory = Memory::new("test_parser_search_1.db").unwrap();
     let tasks = Tasks::new("test_parser_tasks_1.db").unwrap();
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_parser_search_1.db",
+            "test_parser_search_1_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: Arc::new(memory),
         tasks: Arc::new(tasks),
         vector_store,
@@ -57,6 +66,7 @@ fn sync_function() -> i32 {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Create MCP request to search for async patterns
@@ -77,7 +87,10 @@ fn sync_function() -> i32 {
     let response = handle_mcp_request(request, &state).await;
 
     // Debug: Print response to understand format
-    println!("DEBUG: Response: {:?}", serde_json::to_string_pretty(&response).unwrap());
+    println!(
+        "DEBUG: Response: {:?}",
+        serde_json::to_string_pretty(&response).unwrap()
+    );
 
     // Assert: Should return success response with async patterns found
     assert!(response.result.is_some(), "Should return a result");
@@ -103,9 +116,17 @@ async fn test_parser_search_code_should_handle_missing_pattern() {
     // Arrange: Create test state
     let memory = Memory::new("test_parser_search_2.db").unwrap();
     let tasks = Tasks::new("test_parser_tasks_2.db").unwrap();
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_parser_search_2.db",
+            "test_parser_search_2_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: Arc::new(memory),
         tasks: Arc::new(tasks),
         vector_store,
@@ -116,6 +137,7 @@ async fn test_parser_search_code_should_handle_missing_pattern() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Create request missing pattern parameter
@@ -140,8 +162,10 @@ async fn test_parser_search_code_should_handle_missing_pattern() {
     assert!(response.error.is_some(), "Should return an error");
 
     let error = response.error.unwrap();
-    assert!(error.message.contains("Missing required field: pattern"),
-             "Error should mention missing pattern parameter");
+    assert!(
+        error.message.contains("Missing required field: pattern"),
+        "Error should mention missing pattern parameter"
+    );
 }
 
 #[tokio::test]
@@ -149,9 +173,17 @@ async fn test_parser_search_code_should_handle_nonexistent_path() {
     // Arrange: Create test state
     let memory = Memory::new("test_parser_search_3.db").unwrap();
     let tasks = Tasks::new("test_parser_tasks_3.db").unwrap();
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_parser_search_3.db",
+            "test_parser_search_3_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: Arc::new(memory),
         tasks: Arc::new(tasks),
         vector_store,
@@ -162,6 +194,7 @@ async fn test_parser_search_code_should_handle_nonexistent_path() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Create request for nonexistent path
@@ -220,9 +253,17 @@ async fn test_parser_search_code_should_support_file_patterns() {
     // Create test state
     let memory = Memory::new("test_parser_search_4.db").unwrap();
     let tasks = Tasks::new("test_parser_tasks_4.db").unwrap();
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_parser_search_4.db",
+            "test_parser_search_4_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: Arc::new(memory),
         tasks: Arc::new(tasks),
         vector_store,
@@ -233,6 +274,7 @@ async fn test_parser_search_code_should_support_file_patterns() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Test different search patterns
@@ -260,10 +302,16 @@ async fn test_parser_search_code_should_support_file_patterns() {
         let response = handle_mcp_request(request, &state).await;
 
         // Assert: Should handle each pattern correctly
-        assert!(response.result.is_some(),
-                "Should return result for pattern: {}", search_pattern);
-        assert!(response.error.is_none(),
-                "Should not error for pattern: {}", search_pattern);
+        assert!(
+            response.result.is_some(),
+            "Should return result for pattern: {}",
+            search_pattern
+        );
+        assert!(
+            response.error.is_none(),
+            "Should not error for pattern: {}",
+            search_pattern
+        );
 
         let result = response.result.unwrap();
 
@@ -271,8 +319,15 @@ async fn test_parser_search_code_should_support_file_patterns() {
         if let Some(results) = result.get("results").and_then(|r| r.as_str()) {
             // Parse ripgrep JSON output - may be empty for no matches
             if should_find {
-                assert!(!results.is_empty(), "Should find results for pattern: {}", search_pattern);
-                assert!(results.contains("rust_function"), "Should find rust_function in test file");
+                assert!(
+                    !results.is_empty(),
+                    "Should find results for pattern: {}",
+                    search_pattern
+                );
+                assert!(
+                    results.contains("rust_function"),
+                    "Should find rust_function in test file"
+                );
             } else {
                 // May be empty or not contain the pattern
             }
@@ -320,9 +375,17 @@ fn cleanup_function() {
     // Create test state
     let memory = Memory::new("test_parser_search_5.db").unwrap();
     let tasks = Tasks::new("test_parser_tasks_5.db").unwrap();
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_parser_search_5.db",
+            "test_parser_search_5_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: Arc::new(memory),
         tasks: Arc::new(tasks),
         vector_store,
@@ -333,6 +396,7 @@ fn cleanup_function() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Create MCP request to search with context
@@ -362,12 +426,21 @@ fn cleanup_function() {
     // Check if result has expected format
     if let Some(results) = result.get("results").and_then(|r| r.as_str()) {
         // Parse ripgrep JSON output with context
-        assert!(!results.is_empty(), "Should find rust_function with context");
-        assert!(results.contains("rust_function"), "Should contain the function");
+        assert!(
+            !results.is_empty(),
+            "Should find rust_function with context"
+        );
+        assert!(
+            results.contains("rust_function"),
+            "Should contain the function"
+        );
         // Context should include surrounding lines
         let lines: Vec<&str> = results.lines().collect();
         let has_context = lines.len() > 1 || (results.len() > 50); // Rough check for context
-        assert!(has_context || results.contains("pub fn"), "Should include some context around function");
+        assert!(
+            has_context || results.contains("pub fn"),
+            "Should include some context around function"
+        );
     } else {
         // Unexpected format, but should still have result
         assert!(result.is_object(), "Result should be an object");

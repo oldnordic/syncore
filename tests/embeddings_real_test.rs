@@ -1,5 +1,5 @@
 use anyhow::Result;
-use syncore::vector::{VectorStore, Embeddings, SearchScope};
+use syncore::vector::{Embeddings, SearchScope, VectorStore};
 
 // Test for real embedding implementation
 #[cfg(test)]
@@ -35,20 +35,20 @@ mod tests {
     #[test]
     fn test_real_embeddings_dimension_consistency() -> Result<()> {
         let embeddings = Box::new(syncore::vector::RealEmbeddings::new(384)?);
-        
+
         let vec1 = embeddings.embed("hello")?;
         let vec2 = embeddings.embed("world")?;
-        
+
         assert_eq!(vec1.len(), 384);
         assert_eq!(vec2.len(), 384);
-        
+
         // Vectors should be normalized
         let norm1: f32 = vec1.iter().map(|x| x * x).sum::<f32>().sqrt();
         let norm2: f32 = vec2.iter().map(|x| x * x).sum::<f32>().sqrt();
-        
+
         assert!((norm1 - 1.0).abs() < 1e-6);
         assert!((norm2 - 1.0).abs() < 1e-6);
-        
+
         Ok(())
     }
 }

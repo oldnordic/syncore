@@ -2,12 +2,12 @@
 // Provides centralized storage for articles, documentation, and reusable knowledge
 // shared across all SynCore projects
 
-use anyhow::{Result, Context};
-use std::path::{Path, PathBuf};
+use crate::vector::{Hit, SearchScope, VectorStore};
+use anyhow::{Context, Result};
 use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use crate::vector::{VectorStore, Hit, SearchScope};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 /// Get the global SynCore directory path
 /// Default: ~/.syncore/
@@ -17,8 +17,7 @@ pub fn get_global_dir() -> PathBuf {
         return PathBuf::from(custom_dir);
     }
 
-    let home = std::env::var("HOME")
-        .expect("HOME environment variable should be set");
+    let home = std::env::var("HOME").expect("HOME environment variable should be set");
     PathBuf::from(home).join(".syncore")
 }
 
@@ -41,10 +40,8 @@ pub fn init_global_dirs() -> Result<()> {
     let vectors_dir = get_global_vectors_dir();
 
     // Create directories (idempotent - won't fail if they exist)
-    std::fs::create_dir_all(&global_dir)
-        .context("Failed to create global SynCore directory")?;
-    std::fs::create_dir_all(&vectors_dir)
-        .context("Failed to create global vectors directory")?;
+    std::fs::create_dir_all(&global_dir).context("Failed to create global SynCore directory")?;
+    std::fs::create_dir_all(&vectors_dir).context("Failed to create global vectors directory")?;
 
     Ok(())
 }
@@ -56,6 +53,14 @@ pub struct GlobalDbPool {
 }
 
 impl GlobalDbPool {
+    /// Create GlobalDbPool using an existing database connection.
+    ///
+    /// This is useful when you want to manage the connection lifecycle externally,
+    /// for example when using DbManager or in tests.
+    pub fn with_connection(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
+    }
+
     /// Create a new global database connection pool
     /// Initializes global directories and database schema
     pub fn new() -> Result<Self> {
@@ -72,15 +77,14 @@ impl GlobalDbPool {
     pub fn new_with_path(db_path: &Path) -> Result<Self> {
         // Ensure parent directory exists
         if let Some(parent) = db_path.parent() {
-            std::fs::create_dir_all(parent)
-                .context("Failed to create database directory")?;
+            std::fs::create_dir_all(parent).context("Failed to create database directory")?;
         }
 
-        let db_path_str = db_path.to_str()
+        let db_path_str = db_path
+            .to_str()
             .context("Database path contains invalid UTF-8")?;
 
-        let conn = crate::db::open_db_with_wal(db_path_str)
-            .context("Failed to open database")?;
+        let conn = crate::db::open_db_with_wal(db_path_str).context("Failed to open database")?;
 
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
@@ -112,8 +116,7 @@ impl GlobalVectorStore {
     /// Use this for testing to avoid touching ~/.syncore
     pub fn new_with_path(vectors_dir: &Path) -> Result<Self> {
         // Ensure vectors directory exists
-        std::fs::create_dir_all(vectors_dir)
-            .context("Failed to create vectors directory")?;
+        std::fs::create_dir_all(vectors_dir).context("Failed to create vectors directory")?;
 
         Ok(Self {
             vectors_dir: vectors_dir.to_path_buf(),
@@ -144,7 +147,8 @@ impl GlobalVectorStore {
                 .context("Failed to create HuggingFace embeddings")?;
 
             let index_path = self.get_index_path(namespace);
-            let index_path_str = index_path.to_str()
+            let index_path_str = index_path
+                .to_str()
                 .context("Invalid index path")?
                 .to_string();
 
@@ -153,7 +157,8 @@ impl GlobalVectorStore {
 
             // Load existing index if it exists
             if self.index_exists(namespace) {
-                store.load_snapshot()
+                store
+                    .load_snapshot()
                     .context("Failed to load existing index")?;
             }
 
@@ -180,14 +185,14 @@ impl GlobalVectorStore {
                 .context("Failed to create HuggingFace embeddings")?;
 
             let index_path = self.get_index_path(namespace);
-            let index_path_str = index_path.to_str()
+            let index_path_str = index_path
+                .to_str()
                 .context("Invalid index path")?
                 .to_string();
 
             let mut store = VectorStore::new(Box::new(embeddings));
             store.set_index_path(index_path_str);
-            store.load_snapshot()
-                .context("Failed to load index")?;
+            store.load_snapshot().context("Failed to load index")?;
 
             stores.insert(namespace.to_string(), store);
         }
@@ -222,7 +227,10 @@ mod tests {
         let home = env::var("HOME").expect("HOME should be set");
         let expected = PathBuf::from(home).join(".syncore");
 
-        assert_eq!(global_dir, expected, "Default global dir should be ~/.syncore");
+        assert_eq!(
+            global_dir, expected,
+            "Default global dir should be ~/.syncore"
+        );
     }
 
     #[test]
@@ -230,7 +238,10 @@ mod tests {
         let test_dir = setup_test_env();
 
         let global_dir = get_global_dir();
-        assert_eq!(global_dir, test_dir, "Should use SYNCORE_GLOBAL_DIR override");
+        assert_eq!(
+            global_dir, test_dir,
+            "Should use SYNCORE_GLOBAL_DIR override"
+        );
     }
 
     #[test]
@@ -260,7 +271,10 @@ mod tests {
         init_global_dirs().expect("Should create global directories");
 
         assert!(test_dir.exists(), "Global dir should exist");
-        assert!(test_dir.join("vectors").exists(), "Vectors dir should exist");
+        assert!(
+            test_dir.join("vectors").exists(),
+            "Vectors dir should exist"
+        );
     }
 
     #[test]
@@ -346,21 +360,23 @@ mod tests {
             conn.execute(
                 "INSERT INTO memory (k, v, ts) VALUES (?1, ?2, ?3)",
                 ("test_key", "test_value", ts),
-            ).expect("Should insert via pool1");
+            )
+            .expect("Should insert via pool1");
         }
 
         // Read data with pool2
         {
             let conn = pool2.get();
             let value: String = conn
-                .query_row(
-                    "SELECT v FROM memory WHERE k = ?1",
-                    ["test_key"],
-                    |row| row.get(0),
-                )
+                .query_row("SELECT v FROM memory WHERE k = ?1", ["test_key"], |row| {
+                    row.get(0)
+                })
                 .expect("Should read via pool2");
 
-            assert_eq!(value, "test_value", "Data should be shared across instances");
+            assert_eq!(
+                value, "test_value",
+                "Data should be shared across instances"
+            );
         }
     }
 
@@ -394,8 +410,14 @@ mod tests {
 
         let store = GlobalVectorStore::new().expect("Should create store");
 
-        assert!(!store.index_exists("articles"), "Index should not exist initially");
-        assert!(!store.index_exists("code_patterns"), "Index should not exist initially");
+        assert!(
+            !store.index_exists("articles"),
+            "Index should not exist initially"
+        );
+        assert!(
+            !store.index_exists("code_patterns"),
+            "Index should not exist initially"
+        );
     }
 
     // --- Vector Embedding Tests (TDD) ---
@@ -410,11 +432,13 @@ mod tests {
         let text = "This is a test document about vector embeddings";
         let chunk_id = 1;
 
-        store.insert_text(chunk_id, text, "documents")
+        store
+            .insert_text(chunk_id, text, "documents")
             .expect("Should insert text and generate embedding");
 
         // Search for similar text
-        let results = store.search("vector embeddings", 5, "documents")
+        let results = store
+            .search("vector embeddings", 5, "documents")
             .expect("Should search embeddings");
 
         assert!(!results.is_empty(), "Should find at least one result");
@@ -428,23 +452,29 @@ mod tests {
         let mut store = GlobalVectorStore::new().expect("Should create store");
 
         // Insert multiple related chunks
-        store.insert_text(1, "Machine learning models require training data", "documents")
+        store
+            .insert_text(
+                1,
+                "Machine learning models require training data",
+                "documents",
+            )
             .expect("Should insert");
-        store.insert_text(2, "Neural networks learn from examples", "documents")
+        store
+            .insert_text(2, "Neural networks learn from examples", "documents")
             .expect("Should insert");
-        store.insert_text(3, "The weather is sunny today", "documents")
+        store
+            .insert_text(3, "The weather is sunny today", "documents")
             .expect("Should insert");
 
         // Search for ML-related content
-        let results = store.search("artificial intelligence and deep learning", 3, "documents")
+        let results = store
+            .search("artificial intelligence and deep learning", 3, "documents")
             .expect("Should search");
 
         // Should find ML-related chunks first (higher similarity)
         assert!(results.len() >= 2, "Should find at least 2 results");
         // Chunks 1 and 2 should rank higher than chunk 3
-        let ml_chunks: Vec<_> = results.iter()
-            .filter(|r| r.id == 1 || r.id == 2)
-            .collect();
+        let ml_chunks: Vec<_> = results.iter().filter(|r| r.id == 1 || r.id == 2).collect();
         assert!(ml_chunks.len() >= 2, "Should find both ML-related chunks");
     }
 
@@ -455,14 +485,16 @@ mod tests {
         // First instance: insert data
         {
             let mut store = GlobalVectorStore::new().expect("Should create store");
-            store.insert_text(1, "Global knowledge persistence test", "documents")
+            store
+                .insert_text(1, "Global knowledge persistence test", "documents")
                 .expect("Should insert");
         }
 
         // Second instance: search should find data
         {
             let store = GlobalVectorStore::new().expect("Should create store");
-            let results = store.search("knowledge persistence", 5, "documents")
+            let results = store
+                .search("knowledge persistence", 5, "documents")
                 .expect("Should search");
 
             assert!(!results.is_empty(), "Should find persisted data");
@@ -477,18 +509,23 @@ mod tests {
         let mut store = GlobalVectorStore::new().expect("Should create store");
 
         // Insert into different namespaces
-        store.insert_text(1, "Document chunk in documents namespace", "documents")
+        store
+            .insert_text(1, "Document chunk in documents namespace", "documents")
             .expect("Should insert to documents");
-        store.insert_text(2, "Code snippet in code namespace", "code")
+        store
+            .insert_text(2, "Code snippet in code namespace", "code")
             .expect("Should insert to code");
 
         // Search each namespace independently
-        let doc_results = store.search("document", 5, "documents")
+        let doc_results = store
+            .search("document", 5, "documents")
             .expect("Should search documents");
-        let code_results = store.search("code", 5, "code")
-            .expect("Should search code");
+        let code_results = store.search("code", 5, "code").expect("Should search code");
 
-        assert!(!doc_results.is_empty(), "Should find in documents namespace");
+        assert!(
+            !doc_results.is_empty(),
+            "Should find in documents namespace"
+        );
         assert!(!code_results.is_empty(), "Should find in code namespace");
         assert_eq!(doc_results[0].id, 1, "Should find document chunk");
         assert_eq!(code_results[0].id, 2, "Should find code chunk");
@@ -503,14 +540,19 @@ mod tests {
         // Insert 100 chunks
         for i in 0..100 {
             let text = format!("Document chunk number {} with unique content", i);
-            store.insert_text(i, &text, "documents")
+            store
+                .insert_text(i, &text, "documents")
                 .expect("Should insert batch");
         }
 
         // Verify all are searchable
-        let results = store.search("document chunk", 10, "documents")
+        let results = store
+            .search("document chunk", 10, "documents")
             .expect("Should search after batch insert");
 
-        assert!(results.len() >= 10, "Should find at least 10 results from 100 chunks");
+        assert!(
+            results.len() >= 10,
+            "Should find at least 10 results from 100 chunks"
+        );
     }
 }

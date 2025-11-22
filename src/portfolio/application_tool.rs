@@ -13,8 +13,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 
-use crate::router::SynCoreState;
 use crate::message_bus::message::{AgentId, Msg, MsgKind};
+use crate::router::SynCoreState;
 use crate::vector::SearchScope;
 
 /// A single code change record

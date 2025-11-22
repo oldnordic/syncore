@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use crate::intellitask::{Complexity, ParentTask, Subtask, TaskBreakdown};
+use anyhow::{anyhow, Result};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use crate::intellitask::{TaskBreakdown, ParentTask, Subtask, Complexity};
 
 /// Status for IntelliTask tasks matching TaskMaster.ai
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -48,7 +48,7 @@ impl TaskStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntelliTask {
     pub id: i64,
-    pub task_id: String,  // e.g., "1.0" or "1.1"
+    pub task_id: String, // e.g., "1.0" or "1.1"
     pub title: String,
     pub description: String,
     pub status: TaskStatus,
@@ -113,7 +113,35 @@ pub struct IntelliTaskPersistence {
 }
 
 impl IntelliTaskPersistence {
-    /// Create new persistence instance
+    /// Create IntelliTaskPersistence using an existing database connection from DbManager.
+    ///
+    /// This is the preferred constructor when using DbManager. It reuses long-lived
+    /// connections instead of creating new ones per-call.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - Arc<Mutex<Connection>> from DbManager.main_conn()
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let db_manager = DbManager::new("syncore.db", "syncore_code_graph.db")?;
+    /// let intellitask = IntelliTaskPersistence::with_connection(db_manager.main_conn())?;
+    /// ```
+    pub fn with_connection(db: Arc<Mutex<Connection>>) -> Result<Self> {
+        // Ensure schema extensions exist
+        {
+            let conn = db.lock().unwrap();
+            Self::ensure_schema(&conn)?;
+        }
+
+        Ok(Self { db })
+    }
+
+    /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
+    ///
+    /// This method is kept for backward compatibility with existing code that hasn't
+    /// been refactored to use DbManager yet.
     pub fn new(db_path: &str) -> Result<Self> {
         // Ensure base schema first
         crate::db::ensure_schema(db_path)?;
@@ -157,10 +185,12 @@ impl IntelliTaskPersistence {
         }
 
         // Create indexes (IF NOT EXISTS is idempotent)
-        db.execute_batch(r#"
+        db.execute_batch(
+            r#"
             CREATE INDEX IF NOT EXISTS idx_tasks_task_id ON tasks(task_id);
             CREATE INDEX IF NOT EXISTS idx_tasks_prd ON tasks(prd_title);
-        "#)?;
+        "#,
+        )?;
 
         Ok(())
     }
@@ -218,7 +248,13 @@ impl IntelliTaskPersistence {
         Ok(db.last_insert_rowid())
     }
 
-    fn save_subtask(&self, db: &Connection, subtask: &Subtask, parent_id: i64, prd_title: &str) -> Result<i64> {
+    fn save_subtask(
+        &self,
+        db: &Connection,
+        subtask: &Subtask,
+        parent_id: i64,
+        prd_title: &str,
+    ) -> Result<i64> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -253,7 +289,12 @@ impl IntelliTaskPersistence {
         Ok(db.last_insert_rowid())
     }
 
-    fn save_dependencies(&self, db: &Connection, task_db_id: i64, dep_task_ids: &[String]) -> Result<()> {
+    fn save_dependencies(
+        &self,
+        db: &Connection,
+        task_db_id: i64,
+        dep_task_ids: &[String],
+    ) -> Result<()> {
         // For each dependency task_id string (e.g., "1.0"), find the DB id and create link
         for dep_task_id_str in dep_task_ids {
             // Find the task with this task_id
@@ -272,23 +313,23 @@ impl IntelliTaskPersistence {
     /// Get task dependencies (tasks that this task depends on)
     pub fn get_task_dependencies(&self, task_id: i64) -> Result<Vec<i64>> {
         let db = self.db.lock().unwrap();
-        let mut stmt = db.prepare(
-            "SELECT dst_id FROM task_links WHERE src_id = ?1 AND kind = 'depends_on'"
-        )?;
+        let mut stmt =
+            db.prepare("SELECT dst_id FROM task_links WHERE src_id = ?1 AND kind = 'depends_on'")?;
 
         let deps = stmt.query_map([task_id], |row| row.get(0))?;
-        deps.collect::<Result<Vec<_>, _>>().map_err(|e| anyhow!("Failed to get dependencies: {}", e))
+        deps.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| anyhow!("Failed to get dependencies: {}", e))
     }
 
     /// Get tasks that depend on this task
     pub fn get_dependent_tasks(&self, task_id: i64) -> Result<Vec<i64>> {
         let db = self.db.lock().unwrap();
-        let mut stmt = db.prepare(
-            "SELECT src_id FROM task_links WHERE dst_id = ?1 AND kind = 'depends_on'"
-        )?;
+        let mut stmt =
+            db.prepare("SELECT src_id FROM task_links WHERE dst_id = ?1 AND kind = 'depends_on'")?;
 
         let deps = stmt.query_map([task_id], |row| row.get(0))?;
-        deps.collect::<Result<Vec<_>, _>>().map_err(|e| anyhow!("Failed to get dependent tasks: {}", e))
+        deps.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| anyhow!("Failed to get dependent tasks: {}", e))
     }
 
     /// Check if all dependencies are satisfied (done)
@@ -301,7 +342,7 @@ impl IntelliTaskPersistence {
              WHERE tl.src_id = ?1 AND tl.kind = 'depends_on'
                AND t.status != 'done'",
             [task_id],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         Ok(count == 0)
@@ -340,31 +381,31 @@ impl IntelliTaskPersistence {
         let total: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE parent_id = ?1",
             [parent_id],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let completed: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE parent_id = ?1 AND status = 'done'",
             [parent_id],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let pending: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE parent_id = ?1 AND status = 'pending'",
             [parent_id],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let in_progress: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE parent_id = ?1 AND status = 'in-progress'",
             [parent_id],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let blocked: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE parent_id = ?1 AND status = 'blocked'",
             [parent_id],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let progress_percent = if total > 0 {
@@ -387,52 +428,48 @@ impl IntelliTaskPersistence {
     pub fn get_task_statistics(&self) -> Result<TaskStatistics> {
         let db = self.db.lock().unwrap();
 
-        let total: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks",
-            [],
-            |row| row.get(0)
-        )?;
+        let total: i32 = db.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))?;
 
         let completed: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE status = 'done'",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let pending: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE status = 'pending'",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let in_progress: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE status = 'in-progress'",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let blocked: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE status = 'blocked'",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let review: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE status = 'review'",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let deferred: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE status = 'deferred'",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let cancelled: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE status = 'cancelled'",
             [],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let progress_percent = if total > 0 {
@@ -461,49 +498,49 @@ impl IntelliTaskPersistence {
         let total: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let completed: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'done'",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let pending: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'pending'",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let in_progress: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'in-progress'",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let blocked: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'blocked'",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let review: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'review'",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let deferred: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'deferred'",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let cancelled: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'cancelled'",
             [prd_title],
-            |row| row.get(0)
+            |row| row.get(0),
         )?;
 
         let progress_percent = if total > 0 {
@@ -556,24 +593,40 @@ impl IntelliTaskPersistence {
         let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
         let mut stmt = db.prepare(&query)?;
 
-        let mut tasks: Vec<IntelliTask> = stmt.query_map(rusqlite::params_from_iter(param_refs), |row| {
-            Ok(IntelliTask {
-                id: row.get(0)?,
-                task_id: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                title: row.get(2)?,
-                description: row.get(3)?,
-                status: TaskStatus::from_str(&row.get::<_, String>(4)?).unwrap_or(TaskStatus::Pending),
-                complexity: serde_json::from_str(&row.get::<_, Option<String>>(5)?.unwrap_or_else(|| "\"Simple\"".to_string())).unwrap_or(Complexity::Simple),
-                estimated_hours: row.get::<_, Option<f32>>(6)?.unwrap_or(1.0),
-                parent_id: row.get(7)?,
-                prd_title: row.get(8)?,
-                dependencies: vec![], // Will be populated below
-                acceptance_criteria: serde_json::from_str(&row.get::<_, Option<String>>(9)?.unwrap_or_else(|| "[]".to_string())).unwrap_or_default(),
-                files_to_modify: serde_json::from_str(&row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "[]".to_string())).unwrap_or_default(),
-                created_at: row.get(11)?,
-                updated_at: row.get(12)?,
-            })
-        })?.collect::<Result<Vec<_>, _>>().map_err(|e| anyhow!("Failed to collect tasks: {}", e))?;
+        let mut tasks: Vec<IntelliTask> = stmt
+            .query_map(rusqlite::params_from_iter(param_refs), |row| {
+                Ok(IntelliTask {
+                    id: row.get(0)?,
+                    task_id: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                    title: row.get(2)?,
+                    description: row.get(3)?,
+                    status: TaskStatus::from_str(&row.get::<_, String>(4)?)
+                        .unwrap_or(TaskStatus::Pending),
+                    complexity: serde_json::from_str(
+                        &row.get::<_, Option<String>>(5)?
+                            .unwrap_or_else(|| "\"Simple\"".to_string()),
+                    )
+                    .unwrap_or(Complexity::Simple),
+                    estimated_hours: row.get::<_, Option<f32>>(6)?.unwrap_or(1.0),
+                    parent_id: row.get(7)?,
+                    prd_title: row.get(8)?,
+                    dependencies: vec![], // Will be populated below
+                    acceptance_criteria: serde_json::from_str(
+                        &row.get::<_, Option<String>>(9)?
+                            .unwrap_or_else(|| "[]".to_string()),
+                    )
+                    .unwrap_or_default(),
+                    files_to_modify: serde_json::from_str(
+                        &row.get::<_, Option<String>>(10)?
+                            .unwrap_or_else(|| "[]".to_string()),
+                    )
+                    .unwrap_or_default(),
+                    created_at: row.get(11)?,
+                    updated_at: row.get(12)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| anyhow!("Failed to collect tasks: {}", e))?;
 
         // Load dependencies for each task
         for task in &mut tasks {
@@ -581,10 +634,11 @@ impl IntelliTaskPersistence {
             let mut stmt = db.prepare(
                 "SELECT t.task_id FROM task_links tl
                  JOIN tasks t ON t.id = tl.dst_id
-                 WHERE tl.src_id = ?1 AND tl.kind = 'depends_on'"
+                 WHERE tl.src_id = ?1 AND tl.kind = 'depends_on'",
             )?;
 
-            let deps: Vec<String> = stmt.query_map([task.id], |row| row.get(0))?
+            let deps: Vec<String> = stmt
+                .query_map([task.id], |row| row.get(0))?
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| anyhow!("Failed to load dependencies: {}", e))?;
 
@@ -620,49 +674,45 @@ impl IntelliTaskPersistence {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use crate::intellitask::FileAction;
+    use tempfile::NamedTempFile;
 
     fn create_test_breakdown() -> TaskBreakdown {
         TaskBreakdown {
             prd_title: "Test Project".to_string(),
-            parent_tasks: vec![
-                ParentTask {
-                    id: "1.0".to_string(),
-                    title: "Implement Feature X".to_string(),
-                    description: "Build the feature".to_string(),
-                    subtasks: vec![
-                        Subtask {
-                            id: "1.1".to_string(),
-                            description: "Write tests".to_string(),
-                            acceptance_criteria: vec!["Tests pass".to_string()],
-                            dependencies: vec![],
-                            files_to_modify: vec!["tests/test.rs".to_string()],
-                            complexity: Complexity::Simple,
-                            estimated_hours: 2.0,
-                        },
-                        Subtask {
-                            id: "1.2".to_string(),
-                            description: "Implement logic".to_string(),
-                            acceptance_criteria: vec!["Code works".to_string()],
-                            dependencies: vec!["1.1".to_string()],
-                            files_to_modify: vec!["src/lib.rs".to_string()],
-                            complexity: Complexity::Moderate,
-                            estimated_hours: 4.0,
-                        },
-                    ],
-                    dependencies: vec![],
-                    complexity: Complexity::Moderate,
-                    estimated_hours: 6.0,
-                },
-            ],
-            relevant_files: vec![
-                crate::intellitask::FileReference {
-                    path: "src/lib.rs".to_string(),
-                    purpose: "Main implementation".to_string(),
-                    action: FileAction::Modify,
-                },
-            ],
+            parent_tasks: vec![ParentTask {
+                id: "1.0".to_string(),
+                title: "Implement Feature X".to_string(),
+                description: "Build the feature".to_string(),
+                subtasks: vec![
+                    Subtask {
+                        id: "1.1".to_string(),
+                        description: "Write tests".to_string(),
+                        acceptance_criteria: vec!["Tests pass".to_string()],
+                        dependencies: vec![],
+                        files_to_modify: vec!["tests/test.rs".to_string()],
+                        complexity: Complexity::Simple,
+                        estimated_hours: 2.0,
+                    },
+                    Subtask {
+                        id: "1.2".to_string(),
+                        description: "Implement logic".to_string(),
+                        acceptance_criteria: vec!["Code works".to_string()],
+                        dependencies: vec!["1.1".to_string()],
+                        files_to_modify: vec!["src/lib.rs".to_string()],
+                        complexity: Complexity::Moderate,
+                        estimated_hours: 4.0,
+                    },
+                ],
+                dependencies: vec![],
+                complexity: Complexity::Moderate,
+                estimated_hours: 6.0,
+            }],
+            relevant_files: vec![crate::intellitask::FileReference {
+                path: "src/lib.rs".to_string(),
+                purpose: "Main implementation".to_string(),
+                action: FileAction::Modify,
+            }],
             estimated_complexity: Complexity::Moderate,
         }
     }
@@ -797,8 +847,14 @@ mod tests {
         assert_eq!(TaskStatus::InProgress.as_str(), "in-progress");
         assert_eq!(TaskStatus::Done.as_str(), "done");
 
-        assert_eq!(TaskStatus::from_str("pending").unwrap(), TaskStatus::Pending);
-        assert_eq!(TaskStatus::from_str("in-progress").unwrap(), TaskStatus::InProgress);
+        assert_eq!(
+            TaskStatus::from_str("pending").unwrap(),
+            TaskStatus::Pending
+        );
+        assert_eq!(
+            TaskStatus::from_str("in-progress").unwrap(),
+            TaskStatus::InProgress
+        );
         assert!(TaskStatus::from_str("invalid").is_err());
     }
 
@@ -1197,7 +1253,10 @@ mod tests {
         let tasks = persistence.get_tasks(None)?;
 
         // Mark one task from PRD Two as done
-        let prd2_task = tasks.iter().find(|t| t.prd_title.as_deref() == Some("PRD Two")).unwrap();
+        let prd2_task = tasks
+            .iter()
+            .find(|t| t.prd_title.as_deref() == Some("PRD Two"))
+            .unwrap();
         persistence.update_task_status(prd2_task.id, TaskStatus::Done)?;
 
         // Get stats for PRD Two only

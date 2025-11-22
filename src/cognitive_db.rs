@@ -1,6 +1,6 @@
-use rusqlite::{Connection, OptionalExtension};
-use serde::{Serialize, Deserialize};
 use anyhow::Result;
+use rusqlite::{Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CogState {
@@ -45,7 +45,13 @@ impl CognitiveEngine {
         Ok(Self { db })
     }
 
-    pub fn store_step(&self, task_id: Option<i64>, state: &str, content: &str, meta_json: &str) -> Result<i64> {
+    pub fn store_step(
+        &self,
+        task_id: Option<i64>,
+        state: &str,
+        content: &str,
+        meta_json: &str,
+    ) -> Result<i64> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -66,7 +72,7 @@ impl CognitiveEngine {
              FROM steps
              WHERE task_id = ?1
              ORDER BY created_at DESC
-             LIMIT ?2"
+             LIMIT ?2",
         )?;
 
         let steps = stmt.query_map([task_id, n as i64], |row| {
@@ -89,21 +95,24 @@ impl CognitiveEngine {
     }
 
     pub fn get_step(&self, step_id: i64) -> Result<Option<Step>> {
-        let step = self.db.query_row(
-            "SELECT id, task_id, state, content, meta_json, created_at
+        let step = self
+            .db
+            .query_row(
+                "SELECT id, task_id, state, content, meta_json, created_at
              FROM steps WHERE id = ?1",
-            [step_id],
-            |row| {
-                Ok(Step {
-                    id: row.get(0)?,
-                    task_id: row.get(1)?,
-                    state: row.get(2)?,
-                    content: row.get(3)?,
-                    meta_json: row.get(4)?,
-                    created_at: row.get(5)?,
-                })
-            },
-        ).optional()?;
+                [step_id],
+                |row| {
+                    Ok(Step {
+                        id: row.get(0)?,
+                        task_id: row.get(1)?,
+                        state: row.get(2)?,
+                        content: row.get(3)?,
+                        meta_json: row.get(4)?,
+                        created_at: row.get(5)?,
+                    })
+                },
+            )
+            .optional()?;
 
         Ok(step)
     }
@@ -112,29 +121,55 @@ impl CognitiveEngine {
         self.store_step(task_id, "Think", content, "{}")
     }
 
-    pub fn create_decide_step(&self, task_id: Option<i64>, content: &str, decision: &str) -> Result<i64> {
+    pub fn create_decide_step(
+        &self,
+        task_id: Option<i64>,
+        content: &str,
+        decision: &str,
+    ) -> Result<i64> {
         let meta = serde_json::json!({"decision": decision}).to_string();
         self.store_step(task_id, "Decide", content, &meta)
     }
 
-    pub fn create_act_step(&self, task_id: Option<i64>, content: &str, action: &str) -> Result<i64> {
+    pub fn create_act_step(
+        &self,
+        task_id: Option<i64>,
+        content: &str,
+        action: &str,
+    ) -> Result<i64> {
         let meta = serde_json::json!({"action": action}).to_string();
         self.store_step(task_id, "Act", content, &meta)
     }
 
-    pub fn create_observe_step(&self, task_id: Option<i64>, content: &str, observation: &str) -> Result<i64> {
+    pub fn create_observe_step(
+        &self,
+        task_id: Option<i64>,
+        content: &str,
+        observation: &str,
+    ) -> Result<i64> {
         let meta = serde_json::json!({"observation": observation}).to_string();
         self.store_step(task_id, "Observe", content, &meta)
     }
 
-    pub fn create_reflect_step(&self, task_id: Option<i64>, content: &str, reflection: &str) -> Result<i64> {
+    pub fn create_reflect_step(
+        &self,
+        task_id: Option<i64>,
+        content: &str,
+        reflection: &str,
+    ) -> Result<i64> {
         let meta = serde_json::json!({"reflection": reflection}).to_string();
         self.store_step(task_id, "Reflect", content, &meta)
     }
 }
 
 // Export the exact functions the user requested
-pub fn store_step(db: &Connection, task_id: Option<i64>, state: &str, content: &str, meta_json: &str) -> Result<i64> {
+pub fn store_step(
+    db: &Connection,
+    task_id: Option<i64>,
+    state: &str,
+    content: &str,
+    meta_json: &str,
+) -> Result<i64> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -155,7 +190,7 @@ pub fn recent_steps(db: &Connection, task_id: i64, n: usize) -> Result<Vec<Step>
          FROM steps
          WHERE task_id = ?1
          ORDER BY created_at DESC
-         LIMIT ?2"
+         LIMIT ?2",
     )?;
 
     let steps = stmt.query_map([task_id, n as i64], |row| {

@@ -49,29 +49,47 @@ fn test_database_basic_operations() {
     ").unwrap();
 
     // Test basic task creation
-    let task_id = conn.execute("
+    let task_id = conn
+        .execute(
+            "
         INSERT INTO tasks (goal, description, priority, parent_id, created_at, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-    ", ("Test goal", "Test description", 3, None::<Option<i64>>, 1234567890, 1234567890)).unwrap();
+    ",
+            (
+                "Test goal",
+                "Test description",
+                3,
+                None::<Option<i64>>,
+                1234567890,
+                1234567890,
+            ),
+        )
+        .unwrap();
 
     assert!(task_id > 0);
 
     // Test task retrieval
-    let task = conn.query_row("
+    let task = conn
+        .query_row(
+            "
         SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
         FROM tasks WHERE id = ?1
-    ", [task_id], |row| {
-        Ok((
-            row.get::<_, i64>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, String>(3)?,
-            row.get::<_, i32>(4)?,
-            row.get::<_, Option<i64>>(5)?,
-            row.get::<_, i64>(6)?,
-            row.get::<_, i64>(7)?,
-        ))
-    }).unwrap();
+    ",
+            [task_id],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, i32>(4)?,
+                    row.get::<_, Option<i64>>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, i64>(7)?,
+                ))
+            },
+        )
+        .unwrap();
 
     assert_eq!(task.0, task_id as i64);
     assert_eq!(task.1, "Test goal");
@@ -81,39 +99,79 @@ fn test_database_basic_operations() {
     assert_eq!(task.5, None); // parent_id
 
     // Test task update
-    conn.execute("
+    conn.execute(
+        "
         UPDATE tasks SET status = ?1, updated_at = ?2 WHERE id = ?3
-    ", ("done", 1234567891, task_id)).unwrap();
+    ",
+        ("done", 1234567891, task_id),
+    )
+    .unwrap();
 
     // Verify update
-    let status = conn.query_row("
+    let status = conn
+        .query_row(
+            "
         SELECT status FROM tasks WHERE id = ?1
-    ", [task_id], |row| row.get::<_, String>(0)).unwrap();
+    ",
+            [task_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
     assert_eq!(status, "done");
 
     // Test task linking
-    let task2_id = conn.execute("
+    let task2_id = conn
+        .execute(
+            "
         INSERT INTO tasks (goal, description, priority, parent_id, created_at, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-    ", ("Task 2", "Description 2", 2, None::<Option<i64>>, 1234567892, 1234567892)).unwrap();
+    ",
+            (
+                "Task 2",
+                "Description 2",
+                2,
+                None::<Option<i64>>,
+                1234567892,
+                1234567892,
+            ),
+        )
+        .unwrap();
 
-    conn.execute("
+    conn.execute(
+        "
         INSERT OR REPLACE INTO task_links (src_id, dst_id, kind)
         VALUES (?1, ?2, ?3)
-    ", (task2_id, task_id, "depends_on")).unwrap();
+    ",
+        (task2_id, task_id, "depends_on"),
+    )
+    .unwrap();
 
     // Verify link
-    let link_exists = conn.query_row("
+    let link_exists = conn
+        .query_row(
+            "
         SELECT COUNT(*) FROM task_links WHERE src_id = ?1 AND dst_id = ?2 AND kind = 'depends_on'
-    ", (task2_id, task_id), |row| row.get::<_, i64>(0)).unwrap();
+    ",
+            (task2_id, task_id),
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap();
     assert_eq!(link_exists, 1);
 
     // Test cascade delete
-    conn.execute("DELETE FROM tasks WHERE id = ?1", [task_id]).unwrap();
+    conn.execute("DELETE FROM tasks WHERE id = ?1", [task_id])
+        .unwrap();
 
-    let child_remaining = conn.query_row("
+    let child_remaining = conn
+        .query_row(
+            "
         SELECT COUNT(*) FROM tasks WHERE id = ?1
-    ", [task2_id], |row| row.get::<_, i64>(0)    ).optional().unwrap_or(Some(0));
+    ",
+            [task2_id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .unwrap_or(Some(0));
     assert_eq!(child_remaining, Some(0));
 
     // Clean up
@@ -131,7 +189,8 @@ fn test_cognitive_step_operations() {
     conn.pragma_update(None, "journal_mode", &"WAL").unwrap();
 
     // Create tables
-    conn.execute_batch("
+    conn.execute_batch(
+        "
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             goal TEXT NOT NULL,
@@ -151,46 +210,84 @@ fn test_cognitive_step_operations() {
             meta_json TEXT NOT NULL DEFAULT '{}',
             created_at INTEGER NOT NULL
         );
-    ").unwrap();
+    ",
+    )
+    .unwrap();
 
     // Create a task first
-    let task_id = conn.execute("
+    let task_id = conn
+        .execute(
+            "
         INSERT INTO tasks (goal, description, priority, parent_id, created_at, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-    ", ("Test task", "For cognitive steps", 1, None::<i64>, 1234567890, 1234567890)).unwrap();
+    ",
+            (
+                "Test task",
+                "For cognitive steps",
+                1,
+                None::<i64>,
+                1234567890,
+                1234567890,
+            ),
+        )
+        .unwrap();
 
     // Test step creation
-    let step1_id = conn.execute("
+    let step1_id = conn
+        .execute(
+            "
         INSERT INTO steps (task_id, state, content, meta_json, created_at)
         VALUES (?1, ?2, ?3, ?4, ?5)
-    ", (Some(task_id), "Think", "Initial thinking", "{}", 1234567891)).unwrap();
+    ",
+            (Some(task_id), "Think", "Initial thinking", "{}", 1234567891),
+        )
+        .unwrap();
 
-    let step2_id = conn.execute("
+    let step2_id = conn
+        .execute(
+            "
         INSERT INTO steps (task_id, state, content, meta_json, created_at)
         VALUES (?1, ?2, ?3, ?4, ?5)
-    ", (Some(task_id), "Decide", "Made decision", "{\"decision\": \"proceed\"}", 1234567892)).unwrap();
+    ",
+            (
+                Some(task_id),
+                "Decide",
+                "Made decision",
+                "{\"decision\": \"proceed\"}",
+                1234567892,
+            ),
+        )
+        .unwrap();
 
     assert!(step1_id > 0);
     assert!(step1_id > 0);
     assert!(step2_id > 0);
 
     // Test recent steps retrieval
-    let steps = conn.prepare("
+    let steps = conn
+        .prepare(
+            "
         SELECT id, task_id, state, content, meta_json, created_at
         FROM steps
         WHERE task_id = ?1
         ORDER BY created_at DESC
         LIMIT ?2
-    ").unwrap().query_map([task_id, 5], |row| {
-        Ok((
-            row.get::<_, i64>(0)?,
-            row.get::<_, Option<i64>>(1)?,
-            row.get::<_, String>(2)?,
-            row.get::<_, String>(3)?,
-            row.get::<_, String>(4)?,
-            row.get::<_, i64>(5)?,
-        ))
-    }).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+    ",
+        )
+        .unwrap()
+        .query_map([task_id, 5], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, Option<i64>>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+            ))
+        })
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
 
     assert_eq!(steps.len(), 2);
     assert_eq!(steps[0].2, "Decide");

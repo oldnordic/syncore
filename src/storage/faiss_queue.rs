@@ -1,6 +1,6 @@
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
-use anyhow::Result;
 
 pub struct FaissJob {
     pub task: Box<dyn FnOnce() -> Result<()> + Send + 'static>,

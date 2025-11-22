@@ -1,7 +1,7 @@
+use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension};
 use sled::Db;
 use std::sync::{Arc, Mutex};
-use anyhow::Result;
 
 #[derive(Debug)]
 pub struct Memory {
@@ -19,27 +19,39 @@ impl Clone for Memory {
 }
 
 impl Memory {
-    pub fn new(db_path: &str) -> Result<Self> {
-        crate::db::ensure_schema(db_path)?;
-
-        let conn = crate::db::open_db_with_wal(db_path)?;
-
-        // Create unique cache directory based on the database path
-        let cache_path = format!("{}_cache", db_path);
-
+    /// Create Memory using an existing database connection from DbManager.
+    ///
+    /// This is the preferred constructor when using DbManager. It reuses long-lived
+    /// connections instead of creating new ones per-call.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - Arc<Mutex<Connection>> from DbManager.main_conn()
+    /// * `cache_path` - Path for sled cache (typically derived from DB path)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let db_manager = DbManager::new("syncore.db", "syncore_code_graph.db")?;
+    /// let memory = Memory::with_connection(
+    ///     db_manager.main_conn(),
+    ///     "syncore.db_cache"
+    /// )?;
+    /// ```
+    pub fn with_connection(db: Arc<Mutex<Connection>>, cache_path: &str) -> Result<Self> {
         // Try to open cache, if corrupted, clean it and try again
-        let cache = match sled::open(&cache_path) {
+        let cache = match sled::open(cache_path) {
             Ok(cache) => cache,
             Err(e) => {
                 // Check if it's a corruption error and clean up if needed
                 if e.to_string().contains("corrupted") || e.to_string().contains("offset None") {
                     eprintln!("Warning: Cache corrupted, attempting cleanup: {}", e);
                     // Remove corrupted cache directory
-                    if let Err(cleanup_err) = std::fs::remove_dir_all(&cache_path) {
+                    if let Err(cleanup_err) = std::fs::remove_dir_all(cache_path) {
                         eprintln!("Failed to remove corrupted cache: {}", cleanup_err);
                     }
                     // Try to create fresh cache
-                    sled::open(&cache_path).map_err(|err| {
+                    sled::open(cache_path).map_err(|err| {
                         anyhow::anyhow!("Failed to create fresh cache after cleanup: {}", err)
                     })?
                 } else {
@@ -49,9 +61,24 @@ impl Memory {
         };
 
         Ok(Self {
-            db: Arc::new(Mutex::new(conn)),
+            db,
             cache: Arc::new(cache),
         })
+    }
+
+    /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
+    ///
+    /// This method is kept for backward compatibility with existing code that hasn't
+    /// been refactored to use DbManager yet.
+    pub fn new(db_path: &str) -> Result<Self> {
+        crate::db::ensure_schema(db_path)?;
+
+        let conn = crate::db::open_db_with_wal(db_path)?;
+
+        // Create unique cache directory based on the database path
+        let cache_path = format!("{}_cache", db_path);
+
+        Self::with_connection(Arc::new(Mutex::new(conn)), &cache_path)
     }
 
     pub fn store(&self, key: &str, value: &str) -> Result<()> {
@@ -81,22 +108,22 @@ impl Memory {
 
         // Fallback to database
         let db = self.db.lock().unwrap();
-        let value = db.query_row(
-            "SELECT v FROM memory WHERE k=?1",
-            [key],
-            |r| r.get::<_, String>(0)
-        ).optional()?;
+        let value = db
+            .query_row("SELECT v FROM memory WHERE k=?1", [key], |r| {
+                r.get::<_, String>(0)
+            })
+            .optional()?;
 
         Ok(value)
     }
 
     pub fn query_with_timestamp(&self, key: &str) -> Result<Option<(String, i64)>> {
         let db = self.db.lock().unwrap();
-        let result = db.query_row(
-            "SELECT v, ts FROM memory WHERE k=?1",
-            [key],
-            |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
-        ).optional()?;
+        let result = db
+            .query_row("SELECT v, ts FROM memory WHERE k=?1", [key], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+            })
+            .optional()?;
 
         Ok(result)
     }

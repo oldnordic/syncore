@@ -1,22 +1,26 @@
-use anyhow::Result;
-use std::sync::Arc;
-use std::time::SystemTime;
-use rmcp::{
-    ErrorData as McpError,
-    ServerHandler,
-    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{ServerCapabilities, ServerInfo, CallToolResult, Content, ProtocolVersion, Implementation},
-    schemars,
-    tool, tool_handler, tool_router,
-    ServiceExt, transport::stdio,
-};
-use crate::router::SynCoreState;
+use crate::macro_tools::planner::ExecutionRecorder;
 use crate::message_bus::message::{AgentId, Msg, MsgKind};
+use crate::router::SynCoreState;
+use crate::runtime::{create_executor, ExecutorKind};
+use anyhow::Result;
+use rmcp::{
+    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
+    model::{
+        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
+    },
+    schemars, tool, tool_handler, tool_router,
+    transport::stdio,
+    ErrorData as McpError, ServerHandler, ServiceExt,
+};
+use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct MemoryStoreRequest {
     pub key: String,
     pub value: String,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -34,6 +38,8 @@ pub struct TaskCreateRequest {
 pub struct VectorInsertRequest {
     pub text: String,
     pub metadata: Option<serde_json::Value>,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -55,6 +61,9 @@ pub struct SequentialCycleRequest {
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ParserAnalyzeRequest {
     pub file_path: String,
+    /// If true, persist entities to SQLite, update HNSW index, and sync to Neo4j
+    #[serde(default)]
+    pub persist: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -313,20 +322,131 @@ pub struct ApplicationSearchRequest {
     pub query: String,
 }
 
+// RagGraph Tools
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct RagGraphQueryRequest {
+    pub query_text: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct RagGraphMultihopRequest {
+    pub seed_nodes: Vec<i64>,
+}
+
+// CodeGraph Neo4j Sync Tool
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct CodeGraphSyncNeo4jRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub namespace: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+}
+
+// CodeGraph Temporal Enrichment Tool
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct CodeGraphEnrichTemporalRequest {
+    /// Optional limit on number of entities to enrich (default: all)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limit: Option<u64>,
+    /// Whether to only enrich entities that don't have temporal data
+    #[serde(default = "default_only_missing")]
+    pub only_missing: bool,
+}
+
+fn default_only_missing() -> bool {
+    true
+}
+
 #[derive(Clone)]
 pub struct SynCoreMCPServer {
     state: Arc<SynCoreState>,
     tool_router: ToolRouter<Self>,
+    pub executor: Arc<dyn ExecutionRecorder + Send + Sync>,
 }
 
 #[tool_router]
 impl SynCoreMCPServer {
     #[allow(dead_code)]
     pub fn new(state: SynCoreState) -> Self {
+        let state = Arc::new(state);
+
+        // Select executor at runtime via environment variable
+        let kind = ExecutorKind::from_env();
+        let executor = create_executor(kind, state.clone());
+
         Self {
-            state: Arc::new(state),
+            state,
             tool_router: Self::tool_router(),
+            executor,
         }
+    }
+
+    /// Delegate MCP tool call to RealExecutor and convert envelope to MCP response
+    ///
+    /// This helper:
+    /// 1. Converts MCP request to serde_json::Value params
+    /// 2. Calls RealExecutor.execute_real_tool_async(tool_name, params)
+    /// 3. Unwraps the envelope {"ok": bool, "data": ..., "error": ...}
+    /// 4. Returns CallToolResult::success or CallToolResult::error
+    ///
+    /// # Arguments
+    /// - tool_name: The macro tool name (e.g., "memory_store")
+    /// - params: JSON params matching the tool's schema
+    ///
+    /// # Returns
+    /// MCP CallToolResult with unwrapped data or error
+    async fn mcp_delegate(
+        &self,
+        tool_name: &str,
+        params: serde_json::Value,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::macro_tools::executor_real::RealExecutor;
+
+        // Create a new RealExecutor instance to call execute_real_tool_async
+        // (The self.executor is trait object, we need concrete type)
+        let real_executor = RealExecutor::new(self.state.clone());
+
+        // Call unified executor
+        let envelope = real_executor
+            .execute_real_tool_async(tool_name, &params)
+            .await
+            .map_err(|e| McpError::internal_error(format!("Executor error: {}", e), None))?;
+
+        // Unwrap envelope {"ok": bool, "data": ..., "error": {...}}
+        match envelope.get("ok") {
+            Some(serde_json::Value::Bool(true)) => {
+                // Success case: extract data field
+                let empty_obj = serde_json::json!({});
+                let data = envelope.get("data").unwrap_or(&empty_obj);
+
+                // Convert data to text for MCP response
+                let text = if data.is_string() {
+                    data.as_str().unwrap().to_string()
+                } else {
+                    serde_json::to_string_pretty(data).unwrap_or_else(|_| data.to_string())
+                };
+
+                Ok(CallToolResult::success(vec![Content::text(text)]))
+            }
+            Some(serde_json::Value::Bool(false)) | _ => {
+                // Error case: extract error field
+                let error = envelope
+                    .get("error")
+                    .and_then(|e| e.get("message"))
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("Unknown error");
+
+                Ok(CallToolResult::error(vec![Content::text(
+                    error.to_string(),
+                )]))
+            }
+        }
+    }
+
+    /// Build unified router for ALL MCP transports (STDIO, HTTP SSE, HTTP Streaming)
+    /// This ensures all 49 tools are available on all transport modes
+    pub fn build_unified_router() -> ToolRouter<Self> {
+        Self::tool_router()
     }
 
     #[tool(description = "Store a value in memory")]
@@ -334,14 +454,15 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<MemoryStoreRequest>,
     ) -> Result<CallToolResult, McpError> {
-        match self.state.memory.store(&params.key, &params.value) {
-            Ok(_) => Ok(CallToolResult::success(vec![Content::text(
-                "Memory stored successfully".to_string(),
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to store memory: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "memory_store",
+            serde_json::json!({
+                "key": params.key,
+                "value": params.value,
+                "dry_run": params.dry_run
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Query a value from memory")]
@@ -349,15 +470,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<MemoryQueryRequest>,
     ) -> Result<CallToolResult, McpError> {
-        match self.state.memory.query(&params.key) {
-            Ok(Some(value)) => Ok(CallToolResult::success(vec![Content::text(value)])),
-            Ok(None) => Ok(CallToolResult::success(vec![Content::text(
-                "Key not found".to_string(),
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to query memory: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "memory_query",
+            serde_json::json!({
+                "key": params.key
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Create a new task")]
@@ -365,15 +484,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskCreateRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let priority = params.priority.unwrap_or(1);
-        match self.state.tasks.add_task(&params.goal, "", priority, None) {
-            Ok(task_id) => Ok(CallToolResult::success(vec![Content::text(
-                format!("Task created with ID: {}", task_id),
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to create task: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "task_create",
+            serde_json::json!({
+                "goal": params.goal,
+                "priority": params.priority
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Insert text into vector memory")]
@@ -381,23 +499,15 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<VectorInsertRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let _metadata = params.metadata.unwrap_or(serde_json::json!({}));
-
-        match self.state.vector_store.try_lock() {
-            Ok(mut store) => {
-                match store.insert_text(0, None, &params.text, "mcp") {
-                    Ok(_) => Ok(CallToolResult::success(vec![Content::text(
-                        "Vector inserted successfully".to_string(),
-                    )])),
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to insert vector: {}", e),
-                    )])),
-                }
-            }
-            Err(_) => Ok(CallToolResult::error(vec![Content::text(
-                "Failed to acquire vector store lock".to_string(),
-            )])),
-        }
+        self.mcp_delegate(
+            "vector_insert",
+            serde_json::json!({
+                "text": params.text,
+                "metadata": params.metadata,
+                "dry_run": params.dry_run
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Search vector memory")]
@@ -405,36 +515,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<VectorSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let limit = params.limit.unwrap_or(5);
-
-        match self.state.vector_store.try_lock() {
-            Ok(store) => {
-                use crate::vector::SearchScope;
-                match store.search(&params.query, limit, SearchScope::Global) {
-                    Ok(results) => {
-                        let results_text = results
-                            .into_iter()
-                            .map(|hit| format!("{} (score: {:.3})", hit.text, hit.score))
-                            .collect::<Vec<_>>()
-                            .join("\n");
-
-                        Ok(CallToolResult::success(vec![Content::text(
-                            if results_text.is_empty() {
-                                "No results found".to_string()
-                            } else {
-                                results_text
-                            },
-                        )]))
-                    }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to search vectors: {}", e),
-                    )])),
-                }
-            }
-            Err(_) => Ok(CallToolResult::error(vec![Content::text(
-                "Failed to acquire vector store lock".to_string(),
-            )])),
-        }
+        self.mcp_delegate(
+            "vector_search",
+            serde_json::json!({
+                "query": params.query,
+                "limit": params.limit
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get recent log entries")]
@@ -442,82 +530,47 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<LogsTailRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let n = params.n.unwrap_or(10);
-
-        // Read logs from the log file or system logs
-        match self.tail_logs(n) {
-            Ok(log_entries) => Ok(CallToolResult::success(vec![Content::text(
-                if log_entries.is_empty() {
-                    "No log entries found".to_string()
-                } else {
-                    log_entries.join("\n")
-                },
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to tail logs: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "logs_tail",
+            serde_json::json!({
+                "n": params.n
+            }),
+        )
+        .await
     }
 
-    fn tail_logs(&self, n: usize) -> Result<Vec<String>> {
-        use std::fs::File;
-        use std::io::{BufRead, BufReader};
-        use std::path::Path;
+    #[tool(description = "List metadata for all MCP tools (category, cost, side effects)")]
+    async fn tool_metadata_list(&self) -> Result<CallToolResult, McpError> {
+        use crate::mcp::tool_metadata;
 
-        // Try to read from syncore.log file first
-        let log_path = Path::new("syncore.log");
-        if log_path.exists() {
-            let file = File::open(log_path)?;
-            let reader = BufReader::new(file);
-            let lines: Vec<String> = reader.lines()
-                .filter_map(|line| line.ok())
-                .collect();
+        let metadata = tool_metadata::list_all_metadata();
+        let metadata_json: Vec<serde_json::Value> = metadata
+            .iter()
+            .map(|m| {
+                serde_json::json!({
+                    "name": m.name,
+                    "version": m.version,
+                    "category": m.category,
+                    "cost": m.cost,
+                    "side_effects": {
+                        "modifies_database": m.side_effects.modifies_database,
+                        "modifies_filesystem": m.side_effects.modifies_filesystem,
+                        "modifies_vector_store": m.side_effects.modifies_vector_store,
+                        "modifies_graph": m.side_effects.modifies_graph,
+                        "network_call": m.side_effects.network_call,
+                    },
+                    "description": m.description,
+                })
+            })
+            .collect();
 
-            // Return the last n lines
-            let start = if lines.len() > n { lines.len() - n } else { 0 };
-            return Ok(lines[start..].to_vec());
-        }
-
-        // Fallback: try to read from system logs or create sample logs
-        if cfg!(target_os = "linux") {
-            // Try to read from journalctl or syslog
-            let output = std::process::Command::new("journalctl")
-                .args(&["-n", &n.to_string(), "--no-pager"])
-                .output();
-
-            if let Ok(output) = output {
-                if output.status.success() {
-                    let logs = String::from_utf8_lossy(&output.stdout);
-                    return Ok(logs.lines().map(|s| s.to_string()).collect());
-                }
-            }
-
-            // Try syslog
-            let output = std::process::Command::new("tail")
-                .args(&["-n", &n.to_string(), "/var/log/syslog"])
-                .output();
-
-            if let Ok(output) = output {
-                if output.status.success() {
-                    let logs = String::from_utf8_lossy(&output.stdout);
-                    return Ok(logs.lines().map(|s| s.to_string()).collect());
-                }
-            }
-        }
-
-        // If no logs found, return some sample entries
-        Ok(vec![
-            "[INFO] SynCore server started".to_string(),
-            "[INFO] Memory module initialized".to_string(),
-            "[INFO] Task manager initialized".to_string(),
-            "[INFO] Vector store initialized".to_string(),
-            "[INFO] MCP server started".to_string(),
-            "[DEBUG] Waiting for client connections...".to_string(),
-            "[INFO] Client connected".to_string(),
-            "[DEBUG] Processing request...".to_string(),
-            "[INFO] Request completed successfully".to_string(),
-            "[DEBUG] Response sent to client".to_string(),
-        ])
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&serde_json::json!({
+                "tools": metadata_json,
+                "count": metadata.len(),
+            }))
+            .unwrap_or_else(|_| "Failed to serialize metadata".to_string()),
+        )]))
     }
 
     #[tool(description = "Run sequential thinking cycles for complex task processing")]
@@ -525,89 +578,28 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<SequentialCycleRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let max_cycles = params.max_cycles.unwrap_or(1);
-
-        // Try to create Ollama language model, fall back to demo if unavailable
-        let model: Arc<std::sync::Mutex<dyn crate::sequential::LanguageModel>> =
-            match crate::sequential::OllamaLanguageModel::new_default() {
-                Ok(ollama_model) => {
-                    tracing::info!("Using Ollama phi3-mini for sequential reasoning");
-                    Arc::new(std::sync::Mutex::new(ollama_model))
-                }
-                Err(e) => {
-                    tracing::warn!("Ollama unavailable ({}), falling back to demo mode", e);
-                    Arc::new(std::sync::Mutex::new(crate::sequential::DemoLanguageModel::new()))
-                }
-            };
-
-        // Create sequential core
-        let sequential_core = crate::sequential::SequentialCore::new(
-            self.state.tasks.clone(),
-            self.state.vector_store.clone(),
-            self.state.memory.clone(),
-            model,
-            self.state.logger.clone(),
-        );
-
-        match sequential_core.run_batch_cycles(max_cycles) {
-            Ok(results) => {
-                let mut output = String::new();
-                for result in results {
-                    match result {
-                        crate::sequential::CycleResult::Completed { task_id, thought, decision, actions, action_results, reflection } => {
-                            output.push_str(&format!("=== TASK {} COMPLETED ===\n", task_id));
-                            output.push_str(&format!("THOUGHT:\n{}\n\n", thought));
-                            output.push_str(&format!("DECISION:\n{}\n\n", decision));
-                            output.push_str(&format!("ACTIONS ({}):\n", actions.len()));
-                            for (i, action) in actions.iter().enumerate() {
-                                output.push_str(&format!("{}. {}\n", i + 1, action.description));
-                            }
-                            output.push_str("\n");
-                            output.push_str(&format!("ACTION RESULTS:\n{}\n\n", action_results.join("\n")));
-                            output.push_str(&format!("REFLECTION:\n{}\n\n", reflection));
-                        }
-                        _ => {}
-                    }
-                }
-
-                Ok(CallToolResult::success(vec![Content::text(
-                    if output.is_empty() {
-                        "No tasks processed".to_string()
-                    } else {
-                        output
-                    },
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Sequential cycle failed: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "sequential_cycle",
+            serde_json::json!({
+                "max_cycles": params.max_cycles
+            }),
+        )
+        .await
     }
 
-    #[tool(description = "Analyze code structure using tree-sitter parser")]
+    #[tool(description = "Analyze code structure using tree-sitter parser. Set persist=true to also index entities to SQLite, update HNSW, and sync to Neo4j.")]
     async fn parser_analyze(
         &self,
         Parameters(params): Parameters<ParserAnalyzeRequest>,
     ) -> Result<CallToolResult, McpError> {
-        match crate::parser::Parser::new() {
-            Ok(parser) => {
-                match parser.parse_file(std::path::Path::new(&params.file_path)) {
-                    Ok(structure) => {
-                        let analysis = serde_json::to_string_pretty(&structure)
-                            .unwrap_or_else(|_| "Failed to serialize structure".to_string());
-                        Ok(CallToolResult::success(vec![Content::text(
-                            format!("Code analysis for {}:\n{}", params.file_path, analysis),
-                        )]))
-                    }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to parse file {}: {}", params.file_path, e),
-                    )])),
-                }
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize parser: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "parser_analyze",
+            serde_json::json!({
+                "file_path": params.file_path,
+                "persist": params.persist
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Search code patterns using ripgrep")]
@@ -615,31 +607,15 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ParserSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let context_lines = params.context_lines.unwrap_or(3);
-        let search_path = params.path.as_deref().unwrap_or(".");
-
-        use std::process::Command;
-        let mut cmd = Command::new("rg");
-        cmd.args(&["--json", "-C", &context_lines.to_string(), &params.pattern, search_path]);
-
-        match cmd.output() {
-            Ok(output) => {
-                if output.status.success() {
-                    let results = String::from_utf8_lossy(&output.stdout);
-                    Ok(CallToolResult::success(vec![Content::text(
-                        format!("Search results for '{}' in {}:\n{}", params.pattern, search_path, results),
-                    )]))
-                } else {
-                    let error = String::from_utf8_lossy(&output.stderr);
-                    Ok(CallToolResult::error(vec![Content::text(
-                        format!("Search failed: {}", error),
-                    )]))
-                }
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to execute search: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "parser_search",
+            serde_json::json!({
+                "pattern": params.pattern,
+                "path": params.path,
+                "context_lines": params.context_lines
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Index a source code file for semantic and structural search")]
@@ -647,29 +623,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<CodeIndexRequest>,
     ) -> Result<CallToolResult, McpError> {
-        // Create code graph instance
-        let db_path = "syncore_code_graph.db";
-        let vector_store = self.state.vector_store.clone();
-
-        match crate::code_graph::CodeGraph::new(db_path, vector_store) {
-            Ok(mut code_graph) => {
-                let file_path = std::path::Path::new(&params.file_path);
-
-                match code_graph.index_file(file_path) {
-                    Ok(count) => {
-                        Ok(CallToolResult::success(vec![Content::text(
-                            format!("Successfully indexed {} entities from {}", count, params.file_path),
-                        )]))
-                    }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to index file: {}", e),
-                    )])),
-                }
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to create code graph: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "code_index",
+            serde_json::json!({
+                "file_path": params.file_path
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Search code using semantic meaning and structural relationships")]
@@ -677,56 +637,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<CodeSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
-        // Create code graph instance
-        let db_path = "syncore_code_graph.db";
-        let vector_store = self.state.vector_store.clone();
-
-        match crate::code_graph::CodeGraph::new(db_path, vector_store) {
-            Ok(code_graph) => {
-                match code_graph.search_code(&params.query, params.limit) {
-                    Ok(matches) => {
-                        if matches.is_empty() {
-                            Ok(CallToolResult::success(vec![Content::text(
-                                format!("No matches found for query: '{}'", params.query),
-                            )]))
-                        } else {
-                            let mut result = format!("Found {} matches for '{}':\n\n", matches.len(), params.query);
-
-                            for (i, m) in matches.iter().enumerate() {
-                                result.push_str(&format!(
-                                    "{}. {} '{}' in {} (line {})\n",
-                                    i + 1,
-                                    m.entity.entity_type.as_str(),
-                                    m.entity.name,
-                                    m.entity.file_path,
-                                    m.entity.line_start
-                                ));
-
-                                if let Some(sig) = &m.entity.signature {
-                                    result.push_str(&format!("   Signature: {}\n", sig));
-                                }
-
-                                result.push_str(&format!("   Score: {:.4} ({})\n\n", m.score,
-                                    match m.match_type {
-                                        crate::code_graph::MatchType::Semantic => "semantic",
-                                        crate::code_graph::MatchType::Structural => "structural",
-                                        crate::code_graph::MatchType::Combined => "combined",
-                                    }
-                                ));
-                            }
-
-                            Ok(CallToolResult::success(vec![Content::text(result)]))
-                        }
-                    }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Search failed: {}", e),
-                    )])),
-                }
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to create code graph: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "code_search",
+            serde_json::json!({
+                "query": params.query,
+                "limit": params.limit
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Index all code files in a directory matching a glob pattern")]
@@ -734,46 +652,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<CodeIndexDirectoryRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::code_directory_indexer::{DirectoryIndexer, DirectoryIndexRequest};
-
-        // Create indexer with vector store
-        let db_path = "syncore_code_graph.db";
-        let vector_store = self.state.vector_store.clone();
-
-        match DirectoryIndexer::new(db_path, vector_store) {
-            Ok(mut indexer) => {
-                let request = DirectoryIndexRequest {
-                    directory: params.directory.clone(),
-                    pattern: params.pattern.clone(),
-                };
-
-                match indexer.index_directory(&request) {
-                    Ok(response) => {
-                        if response.success {
-                            Ok(CallToolResult::success(vec![Content::text(
-                                format!(
-                                    "Successfully indexed {} files with {} total entities from directory '{}' using pattern '{}'",
-                                    response.files_indexed,
-                                    response.total_entities,
-                                    params.directory,
-                                    params.pattern
-                                ),
-                            )]))
-                        } else {
-                            Ok(CallToolResult::error(vec![Content::text(
-                                response.error.unwrap_or_else(|| "Unknown error".to_string()),
-                            )]))
-                        }
-                    }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to index directory: {}", e),
-                    )])),
-                }
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to create directory indexer: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "code_index_directory",
+            serde_json::json!({
+                "directory": params.directory,
+                "pattern": params.pattern
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Index documents from a directory into global knowledge store")]
@@ -781,28 +667,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<DocumentIndexRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::document_indexer::DocumentIndexer;
-        use std::path::Path;
-
-        let indexer = DocumentIndexer::with_defaults();
-        let dir_path = Path::new(&params.directory);
-
-        match indexer.index_directory(dir_path) {
-            Ok(chunk_count) => {
-                Ok(CallToolResult::success(vec![Content::text(
-                    format!(
-                        "Successfully indexed {} document chunks from directory '{}'.\nAll documents are now searchable in the global knowledge store.",
-                        chunk_count,
-                        params.directory
-                    ),
-                )]))
-            }
-            Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(
-                    format!("Failed to index directory: {}", e),
-                )]))
-            }
-        }
+        self.mcp_delegate(
+            "document_index",
+            serde_json::json!({
+                "directory": params.directory
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Semantic search across indexed documents using vector embeddings")]
@@ -810,52 +681,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<DocumentSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::global_store::GlobalVectorStore;
-
-        let vector_store = match GlobalVectorStore::new() {
-            Ok(store) => store,
-            Err(e) => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    format!("Failed to create vector store: {}", e),
-                )]));
-            }
-        };
-
-        match vector_store.search(&params.query, params.limit, "documents") {
-            Ok(results) => {
-                if results.is_empty() {
-                    Ok(CallToolResult::success(vec![Content::text(
-                        "No documents found matching your query.\nTry indexing documents first with the 'document_index' tool.".to_string(),
-                    )]))
-                } else {
-                    let result_count = results.len();
-                    let results_text = results
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, hit)| {
-                            format!(
-                                "{}. [Score: {:.3}]\n{}\n",
-                                i + 1,
-                                hit.score,
-                                hit.text
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n---\n\n");
-
-                    Ok(CallToolResult::success(vec![Content::text(format!(
-                        "Found {} relevant documents:\n\n{}",
-                        result_count,
-                        results_text
-                    ))]))
-                }
-            }
-            Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(
-                    format!("Failed to search documents: {}", e),
-                )]))
-            }
-        }
+        self.mcp_delegate(
+            "document_search",
+            serde_json::json!({
+                "query": params.query,
+                "limit": params.limit
+            }),
+        )
+        .await
     }
 
     #[tool(description = "IntelliTask: Generate intelligent task breakdown from PRD using AI")]
@@ -872,14 +705,16 @@ impl SynCoreMCPServer {
                             .unwrap_or_else(|_| "Failed to serialize breakdown".to_string());
                         Ok(CallToolResult::success(vec![Content::text(json_output)]))
                     }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to generate tasks: {}", e),
-                    )])),
+                    Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Failed to generate tasks: {}",
+                        e
+                    ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Ollama unavailable: {}. Ensure Ollama is running with phi3:mini", e),
-            )])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Ollama unavailable: {}. Ensure Ollama is running with phi3:mini",
+                e
+            ))])),
         }
     }
 
@@ -890,12 +725,16 @@ impl SynCoreMCPServer {
     ) -> Result<CallToolResult, McpError> {
         match crate::ollama::OllamaClient::new_default() {
             Ok(ollama) => {
-                let parent_task: crate::intellitask::ParentTask = match serde_json::from_str(&params.parent_task_json) {
-                    Ok(task) => task,
-                    Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                        format!("Invalid parent task JSON: {}", e),
-                    )])),
-                };
+                let parent_task: crate::intellitask::ParentTask =
+                    match serde_json::from_str(&params.parent_task_json) {
+                        Ok(task) => task,
+                        Err(e) => {
+                            return Ok(CallToolResult::error(vec![Content::text(format!(
+                                "Invalid parent task JSON: {}",
+                                e
+                            ))]))
+                        }
+                    };
 
                 let intellitask = crate::intellitask::IntelliTask::new(ollama);
                 let codebase_context = params.codebase_context.as_deref().unwrap_or("");
@@ -906,14 +745,16 @@ impl SynCoreMCPServer {
                             .unwrap_or_else(|_| "Failed to serialize subtasks".to_string());
                         Ok(CallToolResult::success(vec![Content::text(json_output)]))
                     }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to generate subtasks: {}", e),
-                    )])),
+                    Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Failed to generate subtasks: {}",
+                        e
+                    ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Ollama unavailable: {}", e),
-            )])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Ollama unavailable: {}",
+                e
+            ))])),
         }
     }
 
@@ -924,12 +765,16 @@ impl SynCoreMCPServer {
     ) -> Result<CallToolResult, McpError> {
         match crate::ollama::OllamaClient::new_default() {
             Ok(ollama) => {
-                let tasks: Vec<crate::intellitask::ParentTask> = match serde_json::from_str(&params.tasks_json) {
-                    Ok(t) => t,
-                    Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                        format!("Invalid tasks JSON: {}", e),
-                    )])),
-                };
+                let tasks: Vec<crate::intellitask::ParentTask> =
+                    match serde_json::from_str(&params.tasks_json) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            return Ok(CallToolResult::error(vec![Content::text(format!(
+                                "Invalid tasks JSON: {}",
+                                e
+                            ))]))
+                        }
+                    };
 
                 let intellitask = crate::intellitask::IntelliTask::new(ollama);
                 let business_context = params.business_context.as_deref().unwrap_or("");
@@ -940,14 +785,16 @@ impl SynCoreMCPServer {
                             .unwrap_or_else(|_| "Failed to serialize priorities".to_string());
                         Ok(CallToolResult::success(vec![Content::text(json_output)]))
                     }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to prioritize tasks: {}", e),
-                    )])),
+                    Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Failed to prioritize tasks: {}",
+                        e
+                    ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Ollama unavailable: {}", e),
-            )])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Ollama unavailable: {}",
+                e
+            ))])),
         }
     }
 
@@ -958,27 +805,31 @@ impl SynCoreMCPServer {
     ) -> Result<CallToolResult, McpError> {
         match crate::ollama::OllamaClient::new_default() {
             Ok(ollama) => {
-                let remaining_tasks: Vec<crate::intellitask::ParentTask> = match serde_json::from_str(&params.remaining_tasks_json) {
-                    Ok(t) => t,
-                    Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                        format!("Invalid remaining tasks JSON: {}", e),
-                    )])),
-                };
+                let remaining_tasks: Vec<crate::intellitask::ParentTask> =
+                    match serde_json::from_str(&params.remaining_tasks_json) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            return Ok(CallToolResult::error(vec![Content::text(format!(
+                                "Invalid remaining tasks JSON: {}",
+                                e
+                            ))]))
+                        }
+                    };
 
                 let intellitask = crate::intellitask::IntelliTask::new(ollama);
 
                 match intellitask.suggest_next_task(&params.completed_tasks, &remaining_tasks) {
-                    Ok(suggestion) => {
-                        Ok(CallToolResult::success(vec![Content::text(suggestion)]))
-                    }
-                    Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                        format!("Failed to suggest next task: {}", e),
-                    )])),
+                    Ok(suggestion) => Ok(CallToolResult::success(vec![Content::text(suggestion)])),
+                    Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Failed to suggest next task: {}",
+                        e
+                    ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Ollama unavailable: {}", e),
-            )])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Ollama unavailable: {}",
+                e
+            ))])),
         }
     }
 
@@ -989,19 +840,27 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskSaveRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
+        let persistence =
+            match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks")
+            {
+                Ok(p) => p,
+                Err(e) => {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Failed to initialize persistence: {}",
+                        e
+                    ))]))
+                }
+            };
 
         // Step 1: Parse as Value to check JSON syntax
         let json_value: serde_json::Value = match serde_json::from_str(&params.breakdown_json) {
             Ok(v) => v,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Invalid JSON syntax: {}", e),
-            )])),
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Invalid JSON syntax: {}",
+                    e
+                ))]))
+            }
         };
 
         // Step 2: Validate against schema to report ALL errors at once
@@ -1010,9 +869,12 @@ impl SynCoreMCPServer {
 
         let validator = match jsonschema::JSONSchema::compile(&schema_json) {
             Ok(v) => v,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Internal error creating validator: {}", e),
-            )])),
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Internal error creating validator: {}",
+                    e
+                ))]))
+            }
         };
 
         let errors: Vec<String> = validator
@@ -1042,20 +904,26 @@ impl SynCoreMCPServer {
         }
 
         // Step 3: Now deserialize (should succeed since schema validated)
-        let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(json_value) {
+        let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(json_value)
+        {
             Ok(b) => b,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Deserialization failed after validation (unexpected): {}", e),
-            )])),
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Deserialization failed after validation (unexpected): {}",
+                    e
+                ))]))
+            }
         };
 
         match persistence.save_task_breakdown(&breakdown) {
-            Ok(_) => Ok(CallToolResult::success(vec![Content::text(
-                format!("Saved {} parent tasks to database", breakdown.parent_tasks.len()),
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to save tasks: {}", e),
-            )])),
+            Ok(_) => Ok(CallToolResult::success(vec![Content::text(format!(
+                "Saved {} parent tasks to database",
+                breakdown.parent_tasks.len()
+            ))])),
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Failed to save tasks: {}",
+                e
+            ))])),
         }
     }
 
@@ -1064,26 +932,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskGetRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        match persistence.get_task(params.task_id) {
-            Ok(Some(task)) => {
-                let json = serde_json::to_string_pretty(&task)
-                    .unwrap_or_else(|_| "Failed to serialize task".to_string());
-                Ok(CallToolResult::success(vec![Content::text(json)]))
-            }
-            Ok(None) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Task {} not found", params.task_id),
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to get task: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "intellitask_get",
+            serde_json::json!({
+                "task_id": params.task_id
+            }),
+        )
+        .await
     }
 
     #[tool(description = "List tasks with optional filtering")]
@@ -1091,29 +946,15 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskListRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        let filter = crate::intellitask_persistence::TaskFilter {
-            status: params.status.and_then(|s| serde_json::from_str(&format!("\"{}\"", s)).ok()),
-            prd_title: params.prd_title,
-            parent_id: params.parent_id,
-        };
-
-        match persistence.get_tasks(Some(filter)) {
-            Ok(tasks) => {
-                let json = serde_json::to_string_pretty(&tasks)
-                    .unwrap_or_else(|_| "Failed to serialize tasks".to_string());
-                Ok(CallToolResult::success(vec![Content::text(json)]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to list tasks: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "intellitask_list",
+            serde_json::json!({
+                "status": params.status,
+                "prd_title": params.prd_title,
+                "parent_id": params.parent_id
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Update task status")]
@@ -1121,54 +962,20 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskUpdateStatusRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        let status: crate::intellitask_persistence::TaskStatus = match serde_json::from_str(&format!("\"{}\"", params.status)) {
-            Ok(s) => s,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Invalid status: {}. Use: pending, in-progress, review, done, deferred, cancelled, blocked", e),
-            )])),
-        };
-
-        match persistence.update_task_status(params.task_id, status) {
-            Ok(_) => Ok(CallToolResult::success(vec![Content::text(
-                format!("Updated task {} status to {}", params.task_id, params.status),
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to update status: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "intellitask_update_status",
+            serde_json::json!({
+                "task_id": params.task_id,
+                "status": params.status
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get next task ready to work on (dependencies satisfied)")]
-    async fn intellitask_next_ready(
-        &self,
-    ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        match persistence.next_task() {
-            Ok(Some(task)) => {
-                let json = serde_json::to_string_pretty(&task)
-                    .unwrap_or_else(|_| "Failed to serialize task".to_string());
-                Ok(CallToolResult::success(vec![Content::text(json)]))
-            }
-            Ok(None) => Ok(CallToolResult::success(vec![Content::text(
-                "No tasks ready to work on".to_string(),
-            )])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to get next task: {}", e),
-            )])),
-        }
+    async fn intellitask_next_ready(&self) -> Result<CallToolResult, McpError> {
+        self.mcp_delegate("intellitask_next_ready", serde_json::json!({}))
+            .await
     }
 
     #[tool(description = "Get subtasks for a parent task")]
@@ -1176,23 +983,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskSubtasksRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        match persistence.get_subtasks(params.parent_id) {
-            Ok(subtasks) => {
-                let json = serde_json::to_string_pretty(&subtasks)
-                    .unwrap_or_else(|_| "Failed to serialize subtasks".to_string());
-                Ok(CallToolResult::success(vec![Content::text(json)]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to get subtasks: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "intellitask_get_subtasks",
+            serde_json::json!({
+                "parent_id": params.parent_id
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get subtask statistics for a parent task")]
@@ -1200,23 +997,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskSubtaskStatsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        match persistence.get_subtask_statistics(params.parent_id) {
-            Ok(stats) => {
-                let json = serde_json::to_string_pretty(&stats)
-                    .unwrap_or_else(|_| "Failed to serialize stats".to_string());
-                Ok(CallToolResult::success(vec![Content::text(json)]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to get stats: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "intellitask_subtask_stats",
+            serde_json::json!({
+                "parent_id": params.parent_id
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get overall task statistics across all tasks")]
@@ -1224,23 +1011,8 @@ impl SynCoreMCPServer {
         &self,
         Parameters(_params): Parameters<TaskStatisticsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        match persistence.get_task_statistics() {
-            Ok(stats) => {
-                let json = serde_json::to_string_pretty(&stats)
-                    .unwrap_or_else(|_| "Failed to serialize stats".to_string());
-                Ok(CallToolResult::success(vec![Content::text(json)]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to get task statistics: {}", e),
-            )])),
-        }
+        self.mcp_delegate("intellitask_task_statistics", serde_json::json!({}))
+            .await
     }
 
     #[tool(description = "Get task statistics for a specific PRD")]
@@ -1248,23 +1020,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<PrdStatisticsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks") {
-            Ok(p) => p,
-            Err(e) => return Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to initialize persistence: {}", e),
-            )])),
-        };
-
-        match persistence.get_prd_statistics(&params.prd_title) {
-            Ok(stats) => {
-                let json = serde_json::to_string_pretty(&stats)
-                    .unwrap_or_else(|_| "Failed to serialize stats".to_string());
-                Ok(CallToolResult::success(vec![Content::text(json)]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(
-                format!("Failed to get PRD statistics: {}", e),
-            )])),
-        }
+        self.mcp_delegate(
+            "intellitask_prd_statistics",
+            serde_json::json!({
+                "prd_title": params.prd_title
+            }),
+        )
+        .await
     }
 
     // Message Bus Tool
@@ -1273,60 +1035,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<AgentSendRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::message_bus::message::{AgentId, Msg, MsgKind};
-        use std::time::SystemTime;
-
-        // Check if message bus is configured
-        let bus = match &self.state.message_bus {
-            Some(b) => b.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Message bus not configured".to_string(),
-                )]));
-            }
-        };
-
-        // Parse target agent ID
-        let (to_agent, kind, target_str) = if params.to.trim().is_empty() {
-            // Broadcast
-            (None, MsgKind::Broadcast, "broadcast".to_string())
-        } else {
-            // Direct message - parse AgentId from string
-            let agent_id = match params.to.to_lowercase().as_str() {
-                "claude" => AgentId::Claude,
-                "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
-                other => AgentId::Custom(other.to_string()),
-            };
-            let target = params.to.clone();
-            (Some(agent_id), MsgKind::Direct, target)
-        };
-
-        // Get next message ID
-        let msg_id = bus.next_message_id();
-
-        // Construct message
-        let msg = Msg {
-            id: msg_id,
-            from: AgentId::Internal("mcp_server".to_string()),
-            to: to_agent,
-            kind,
-            payload: serde_json::json!({ "message": params.message }),
-            timestamp: SystemTime::now(),
-        };
-
-        // Send message
-        bus.send(msg);
-
-        // Return success
-        let response = serde_json::json!({
-            "status": "sent",
-            "to": target_str,
-            "message_id": msg_id
-        });
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-        )]))
+        self.mcp_delegate(
+            "agent_send",
+            serde_json::json!({
+                "to": params.to,
+                "message": params.message
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Receive pending messages for a given agent ID")]
@@ -1334,39 +1050,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<AgentRecvRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::message_bus::message::AgentId;
-
-        // Check if message bus is configured
-        let bus = match &self.state.message_bus {
-            Some(b) => b.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Message bus not configured".to_string(),
-                )]));
-            }
-        };
-
-        // Parse agent ID from string
-        let agent_id = match params.agent.to_lowercase().as_str() {
-            "claude" => AgentId::Claude,
-            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
-            "" => AgentId::Internal("mcp_server".to_string()),
-            other => AgentId::Custom(other.to_string()),
-        };
-
-        // Drain pending messages for this agent
-        let messages = bus.drain_for(&agent_id);
-
-        // Return success with messages
-        let response = serde_json::json!({
-            "status": "ok",
-            "agent": params.agent,
-            "messages": messages
-        });
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-        )]))
+        self.mcp_delegate(
+            "agent_recv",
+            serde_json::json!({
+                "agent": params.agent
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Wait for the next message addressed to the specified agent")]
@@ -1425,38 +1115,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<AgentRegisterRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::message_bus::message::AgentId;
-
-        // Check if message bus is configured
-        let bus = match &self.state.message_bus {
-            Some(b) => b.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Message bus not configured".to_string(),
-                )]));
-            }
-        };
-
-        // Parse agent ID from string
-        let agent_id = match params.id.to_lowercase().as_str() {
-            "claude" => AgentId::Claude,
-            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
-            other => AgentId::Custom(other.to_string()),
-        };
-
-        // Register agent metadata
-        bus.register_agent_info(agent_id, params.id.clone(), params.capabilities.clone());
-
-        // Return success
-        let response = serde_json::json!({
-            "status": "registered",
-            "id": params.id,
-            "capabilities": params.capabilities
-        });
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-        )]))
+        self.mcp_delegate(
+            "agent_register",
+            serde_json::json!({
+                "id": params.id,
+                "capabilities": params.capabilities
+            }),
+        )
+        .await
     }
 
     #[tool(description = "List all registered agents and their metadata")]
@@ -1464,42 +1130,7 @@ impl SynCoreMCPServer {
         &self,
         Parameters(_params): Parameters<AgentListRequest>,
     ) -> Result<CallToolResult, McpError> {
-        // Check if message bus is configured
-        let bus = match &self.state.message_bus {
-            Some(b) => b.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Message bus not configured".to_string(),
-                )]));
-            }
-        };
-
-        // Get list of registered agent names
-        let list = bus.list_registered_agents();
-
-        // Retrieve full metadata for each agent
-        let full: Vec<serde_json::Value> = list
-            .iter()
-            .filter_map(|name| {
-                bus.get_agent_info(name).map(|info| {
-                    serde_json::json!({
-                        "id": format!("{:?}", info.id),
-                        "name": info.name,
-                        "capabilities": info.capabilities,
-                        "registered_at_ms": info.registered_at.elapsed().as_millis()
-                    })
-                })
-            })
-            .collect();
-
-        let response = serde_json::json!({
-            "status": "ok",
-            "agents": full
-        });
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-        )]))
+        self.mcp_delegate("agent_list", serde_json::json!({})).await
     }
 
     #[tool(description = "Update the status of the specified agent")]
@@ -1507,29 +1138,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<AgentStatusRequest>,
     ) -> Result<CallToolResult, McpError> {
-        // Check if message bus is configured
-        let bus = match &self.state.message_bus {
-            Some(b) => b.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Message bus not configured".to_string(),
-                )]));
-            }
-        };
-
-        // Update agent status
-        bus.update_agent_status(&params.id, params.status.clone());
-
-        // Return success
-        let response = serde_json::json!({
-            "status": "ok",
-            "id": params.id,
-            "updated": params.status
-        });
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-        )]))
+        self.mcp_delegate(
+            "agent_status",
+            serde_json::json!({
+                "id": params.id,
+                "status": params.status
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Send a structured task envelope to a specified agent")]
@@ -1537,51 +1153,16 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<AgentTaskRequest>,
     ) -> Result<CallToolResult, McpError> {
-        // Check if message bus is configured
-        let bus = match &self.state.message_bus {
-            Some(b) => b.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Message bus not configured".to_string(),
-                )]));
-            }
-        };
-
-        // Map string to AgentId
-        let to_agent = match params.to.to_lowercase().as_str() {
-            "claude" => AgentId::Claude,
-            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
-            "router" => AgentId::Internal("router".to_string()),
-            other => AgentId::Custom(other.to_string()),
-        };
-
-        // Create task envelope message
-        let msg = Msg {
-            id: bus.next_message_id(),
-            from: AgentId::Internal("mcp_server".to_string()),
-            to: Some(to_agent),
-            kind: MsgKind::Direct,
-            payload: serde_json::json!({
+        self.mcp_delegate(
+            "agent_task",
+            serde_json::json!({
+                "to": params.to,
                 "task_id": params.task_id,
                 "task_type": params.task_type,
                 "payload": params.payload
             }),
-            timestamp: SystemTime::now(),
-        };
-
-        bus.send(msg);
-
-        // Return success
-        let response = serde_json::json!({
-            "status": "sent",
-            "to": params.to,
-            "task_id": params.task_id,
-            "task_type": params.task_type
-        });
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-        )]))
+        )
+        .await
     }
 
     #[tool(description = "Submit the result of a completed task to the router")]
@@ -1589,48 +1170,15 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<AgentResultRequest>,
     ) -> Result<CallToolResult, McpError> {
-        // Check if message bus is configured
-        let bus = match &self.state.message_bus {
-            Some(b) => b.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Message bus not configured".to_string(),
-                )]));
-            }
-        };
-
-        // Map string to AgentId
-        let from_agent = match params.from.to_lowercase().as_str() {
-            "claude" => AgentId::Claude,
-            "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
-            other => AgentId::Custom(other.to_string()),
-        };
-
-        // Create result message to router
-        let msg = Msg {
-            id: bus.next_message_id(),
-            from: from_agent,
-            to: Some(AgentId::Internal("router".to_string())),
-            kind: MsgKind::Direct,
-            payload: serde_json::json!({
+        self.mcp_delegate(
+            "agent_result",
+            serde_json::json!({
+                "from": params.from,
                 "task_id": params.task_id,
                 "result": params.result
             }),
-            timestamp: SystemTime::now(),
-        };
-
-        bus.send(msg);
-
-        // Return success
-        let response = serde_json::json!({
-            "status": "accepted",
-            "from": params.from,
-            "task_id": params.task_id
-        });
-
-        Ok(CallToolResult::success(vec![Content::text(
-            serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-        )]))
+        )
+        .await
     }
 
     #[tool(description = "Execute a Cypher query on Neo4j graph database and return results")]
@@ -1638,44 +1186,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<GraphQueryRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let neo4j = match &self.state.neo4j {
-            Some(client) => client.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Neo4j not configured. Use SynCoreState::with_neo4j() to add Neo4j support.".to_string(),
-                )]));
-            }
-        };
-
-        // Convert params to Vec<(&str, Value)>
-        let query_params: Vec<(&str, serde_json::Value)> = if let Some(obj) = params.params {
-            if let serde_json::Value::Object(map) = obj {
-                map.into_iter()
-                    .map(|(k, v)| (Box::leak(k.into_boxed_str()) as &str, v))
-                    .collect()
-            } else {
-                vec![]
-            }
-        } else {
-            vec![]
-        };
-
-        match neo4j.execute_query(&params.cypher, query_params).await {
-            Ok(results) => {
-                let response = serde_json::json!({
-                    "success": true,
-                    "rows": results,
-                    "count": results.len()
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Neo4j query error: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "graph_query",
+            serde_json::json!({
+                "cypher": params.cypher,
+                "params": params.params
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Execute a Cypher write query (CREATE, MERGE, SET) on Neo4j")]
@@ -1683,43 +1201,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<GraphInsertRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let neo4j = match &self.state.neo4j {
-            Some(client) => client.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Neo4j not configured. Use SynCoreState::with_neo4j() to add Neo4j support.".to_string(),
-                )]));
-            }
-        };
-
-        // Convert params to Vec<(&str, Value)>
-        let query_params: Vec<(&str, serde_json::Value)> = if let Some(obj) = params.params {
-            if let serde_json::Value::Object(map) = obj {
-                map.into_iter()
-                    .map(|(k, v)| (Box::leak(k.into_boxed_str()) as &str, v))
-                    .collect()
-            } else {
-                vec![]
-            }
-        } else {
-            vec![]
-        };
-
-        match neo4j.execute_query(&params.cypher, query_params).await {
-            Ok(_) => {
-                let response = serde_json::json!({
-                    "success": true,
-                    "message": "Graph insert executed successfully"
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Neo4j insert error: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "graph_insert",
+            serde_json::json!({
+                "cypher": params.cypher,
+                "params": params.params
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Create a relationship between two nodes in Neo4j")]
@@ -1727,38 +1216,17 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<GraphRelateRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let neo4j = match &self.state.neo4j {
-            Some(client) => client.clone(),
-            None => {
-                return Ok(CallToolResult::error(vec![Content::text(
-                    "Neo4j not configured. Use SynCoreState::with_neo4j() to add Neo4j support.".to_string(),
-                )]));
-            }
-        };
-
-        let from_label = params.from_label.unwrap_or_else(|| "Node".to_string());
-        let to_label = params.to_label.unwrap_or_else(|| "Node".to_string());
-
-        match neo4j
-            .create_relationship(&from_label, params.from_id, &to_label, params.to_id, &params.rel_type)
-            .await
-        {
-            Ok(_) => {
-                let response = serde_json::json!({
-                    "success": true,
-                    "from_id": params.from_id,
-                    "to_id": params.to_id,
-                    "rel_type": params.rel_type
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Neo4j relate error: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "graph_relate",
+            serde_json::json!({
+                "from_id": params.from_id,
+                "to_id": params.to_id,
+                "rel_type": params.rel_type,
+                "from_label": params.from_label,
+                "to_label": params.to_label
+            }),
+        )
+        .await
     }
 
     // Portfolio Enhancement Tools
@@ -1768,34 +1236,18 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<MappingRecordRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::mapping_tool::{MappingTool, FileNode};
-
-        let mapper = MappingTool::new((*self.state).clone());
-        let node = FileNode {
-            path: params.path.clone(),
-            kind: params.kind,
-            language: params.language,
-            imports: params.imports,
-            exports: params.exports,
-            dependencies: params.dependencies,
-        };
-
-        match mapper.record_file(&node) {
-            Ok(_) => {
-                let response = serde_json::json!({
-                    "success": true,
-                    "path": params.path,
-                    "message": "File node recorded successfully"
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to record file: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "mapping_record",
+            serde_json::json!({
+                "path": params.path,
+                "kind": params.kind,
+                "language": params.language,
+                "imports": params.imports,
+                "exports": params.exports,
+                "dependencies": params.dependencies
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get a file node from the application structure map")]
@@ -1803,27 +1255,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<MappingGetRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::mapping_tool::MappingTool;
-
-        let mapper = MappingTool::new((*self.state).clone());
-
-        match mapper.get_file(&params.path) {
-            Ok(Some(node)) => {
-                let response = serde_json::to_value(&node)
-                    .unwrap_or_else(|_| serde_json::json!({"error": "Serialization failed"}));
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Ok(None) => Ok(CallToolResult::success(vec![Content::text(format!(
-                "File not found: {}",
-                params.path
-            ))])),
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get file: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "mapping_get",
+            serde_json::json!({
+                "path": params.path
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Search for files related to a query using semantic search")]
@@ -1831,25 +1269,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<MappingSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::mapping_tool::MappingTool;
-
-        let mapper = MappingTool::new((*self.state).clone());
-
-        match mapper.search_related(&params.query) {
-            Ok(nodes) => {
-                let response = serde_json::json!({
-                    "count": nodes.len(),
-                    "files": nodes
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Search failed: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "mapping_search",
+            serde_json::json!({
+                "query": params.query
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get all transitive dependencies for a file")]
@@ -1857,26 +1283,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<MappingDepsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::mapping_tool::MappingTool;
-
-        let mapper = MappingTool::new((*self.state).clone());
-
-        match mapper.get_all_dependencies(&params.path) {
-            Ok(deps) => {
-                let response = serde_json::json!({
-                    "path": params.path,
-                    "dependencies": deps,
-                    "count": deps.len()
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get dependencies: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "mapping_deps",
+            serde_json::json!({
+                "path": params.path
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Record a thought step in the reasoning chain")]
@@ -1884,34 +1297,18 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<SequentialRecordRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::sequential_step::{SequentialStep, ThoughtStep};
-
-        let sequential = SequentialStep::new((*self.state).clone());
-        let step = ThoughtStep {
-            task_id: params.task_id,
-            step_number: params.step_number,
-            thought: params.thought,
-            action: params.action,
-            observation: params.observation,
-            reasoning: params.reasoning,
-        };
-
-        match sequential.record_step(&step) {
-            Ok(step_id) => {
-                let response = serde_json::json!({
-                    "success": true,
-                    "step_id": step_id,
-                    "message": "Thought step recorded successfully"
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to record step: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "sequential_record",
+            serde_json::json!({
+                "task_id": params.task_id,
+                "step_number": params.step_number,
+                "thought": params.thought,
+                "reasoning": params.reasoning,
+                "action": params.action,
+                "observation": params.observation
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get all thought steps for a task")]
@@ -1919,26 +1316,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<SequentialGetRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::sequential_step::SequentialStep;
-
-        let sequential = SequentialStep::new((*self.state).clone());
-
-        match sequential.get_steps_for_task(params.task_id) {
-            Ok(steps) => {
-                let response = serde_json::json!({
-                    "task_id": params.task_id,
-                    "steps": steps,
-                    "count": steps.len()
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get steps: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "sequential_get",
+            serde_json::json!({
+                "task_id": params.task_id
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Search thought steps by semantic content")]
@@ -1946,26 +1330,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<SequentialSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::sequential_step::SequentialStep;
-
-        let sequential = SequentialStep::new((*self.state).clone());
-
-        match sequential.search_steps(&params.query) {
-            Ok(steps) => {
-                let response = serde_json::json!({
-                    "query": params.query,
-                    "results": steps,
-                    "count": steps.len()
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Search failed: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "sequential_search",
+            serde_json::json!({
+                "query": params.query
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Record a code change in the application")]
@@ -1973,37 +1344,20 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ApplicationRecordRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::application_tool::{ApplicationTool, CodeChange};
-
-        let app_tool = ApplicationTool::new((*self.state).clone());
-        let change = CodeChange {
-            file_path: params.file_path.clone(),
-            change_type: params.change_type,
-            old_content: params.old_content,
-            new_content: params.new_content,
-            line_start: params.line_start,
-            line_end: params.line_end,
-            description: params.description,
-            task_id: params.task_id,
-        };
-
-        match app_tool.record_change(&change) {
-            Ok(change_id) => {
-                let response = serde_json::json!({
-                    "success": true,
-                    "change_id": change_id,
-                    "file_path": params.file_path,
-                    "message": "Code change recorded successfully"
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to record change: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "application_record",
+            serde_json::json!({
+                "file_path": params.file_path,
+                "change_type": params.change_type,
+                "line_start": params.line_start,
+                "line_end": params.line_end,
+                "old_content": params.old_content,
+                "new_content": params.new_content,
+                "description": params.description,
+                "task_id": params.task_id
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get all code changes for a task")]
@@ -2011,26 +1365,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ApplicationGetRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::application_tool::ApplicationTool;
-
-        let app_tool = ApplicationTool::new((*self.state).clone());
-
-        match app_tool.get_changes_for_task(params.task_id) {
-            Ok(changes) => {
-                let response = serde_json::json!({
-                    "task_id": params.task_id,
-                    "changes": changes,
-                    "count": changes.len()
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get changes: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "application_get",
+            serde_json::json!({
+                "task_id": params.task_id
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Get change history for a specific file")]
@@ -2038,26 +1379,13 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ApplicationHistoryRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::portfolio::application_tool::ApplicationTool;
-
-        let app_tool = ApplicationTool::new((*self.state).clone());
-
-        match app_tool.get_file_history(&params.file_path) {
-            Ok(changes) => {
-                let response = serde_json::json!({
-                    "file_path": params.file_path,
-                    "history": changes,
-                    "count": changes.len()
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Failed to get history: {}",
-                e
-            ))])),
-        }
+        self.mcp_delegate(
+            "application_history",
+            serde_json::json!({
+                "file_path": params.file_path
+            }),
+        )
+        .await
     }
 
     #[tool(description = "Search code changes by semantic content")]
@@ -2077,7 +1405,8 @@ impl SynCoreMCPServer {
                     "count": changes.len()
                 });
                 Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.to_string()),
+                    serde_json::to_string_pretty(&response)
+                        .unwrap_or_else(|_| response.to_string()),
                 )]))
             }
             Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
@@ -2085,6 +1414,453 @@ impl SynCoreMCPServer {
                 e
             ))])),
         }
+    }
+
+    // ========================================
+    // RagGraph Tools
+    // ========================================
+
+    #[tool(description = "Execute RAG query with multi-hop graph reasoning")]
+    async fn raggraph_query(
+        &self,
+        Parameters(params): Parameters<RagGraphQueryRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::raggraph::{
+            validate_real_backend, RagGraphConfig, RagQuery, RaggraphBackendMode,
+            RealStorageAdapter,
+        };
+
+        // Read config from environment (SYNCORE_RAGGRAPH_BACKEND)
+        let config = RagGraphConfig::from_env();
+
+        // Log query initiation
+        eprintln!(
+            "[RAGGraph] query: backend={:?}, query_len={}, num_hops={}, top_k={}",
+            config.backend_mode,
+            params.query_text.len(),
+            config.num_hops,
+            config.top_k
+        );
+
+        let query_engine = if config.backend_mode == RaggraphBackendMode::Real {
+            // Real mode: create storage adapter with VectorStore + Neo4j
+            if let Some(ref neo4j) = self.state.neo4j {
+                // Cast VectorStore to VectorIndex trait object
+                let vector_index =
+                    self.state.vector_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+
+                // Get dimension from VectorStore (via VectorIndex trait)
+                let dimension = {
+                    use crate::vector::VectorIndex;
+                    let store = self.state.vector_store.lock().unwrap();
+                    VectorIndex::dimension(&*store).unwrap_or(384)
+                };
+
+                // Validate real backend before executing query
+                if let Err(e) = validate_real_backend(
+                    config.backend_mode.clone(),
+                    Some(&**neo4j),
+                    Some(&vector_index),
+                    dimension,
+                )
+                .await
+                {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "RAGGraph real mode validation failed: {}",
+                        e
+                    ))]));
+                }
+
+                // Create Real storage adapter
+                let storage = Arc::new(RealStorageAdapter::new(
+                    vector_index,
+                    (**neo4j).clone(),
+                    dimension,
+                ));
+
+                RagQuery::with_storage(config.clone(), storage)
+            } else {
+                RagQuery::new() // Neo4j not available, use mock
+            }
+        } else {
+            // Mock mode (default)
+            RagQuery::new()
+        };
+
+        match query_engine.query(&params.query_text) {
+            Ok(result) => {
+                eprintln!(
+                    "[RAGGraph] query completed: top_nodes={}, reasoning_steps={}",
+                    result.top_nodes.len(),
+                    result.reasoning_path.len()
+                );
+                let response = serde_json::json!({
+                    "top_nodes": result.top_nodes,
+                    "context_embedding_dim": result.context_embedding.len(),
+                    "reasoning_path": result.reasoning_path
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response)
+                        .unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "RAG query failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Execute multi-hop graph diffusion from seed nodes")]
+    async fn raggraph_multihop(
+        &self,
+        Parameters(params): Parameters<RagGraphMultihopRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::raggraph::{
+            validate_real_backend, HopGraphTransformer, RagGraphConfig, RaggraphBackendMode,
+            RealStorageAdapter,
+        };
+
+        // Read config from environment (SYNCORE_RAGGRAPH_BACKEND)
+        let config = RagGraphConfig::from_env();
+
+        // Log multihop initiation
+        eprintln!(
+            "[RAGGraph] multihop: backend={:?}, seed_nodes={}, num_hops={}, alpha={}",
+            config.backend_mode,
+            params.seed_nodes.len(),
+            config.num_hops,
+            config.alpha
+        );
+
+        let transformer = if config.backend_mode == RaggraphBackendMode::Real {
+            // Real mode: create storage adapter with VectorStore + Neo4j
+            if let Some(ref neo4j) = self.state.neo4j {
+                // Cast VectorStore to VectorIndex trait object
+                let vector_index =
+                    self.state.vector_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+
+                // Get dimension from VectorStore (via VectorIndex trait)
+                let dimension = {
+                    use crate::vector::VectorIndex;
+                    let store = self.state.vector_store.lock().unwrap();
+                    VectorIndex::dimension(&*store).unwrap_or(384)
+                };
+
+                // Validate real backend before executing multihop reasoning
+                if let Err(e) = validate_real_backend(
+                    config.backend_mode.clone(),
+                    Some(&**neo4j),
+                    Some(&vector_index),
+                    dimension,
+                )
+                .await
+                {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "RAGGraph real mode validation failed: {}",
+                        e
+                    ))]));
+                }
+
+                // Create Real storage adapter
+                let storage = Arc::new(RealStorageAdapter::new(
+                    vector_index,
+                    (**neo4j).clone(),
+                    dimension,
+                ));
+
+                HopGraphTransformer::with_storage(config.clone(), storage)
+            } else {
+                HopGraphTransformer::new(config) // Neo4j not available, use mock
+            }
+        } else {
+            // Mock mode (default)
+            HopGraphTransformer::new(config)
+        };
+
+        match transformer.multi_hop_reasoning(&params.seed_nodes) {
+            Ok(result) => {
+                eprintln!(
+                    "[RAGGraph] multihop completed: top_nodes={}, reasoning_steps={}",
+                    result.top_nodes.len(),
+                    result.reasoning_path.len()
+                );
+                let response = serde_json::json!({
+                    "top_nodes": result.top_nodes,
+                    "context_embedding_dim": result.context_embedding.len(),
+                    "reasoning_path": result.reasoning_path
+                });
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&response)
+                        .unwrap_or_else(|_| response.to_string()),
+                )]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Multi-hop reasoning failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(
+        description = "Execute CodeGraph query with tri-mode fusion (Simple/Attention/Reasoning)"
+    )]
+    async fn code_graph_fusion_query(
+        &self,
+        Parameters(params): Parameters<crate::code_graph::RagGraphQueryRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::code_graph::{QueryScope, RagGraphAPI};
+
+        // Parse scope from string if provided
+        let scope = params
+            .scope
+            .as_ref()
+            .map(|s| QueryScope::from_str(s))
+            .unwrap_or(QueryScope::Global);
+
+        eprintln!(
+            "[CodeGraph] fusion_query: query_len={}, mode_hint={:?}, top_k={:?}, scope={:?}, project={:?}",
+            params.query.len(),
+            params.mode_hint,
+            params.top_k,
+            scope,
+            params.project_label
+        );
+
+        // Check if we have Neo4j available
+        if let Some(ref neo4j) = self.state.neo4j {
+            // Create CodeGraph instance
+            let code_graph_conn = self.state.db_manager.code_graph_conn();
+            let code_graph = match crate::code_graph::CodeGraph::with_connection(
+                code_graph_conn,
+                self.state.vector_store.clone(),
+            ) {
+                Ok(cg) => cg,
+                Err(e) => {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Failed to create CodeGraph: {}",
+                        e
+                    ))]));
+                }
+            };
+
+            // Create RAGGraph API
+            let api = RagGraphAPI::new(code_graph, (**neo4j).clone());
+
+            // Execute query with scope control
+            match api
+                .query_with_scope(
+                    &params.query,
+                    params.namespace.as_deref(),
+                    params.mode_hint.as_deref(),
+                    params.top_k,
+                    scope,
+                    params.project_label.as_deref(),
+                    params.local_root.as_deref(),
+                )
+                .await
+            {
+                Ok(response) => {
+                    eprintln!(
+                        "[CodeGraph] fusion_query completed: entities={}, mode={}, scope={}",
+                        response.entities.len(),
+                        response.selected_mode,
+                        response.applied_scope
+                    );
+
+                    let json_response = serde_json::to_string_pretty(&response)
+                        .unwrap_or_else(|_| serde_json::to_string(&response).unwrap());
+
+                    Ok(CallToolResult::success(vec![Content::text(json_response)]))
+                }
+                Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                    "CodeGraph fusion query failed: {}",
+                    e
+                ))])),
+            }
+        } else {
+            Ok(CallToolResult::error(vec![Content::text(
+                "CodeGraph fusion query requires Neo4j connection".to_string(),
+            )]))
+        }
+    }
+
+    #[tool(description = "Sync code entities and relationships from SQLite to Neo4j (post-index rebuild)")]
+    async fn code_graph_sync_neo4j(
+        &self,
+        Parameters(params): Parameters<CodeGraphSyncNeo4jRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::code_graph::neo4j_sync;
+
+        eprintln!(
+            "[CodeGraphSync] neo4j: namespace={:?}, limit={:?}",
+            params.namespace, params.limit
+        );
+
+        // Check if we have Neo4j available
+        if let Some(ref neo4j) = self.state.neo4j {
+            // Get SQLite connection
+            let code_graph_conn = self.state.db_manager.code_graph_conn();
+
+            // STEP 1: Sync entities FIRST (required for edges to reference)
+            let entity_summary = match neo4j_sync::sync_entities_to_neo4j(
+                &code_graph_conn,
+                &**neo4j,
+                params.namespace.as_deref(),
+                params.limit,
+            )
+            .await
+            {
+                Ok(summary) => {
+                    eprintln!(
+                        "[CodeGraphSync] entities synced: processed={}, created={}, skipped={}",
+                        summary.entities_processed, summary.entities_created, summary.entities_skipped
+                    );
+                    summary
+                }
+                Err(e) => {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "CodeGraph Neo4j entity sync failed: {}",
+                        e
+                    ))]));
+                }
+            };
+
+            // STEP 2: Sync edges (relationships between entities)
+            match neo4j_sync::sync_relationships_to_neo4j(
+                &code_graph_conn,
+                &**neo4j,
+                params.namespace.as_deref(),
+                params.limit,
+            )
+            .await
+            {
+                Ok(mut edge_summary) => {
+                    // Combine entity summary into edge summary
+                    edge_summary.entities_processed = entity_summary.entities_processed;
+                    edge_summary.entities_created = entity_summary.entities_created;
+                    edge_summary.entities_skipped = entity_summary.entities_skipped;
+
+                    eprintln!(
+                        "[CodeGraphSync] edges synced: processed={}, created={}, skipped={}",
+                        edge_summary.edges_processed, edge_summary.edges_created, edge_summary.edges_skipped
+                    );
+
+                    let json_response = serde_json::to_string_pretty(&edge_summary)
+                        .unwrap_or_else(|_| serde_json::to_string(&edge_summary).unwrap());
+
+                    Ok(CallToolResult::success(vec![Content::text(json_response)]))
+                }
+                Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                    "CodeGraph Neo4j relationship sync failed: {}",
+                    e
+                ))])),
+            }
+        } else {
+            Ok(CallToolResult::error(vec![Content::text(
+                "CodeGraph Neo4j sync requires Neo4j connection".to_string(),
+            )]))
+        }
+    }
+
+    #[tool(description = "Enrich code entities with temporal metadata (git history + filesystem)")]
+    async fn code_graph_enrich_temporal(
+        &self,
+        Parameters(params): Parameters<CodeGraphEnrichTemporalRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::code_graph::temporal_extractor::extract_temporal_metadata;
+
+        eprintln!(
+            "[CodeGraphEnrich] temporal: limit={:?}, only_missing={}",
+            params.limit, params.only_missing
+        );
+
+        // Get SQLite connection
+        let conn = self.state.db_manager.code_graph_conn();
+
+        // Build query to get entities
+        let query = if params.only_missing {
+            "SELECT id, file_path FROM code_entities WHERE created_at IS NULL LIMIT ?1"
+        } else {
+            "SELECT id, file_path FROM code_entities LIMIT ?1"
+        };
+
+        let limit = params.limit.unwrap_or(u64::MAX);
+
+        // Get entities to enrich
+        let entities: Vec<(i64, String)> = match conn.lock() {
+            Ok(conn) => {
+                let mut stmt = conn.prepare(query).map_err(|e| {
+                    McpError::internal_error(format!("Failed to prepare query: {}", e), None)
+                })?;
+
+                let rows = stmt
+                    .query_map([limit as i64], |row| {
+                        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                    })
+                    .map_err(|e| {
+                        McpError::internal_error(format!("Failed to query entities: {}", e), None)
+                    })?;
+
+                rows.collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| McpError::internal_error(format!("Failed to collect entities: {}", e), None))?
+            }
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to lock database connection: {}",
+                    e
+                ))]));
+            }
+        };
+
+        let total_entities = entities.len();
+        let mut enriched_count = 0;
+        let mut failed_count = 0;
+
+        // Enrich each entity
+        for (entity_id, file_path) in entities {
+            match extract_temporal_metadata(&file_path) {
+                Ok(metadata) => {
+                    // Update entity with temporal metadata
+                    if let Ok(conn) = conn.lock() {
+                        match conn.execute(
+                            "UPDATE code_entities SET created_at = ?1, last_modified_at = ?2, change_count = ?3, author_count = ?4 WHERE id = ?5",
+                            rusqlite::params![
+                                metadata.created_at,
+                                metadata.last_modified_at,
+                                metadata.change_count,
+                                metadata.author_count,
+                                entity_id
+                            ],
+                        ) {
+                            Ok(_) => enriched_count += 1,
+                            Err(e) => {
+                                eprintln!("[CodeGraphEnrich] Failed to update entity {}: {}", entity_id, e);
+                                failed_count += 1;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[CodeGraphEnrich] Failed to extract temporal metadata for {}: {}",
+                        file_path, e
+                    );
+                    failed_count += 1;
+                }
+            }
+        }
+
+        let response = serde_json::json!({
+            "total_entities": total_entities,
+            "enriched": enriched_count,
+            "failed": failed_count,
+            "only_missing": params.only_missing
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap(),
+        )]))
     }
 }
 
@@ -2139,7 +1915,8 @@ async fn router_loop(state: SynCoreState) {
         let msg = msg.unwrap();
 
         // Extract task_type from envelope payload
-        let task_type = msg.payload
+        let task_type = msg
+            .payload
             .get("task_type")
             .and_then(|v| v.as_str())
             .unwrap_or("nlp");
@@ -2170,26 +1947,20 @@ async fn router_loop(state: SynCoreState) {
             for name in &target_agents {
                 if let Some(status) = bus.get_agent_status(name) {
                     // Extract simple metrics
-                    let load = status.get("load")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
+                    let load = status.get("load").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
-                    let busy = status.get("busy")
+                    let busy = status
+                        .get("busy")
                         .and_then(|v| v.as_bool())
                         .unwrap_or(false);
 
-                    let errors = status.get("errors")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
+                    let errors = status.get("errors").and_then(|v| v.as_u64()).unwrap_or(0);
 
                     // Weighted scoring formula:
                     // lower load = better
                     // not busy = better
                     // fewer errors = better
-                    let score =
-                        load * 1.0 +
-                        if busy { 5.0 } else { 0.0 } +
-                        (errors as f64) * 3.0;
+                    let score = load * 1.0 + if busy { 5.0 } else { 0.0 } + (errors as f64) * 3.0;
 
                     match &mut best {
                         None => best = Some((name.clone(), score)),

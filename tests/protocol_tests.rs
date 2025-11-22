@@ -8,19 +8,19 @@ fn test_protocol_serialization() {
         tool: SynCoreTool::MemoryStore,
         args,
     };
-    
+
     // Serialize to MessagePack
     let serialized = rmp_serde::to_vec(&msg).unwrap();
-    
+
     // Deserialize back
     let deserialized: SynCoreMsg = rmp_serde::from_slice(&serialized).unwrap();
-    
+
     // Verify the tool matches
     match deserialized.tool {
-        SynCoreTool::MemoryStore => {}, // Expected
+        SynCoreTool::MemoryStore => {} // Expected
         _ => assert!(false, "Expected MemoryStore tool"),
     }
-    
+
     // Verify the args can be deserialized back
     let (key, value): (String, String) = rmp_serde::from_slice(&deserialized.args).unwrap();
     assert_eq!(key, "test_key");
@@ -35,19 +35,19 @@ fn test_protocol_memory_query() {
         tool: SynCoreTool::MemoryQuery,
         args,
     };
-    
+
     // Serialize to MessagePack
     let serialized = rmp_serde::to_vec(&msg).unwrap();
-    
+
     // Deserialize back
     let deserialized: SynCoreMsg = rmp_serde::from_slice(&serialized).unwrap();
-    
+
     // Verify the tool matches
     match deserialized.tool {
-        SynCoreTool::MemoryQuery => {}, // Expected
+        SynCoreTool::MemoryQuery => {} // Expected
         _ => assert!(false, "Expected MemoryQuery tool"),
     }
-    
+
     // Verify the args can be deserialized back
     let key: String = rmp_serde::from_slice(&deserialized.args).unwrap();
     assert_eq!(key, "test_key");

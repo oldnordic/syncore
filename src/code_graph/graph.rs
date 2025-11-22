@@ -1,5 +1,6 @@
 //! Main CodeGraph struct and constructors
 
+use crate::graph::Neo4jClient;
 use crate::parser::Parser;
 use crate::vector::VectorStore;
 use anyhow::{anyhow, Result};
@@ -11,6 +12,8 @@ pub struct CodeGraph {
     pub(super) db: Arc<Mutex<Connection>>,
     pub(super) vector_store: Arc<Mutex<VectorStore>>,
     pub(super) parser: Parser,
+    /// PHASE 2: Optional Neo4j client for dual-write persistence
+    pub(super) neo4j: Option<Arc<Neo4jClient>>,
 }
 
 impl CodeGraph {
@@ -73,6 +76,7 @@ impl CodeGraph {
             db: Arc::new(Mutex::new(db)),
             vector_store,
             parser: Parser::new()?,
+            neo4j: None,
         })
     }
 
@@ -125,7 +129,57 @@ impl CodeGraph {
             db,
             vector_store,
             parser: Parser::new()?,
+            neo4j: None,
         })
+    }
+
+    /// Create a new CodeGraph instance with Neo4j support (PHASE 2)
+    ///
+    /// This constructor enables dual-write persistence to both SQLite and Neo4j.
+    /// Semantic edges will be persisted to both stores automatically.
+    ///
+    /// # Arguments
+    ///
+    /// * `db_path` - Path to SQLite database file (NOT :memory:)
+    /// * `vector_store` - Arc<Mutex<VectorStore>> for embedding management
+    /// * `neo4j` - Arc<Neo4jClient> for graph database operations
+    pub fn new_with_neo4j(
+        db_path: &str,
+        vector_store: Arc<Mutex<VectorStore>>,
+        neo4j: Arc<Neo4jClient>,
+    ) -> Result<Self> {
+        // Reject :memory: database
+        if db_path == ":memory:" {
+            return Err(anyhow!(
+                "CodeGraph cannot use :memory: database. Use persistent file path instead."
+            ));
+        }
+
+        // Ensure schema exists
+        crate::db::ensure_schema(db_path)?;
+
+        // Open database with WAL mode
+        let db = crate::db::open_db_with_wal(db_path)?;
+
+        // Ensure code_graph schema
+        Self::ensure_code_graph_schema(&db)?;
+
+        Ok(Self {
+            db: Arc::new(Mutex::new(db)),
+            vector_store,
+            parser: Parser::new()?,
+            neo4j: Some(neo4j),
+        })
+    }
+
+    /// Get reference to Neo4j client (PHASE 2)
+    ///
+    /// Returns the Neo4j client if available, otherwise returns error.
+    /// This is used by dual-write persistence methods.
+    pub fn neo4j_client(&self) -> Result<&Arc<Neo4jClient>> {
+        self.neo4j
+            .as_ref()
+            .ok_or_else(|| anyhow!("Neo4j client not available. Use new_with_neo4j() constructor."))
     }
 
     /// Ensure code_graph schema exists (fallback for test environments)
@@ -153,6 +207,10 @@ impl CodeGraph {
                     docstring TEXT,
                     language TEXT NOT NULL,
                     indexed_at INTEGER NOT NULL,
+                    created_at INTEGER,
+                    last_modified_at INTEGER,
+                    change_count INTEGER,
+                    author_count INTEGER,
                     UNIQUE(file_path, entity_type, name, line_start)
                 );
 
@@ -184,11 +242,269 @@ impl CodeGraph {
             )?;
         }
 
+        // PHASE 3: Migrate existing databases to add temporal columns if missing
+        let has_created_at: bool = db
+            .prepare("SELECT created_at FROM code_entities LIMIT 1")
+            .is_ok();
+
+        if !has_created_at {
+            db.execute_batch(
+                r#"
+                ALTER TABLE code_entities ADD COLUMN created_at INTEGER;
+                ALTER TABLE code_entities ADD COLUMN last_modified_at INTEGER;
+                ALTER TABLE code_entities ADD COLUMN change_count INTEGER;
+                ALTER TABLE code_entities ADD COLUMN author_count INTEGER;
+                "#,
+            )?;
+        }
+
+        // PHASE 4: Add file_index_state table for incremental indexing
+        let has_file_index_state: bool = db
+            .prepare("SELECT 1 FROM file_index_state LIMIT 1")
+            .is_ok();
+
+        if !has_file_index_state {
+            db.execute_batch(
+                r#"
+                CREATE TABLE IF NOT EXISTS file_index_state (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT NOT NULL UNIQUE,
+                    sha256 TEXT NOT NULL,
+                    mtime INTEGER NOT NULL,
+                    last_indexed_at INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'ok'
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_file_index_state_path ON file_index_state(file_path);
+                "#,
+            )?;
+        }
+
         Ok(())
     }
 
     /// Get reference to database connection (for tests and neo4j sync)
     pub fn db_conn(&self) -> &Arc<Mutex<Connection>> {
         &self.db
+    }
+
+    /// Perform multi-hop BFS traversal from a starting entity (PHASE 4)
+    ///
+    /// Traverses the code graph using BFS with depth limiting, cycle detection,
+    /// and branch limiting. If Neo4j is available, unions neighbors from both
+    /// SQLite and Neo4j.
+    ///
+    /// # Arguments
+    /// * `entity_id` - Starting entity ID from code_entities table
+    /// * `max_depth` - Maximum traversal depth (0 = just start node)
+    ///
+    /// # Returns
+    /// MultiHopResult with all discovered nodes, sorted by depth then by id
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// # use syncore::code_graph::CodeGraph;
+    /// # use syncore::vector::VectorStore;
+    /// # use std::sync::{Arc, Mutex};
+    /// # fn main() -> anyhow::Result<()> {
+    /// # let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::HuggingFaceEmbeddings::new()?))));
+    /// # let code_graph = CodeGraph::new("test.db", vector_store)?;
+    /// let result = tokio::runtime::Runtime::new()?.block_on(async {
+    ///     code_graph.multi_hop(123, 2).await
+    /// })?;
+    /// for node in &result.nodes {
+    ///     println!("Entity {} at depth {}", node.id, node.depth);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn multi_hop(
+        &self,
+        entity_id: i64,
+        max_depth: usize,
+    ) -> Result<super::multi_hop::MultiHopResult> {
+        let db = self
+            .db
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+
+        let neo4j_ref = self.neo4j.as_ref().map(|arc| arc.as_ref());
+
+        super::multi_hop::multi_hop(&db, neo4j_ref, entity_id, max_depth).await
+    }
+
+    /// Enrich all entities with temporal metadata (TASK A)
+    ///
+    /// For all code_entities rows where temporal fields are NULL,
+    /// extract metadata from filesystem + git and update both SQLite and Neo4j.
+    ///
+    /// # Returns
+    /// Number of entities enriched
+    pub async fn enrich_temporal_metadata_for_all(&self) -> Result<usize> {
+        let db = self
+            .db
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+
+        // Find entities with null temporal metadata
+        let mut stmt = db.prepare(
+            "SELECT id, file_path FROM code_entities
+             WHERE created_at IS NULL
+                OR last_modified_at IS NULL
+                OR change_count IS NULL
+                OR author_count IS NULL"
+        )?;
+
+        let entities_to_enrich: Vec<(i64, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let mut enriched_count = 0;
+
+        for (entity_id, file_path) in entities_to_enrich {
+            // Extract temporal metadata using existing Phase 3 module
+            let temporal = match super::temporal_extractor::extract_temporal_metadata(&file_path) {
+                Ok(t) => t,
+                Err(_) => {
+                    // If extraction fails, use defaults
+                    super::temporal_extractor::TemporalMetadata {
+                        created_at: 0,
+                        last_modified_at: 0,
+                        change_count: 1,
+                        author_count: 1,
+                    }
+                }
+            };
+
+            // Update SQLite
+            db.execute(
+                "UPDATE code_entities
+                 SET created_at = ?1, last_modified_at = ?2, change_count = ?3, author_count = ?4
+                 WHERE id = ?5",
+                rusqlite::params![
+                    temporal.created_at,
+                    temporal.last_modified_at,
+                    temporal.change_count,
+                    temporal.author_count,
+                    entity_id
+                ],
+            )?;
+
+            // Update Neo4j if available (TASK C: restrict to :SynCore)
+            if let Some(ref neo4j) = self.neo4j {
+                let query = r#"
+                    MATCH (n:SynCore {id: $id})
+                    SET n.created_at = $created_at,
+                        n.last_modified_at = $last_modified_at,
+                        n.change_count = $change_count,
+                        n.author_count = $author_count
+                "#;
+
+                neo4j
+                    .execute_query(
+                        query,
+                        vec![
+                            ("id", serde_json::json!(entity_id)),
+                            ("created_at", serde_json::json!(temporal.created_at)),
+                            ("last_modified_at", serde_json::json!(temporal.last_modified_at)),
+                            ("change_count", serde_json::json!(temporal.change_count)),
+                            ("author_count", serde_json::json!(temporal.author_count)),
+                        ],
+                    )
+                    .await?;
+            }
+
+            enriched_count += 1;
+        }
+
+        Ok(enriched_count)
+    }
+
+    /// Rebuild HNSW index from all indexed entities in SQLite
+    ///
+    /// This method is called at startup to ensure the in-memory HNSW index
+    /// is populated from persisted entity data. It:
+    /// 1. Queries all entities that have embeddings
+    /// 2. Regenerates embedding text from entity metadata
+    /// 3. Inserts each embedding into the HNSW index
+    /// 4. Saves snapshot ONCE at the end (not per insert!)
+    ///
+    /// Returns the number of vectors loaded into HNSW.
+    pub fn rebuild_hnsw_from_entities(&self) -> Result<usize> {
+        // Query entities - collect fully before releasing db lock
+        let entities: Vec<(i64, String, String, Option<String>, Option<String>)> = {
+            let db = self
+                .db
+                .lock()
+                .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+
+            // Query all entities that have embeddings
+            let mut stmt = db.prepare(
+                "SELECT ce.entity_id, e.entity_type, e.name, e.signature, e.docstring
+                 FROM code_embeddings ce
+                 JOIN code_entities e ON ce.entity_id = e.id
+                 ORDER BY ce.entity_id",
+            )?;
+
+            let mut rows = stmt.query([])?;
+            let mut results = Vec::new();
+            while let Some(row) = rows.next()? {
+                results.push((
+                    row.get(0)?, // entity_id
+                    row.get(1)?, // entity_type
+                    row.get(2)?, // name
+                    row.get(3)?, // signature
+                    row.get(4)?, // docstring
+                ));
+            }
+            results
+        }; // db lock released here
+
+        if entities.is_empty() {
+            eprintln!("[SynCore] No entities found in code_embeddings, HNSW index empty");
+            return Ok(0);
+        }
+
+        let count = entities.len();
+        eprintln!("[SynCore] Rebuilding HNSW index ({} entities)...", count);
+
+        // Lock vector store and insert all entities using NO-SNAPSHOT version
+        let mut vector_store = self
+            .vector_store
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
+
+        for (i, (entity_id, entity_type, name, signature, docstring)) in entities.iter().enumerate() {
+            // Progress logging every 1000 entities
+            if i > 0 && i % 1000 == 0 {
+                eprintln!("[SynCore] HNSW rebuild progress: {}/{}", i, count);
+            }
+
+            // Reconstruct embedding text (same format as indexer)
+            let mut parts = vec![entity_type.clone(), name.clone()];
+            if let Some(sig) = signature {
+                parts.push(sig.clone());
+            }
+            if let Some(doc) = docstring {
+                parts.push(doc.clone());
+            }
+            let text = parts.join(" ");
+
+            // Insert WITHOUT saving snapshot (critical for performance!)
+            if let Err(e) = vector_store.insert_text_no_snapshot(*entity_id, None, &text, "code_entity") {
+                eprintln!(
+                    "[SynCore] Warning: Failed to insert entity {} into HNSW: {}",
+                    entity_id, e
+                );
+            }
+        }
+
+        // Save snapshot ONCE after all inserts complete
+        if let Err(e) = vector_store.save_snapshot() {
+            eprintln!("[SynCore] Warning: Failed to save HNSW snapshot: {}", e);
+        }
+
+        eprintln!("[SynCore] Rebuilt HNSW index ({} vectors)", count);
+        Ok(count)
     }
 }

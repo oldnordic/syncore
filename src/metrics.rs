@@ -1,9 +1,9 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tokio::net::TcpListener;
 use tokio::io::AsyncWriteExt;
+use tokio::net::TcpListener;
 
 // Global metrics counters
 pub static RPC_INFLIGHT: AtomicU64 = AtomicU64::new(0);
@@ -45,7 +45,9 @@ impl LatencyHistogram {
             };
 
             let mut buckets = self.buckets.lock().unwrap();
-            let counter = buckets.entry(format!("{}_{}", operation, bucket)).or_insert_with(|| AtomicU64::new(0));
+            let counter = buckets
+                .entry(format!("{}_{}", operation, bucket))
+                .or_insert_with(|| AtomicU64::new(0));
             counter.fetch_add(1, Ordering::Relaxed);
 
             duration
@@ -56,7 +58,8 @@ impl LatencyHistogram {
 
     pub fn get_metrics(&self) -> HashMap<String, u64> {
         let buckets = self.buckets.lock().unwrap();
-        buckets.iter()
+        buckets
+            .iter()
             .map(|(k, v)| (k.clone(), v.load(Ordering::Relaxed)))
             .collect()
     }
@@ -102,15 +105,13 @@ fn get_all_metrics() -> serde_json::Value {
 // Macro for easy timing
 #[macro_export]
 macro_rules! time_operation {
-    ($op:expr) => {
-        {
-            let op_str = stringify!($op);
-            $crate::metrics::LATENCY_HIST.start_timer(op_str);
-            let result = $op;
-            $crate::metrics::LATENCY_HIST.end_timer(op_str);
-            result
-        }
-    };
+    ($op:expr) => {{
+        let op_str = stringify!($op);
+        $crate::metrics::LATENCY_HIST.start_timer(op_str);
+        let result = $op;
+        $crate::metrics::LATENCY_HIST.end_timer(op_str);
+        result
+    }};
 }
 
 #[cfg(test)]
@@ -142,7 +143,10 @@ mod tests {
 
         // Check that metrics were recorded
         let metrics = hist.get_metrics();
-        assert!(metrics.contains_key("test_operation_lt_10ms"), "Should record in <10ms bucket");
+        assert!(
+            metrics.contains_key("test_operation_lt_10ms"),
+            "Should record in <10ms bucket"
+        );
     }
 
     #[test]
@@ -168,10 +172,22 @@ mod tests {
 
         let metrics = hist.get_metrics();
 
-        assert!(metrics.contains_key("fast_op_lt_10ms"), "Should record fast operation in <10ms bucket");
-        assert!(metrics.contains_key("medium_op_lt_100ms"), "Should record medium operation in <100ms bucket");
-        assert!(metrics.contains_key("slow_op_lt_1s"), "Should record slow operation in <1s bucket");
-        assert!(metrics.contains_key("very_slow_op_gte_1s"), "Should record very slow operation in >=1s bucket");
+        assert!(
+            metrics.contains_key("fast_op_lt_10ms"),
+            "Should record fast operation in <10ms bucket"
+        );
+        assert!(
+            metrics.contains_key("medium_op_lt_100ms"),
+            "Should record medium operation in <100ms bucket"
+        );
+        assert!(
+            metrics.contains_key("slow_op_lt_1s"),
+            "Should record slow operation in <1s bucket"
+        );
+        assert!(
+            metrics.contains_key("very_slow_op_gte_1s"),
+            "Should record very slow operation in >=1s bucket"
+        );
     }
 
     #[test]
@@ -182,11 +198,19 @@ mod tests {
         let duration = hist.end_timer("nonexistent_operation");
 
         // Should return zero duration
-        assert_eq!(duration, Duration::ZERO, "Should return zero duration for nonexistent operation");
+        assert_eq!(
+            duration,
+            Duration::ZERO,
+            "Should return zero duration for nonexistent operation"
+        );
 
         // Should not record any metrics
         let metrics = hist.get_metrics();
-        assert_eq!(metrics.len(), 0, "Should not record metrics for nonexistent operation");
+        assert_eq!(
+            metrics.len(),
+            0,
+            "Should not record metrics for nonexistent operation"
+        );
     }
 
     #[test]
@@ -198,10 +222,22 @@ mod tests {
         let initial_snapshots = VEC_SNAPSHOTS_TOTAL.load(Ordering::Relaxed);
 
         // Test that counters are atomic and readable
-        assert!(initial_rpc > 0 || initial_rpc == 0, "RPC inflight counter should be a valid number");
-        assert!(initial_vec > 0 || initial_vec == 0, "Vector points counter should be a valid number");
-        assert!(initial_tasks > 0 || initial_tasks == 0, "Tasks open counter should be a valid number");
-        assert!(initial_snapshots > 0 || initial_snapshots == 0, "Vector snapshots counter should be a valid number");
+        assert!(
+            initial_rpc > 0 || initial_rpc == 0,
+            "RPC inflight counter should be a valid number"
+        );
+        assert!(
+            initial_vec > 0 || initial_vec == 0,
+            "Vector points counter should be a valid number"
+        );
+        assert!(
+            initial_tasks > 0 || initial_tasks == 0,
+            "Tasks open counter should be a valid number"
+        );
+        assert!(
+            initial_snapshots > 0 || initial_snapshots == 0,
+            "Vector snapshots counter should be a valid number"
+        );
     }
 
     #[test]
@@ -219,10 +255,26 @@ mod tests {
         VEC_SNAPSHOTS_TOTAL.fetch_add(3, Ordering::Relaxed);
 
         // Test that counters were incremented by the expected amounts
-        assert_eq!(RPC_INFLIGHT.load(Ordering::Relaxed), initial_rpc + 1, "RPC inflight counter should increase by 1");
-        assert_eq!(VEC_POINTS_TOTAL.load(Ordering::Relaxed), initial_vec + 5, "Vector points counter should increase by 5");
-        assert_eq!(TASKS_OPEN_TOTAL.load(Ordering::Relaxed), initial_tasks + 2, "Tasks open counter should increase by 2");
-        assert_eq!(VEC_SNAPSHOTS_TOTAL.load(Ordering::Relaxed), initial_snapshots + 3, "Vector snapshots counter should increase by 3");
+        assert_eq!(
+            RPC_INFLIGHT.load(Ordering::Relaxed),
+            initial_rpc + 1,
+            "RPC inflight counter should increase by 1"
+        );
+        assert_eq!(
+            VEC_POINTS_TOTAL.load(Ordering::Relaxed),
+            initial_vec + 5,
+            "Vector points counter should increase by 5"
+        );
+        assert_eq!(
+            TASKS_OPEN_TOTAL.load(Ordering::Relaxed),
+            initial_tasks + 2,
+            "Tasks open counter should increase by 2"
+        );
+        assert_eq!(
+            VEC_SNAPSHOTS_TOTAL.load(Ordering::Relaxed),
+            initial_snapshots + 3,
+            "Vector snapshots counter should increase by 3"
+        );
     }
 
     #[test]
@@ -239,11 +291,20 @@ mod tests {
         let metrics = get_all_metrics();
 
         // Check that counters are included
-        assert!(metrics["counters"]["syncore_rpc_inflight"].is_number(), "Should include RPC inflight counter");
-        assert!(metrics["counters"]["syncore_vec_points"].is_number(), "Should include vector points counter");
+        assert!(
+            metrics["counters"]["syncore_rpc_inflight"].is_number(),
+            "Should include RPC inflight counter"
+        );
+        assert!(
+            metrics["counters"]["syncore_vec_points"].is_number(),
+            "Should include vector points counter"
+        );
 
         // Check that latency buckets are included
-        assert!(metrics["latency_buckets"].is_object(), "Should include latency buckets");
+        assert!(
+            metrics["latency_buckets"].is_object(),
+            "Should include latency buckets"
+        );
     }
 
     #[tokio::test]
@@ -251,7 +312,10 @@ mod tests {
         // Test that metrics server can be created (binds to random port)
         let result = start_metrics_server("127.0.0.1:0").await;
 
-        assert!(result.is_ok(), "Should be able to start metrics server on random port");
+        assert!(
+            result.is_ok(),
+            "Should be able to start metrics server on random port"
+        );
         Ok(())
     }
 }

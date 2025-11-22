@@ -68,15 +68,27 @@ pub async fn test_mcp_tools() -> Result<()> {
             failed += 1;
 
             if !input_exists {
-                warnings.push(format!("  - {} input schema missing: {}", tool.name, tool.input_schema));
+                warnings.push(format!(
+                    "  - {} input schema missing: {}",
+                    tool.name, tool.input_schema
+                ));
             } else if !input_valid {
-                warnings.push(format!("  - {} input schema invalid JSON: {}", tool.name, tool.input_schema));
+                warnings.push(format!(
+                    "  - {} input schema invalid JSON: {}",
+                    tool.name, tool.input_schema
+                ));
             }
 
             if !output_exists {
-                warnings.push(format!("  - {} output schema missing: {}", tool.name, tool.output_schema));
+                warnings.push(format!(
+                    "  - {} output schema missing: {}",
+                    tool.name, tool.output_schema
+                ));
             } else if !output_valid {
-                warnings.push(format!("  - {} output schema invalid JSON: {}", tool.name, tool.output_schema));
+                warnings.push(format!(
+                    "  - {} output schema invalid JSON: {}",
+                    tool.name, tool.output_schema
+                ));
             }
         }
     }

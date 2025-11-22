@@ -1,12 +1,12 @@
 //! TDD Tests for CodeGraphStore
 //! Verifies SQLite storage, Neo4j sync, FAISS embedding, and cross-linked queries.
 
-use syncore::portfolio::code_graph_store::{CodeGraphStore, GraphQuery, GraphResult};
-use syncore::portfolio::code_graph_extractor::{
-    CodeGraph, FunctionNode, StructNode, TraitNode, ImportNode, CallEdge, ImplementationEdge
-};
-use tempfile::TempDir;
 use std::path::PathBuf;
+use syncore::portfolio::code_graph_extractor::{
+    CallEdge, CodeGraph, FunctionNode, ImplementationEdge, ImportNode, StructNode, TraitNode,
+};
+use syncore::portfolio::code_graph_store::{CodeGraphStore, GraphQuery, GraphResult};
+use tempfile::TempDir;
 
 /// Helper to create isolated test store
 fn create_test_store() -> (TempDir, CodeGraphStore) {
@@ -18,8 +18,8 @@ fn create_test_store() -> (TempDir, CodeGraphStore) {
     // Set test namespace
     std::env::set_var("GRAPH_NAMESPACE", "test_code_graph");
 
-    let store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)
-        .expect("Should create store");
+    let store =
+        CodeGraphStore::new_with_paths(&db_path, &vectors_dir).expect("Should create store");
 
     (temp_dir, store)
 }
@@ -58,34 +58,26 @@ fn create_sample_graph() -> CodeGraph {
                 line_end: 25,
             },
         ],
-        calls: vec![
-            CallEdge {
-                from: "process_data".to_string(),
-                to: "helper".to_string(),
-                line: 15,
-            },
-        ],
-        structs: vec![
-            StructNode {
-                name: "DataProcessor".to_string(),
-                is_public: true,
-                line: 30,
-            },
-        ],
-        traits: vec![
-            TraitNode {
-                name: "Processable".to_string(),
-                is_public: true,
-                line: 40,
-            },
-        ],
-        implementations: vec![
-            ImplementationEdge {
-                struct_name: "DataProcessor".to_string(),
-                trait_name: Some("Processable".to_string()),
-                line: 50,
-            },
-        ],
+        calls: vec![CallEdge {
+            from: "process_data".to_string(),
+            to: "helper".to_string(),
+            line: 15,
+        }],
+        structs: vec![StructNode {
+            name: "DataProcessor".to_string(),
+            is_public: true,
+            line: 30,
+        }],
+        traits: vec![TraitNode {
+            name: "Processable".to_string(),
+            is_public: true,
+            line: 40,
+        }],
+        implementations: vec![ImplementationEdge {
+            struct_name: "DataProcessor".to_string(),
+            trait_name: Some("Processable".to_string()),
+            line: 50,
+        }],
     }
 }
 
@@ -97,7 +89,8 @@ fn test_insert_function_nodes_into_sqlite() {
     store.insert_graph(&graph).expect("Should insert graph");
 
     // Query SQLite for functions
-    let functions = store.get_functions("src/lib.rs")
+    let functions = store
+        .get_functions("src/lib.rs")
         .expect("Should get functions");
 
     assert_eq!(functions.len(), 2, "Should have 2 functions");
@@ -113,10 +106,12 @@ fn test_insert_call_edges_into_sqlite() {
     store.insert_graph(&graph).expect("Should insert graph");
 
     // Query callgraph edges
-    let callers = store.get_callers("helper")
-        .expect("Should get callers");
+    let callers = store.get_callers("helper").expect("Should get callers");
 
-    assert!(callers.iter().any(|c| c == "process_data"), "process_data should call helper");
+    assert!(
+        callers.iter().any(|c| c == "process_data"),
+        "process_data should call helper"
+    );
 }
 
 #[test]
@@ -127,10 +122,14 @@ fn test_insert_struct_trait_edges() {
     store.insert_graph(&graph).expect("Should insert graph");
 
     // Query implementations
-    let impls = store.get_implementations("DataProcessor")
+    let impls = store
+        .get_implementations("DataProcessor")
         .expect("Should get implementations");
 
-    assert!(impls.iter().any(|t| t == "Processable"), "DataProcessor should implement Processable");
+    assert!(
+        impls.iter().any(|t| t == "Processable"),
+        "DataProcessor should implement Processable"
+    );
 }
 
 #[test]
@@ -144,7 +143,8 @@ fn test_sync_to_neo4j_function_calls() {
     match store.sync_to_neo4j() {
         Ok(_) => {
             // Verify Neo4j has the relationship
-            let neo4j_calls = store.query_neo4j_calls("process_data")
+            let neo4j_calls = store
+                .query_neo4j_calls("process_data")
                 .expect("Should query Neo4j");
             assert!(neo4j_calls.iter().any(|c| c == "helper"));
         }
@@ -165,7 +165,8 @@ fn test_sync_to_neo4j_implementations() {
 
     match store.sync_to_neo4j() {
         Ok(_) => {
-            let impls = store.query_neo4j_implementations("DataProcessor")
+            let impls = store
+                .query_neo4j_implementations("DataProcessor")
                 .expect("Should query implementations");
             assert!(impls.iter().any(|t| t == "Processable"));
         }
@@ -187,7 +188,8 @@ fn test_embed_functions_in_faiss() {
     store.embed_functions().expect("Should embed functions");
 
     // Search for semantically similar functions
-    let results = store.search_similar_functions("data processing helper", 5)
+    let results = store
+        .search_similar_functions("data processing helper", 5)
         .expect("Should search similar");
 
     assert!(!results.is_empty(), "Should find similar functions");
@@ -211,7 +213,8 @@ fn test_cross_linked_query_results() {
         semantic_limit: 3,
     };
 
-    let result = store.query_cross_linked(&query)
+    let result = store
+        .query_cross_linked(&query)
         .expect("Should query cross-linked");
 
     assert_eq!(result.function.name, "process_data");
@@ -283,8 +286,7 @@ fn test_get_file_imports() {
 
     store.insert_graph(&graph).expect("Should insert graph");
 
-    let imports = store.get_imports("src/lib.rs")
-        .expect("Should get imports");
+    let imports = store.get_imports("src/lib.rs").expect("Should get imports");
 
     assert_eq!(imports.len(), 2);
     assert!(imports.iter().any(|i| i.contains("HashMap")));

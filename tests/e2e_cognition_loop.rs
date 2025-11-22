@@ -1,16 +1,16 @@
 // End-to-end test for the self-operating cognition loop
 // Tests: CREATE → THINK → ACT → REFLECT → MARK DONE
 
+use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
-use anyhow::Result;
 
-use syncore::sequential::{SequentialCore, LanguageModel};
+use syncore::cognitive_db;
 use syncore::logger::CogLogger;
 use syncore::memory::Memory;
-use syncore::vector::VectorStore;
+use syncore::sequential::{LanguageModel, SequentialCore};
 use syncore::tasks::Tasks;
-use syncore::cognitive_db;
+use syncore::vector::VectorStore;
 
 // Test GLM client for testing
 struct TestGlmClient {
@@ -35,7 +35,10 @@ impl LanguageModel for TestGlmClient {
     }
 
     fn decide(&self, thought: &str) -> Result<String> {
-        Ok(format!("Decision based on thought: {} -> action: complete_task", thought))
+        Ok(format!(
+            "Decision based on thought: {} -> action: complete_task",
+            thought
+        ))
     }
 
     fn reflect(&self, goal: &str) -> Result<String> {
@@ -69,9 +72,16 @@ impl TestLogger {
 }
 
 impl CogLogger for TestLogger {
-    fn log_step(&self, step: &crate::cognitive_db::Step, task: &syncore::tasks::Task) -> std::io::Result<()> {
+    fn log_step(
+        &self,
+        step: &crate::cognitive_db::Step,
+        task: &syncore::tasks::Task,
+    ) -> std::io::Result<()> {
         let mut steps = self.steps.lock().unwrap();
-        steps.push(format!("STEP: {} - {} (Task: {})", step.state, step.content, task.goal));
+        steps.push(format!(
+            "STEP: {} - {} (Task: {})",
+            step.state, step.content, task.goal
+        ));
         Ok(())
     }
 
@@ -91,8 +101,11 @@ fn test_e2e_cognition_loop() -> Result<()> {
     // Initialize components
     let memory = Arc::new(Memory::new(db_path)?);
     let tasks = Arc::new(Tasks::new(db_path)?);
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
-    let glm_client = Arc::new(Mutex::new(TestGlmClient::connect("test://client")?)) as Arc<Mutex<dyn LanguageModel>>;
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
+    let glm_client = Arc::new(Mutex::new(TestGlmClient::connect("test://client")?))
+        as Arc<Mutex<dyn LanguageModel>>;
     let logger = Arc::new(TestLogger::new());
     let logger_ref = logger.clone();
 
@@ -106,7 +119,12 @@ fn test_e2e_cognition_loop() -> Result<()> {
     );
 
     // CREATE: Create a test task
-    let task_id = tasks.add_task("Test autonomous operation", "Verify cognition loop works", 1, None)?;
+    let task_id = tasks.add_task(
+        "Test autonomous operation",
+        "Verify cognition loop works",
+        1,
+        None,
+    )?;
     assert!(task_id > 0);
 
     // Verify task is created and open
@@ -132,7 +150,8 @@ fn test_e2e_cognition_loop() -> Result<()> {
     assert!(cognitive_steps.len() >= 2); // At least Think and Decide (Act/Reflect may be filtered)
 
     // Verify the correct sequence of cognitive states
-    let states: Vec<String> = cognitive_steps.iter()
+    let states: Vec<String> = cognitive_steps
+        .iter()
         .map(|step| step.state.clone())
         .collect();
 
@@ -158,8 +177,11 @@ fn test_multiple_tasks_cognition() -> Result<()> {
     // Initialize components
     let memory = Arc::new(Memory::new(db_path)?);
     let tasks = Arc::new(Tasks::new(db_path)?);
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
-    let glm_client = Arc::new(Mutex::new(TestGlmClient::connect("test://client")?)) as Arc<Mutex<dyn LanguageModel>>;
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
+    let glm_client = Arc::new(Mutex::new(TestGlmClient::connect("test://client")?))
+        as Arc<Mutex<dyn LanguageModel>>;
     let logger = Arc::new(TestLogger::new()) as Arc<dyn CogLogger>;
 
     // Create sequential core
@@ -173,14 +195,19 @@ fn test_multiple_tasks_cognition() -> Result<()> {
 
     // CREATE: Create multiple test tasks with different priorities
     let task1_id = tasks.add_task("High priority task", "Should be processed first", 1, None)?;
-    let task2_id = tasks.add_task("Medium priority task", "Should be processed second", 2, None)?;
+    let task2_id = tasks.add_task(
+        "Medium priority task",
+        "Should be processed second",
+        2,
+        None,
+    )?;
     let task3_id = tasks.add_task("Low priority task", "Should be processed third", 3, None)?;
 
     // Verify all tasks are created and open
     for (task_id, expected_goal) in [
         (task1_id, "High priority task"),
         (task2_id, "Medium priority task"),
-        (task3_id, "Low priority task")
+        (task3_id, "Low priority task"),
     ] {
         let task = tasks.get_task(task_id)?.unwrap();
         assert_eq!(task.status, "open");
@@ -239,7 +266,9 @@ fn test_error_handling_in_cognition_loop() -> Result<()> {
     // Initialize components
     let memory = Arc::new(Memory::new(db_path)?);
     let tasks = Arc::new(Tasks::new(db_path)?);
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
 
     // GLM client that fails during thinking
     struct FailingGlmClient {
@@ -280,7 +309,8 @@ fn test_error_handling_in_cognition_loop() -> Result<()> {
         }
     }
 
-    let glm_client = Arc::new(Mutex::new(FailingGlmClient::connect("test://client")?)) as Arc<Mutex<dyn LanguageModel>>;
+    let glm_client = Arc::new(Mutex::new(FailingGlmClient::connect("test://client")?))
+        as Arc<Mutex<dyn LanguageModel>>;
     let logger = Arc::new(TestLogger::new()) as Arc<dyn CogLogger>;
 
     // Create sequential core
@@ -293,7 +323,12 @@ fn test_error_handling_in_cognition_loop() -> Result<()> {
     );
 
     // Create a test task
-    let task_id = tasks.add_task("Test error handling", "Should handle failures gracefully", 1, None)?;
+    let task_id = tasks.add_task(
+        "Test error handling",
+        "Should handle failures gracefully",
+        1,
+        None,
+    )?;
 
     // Run cognition cycle - it should fail gracefully
     let result = sequential_core.run_cycle();

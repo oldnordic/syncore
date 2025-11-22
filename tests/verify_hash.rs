@@ -1,5 +1,4 @@
 /// Quick verification that hash functionality in circuit_breaker is working
-
 use syncore::circuit_breaker::{AgentCircuitBreaker, CircuitState};
 
 #[test]
@@ -21,7 +20,10 @@ fn test_hash_detects_identical_params() {
     // Call 3: same tool, same params (should trip circuit)
     println!("Call 3: tool='test', params='abc' (should trip circuit)");
     let result = breaker.check_tool_call("test", "abc");
-    assert!(result.is_err(), "Third identical call should trip circuit breaker");
+    assert!(
+        result.is_err(),
+        "Third identical call should trip circuit breaker"
+    );
     assert_eq!(breaker.state(), CircuitState::Open);
     println!("✅ Hash correctly identified 3 identical calls");
 

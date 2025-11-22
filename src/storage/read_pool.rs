@@ -1,5 +1,5 @@
-use rusqlite::{Connection, OpenFlags};
 use deadpool::managed::{self, Metrics};
+use rusqlite::{Connection, OpenFlags};
 
 pub struct SqliteManager {
     pub path: String,
@@ -34,8 +34,5 @@ pub type ReadPool = deadpool::managed::Pool<SqliteManager>;
 
 pub fn create_read_pool(path: String, size: usize) -> ReadPool {
     let mgr = SqliteManager { path };
-    ReadPool::builder(mgr)
-        .max_size(size)
-        .build()
-        .unwrap()
+    ReadPool::builder(mgr).max_size(size).build().unwrap()
 }

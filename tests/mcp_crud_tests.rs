@@ -1,6 +1,6 @@
-use syncore::{tasks, cognitive_db};
 use rusqlite::Connection;
 use std::fs;
+use syncore::{cognitive_db, tasks};
 
 #[test]
 fn mcp_create_task_tool_ok() {
@@ -50,22 +50,24 @@ fn mcp_update_task_tool_ok() {
     tasks::update_task(&conn, task_id, Some("running"), None, None).unwrap();
 
     // Verify status update
-    let status = conn.query_row(
-        "SELECT status FROM tasks WHERE id = ?1",
-        [task_id],
-        |row| row.get::<_, String>(0)
-    ).unwrap();
+    let status = conn
+        .query_row("SELECT status FROM tasks WHERE id = ?1", [task_id], |row| {
+            row.get::<_, String>(0)
+        })
+        .unwrap();
     assert_eq!(status, "running");
 
     // Update description and priority
     tasks::update_task(&conn, task_id, None, Some(1), Some("Updated description")).unwrap();
 
     // Verify updates
-    let updated = conn.query_row(
-        "SELECT priority, description FROM tasks WHERE id = ?1",
-        [task_id],
-        |row| Ok((row.get::<_, i32>(0)?, row.get::<_, String>(1)?))
-    ).unwrap();
+    let updated = conn
+        .query_row(
+            "SELECT priority, description FROM tasks WHERE id = ?1",
+            [task_id],
+            |row| Ok((row.get::<_, i32>(0)?, row.get::<_, String>(1)?)),
+        )
+        .unwrap();
     assert_eq!(updated.0, 1);
     assert_eq!(updated.1, "Updated description");
 
@@ -182,9 +184,30 @@ fn mcp_cognitive_step_tool_ok() {
     let task_id = tasks::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
 
     // Test storing different step types
-    let think_id = cognitive_db::store_step(&conn, Some(task_id), "Think", "Analyzing the problem", "{\"context\": \"initial\"}").unwrap();
-    let decide_id = cognitive_db::store_step(&conn, Some(task_id), "Decide", "Choosing approach", "{\"decision\": \"use_algorithm_x\"}").unwrap();
-    let act_id = cognitive_db::store_step(&conn, Some(task_id), "Act", "Implementing solution", "{\"action\": \"code_written\"}").unwrap();
+    let think_id = cognitive_db::store_step(
+        &conn,
+        Some(task_id),
+        "Think",
+        "Analyzing the problem",
+        "{\"context\": \"initial\"}",
+    )
+    .unwrap();
+    let decide_id = cognitive_db::store_step(
+        &conn,
+        Some(task_id),
+        "Decide",
+        "Choosing approach",
+        "{\"decision\": \"use_algorithm_x\"}",
+    )
+    .unwrap();
+    let act_id = cognitive_db::store_step(
+        &conn,
+        Some(task_id),
+        "Act",
+        "Implementing solution",
+        "{\"action\": \"code_written\"}",
+    )
+    .unwrap();
 
     // Verify all steps were created
     assert!(think_id > 0);
@@ -211,7 +234,8 @@ fn mcp_cognitive_step_tool_ok() {
     assert_eq!(act_meta["action"], "code_written");
 
     // Test steps without task association
-    let global_step_id = cognitive_db::store_step(&conn, None, "Think", "Global thinking session", "{}").unwrap();
+    let global_step_id =
+        cognitive_db::store_step(&conn, None, "Think", "Global thinking session", "{}").unwrap();
     assert!(global_step_id > act_id); // Should be later
 
     // Clean up
@@ -236,8 +260,9 @@ fn mcp_tool_call_audit_ok() {
     conn.execute(
         "INSERT INTO tool_calls (tool_name, args_json, result_json, status, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        (tool_name, args_json, result_json, "ok", 1234567890)
-    ).unwrap();
+        (tool_name, args_json, result_json, "ok", 1234567890),
+    )
+    .unwrap();
 
     // Verify audit entry
     let audit = conn.query_row(

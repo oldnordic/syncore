@@ -1,18 +1,22 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use syncore::vector::{VectorStore, RealEmbeddings, SearchScope};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::time::Duration;
+use syncore::vector::{RealEmbeddings, SearchScope, VectorStore};
 
 fn bench_vector_search_sequential(c: &mut Criterion) {
     let mut store = VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()));
 
     // Setup test data
     for i in 0..1000 {
-        store.insert_text(i, None, &format!("Test document {}", i), "benchmark").unwrap();
+        store
+            .insert_text(i, None, &format!("Test document {}", i), "benchmark")
+            .unwrap();
     }
 
     c.bench_function("search_sequential_1000_docs", |b| {
         b.iter(|| {
-            store.search(black_box("test"), 10, SearchScope::Global).unwrap()
+            store
+                .search(black_box("test"), 10, SearchScope::Global)
+                .unwrap()
         })
     });
 }
@@ -22,12 +26,16 @@ fn bench_vector_search_parallel(c: &mut Criterion) {
 
     // Setup test data
     for i in 0..1000 {
-        store.insert_text(i, None, &format!("Test document {}", i), "benchmark").unwrap();
+        store
+            .insert_text(i, None, &format!("Test document {}", i), "benchmark")
+            .unwrap();
     }
 
     c.bench_function("search_parallel_1000_docs", |b| {
         b.iter(|| {
-            store.search_parallel(black_box("test"), 10, SearchScope::Global).unwrap()
+            store
+                .search_parallel(black_box("test"), 10, SearchScope::Global)
+                .unwrap()
         })
     });
 }
@@ -40,7 +48,9 @@ fn bench_batch_insert_sequential(c: &mut Criterion) {
             b.iter(|| {
                 let mut store = VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()));
                 for i in 0..size {
-                    store.insert_text(i, None, &format!("Batch document {}", i), "benchmark").unwrap();
+                    store
+                        .insert_text(i, None, &format!("Batch document {}", i), "benchmark")
+                        .unwrap();
                 }
             });
         });
@@ -53,14 +63,16 @@ fn bench_batch_insert_parallel(c: &mut Criterion) {
     group.measurement_time(Duration::from_secs(10));
 
     for size in [10, 50, 100, 500].iter() {
-        let documents: Vec<_> = (0..*size).map(|i| {
-            (i, None, format!("Batch document {}", i))
-        }).collect();
+        let documents: Vec<_> = (0..*size)
+            .map(|i| (i, None, format!("Batch document {}", i)))
+            .collect();
 
         group.bench_with_input(BenchmarkId::new("parallel", size), &documents, |b, docs| {
             b.iter(|| {
                 let mut store = VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()));
-                store.insert_batch_parallel(black_box(docs.clone())).unwrap()
+                store
+                    .insert_batch_parallel(black_box(docs.clone()))
+                    .unwrap()
             })
         });
     }
@@ -77,19 +89,27 @@ fn bench_search_comparison(c: &mut Criterion) {
 
         for i in 0..*size {
             let text = format!("Comparison test document {} with unique content", i);
-            sequential_store.insert_text(i, None, &text, "comparison").unwrap();
-            parallel_store.insert_text(i, None, &text, "comparison").unwrap();
+            sequential_store
+                .insert_text(i, None, &text, "comparison")
+                .unwrap();
+            parallel_store
+                .insert_text(i, None, &text, "comparison")
+                .unwrap();
         }
 
         group.bench_with_input(BenchmarkId::new("sequential", size), size, |b, _| {
             b.iter(|| {
-                sequential_store.search(black_box("comparison"), 10, SearchScope::Global).unwrap()
+                sequential_store
+                    .search(black_box("comparison"), 10, SearchScope::Global)
+                    .unwrap()
             })
         });
 
         group.bench_with_input(BenchmarkId::new("parallel", size), size, |b, _| {
             b.iter(|| {
-                parallel_store.search_parallel(black_box("comparison"), 10, SearchScope::Global).unwrap()
+                parallel_store
+                    .search_parallel(black_box("comparison"), 10, SearchScope::Global)
+                    .unwrap()
             })
         });
     }
@@ -101,7 +121,14 @@ fn bench_concurrent_operations(c: &mut Criterion) {
 
     // Setup initial data
     for i in 0..500 {
-        store.insert_text(i, None, &format!("Concurrent test document {}", i), "concurrent").unwrap();
+        store
+            .insert_text(
+                i,
+                None,
+                &format!("Concurrent test document {}", i),
+                "concurrent",
+            )
+            .unwrap();
     }
 
     c.bench_function("concurrent_search", |b| {

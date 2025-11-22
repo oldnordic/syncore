@@ -1,6 +1,6 @@
-use syncore::{tasks, cognitive_db, vector};
 use rusqlite::Connection;
 use std::fs;
+use syncore::{cognitive_db, tasks, vector};
 
 #[test]
 fn test_basic_task_crud() {
@@ -26,9 +26,11 @@ fn test_basic_task_crud() {
     tasks::update_task(&conn, task_id, Some("done"), None, None).unwrap();
 
     // Verify update
-    let status = conn.query_row("SELECT status FROM tasks WHERE id = ?1", [task_id], |row| {
-        row.get::<_, String>(0)
-    }).unwrap();
+    let status = conn
+        .query_row("SELECT status FROM tasks WHERE id = ?1", [task_id], |row| {
+            row.get::<_, String>(0)
+        })
+        .unwrap();
     assert_eq!(status, "done");
 
     // Test link_tasks
@@ -60,8 +62,16 @@ fn test_cognitive_step_crud() {
     let task_id = tasks::add_task(&conn, "Test task", "For cognitive steps", 1, None).unwrap();
 
     // Test store_step
-    let step1_id = cognitive_db::store_step(&conn, Some(task_id), "Think", "Initial thought", "{}").unwrap();
-    let step2_id = cognitive_db::store_step(&conn, Some(task_id), "Decide", "Made decision", "{\"decision\": \"proceed\"}").unwrap();
+    let step1_id =
+        cognitive_db::store_step(&conn, Some(task_id), "Think", "Initial thought", "{}").unwrap();
+    let step2_id = cognitive_db::store_step(
+        &conn,
+        Some(task_id),
+        "Decide",
+        "Made decision",
+        "{\"decision\": \"proceed\"}",
+    )
+    .unwrap();
 
     assert!(step1_id > 0);
     assert!(step2_id > step1_id);
@@ -91,11 +101,23 @@ fn test_vector_operations() {
     assert_eq!(vector_store.len(), 3);
 
     // Test search global scope
-    let global_hits = vector::search(&vector_store, "Test", 10, syncore::vector::SearchScope::Global).unwrap();
+    let global_hits = vector::search(
+        &vector_store,
+        "Test",
+        10,
+        syncore::vector::SearchScope::Global,
+    )
+    .unwrap();
     assert_eq!(global_hits.len(), 3);
 
     // Test search task scope
-    let task_hits = vector::search(&vector_store, "Test", 10, syncore::vector::SearchScope::Task(100)).unwrap();
+    let task_hits = vector::search(
+        &vector_store,
+        "Test",
+        10,
+        syncore::vector::SearchScope::Task(100),
+    )
+    .unwrap();
     assert_eq!(task_hits.len(), 2);
 
     // Clean up vector files

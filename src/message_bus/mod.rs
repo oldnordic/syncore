@@ -155,7 +155,10 @@ impl MessageBus {
     /// removing it from history.
     pub fn try_recv_for(&self, agent_id: &AgentId) -> Option<Msg> {
         let mut history = self.history.write().unwrap();
-        if let Some(pos) = history.iter().position(|msg| msg.to.as_ref() == Some(agent_id)) {
+        if let Some(pos) = history
+            .iter()
+            .position(|msg| msg.to.as_ref() == Some(agent_id))
+        {
             Some(history.remove(pos))
         } else {
             None
@@ -167,8 +170,8 @@ impl MessageBus {
     /// Polls the history every 10ms until a message is found or timeout expires.
     /// Returns None if timeout is reached without receiving a message.
     pub fn wait_for(&self, agent_id: &AgentId, timeout_ms: u64) -> Option<Msg> {
-        use std::time::Duration;
         use std::thread;
+        use std::time::Duration;
 
         let start = Instant::now();
         let timeout = Duration::from_millis(timeout_ms);
@@ -197,19 +200,23 @@ impl MessageBus {
         // Update agent registry
         {
             let mut registry = self.agent_registry.write().unwrap();
-            registry.insert(name.clone(), AgentInfo {
-                id,
-                name: name.clone(),
-                capabilities: capabilities.clone(),
-                registered_at: Instant::now(),
-            });
+            registry.insert(
+                name.clone(),
+                AgentInfo {
+                    id,
+                    name: name.clone(),
+                    capabilities: capabilities.clone(),
+                    registered_at: Instant::now(),
+                },
+            );
         }
 
         // Update capability index
         {
             let mut index = self.capability_index.write().unwrap();
             for cap in &capabilities {
-                index.entry(cap.clone())
+                index
+                    .entry(cap.clone())
                     .or_insert_with(Vec::new)
                     .push(name.clone());
             }
@@ -256,7 +263,7 @@ impl Default for MessageBus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::message_bus::message::{MsgKind};
+    use crate::message_bus::message::MsgKind;
     use std::time::SystemTime;
 
     fn make_test_msg(from: AgentId, to: Option<AgentId>, id: u64) -> Msg {

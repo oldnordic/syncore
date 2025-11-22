@@ -7,7 +7,7 @@
 //! - Complete error handling
 
 use anyhow::{Context, Result};
-use neo4rs::{query, Graph, Query, Row};
+use neo4rs::{query, BoltType, Graph, Query, Row};
 use std::sync::Arc;
 
 /// Neo4j client with connection pooling and zero-copy query support
@@ -33,8 +33,8 @@ impl Neo4jClient {
             .context("Failed to connect to Neo4j database")?;
 
         // Load namespace from environment for graph isolation across sessions/DBs
-        let namespace = std::env::var("GRAPH_NAMESPACE")
-            .unwrap_or_else(|_| "syncore_default".to_string());
+        let namespace =
+            std::env::var("GRAPH_NAMESPACE").unwrap_or_else(|_| "syncore_default".to_string());
 
         Ok(Self {
             graph: Arc::new(graph),
@@ -75,7 +75,11 @@ impl Neo4jClient {
             q = self.add_param_to_query(q, key, value)?;
         }
 
-        let mut result = self.graph.execute(q).await.context("Failed to execute Cypher query")?;
+        let mut result = self
+            .graph
+            .execute(q)
+            .await
+            .context("Failed to execute Cypher query")?;
 
         // Extract column names from the RETURN clause
         let columns = self.extract_return_columns(cypher);
@@ -98,7 +102,8 @@ impl Neo4jClient {
         if let Some(return_pos) = upper.find("RETURN ") {
             let return_clause = &cypher[return_pos + 7..];
             // Find end of RETURN clause (ORDER BY, LIMIT, etc.)
-            let end_pos = return_clause.find(" ORDER BY")
+            let end_pos = return_clause
+                .find(" ORDER BY")
                 .or_else(|| return_clause.find(" LIMIT"))
                 .or_else(|| return_clause.find(" SKIP"))
                 .unwrap_or(return_clause.len());
@@ -136,32 +141,83 @@ impl Neo4jClient {
 
     /// Extract a value from row by trying different types
     fn extract_value_from_row(&self, row: &Row, key: &str) -> Result<serde_json::Value> {
-        // Try different types in order of likelihood
-        if let Ok(i) = row.get::<i64>(key) {
-            return Ok(serde_json::json!(i));
+        // Get the raw BoltType value first
+        match row.get::<BoltType>(key) {
+            Ok(bolt_value) => {
+                // Convert BoltType to JSON based on its actual type
+                let json_value = match bolt_value {
+                    BoltType::Null(_) => serde_json::Value::Null,
+                    BoltType::Boolean(b) => serde_json::json!(b.value),
+                    BoltType::Integer(i) => serde_json::json!(i.value),
+                    BoltType::Float(f) => serde_json::json!(f.value),
+                    BoltType::String(s) => serde_json::json!(s.value),
+                    BoltType::List(list) => {
+                        // Recursively convert list elements
+                        let items: Vec<serde_json::Value> = list
+                            .value
+                            .iter()
+                            .filter_map(|item| self.bolt_to_json(item).ok())
+                            .collect();
+                        serde_json::json!(items)
+                    }
+                    BoltType::Map(map) => {
+                        // Convert map to JSON object
+                        let mut obj = serde_json::Map::new();
+                        for (k, v) in map.value.iter() {
+                            if let Ok(json_val) = self.bolt_to_json(v) {
+                                obj.insert(k.value.clone(), json_val);
+                            }
+                        }
+                        serde_json::Value::Object(obj)
+                    }
+                    _ => serde_json::Value::Null, // For Node, Relationship, etc.
+                };
+                Ok(json_value)
+            }
+            Err(_) => {
+                // If BoltType extraction fails, return null
+                Ok(serde_json::Value::Null)
+            }
         }
-        if let Ok(f) = row.get::<f64>(key) {
-            return Ok(serde_json::json!(f));
-        }
-        if let Ok(s) = row.get::<String>(key) {
-            return Ok(serde_json::json!(s));
-        }
-        if let Ok(b) = row.get::<bool>(key) {
-            return Ok(serde_json::json!(b));
-        }
-        if let Ok(list) = row.get::<Vec<i64>>(key) {
-            return Ok(serde_json::json!(list));
-        }
-        if let Ok(list) = row.get::<Vec<String>>(key) {
-            return Ok(serde_json::json!(list));
-        }
+    }
 
-        // Return null if we can't extract the value
-        Ok(serde_json::Value::Null)
+    /// Convert BoltType to JSON (helper for recursive conversion)
+    fn bolt_to_json(&self, bolt: &BoltType) -> Result<serde_json::Value> {
+        let json_value = match bolt {
+            BoltType::Null(_) => serde_json::Value::Null,
+            BoltType::Boolean(b) => serde_json::json!(b.value),
+            BoltType::Integer(i) => serde_json::json!(i.value),
+            BoltType::Float(f) => serde_json::json!(f.value),
+            BoltType::String(s) => serde_json::json!(s.value),
+            BoltType::List(list) => {
+                let items: Vec<serde_json::Value> = list
+                    .value
+                    .iter()
+                    .filter_map(|item| self.bolt_to_json(item).ok())
+                    .collect();
+                serde_json::json!(items)
+            }
+            BoltType::Map(map) => {
+                let mut obj = serde_json::Map::new();
+                for (k, v) in map.value.iter() {
+                    if let Ok(json_val) = self.bolt_to_json(v) {
+                        obj.insert(k.value.clone(), json_val);
+                    }
+                }
+                serde_json::Value::Object(obj)
+            }
+            _ => serde_json::Value::Null,
+        };
+        Ok(json_value)
     }
 
     /// Add a parameter to a query based on its JSON type
-    fn add_param_to_query(&self, mut q: Query, key: &str, value: serde_json::Value) -> Result<Query> {
+    fn add_param_to_query(
+        &self,
+        mut q: Query,
+        key: &str,
+        value: serde_json::Value,
+    ) -> Result<Query> {
         match value {
             serde_json::Value::Null => {
                 // For null values, we use Option<String>::None
@@ -187,10 +243,7 @@ impl Neo4jClient {
                 if arr.is_empty() {
                     q = q.param(key, Vec::<String>::new());
                 } else if arr[0].is_i64() {
-                    let int_list: Vec<i64> = arr
-                        .into_iter()
-                        .filter_map(|v| v.as_i64())
-                        .collect();
+                    let int_list: Vec<i64> = arr.into_iter().filter_map(|v| v.as_i64()).collect();
                     q = q.param(key, int_list);
                 } else {
                     let str_list: Vec<String> = arr

@@ -1,11 +1,11 @@
+use serde_json::json;
 use std::fs;
 use std::sync::{Arc, Mutex};
+use syncore::mcp::{handle_mcp_request, MCPRequest};
 use syncore::memory::Memory;
 use syncore::router::SynCoreState;
 use syncore::tasks::Tasks;
 use syncore::vector::VectorStore;
-use syncore::mcp::{handle_mcp_request, MCPRequest};
-use serde_json::json;
 
 #[tokio::test]
 async fn test_mcp_list_tools() {
@@ -15,7 +15,9 @@ async fn test_mcp_list_tools() {
 
     let memory = Memory::new("test_mcp.db").unwrap();
     let tasks = Tasks::new("test_mcp_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory.clone(), tasks, vector_store);
 
     let request = MCPRequest {
@@ -37,9 +39,9 @@ async fn test_mcp_list_tools() {
     assert_eq!(tools_array.len(), 8); // memory.store, memory.query, task.create, vector.insert, vector.search, logs.tail, parser.analyze, parser.search
 
     // Check that memory.store is in the list
-    let memory_store = tools_array.iter().find(|tool| {
-        tool.get("name").and_then(|n| n.as_str()) == Some("memory.store")
-    });
+    let memory_store = tools_array
+        .iter()
+        .find(|tool| tool.get("name").and_then(|n| n.as_str()) == Some("memory.store"));
     assert!(memory_store.is_some());
 }
 
@@ -50,7 +52,9 @@ async fn test_mcp_call_tool_memory_store() {
 
     let memory = Memory::new("test_mcp_memory.db").unwrap();
     let tasks = Tasks::new("test_mcp_memory_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory.clone(), tasks, vector_store);
 
     let request = MCPRequest {
@@ -84,7 +88,9 @@ async fn test_mcp_call_tool_memory_query() {
 
     let memory = Memory::new("test_mcp_query.db").unwrap();
     let tasks = Tasks::new("test_mcp_query_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory, tasks, vector_store);
 
     // First store a value
@@ -120,7 +126,9 @@ async fn test_mcp_call_tool_task_create() {
 
     let memory = Memory::new("test_mcp_task.db").unwrap();
     let tasks = Tasks::new("test_mcp_task_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory, tasks, vector_store);
 
     let request = MCPRequest {
@@ -154,7 +162,9 @@ async fn test_mcp_invalid_tool() {
 
     let memory = Memory::new("test_mcp_invalid.db").unwrap();
     let tasks = Tasks::new("test_mcp_invalid_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory, tasks, vector_store);
 
     let request = MCPRequest {
@@ -185,7 +195,9 @@ async fn test_mcp_invalid_method() {
 
     let memory = Memory::new("test_mcp_method.db").unwrap();
     let tasks = Tasks::new("test_mcp_method_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory, tasks, vector_store);
 
     let request = MCPRequest {
@@ -213,14 +225,20 @@ async fn vector_search_defaults_ok() {
 
     let memory = Memory::new("test_vector_defaults.db").unwrap();
     let tasks = Tasks::new("test_vector_defaults_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory, tasks, vector_store);
 
     // Insert some test data
     {
         let mut store = state.vector_store.lock().unwrap();
-        store.insert_text(1, Some(1), "branch misprediction in CPU pipeline", "note").unwrap();
-        store.insert_text(2, Some(1), "SIMD fused kernel optimization", "note").unwrap();
+        store
+            .insert_text(1, Some(1), "branch misprediction in CPU pipeline", "note")
+            .unwrap();
+        store
+            .insert_text(2, Some(1), "SIMD fused kernel optimization", "note")
+            .unwrap();
     }
 
     // Test with only "query" provided (defaults k=8, scope=global)
@@ -253,15 +271,23 @@ async fn vector_search_scope_task_ok() {
 
     let memory = Memory::new("test_vector_task.db").unwrap();
     let tasks = Tasks::new("test_vector_task_tasks.db").unwrap();
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(syncore::vector::RealEmbeddings::new(384).unwrap()))));
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+        syncore::vector::RealEmbeddings::new(384).unwrap(),
+    ))));
     let state = SynCoreState::new(memory, tasks, vector_store);
 
     // Insert test data for different tasks
     {
         let mut store = state.vector_store.lock().unwrap();
-        store.insert_text(1, Some(7), "task 7: simd fused operations", "note").unwrap();
-        store.insert_text(2, Some(8), "task 8: different content", "note").unwrap();
-        store.insert_text(3, Some(7), "task 7: more simd work", "note").unwrap();
+        store
+            .insert_text(1, Some(7), "task 7: simd fused operations", "note")
+            .unwrap();
+        store
+            .insert_text(2, Some(8), "task 8: different content", "note")
+            .unwrap();
+        store
+            .insert_text(3, Some(7), "task 7: more simd work", "note")
+            .unwrap();
     }
 
     // Test with task scope using the new JSON format

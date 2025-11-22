@@ -2,11 +2,11 @@
 // Scans directories for documents, extracts text, chunks semantically,
 // and stores in global vector database for efficient semantic search
 
-use anyhow::{Result, Context};
-use std::path::{Path, PathBuf};
-use std::fs;
-use walkdir::WalkDir;
 use crate::global_store::{GlobalDbPool, GlobalVectorStore};
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 /// Supported document types
 #[derive(Debug, Clone, PartialEq)]
@@ -69,8 +69,8 @@ pub struct IndexerConfig {
 impl Default for IndexerConfig {
     fn default() -> Self {
         Self {
-            max_chunk_size: 1000,  // ~1000 chars per chunk
-            overlap_size: 200,     // 200 char overlap for context
+            max_chunk_size: 1000, // ~1000 chars per chunk
+            overlap_size: 200,    // 200 char overlap for context
             skip_hidden: true,
             skip_extensions: vec![
                 "bin".to_string(),
@@ -114,7 +114,11 @@ impl DocumentIndexer {
 
                 // Skip hidden files/dirs if configured
                 if self.config.skip_hidden {
-                    let is_hidden = e.file_name().to_str().map(|s| s.starts_with('.')).unwrap_or(false);
+                    let is_hidden = e
+                        .file_name()
+                        .to_str()
+                        .map(|s| s.starts_with('.'))
+                        .unwrap_or(false);
                     !is_hidden
                 } else {
                     true
@@ -139,18 +143,19 @@ impl DocumentIndexer {
 
             // Detect document type
             if let Some(doc_type) = DocumentType::from_path(path) {
-                let metadata = entry.metadata()
-                    .context("Failed to read file metadata")?;
+                let metadata = entry.metadata().context("Failed to read file metadata")?;
 
                 documents.push(DocumentMetadata {
                     path: path.to_path_buf(),
-                    filename: path.file_name()
+                    filename: path
+                        .file_name()
                         .unwrap_or_default()
                         .to_string_lossy()
                         .to_string(),
                     doc_type,
                     size_bytes: metadata.len(),
-                    modified_time: metadata.modified()
+                    modified_time: metadata
+                        .modified()
                         .unwrap_or_else(|_| std::time::SystemTime::now()),
                 });
             }
@@ -162,8 +167,12 @@ impl DocumentIndexer {
     /// Extract text from a document
     pub fn extract_text(&self, doc: &DocumentMetadata) -> Result<String> {
         match doc.doc_type {
-            DocumentType::Markdown | DocumentType::Text | DocumentType::Rust |
-            DocumentType::Python | DocumentType::Json | DocumentType::Toml => {
+            DocumentType::Markdown
+            | DocumentType::Text
+            | DocumentType::Rust
+            | DocumentType::Python
+            | DocumentType::Json
+            | DocumentType::Toml => {
                 // Read as UTF-8 text
                 fs::read_to_string(&doc.path)
                     .context(format!("Failed to read file: {}", doc.path.display()))
@@ -240,7 +249,7 @@ impl DocumentIndexer {
             start_byte = if end_byte < text_len {
                 next_start
             } else {
-                text_len  // We're done
+                text_len // We're done
             };
 
             chunk_index += 1;
@@ -270,7 +279,11 @@ impl DocumentIndexer {
             let text = match self.extract_text(&doc) {
                 Ok(t) => t,
                 Err(e) => {
-                    eprintln!("Warning: Failed to extract text from {}: {}", doc.path.display(), e);
+                    eprintln!(
+                        "Warning: Failed to extract text from {}: {}",
+                        doc.path.display(),
+                        e
+                    );
                     continue;
                 }
             };
@@ -286,7 +299,8 @@ impl DocumentIndexer {
                     .as_secs() as i64;
 
                 // Create unique key and ID for this chunk
-                let key = format!("doc:{}:chunk:{}",
+                let key = format!(
+                    "doc:{}:chunk:{}",
                     chunk.source_file.display(),
                     chunk.chunk_index
                 );
@@ -305,7 +319,8 @@ impl DocumentIndexer {
                 )?;
 
                 // Store vector embedding in global FAISS index
-                vector_store.insert_text(chunk_id, &chunk.text, "documents")
+                vector_store
+                    .insert_text(chunk_id, &chunk.text, "documents")
                     .unwrap_or_else(|e| {
                         eprintln!("Warning: Failed to store embedding for {}: {}", key, e);
                     });
@@ -339,7 +354,11 @@ impl DocumentIndexer {
             let text = match self.extract_text(&doc) {
                 Ok(t) => t,
                 Err(e) => {
-                    eprintln!("Warning: Failed to extract text from {}: {}", doc.path.display(), e);
+                    eprintln!(
+                        "Warning: Failed to extract text from {}: {}",
+                        doc.path.display(),
+                        e
+                    );
                     continue;
                 }
             };
@@ -355,7 +374,8 @@ impl DocumentIndexer {
                     .as_secs() as i64;
 
                 // Create unique key and ID for this chunk
-                let key = format!("doc:{}:chunk:{}",
+                let key = format!(
+                    "doc:{}:chunk:{}",
                     chunk.source_file.display(),
                     chunk.chunk_index
                 );
@@ -374,7 +394,8 @@ impl DocumentIndexer {
                 )?;
 
                 // Store vector embedding in FAISS index
-                vector_store.insert_text(chunk_id, &chunk.text, "documents")
+                vector_store
+                    .insert_text(chunk_id, &chunk.text, "documents")
                     .unwrap_or_else(|e| {
                         eprintln!("Warning: Failed to store embedding for {}: {}", key, e);
                     });
@@ -414,11 +435,26 @@ mod tests {
 
     #[test]
     fn test_document_type_detection() {
-        assert_eq!(DocumentType::from_path(Path::new("test.md")), Some(DocumentType::Markdown));
-        assert_eq!(DocumentType::from_path(Path::new("file.txt")), Some(DocumentType::Text));
-        assert_eq!(DocumentType::from_path(Path::new("doc.pdf")), Some(DocumentType::Pdf));
-        assert_eq!(DocumentType::from_path(Path::new("main.rs")), Some(DocumentType::Rust));
-        assert_eq!(DocumentType::from_path(Path::new("script.py")), Some(DocumentType::Python));
+        assert_eq!(
+            DocumentType::from_path(Path::new("test.md")),
+            Some(DocumentType::Markdown)
+        );
+        assert_eq!(
+            DocumentType::from_path(Path::new("file.txt")),
+            Some(DocumentType::Text)
+        );
+        assert_eq!(
+            DocumentType::from_path(Path::new("doc.pdf")),
+            Some(DocumentType::Pdf)
+        );
+        assert_eq!(
+            DocumentType::from_path(Path::new("main.rs")),
+            Some(DocumentType::Rust)
+        );
+        assert_eq!(
+            DocumentType::from_path(Path::new("script.py")),
+            Some(DocumentType::Python)
+        );
         assert_eq!(DocumentType::from_path(Path::new("unknown.xyz")), None);
     }
 
@@ -434,10 +470,17 @@ mod tests {
             println!("  - {} (type: {:?})", doc.filename, doc.doc_type);
         }
 
-        assert!(docs.len() >= 3, "Should find at least 3 documents (test.md, notes.txt, code.rs), found {}", docs.len());
+        assert!(
+            docs.len() >= 3,
+            "Should find at least 3 documents (test.md, notes.txt, code.rs), found {}",
+            docs.len()
+        );
 
         // Should not include hidden files
-        assert!(!docs.iter().any(|d| d.filename.starts_with('.')), "Should skip hidden files");
+        assert!(
+            !docs.iter().any(|d| d.filename.starts_with('.')),
+            "Should skip hidden files"
+        );
     }
 
     #[test]
@@ -448,7 +491,10 @@ mod tests {
         let docs = indexer.scan_directory(temp_dir.path()).unwrap();
 
         // Should find nested document
-        assert!(docs.iter().any(|d| d.filename == "nested.md"), "Should find nested documents");
+        assert!(
+            docs.iter().any(|d| d.filename == "nested.md"),
+            "Should find nested documents"
+        );
     }
 
     #[test]
@@ -465,13 +511,16 @@ mod tests {
         };
 
         let text = indexer.extract_text(&metadata).unwrap();
-        assert!(text.contains("Test Document"), "Should extract markdown content");
+        assert!(
+            text.contains("Test Document"),
+            "Should extract markdown content"
+        );
     }
 
     #[test]
     fn test_chunk_document_respects_max_size() {
         let indexer = DocumentIndexer::with_defaults();
-        let long_text = "a".repeat(5000);  // 5000 chars
+        let long_text = "a".repeat(5000); // 5000 chars
 
         let metadata = DocumentMetadata {
             path: PathBuf::from("test.txt"),
@@ -484,19 +533,24 @@ mod tests {
         let chunks = indexer.chunk_document(&long_text, &metadata);
 
         // Should create multiple chunks
-        assert!(chunks.len() > 1, "Should split long text into multiple chunks");
+        assert!(
+            chunks.len() > 1,
+            "Should split long text into multiple chunks"
+        );
 
         // Each chunk should be <= max_chunk_size
         for chunk in &chunks {
-            assert!(chunk.text.len() <= indexer.config.max_chunk_size + indexer.config.overlap_size,
-                    "Chunk should respect max size");
+            assert!(
+                chunk.text.len() <= indexer.config.max_chunk_size + indexer.config.overlap_size,
+                "Chunk should respect max size"
+            );
         }
     }
 
     #[test]
     fn test_chunk_document_has_overlap() {
         let indexer = DocumentIndexer::with_defaults();
-        let text = "a".repeat(2000);  // 2000 chars
+        let text = "a".repeat(2000); // 2000 chars
 
         let metadata = DocumentMetadata {
             path: PathBuf::from("test.txt"),
@@ -514,8 +568,10 @@ mod tests {
             let second_start = &chunks[1].text[..100.min(chunks[1].text.len())];
 
             // Should have some overlap (not exact match due to word boundaries)
-            assert!(!first_end.is_empty() && !second_start.is_empty(),
-                    "Chunks should have overlap for context");
+            assert!(
+                !first_end.is_empty() && !second_start.is_empty(),
+                "Chunks should have overlap for context"
+            );
         }
     }
 
@@ -535,7 +591,10 @@ mod tests {
         let chunks = indexer.chunk_document(text, &metadata);
 
         for (i, chunk) in chunks.iter().enumerate() {
-            assert_eq!(chunk.source_file, metadata.path, "Should preserve source file");
+            assert_eq!(
+                chunk.source_file, metadata.path,
+                "Should preserve source file"
+            );
             assert_eq!(chunk.chunk_index, i, "Should have correct chunk index");
         }
     }

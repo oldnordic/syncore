@@ -1,7 +1,7 @@
 use std::fs;
-use syncore::protocol::{SynCoreMsg, SynCoreTool};
 use syncore::memory::Memory;
-use syncore::router::{SynCoreState};
+use syncore::protocol::{SynCoreMsg, SynCoreTool};
+use syncore::router::SynCoreState;
 
 #[tokio::test]
 async fn test_server_memory_store_and_query() {
@@ -12,7 +12,9 @@ async fn test_server_memory_store_and_query() {
     let memory = Memory::new("test_integration.db").unwrap();
     let tasks = syncore::tasks::Tasks::new("test_integration_tasks.db").unwrap();
     let embeddings = Box::new(syncore::vector::RealEmbeddings::new(384).unwrap());
-    let vector_store = std::sync::Arc::new(std::sync::Mutex::new(syncore::vector::VectorStore::new(embeddings)));
+    let vector_store = std::sync::Arc::new(std::sync::Mutex::new(
+        syncore::vector::VectorStore::new(embeddings),
+    ));
     let state = SynCoreState::new(memory, tasks, vector_store);
 
     // Test MemoryStore via router

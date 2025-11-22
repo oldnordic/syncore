@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "syncore"
-path = "src/main.rs"
-
-[[bin]]
 name = "syncore_mcp_stdio"
 path = "src/mcp_stdio_main.rs"
+
+[[bin]]
+name = "syncore_graph_cli"
+path = "src/graph_cli_main.rs"
 
 [build-dependencies]
 cc = "1.0"
@@ -29,12 +29,12 @@ anyhow = "1.0"
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 tempfile = "3.0"
+rand = "0.8"
 hnsw_rs = "0.3.2"
-usearch = "2.21"  # High-performance HNSW for vector search (10x faster than FAISS)
-instant-distance = "0.6.1"  # Pure Rust HNSW (no FFI issues)
 bincode = "1.3"
 scopeguard = "1.2"
 lazy_static = "1.4"
+git2 = "0.19"
 jsonschema = "0.17"
 schemars = "1.1"
  tracing = "0.1"
@@ -59,10 +59,12 @@ deadpool = "0.12"
 axum = "0.8"
 tokio-util = { version = "0.7", features = ["rt"] }
 neo4rs = "0.7"
+sha2 = "0.10"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 reqwest = { version = "0.12", features = ["json"] }
+uuid = { version = "1.11", features = ["v4"] }
 
 [[bench]]
 name = "vector_benchmarks"

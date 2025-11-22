@@ -148,7 +148,10 @@ impl<'a> RefactoringSuggestionEngine<'a> {
     }
 
     /// Detect duplicate functions based on semantic similarity
-    pub fn detect_duplicate_functions(&self, similarity_threshold: f32) -> Result<Vec<DuplicateFunction>> {
+    pub fn detect_duplicate_functions(
+        &self,
+        similarity_threshold: f32,
+    ) -> Result<Vec<DuplicateFunction>> {
         let functions = self.store.get_all_functions()?;
         let mut duplicates = Vec::new();
         let mut checked_pairs: HashSet<(String, String)> = HashSet::new();
@@ -194,12 +197,20 @@ impl<'a> RefactoringSuggestionEngine<'a> {
         }
 
         // Sort by similarity descending
-        duplicates.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        duplicates.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         Ok(duplicates)
     }
 
     /// Run comprehensive refactoring check
-    pub fn check_all(&self, max_lines: usize, similarity_threshold: f32) -> Result<RefactoringCheckResult> {
+    pub fn check_all(
+        &self,
+        max_lines: usize,
+        similarity_threshold: f32,
+    ) -> Result<RefactoringCheckResult> {
         let long_functions = self.detect_long_functions(max_lines)?;
         let dead_code = self.detect_dead_code()?;
         let duplicate_functions = self.detect_duplicate_functions(similarity_threshold)?;
@@ -227,7 +238,8 @@ impl<'a> RefactoringSuggestionEngine<'a> {
         let line_count = target_func.line_end.saturating_sub(target_func.line_start) + 1;
 
         // Determine priority based on multiple factors
-        let priority = self.calculate_refactor_priority(line_count, callers.len(), target_func.is_public);
+        let priority =
+            self.calculate_refactor_priority(line_count, callers.len(), target_func.is_public);
 
         // Build refactoring steps
         let mut steps = Vec::new();
@@ -251,7 +263,9 @@ impl<'a> RefactoringSuggestionEngine<'a> {
             steps.push(RefactoringStep {
                 step_number,
                 action: "ensure_test_coverage".to_string(),
-                description: "Ensure comprehensive test coverage before refactoring public function".to_string(),
+                description:
+                    "Ensure comprehensive test coverage before refactoring public function"
+                        .to_string(),
                 files_affected: vec![format!("tests/{}_test.rs", function_name)],
             });
             step_number += 1;
@@ -277,7 +291,10 @@ impl<'a> RefactoringSuggestionEngine<'a> {
             steps.push(RefactoringStep {
                 step_number,
                 action: "update_callers".to_string(),
-                description: format!("Update {} calling sites if signature changes", callers.len()),
+                description: format!(
+                    "Update {} calling sites if signature changes",
+                    callers.len()
+                ),
                 files_affected: callers.clone(),
             });
             step_number += 1;
@@ -305,7 +322,12 @@ impl<'a> RefactoringSuggestionEngine<'a> {
         })
     }
 
-    fn calculate_refactor_priority(&self, line_count: usize, caller_count: usize, is_public: bool) -> String {
+    fn calculate_refactor_priority(
+        &self,
+        line_count: usize,
+        caller_count: usize,
+        is_public: bool,
+    ) -> String {
         let mut score = 0;
 
         // Line count impact
@@ -355,7 +377,12 @@ impl<'a> RefactoringSuggestionEngine<'a> {
         }
     }
 
-    fn identify_risks(&self, is_public: bool, caller_count: usize, line_count: usize) -> Vec<String> {
+    fn identify_risks(
+        &self,
+        is_public: bool,
+        caller_count: usize,
+        line_count: usize,
+    ) -> Vec<String> {
         let mut risks = Vec::new();
 
         if is_public {
@@ -370,11 +397,14 @@ impl<'a> RefactoringSuggestionEngine<'a> {
         }
 
         if line_count > 100 {
-            risks.push("Complex function: High risk of introducing bugs during refactoring".to_string());
+            risks.push(
+                "Complex function: High risk of introducing bugs during refactoring".to_string(),
+            );
         }
 
         if caller_count == 0 && !is_public {
-            risks.push("Potentially dead code: Consider removal instead of refactoring".to_string());
+            risks
+                .push("Potentially dead code: Consider removal instead of refactoring".to_string());
         }
 
         if risks.is_empty() {
@@ -397,8 +427,8 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let vectors_dir = temp_dir.path().join("vectors");
 
-        let store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)
-            .expect("Should create store");
+        let store =
+            CodeGraphStore::new_with_paths(&db_path, &vectors_dir).expect("Should create store");
         let engine = RefactoringSuggestionEngine::new(&store);
 
         // Test low priority
@@ -424,8 +454,8 @@ mod tests {
         let db_path = temp_dir.path().join("test.db");
         let vectors_dir = temp_dir.path().join("vectors");
 
-        let store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)
-            .expect("Should create store");
+        let store =
+            CodeGraphStore::new_with_paths(&db_path, &vectors_dir).expect("Should create store");
         let engine = RefactoringSuggestionEngine::new(&store);
 
         let effort = engine.estimate_effort(25, 2);

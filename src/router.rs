@@ -1,16 +1,20 @@
-use anyhow::Result;
-use crate::protocol::{SynCoreTool, SynCoreMsg};
-use crate::memory::Memory;
-use crate::tasks::Tasks;
-use crate::vector::{VectorStore, SearchScope};
-use crate::logger::{MarkdownLogger, CogLogger};
-use crate::message_bus::MessageBus;
-use crate::storage::{WriteQueue, ReadPool, create_read_pool, FaissQueue, FaissPool};
+use crate::common::db_paths;
 use crate::graph::Neo4jClient;
+use crate::logger::{CogLogger, MarkdownLogger};
+use crate::memory::Memory;
+use crate::message_bus::MessageBus;
+use crate::protocol::{SynCoreMsg, SynCoreTool};
+use crate::storage::{create_read_pool, FaissPool, FaissQueue, ReadPool, WriteQueue};
+use crate::tasks::Tasks;
+use crate::vector::{SearchScope, VectorStore};
+use anyhow::Result;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct SynCoreState {
+    /// Centralized SQLite connection manager (long-lived connections for WAL mode)
+    pub db_manager: Arc<crate::db::DbManager>,
     pub memory: Arc<Memory>,
     pub tasks: Arc<Tasks>,
     pub vector_store: Arc<Mutex<VectorStore>>,
@@ -21,12 +25,46 @@ pub struct SynCoreState {
     pub faiss_queue: Option<Arc<FaissQueue>>,
     pub faiss_pool: Option<Arc<FaissPool>>,
     pub neo4j: Option<Arc<Neo4jClient>>,
+    /// HNSW index warmup status - true when index is ready for fast search
+    pub hnsw_ready: Arc<AtomicBool>,
 }
 
 impl SynCoreState {
-    pub fn new(memory: Memory, tasks: Tasks, vector_store: Arc<Mutex<VectorStore>>) -> Self {
+    /// Create SynCoreState with DbManager (preferred constructor for production).
+    ///
+    /// This constructor initializes DbManager with long-lived connections and wires
+    /// all SQLite-backed components to use those connections. This eliminates the
+    /// "short-lived WAL connection" persistence bug.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let embeddings = Box::new(RealEmbeddings::new(384)?);
+    /// let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
+    /// let state = SynCoreState::with_db_manager(vector_store)?;
+    /// ```
+    pub fn with_db_manager(vector_store: Arc<Mutex<VectorStore>>) -> Result<Self> {
+        // Get database paths from centralized helpers
+        let main_db_path = db_paths::main_db_path();
+        let code_graph_db_path = db_paths::code_graph_db_path();
+
+        // Initialize DbManager with long-lived connections
+        let db_manager = Arc::new(crate::db::DbManager::new(
+            &main_db_path,
+            &code_graph_db_path,
+        )?);
+
+        // Create Memory using DbManager's main connection
+        let main_cache_path = format!("{}_cache", main_db_path);
+        let memory = Memory::with_connection(db_manager.main_conn(), &main_cache_path)?;
+
+        // Create Tasks using DbManager's main connection
+        let tasks = Tasks::with_connection(db_manager.main_conn())?;
+
         let logger = Arc::new(MarkdownLogger::new("./logs"));
-        Self {
+
+        Ok(Self {
+            db_manager,
             memory: Arc::new(memory),
             tasks: Arc::new(tasks),
             vector_store,
@@ -37,6 +75,39 @@ impl SynCoreState {
             faiss_queue: None,
             faiss_pool: None,
             neo4j: None,
+            hnsw_ready: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
+    /// Legacy constructor - accepts pre-created components (deprecated, use with_db_manager instead).
+    ///
+    /// This method is kept for backward compatibility with existing code that hasn't
+    /// been refactored to use DbManager yet. Components created this way may open
+    /// their own short-lived connections, which can cause persistence issues with WAL mode.
+    pub fn new(memory: Memory, tasks: Tasks, vector_store: Arc<Mutex<VectorStore>>) -> Self {
+        // For legacy compatibility, create a DbManager but don't use it for these components
+        // since they already have their own connections
+        let main_db_path = db_paths::main_db_path();
+        let code_graph_db_path = db_paths::code_graph_db_path();
+        let db_manager = Arc::new(
+            crate::db::DbManager::new(&main_db_path, &code_graph_db_path)
+                .expect("Failed to initialize DbManager for legacy SynCoreState"),
+        );
+
+        let logger = Arc::new(MarkdownLogger::new("./logs"));
+        Self {
+            db_manager,
+            memory: Arc::new(memory),
+            tasks: Arc::new(tasks),
+            vector_store,
+            logger,
+            message_bus: None,
+            write_queue: None,
+            read_pool: None,
+            faiss_queue: None,
+            faiss_pool: None,
+            neo4j: None,
+            hnsw_ready: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -79,12 +150,29 @@ impl SynCoreState {
         let mem_path = format!("/tmp/syncore_test_mem_{}_{}.db", id, ts);
         let task_path = format!("/tmp/syncore_test_task_{}_{}.db", id, ts);
 
+        // Initialize DbManager for test databases
+        let db_manager = Arc::new(
+            crate::db::DbManager::new(&mem_path, &task_path)
+                .expect("Failed to initialize DbManager for test"),
+        );
+
+        // Create components using DbManager connections
+        let memory = crate::memory::Memory::with_connection(
+            db_manager.main_conn(),
+            &format!("{}_cache", mem_path),
+        )
+        .expect("Failed to create Memory for test");
+
+        let tasks = crate::tasks::Tasks::with_connection(db_manager.main_conn())
+            .expect("Failed to create Tasks for test");
+
         Self {
-            memory: Arc::new(crate::memory::Memory::new(&mem_path).unwrap()),
-            tasks: Arc::new(crate::tasks::Tasks::new(&task_path).unwrap()),
-            vector_store: Arc::new(Mutex::new(crate::vector::VectorStore::new(
-                Box::new(crate::vector::RealEmbeddings::new(384).unwrap()),
-            ))),
+            db_manager,
+            memory: Arc::new(memory),
+            tasks: Arc::new(tasks),
+            vector_store: Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
+                crate::vector::RealEmbeddings::new(384).unwrap(),
+            )))),
             logger: Arc::new(MarkdownLogger::new("./logs")),
             message_bus: None,
             write_queue: None,
@@ -92,10 +180,10 @@ impl SynCoreState {
             faiss_queue: Some(FaissQueue::new(128)),
             faiss_pool: Some(FaissPool::new(path, 8)),
             neo4j: None,
+            hnsw_ready: Arc::new(AtomicBool::new(false)),
         }
     }
 }
-
 
 pub fn route_tool(name: &str, args: &[u8], state: &SynCoreState) -> Result<Vec<u8>> {
     let tool = match name {
@@ -144,7 +232,8 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
         SynCoreTool::VectorInsert => {
-            let (id, task_id, text, kind): (i64, Option<i64>, String, String) = rmp_serde::from_slice(&msg.args)?;
+            let (id, task_id, text, kind): (i64, Option<i64>, String, String) =
+                rmp_serde::from_slice(&msg.args)?;
             let mut store = state.vector_store.lock().unwrap();
             store.insert_text(id, task_id, &text, &kind)?;
             let response = serde_json::json!({"success": true, "id": id, "task_id": task_id});
@@ -168,10 +257,11 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
         }
         SynCoreTool::GraphQuery => {
             let (task_id, direction): (i64, String) = rmp_serde::from_slice(&msg.args)?;
-            let links = state.tasks.with_db(|db| {
-                crate::tasks::get_task_links(db, task_id, &direction)
-            })?;
-            let response = serde_json::json!({"task_id": task_id, "direction": direction, "links": links});
+            let links = state
+                .tasks
+                .with_db(|db| crate::tasks::get_task_links(db, task_id, &direction))?;
+            let response =
+                serde_json::json!({"task_id": task_id, "direction": direction, "links": links});
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
         SynCoreTool::LogsTail => {
@@ -203,23 +293,32 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
         SynCoreTool::ParserSearch => {
-            let (pattern, directory, context_lines): (String, Option<String>, Option<usize>) = rmp_serde::from_slice(&msg.args)?;
+            let (pattern, directory, context_lines): (String, Option<String>, Option<usize>) =
+                rmp_serde::from_slice(&msg.args)?;
             let search_path = directory.unwrap_or(".".to_string());
             let context_lines = context_lines.unwrap_or(3);
 
             use std::process::Command;
             let output = Command::new("rg")
-                .args(&["--json", "-C", &context_lines.to_string(), &pattern, &search_path])
+                .args(&[
+                    "--json",
+                    "-C",
+                    &context_lines.to_string(),
+                    &pattern,
+                    &search_path,
+                ])
                 .output()?;
 
             if output.status.success() {
                 let results = String::from_utf8_lossy(&output.stdout);
                 let response = serde_json::json!({"results": results});
-                rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
+                rmp_serde::to_vec(&response)
+                    .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
             } else {
                 let error = String::from_utf8_lossy(&output.stderr);
                 let response = serde_json::json!({"error": error});
-                rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
+                rmp_serde::to_vec(&response)
+                    .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
             }
         }
         SynCoreTool::CodeExplain => {
@@ -243,15 +342,15 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
         SynCoreTool::CodeIndexDirectory => {
-            use crate::code_directory_indexer::{DirectoryIndexer, DirectoryIndexRequest};
+            use crate::code_directory_indexer::{DirectoryIndexRequest, DirectoryIndexer};
 
             // Deserialize request
             let request: DirectoryIndexRequest = rmp_serde::from_slice(&msg.args)
                 .map_err(|e| anyhow::anyhow!("Failed to deserialize request: {}", e))?;
 
-            // Create indexer with state's vector store
-            let db_path = "syncore_code_graph.db";
-            let mut indexer = DirectoryIndexer::new(db_path, state.vector_store.clone())?;
+            // Create indexer with state's vector store using unified path
+            let db_path = db_paths::code_graph_db_path();
+            let mut indexer = DirectoryIndexer::new(&db_path, state.vector_store.clone())?;
 
             // Index directory
             let response = indexer.index_directory(&request)?;
@@ -265,9 +364,9 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use crate::vector::HuggingFaceEmbeddings;
     use serde_json::Value;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_memory_store() -> Result<()> {

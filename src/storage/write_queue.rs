@@ -1,5 +1,5 @@
-use tokio::sync::{mpsc, oneshot};
 use rusqlite::Connection;
+use tokio::sync::{mpsc, oneshot};
 
 pub struct WriteJob {
     pub func: Box<dyn FnOnce(&Connection) -> anyhow::Result<serde_json::Value> + Send>,

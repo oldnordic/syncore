@@ -2,8 +2,8 @@
 //!
 //! Provides abstraction over stdio, HTTP, and internal communication.
 
-use anyhow::Result;
 use crate::message_bus::message::{AgentId, Msg};
+use anyhow::Result;
 use tokio::sync::mpsc;
 
 /// Trait for agent communication adapters

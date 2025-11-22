@@ -1,7 +1,7 @@
-use syncore::vector::{VectorStore, RealEmbeddings, SearchScope};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;
+use syncore::vector::{RealEmbeddings, SearchScope, VectorStore};
 // use tempfile::TempDir; // Not used in this test file
 
 #[cfg(test)]
@@ -13,9 +13,9 @@ mod tests {
         let mut store = VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()));
 
         // Create test data
-        let test_data: Vec<_> = (0..100).map(|i| {
-            (i as i64, Some(1), format!("Test document content {}", i))
-        }).collect();
+        let test_data: Vec<_> = (0..100)
+            .map(|i| (i as i64, Some(1), format!("Test document content {}", i)))
+            .collect();
 
         let start = Instant::now();
         let result = store.insert_batch_parallel(test_data.clone());
@@ -29,7 +29,10 @@ mod tests {
         assert_eq!(store.len(), 100, "Store should contain 100 documents");
 
         // Performance check - should complete in reasonable time
-        assert!(duration.as_millis() < 5000, "Batch insert should complete within 5 seconds");
+        assert!(
+            duration.as_millis() < 5000,
+            "Batch insert should complete within 5 seconds"
+        );
 
         // Verify IDs are correct
         for (i, &id) in inserted_ids.iter().enumerate() {
@@ -55,9 +58,15 @@ mod tests {
         }
 
         // Test parallel search
-        let results = store.search_parallel("Rust", 10, SearchScope::Global).unwrap();
+        let results = store
+            .search_parallel("Rust", 10, SearchScope::Global)
+            .unwrap();
 
-        assert_eq!(results.len(), 2, "Should find 2 documents containing 'Rust'");
+        assert_eq!(
+            results.len(),
+            2,
+            "Should find 2 documents containing 'Rust'"
+        );
 
         // Results should be sorted by score (descending)
         let mut scores: Vec<f32> = results.iter().map(|r| r.score).collect();
@@ -88,13 +97,17 @@ mod tests {
         }
 
         // Search within task 1
-        let task1_results = store.search_parallel("Rust", 10, SearchScope::Task(1)).unwrap();
+        let task1_results = store
+            .search_parallel("Rust", 10, SearchScope::Task(1))
+            .unwrap();
         assert_eq!(task1_results.len(), 1, "Should find 1 document in task 1");
         assert_eq!(task1_results[0].id, 1, "Should be document ID 1");
         assert_eq!(task1_results[0].task_id, Some(1), "Should belong to task 1");
 
         // Search within task 2
-        let task2_results = store.search_parallel("Rust", 10, SearchScope::Task(2)).unwrap();
+        let task2_results = store
+            .search_parallel("Rust", 10, SearchScope::Task(2))
+            .unwrap();
         assert_eq!(task2_results.len(), 1, "Should find 1 document in task 2");
         assert_eq!(task2_results[0].id, 4, "Should be document ID 4");
         assert_eq!(task2_results[0].task_id, Some(2), "Should belong to task 2");
@@ -106,13 +119,21 @@ mod tests {
         let mut parallel_store = VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()));
 
         // Insert same documents into both stores
-        let documents: Vec<_> = (0..50).map(|i| {
-            (i as i64, Some(i % 5), format!("Document {} with unique content {}", i, i * 7))
-        }).collect();
+        let documents: Vec<_> = (0..50)
+            .map(|i| {
+                (
+                    i as i64,
+                    Some(i % 5),
+                    format!("Document {} with unique content {}", i, i * 7),
+                )
+            })
+            .collect();
 
         // Sequential insert
         for (id, task_id, text) in documents.clone() {
-            sequential_store.insert_text(id, task_id, &text, "test").unwrap();
+            sequential_store
+                .insert_text(id, task_id, &text, "test")
+                .unwrap();
         }
 
         // Parallel batch insert
@@ -120,21 +141,32 @@ mod tests {
 
         // Compare search results
         let query = "Document 23";
-        let sequential_results = sequential_store.search(query, 10, SearchScope::Global).unwrap();
-        let parallel_results = parallel_store.search_parallel(query, 10, SearchScope::Global).unwrap();
+        let sequential_results = sequential_store
+            .search(query, 10, SearchScope::Global)
+            .unwrap();
+        let parallel_results = parallel_store
+            .search_parallel(query, 10, SearchScope::Global)
+            .unwrap();
 
-        assert_eq!(sequential_results.len(), parallel_results.len(),
-                  "Both methods should return same number of results");
+        assert_eq!(
+            sequential_results.len(),
+            parallel_results.len(),
+            "Both methods should return same number of results"
+        );
 
         if !sequential_results.is_empty() {
-            assert_eq!(sequential_results[0].id, parallel_results[0].id,
-                      "Top result ID should be the same");
+            assert_eq!(
+                sequential_results[0].id, parallel_results[0].id,
+                "Top result ID should be the same"
+            );
         }
     }
 
     #[test]
     fn test_concurrent_vector_operations() {
-        let store = Arc::new(Mutex::new(VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()))));
+        let store = Arc::new(Mutex::new(VectorStore::new(Box::new(
+            RealEmbeddings::new(384).unwrap(),
+        ))));
         let mut handles = vec![];
 
         // Spawn multiple threads performing concurrent operations
@@ -148,13 +180,17 @@ mod tests {
                     // Insert document
                     {
                         let mut store_guard = store_clone.lock().unwrap();
-                        store_guard.insert_text(id, Some(thread_id as i64), &text, "concurrent_test").unwrap();
+                        store_guard
+                            .insert_text(id, Some(thread_id as i64), &text, "concurrent_test")
+                            .unwrap();
                     }
 
                     // Search
                     {
                         let store_guard = store_clone.lock().unwrap();
-                        let results = store_guard.search_parallel("document", 5, SearchScope::Global).unwrap();
+                        let results = store_guard
+                            .search_parallel("document", 5, SearchScope::Global)
+                            .unwrap();
                         assert!(!results.is_empty(), "Search should return results");
                     }
                 }
@@ -176,7 +212,9 @@ mod tests {
     fn test_parallel_search_empty_store() {
         let store = VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()));
 
-        let results = store.search_parallel("any query", 10, SearchScope::Global).unwrap();
+        let results = store
+            .search_parallel("any query", 10, SearchScope::Global)
+            .unwrap();
         assert!(results.is_empty(), "Empty store should return no results");
     }
 
@@ -186,15 +224,22 @@ mod tests {
 
         // Insert more documents than k limit
         for i in 0..20 {
-            store.insert_text(i, Some(1), &format!("Document {}", i), "test").unwrap();
+            store
+                .insert_text(i, Some(1), &format!("Document {}", i), "test")
+                .unwrap();
         }
 
-        let results = store.search_parallel("Document", 5, SearchScope::Global).unwrap();
+        let results = store
+            .search_parallel("Document", 5, SearchScope::Global)
+            .unwrap();
         assert_eq!(results.len(), 5, "Should return exactly k results");
 
         // Verify results are sorted
         for i in 1..results.len() {
-            assert!(results[i-1].score >= results[i].score, "Results should be sorted by score");
+            assert!(
+                results[i - 1].score >= results[i].score,
+                "Results should be sorted by score"
+            );
         }
     }
 
@@ -206,7 +251,10 @@ mod tests {
         let empty_batch: Vec<(i64, Option<i64>, String)> = vec![];
         let result = store.insert_batch_parallel(empty_batch);
         assert!(result.is_ok(), "Empty batch should succeed");
-        assert!(result.unwrap().is_empty(), "Empty batch should return empty IDs");
+        assert!(
+            result.unwrap().is_empty(),
+            "Empty batch should return empty IDs"
+        );
 
         // Test with single document
         let single_doc = vec![(1, Some(1), "Single document".to_string())];
@@ -225,17 +273,37 @@ mod tests {
             store = VectorStore::new(Box::new(RealEmbeddings::new(384).unwrap()));
 
             for i in 0..size {
-                store.insert_text(i, None, &format!("Performance test document {}", i), "perf_test").unwrap();
+                store
+                    .insert_text(
+                        i,
+                        None,
+                        &format!("Performance test document {}", i),
+                        "perf_test",
+                    )
+                    .unwrap();
             }
 
             let start = Instant::now();
-            let results = store.search_parallel("performance", 10, SearchScope::Global).unwrap();
+            let results = store
+                .search_parallel("performance", 10, SearchScope::Global)
+                .unwrap();
             let duration = start.elapsed();
 
-            assert_eq!(results.len(), (size as usize).min(10), "Should return correct number of results");
-            assert!(duration.as_millis() < 1000, "Search should complete within 1 second for {} documents", size);
+            assert_eq!(
+                results.len(),
+                (size as usize).min(10),
+                "Should return correct number of results"
+            );
+            assert!(
+                duration.as_millis() < 1000,
+                "Search should complete within 1 second for {} documents",
+                size
+            );
 
-            println!("Parallel search time for {} documents: {:?}", size, duration);
+            println!(
+                "Parallel search time for {} documents: {:?}",
+                size, duration
+            );
         }
     }
 }

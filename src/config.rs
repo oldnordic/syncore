@@ -24,7 +24,7 @@ impl Config {
         let config: Config = toml::from_str(&content)?;
         Ok(config)
     }
-    
+
     pub fn save(&self, path: &str) -> anyhow::Result<()> {
         let content = toml::to_string_pretty(self)?;
         fs::write(path, content)?;

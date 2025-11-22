@@ -1,23 +1,31 @@
 //! Test-Driven Development for vector.insert MCP tool functionality
 
-
 use serde_json::json;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 use syncore::mcp::handle_mcp_request;
 use syncore::mcp::MCPRequest;
-use syncore::router::SynCoreState;
 use syncore::memory::Memory;
+use syncore::router::SynCoreState;
 use syncore::tasks::Tasks;
-use syncore::vector::{VectorStore, RealEmbeddings};
-use std::sync::{Arc, Mutex};
+use syncore::vector::{RealEmbeddings, VectorStore};
 
 #[tokio::test]
 async fn test_vector_insert_should_insert_text_and_return_success() {
     // Arrange: Create test state with vector store
     let memory = Arc::new(Memory::new("test_vector_insert_1.db").unwrap());
     let tasks = Arc::new(Tasks::new("test_vector_insert_tasks_1.db").unwrap());
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_vector_insert_1.db",
+            "test_vector_insert_1_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
         vector_store,
@@ -28,6 +36,7 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Create MCP request to insert vector
@@ -53,9 +62,19 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
     assert!(response.error.is_none(), "Should not return an error");
 
     let result = response.result.unwrap();
-    assert!(result.get("success").unwrap_or(&json!(false)).as_bool().unwrap(),
-             "Should indicate successful insertion");
-    assert_eq!(result.get("id").unwrap().as_i64().unwrap(), 1, "Should return the correct ID");
+    assert!(
+        result
+            .get("success")
+            .unwrap_or(&json!(false))
+            .as_bool()
+            .unwrap(),
+        "Should indicate successful insertion"
+    );
+    assert_eq!(
+        result.get("id").unwrap().as_i64().unwrap(),
+        1,
+        "Should return the correct ID"
+    );
 }
 
 #[tokio::test]
@@ -64,9 +83,17 @@ async fn test_vector_insert_should_handle_missing_text() {
     // Arrange: Create test state with multiple inserts
     let memory = Arc::new(Memory::new("test_vector_insert_2.db").unwrap());
     let tasks = Arc::new(Tasks::new("test_vector_insert_tasks_2.db").unwrap());
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_vector_insert_2.db",
+            "test_vector_insert_2_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
         vector_store,
@@ -77,6 +104,7 @@ async fn test_vector_insert_should_handle_missing_text() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Create request missing text parameter
@@ -102,8 +130,11 @@ async fn test_vector_insert_should_handle_missing_text() {
     assert!(response.error.is_some(), "Should return an error");
 
     let error = response.error.unwrap();
-    assert!(error.message.contains("Missing required field: text"),
-             "Error should mention missing text parameter, but got: {}", error.message);
+    assert!(
+        error.message.contains("Missing required field: text"),
+        "Error should mention missing text parameter, but got: {}",
+        error.message
+    );
 }
 
 #[tokio::test]
@@ -112,9 +143,17 @@ async fn test_vector_insert_should_handle_valid_scopes() {
     // Arrange: Create test state with empty vector store
     let memory = Arc::new(Memory::new("test_vector_insert_3.db").unwrap());
     let tasks = Arc::new(Tasks::new("test_vector_insert_tasks_3.db").unwrap());
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_vector_insert_3.db",
+            "test_vector_insert_3_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
         vector_store,
@@ -125,6 +164,7 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Test valid scopes
@@ -149,8 +189,16 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         let response = handle_mcp_request(request, &state).await;
 
         // Assert: Should succeed for valid scopes
-        assert!(response.result.is_some(), "Should return result for scope: {}", scope);
-        assert!(response.error.is_none(), "Should not error for scope: {}", scope);
+        assert!(
+            response.result.is_some(),
+            "Should return result for scope: {}",
+            scope
+        );
+        assert!(
+            response.error.is_none(),
+            "Should not error for scope: {}",
+            scope
+        );
     }
 }
 
@@ -160,9 +208,17 @@ async fn test_vector_insert_should_store_in_vector_store() {
     // Arrange: Create test state for vector insert with metadata
     let memory = Arc::new(Memory::new("test_vector_insert_4.db").unwrap());
     let tasks = Arc::new(Tasks::new("test_vector_insert_tasks_4.db").unwrap());
+    let db_manager = Arc::new(
+        syncore::db::DbManager::new(
+            "test_vector_insert_4.db",
+            "test_vector_insert_4_code_graph.db",
+        )
+        .unwrap(),
+    );
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let state = SynCoreState {
+        db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
         vector_store,
@@ -173,6 +229,7 @@ async fn test_vector_insert_should_store_in_vector_store() {
         faiss_queue: None,
         faiss_pool: None,
         neo4j: None,
+        hnsw_ready: Arc::new(AtomicBool::new(false)),
     };
 
     // Insert a document
@@ -212,9 +269,18 @@ async fn test_vector_insert_should_store_in_vector_store() {
     let search_response = handle_mcp_request(search_request, &state).await;
 
     // Assert: Should find the inserted document
-    assert!(search_response.result.is_some(), "Search should return result");
+    assert!(
+        search_response.result.is_some(),
+        "Search should return result"
+    );
 
     let search_result = search_response.result.unwrap();
-    let results = search_result.get("results").and_then(|r| r.as_array()).unwrap();
-    assert!(!results.is_empty(), "Should find the inserted document in search results");
+    let results = search_result
+        .get("results")
+        .and_then(|r| r.as_array())
+        .unwrap();
+    assert!(
+        !results.is_empty(),
+        "Should find the inserted document in search results"
+    );
 }

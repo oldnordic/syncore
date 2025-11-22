@@ -1,6 +1,6 @@
-use std::sync::Arc;
-use deadpool::managed::{Manager, Metrics, Pool, RecycleResult};
 use anyhow::Result;
+use deadpool::managed::{Manager, Metrics, Pool, RecycleResult};
+use std::sync::Arc;
 
 /// Wrapper for FAISS index to enable pooling
 pub struct FaissIndexWrapper {
@@ -46,9 +46,7 @@ pub struct FaissPool {
 
 impl FaissPool {
     pub fn new(path: impl Into<String>, size: usize) -> Arc<Self> {
-        let mgr = FaissManager {
-            path: path.into(),
-        };
+        let mgr = FaissManager { path: path.into() };
         Arc::new(Self {
             pool: Pool::builder(mgr).max_size(size).build().unwrap(),
         })

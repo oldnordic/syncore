@@ -2,11 +2,11 @@
 //! Ensures tests do NOT write to ~/.syncore or any global paths.
 //! Tests MUST pass custom database_path and vector_store_path.
 
+use std::fs;
+use std::path::{Path, PathBuf};
 use syncore::document_indexer::DocumentIndexer;
 use syncore::global_store::{GlobalDbPool, GlobalVectorStore};
 use tempfile::TempDir;
-use std::path::{Path, PathBuf};
-use std::fs;
 
 /// Helper to create isolated test environment
 fn create_isolated_env() -> TempDir {
@@ -15,9 +15,17 @@ fn create_isolated_env() -> TempDir {
 
 /// Helper to create test documents
 fn setup_test_docs(base: &Path) {
-    fs::write(base.join("readme.md"), "# Project README\n\nThis is documentation.").unwrap();
+    fs::write(
+        base.join("readme.md"),
+        "# Project README\n\nThis is documentation.",
+    )
+    .unwrap();
     fs::write(base.join("notes.txt"), "Important notes for the project.").unwrap();
-    fs::write(base.join("lib.rs"), "pub fn hello() { println!(\"hello\"); }").unwrap();
+    fs::write(
+        base.join("lib.rs"),
+        "pub fn hello() { println!(\"hello\"); }",
+    )
+    .unwrap();
 }
 
 #[test]
@@ -33,7 +41,8 @@ fn test_index_directory_with_custom_paths_does_not_touch_home() {
 
     // Use the NEW API with dependency injection
     let indexer = DocumentIndexer::with_defaults();
-    let chunk_count = indexer.index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
+    let chunk_count = indexer
+        .index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
         .expect("Should index with custom paths");
 
     assert!(chunk_count > 0, "Should have indexed documents");
@@ -74,8 +83,7 @@ fn test_global_db_pool_with_custom_path() {
     let db_path = temp_dir.path().join("custom.db");
 
     // Use NEW API with custom path
-    let pool = GlobalDbPool::new_with_path(&db_path)
-        .expect("Should create pool with custom path");
+    let pool = GlobalDbPool::new_with_path(&db_path).expect("Should create pool with custom path");
 
     // Verify database was created at custom path
     assert!(db_path.exists(), "Database should be at custom path");
@@ -91,14 +99,17 @@ fn test_global_db_pool_with_custom_path() {
         conn.execute(
             "INSERT INTO memory (k, v, ts) VALUES (?1, ?2, ?3)",
             ("test_key", "test_value", ts),
-        ).expect("Should insert to custom db");
+        )
+        .expect("Should insert to custom db");
     }
 
     // Verify data is in custom database
     {
         let conn = pool.get();
         let value: String = conn
-            .query_row("SELECT v FROM memory WHERE k = ?1", ["test_key"], |row| row.get(0))
+            .query_row("SELECT v FROM memory WHERE k = ?1", ["test_key"], |row| {
+                row.get(0)
+            })
             .expect("Should read from custom db");
         assert_eq!(value, "test_value");
     }
@@ -115,7 +126,8 @@ fn test_global_vector_store_with_custom_dir() {
         .expect("Should create store with custom path");
 
     // Insert text
-    store.insert_text(1, "Custom vector store test", "test_namespace")
+    store
+        .insert_text(1, "Custom vector store test", "test_namespace")
         .expect("Should insert to custom vector store");
 
     // Verify index exists in custom directory
@@ -181,14 +193,16 @@ fn test_multiple_indexing_sessions_same_temp_db() {
     let indexer = DocumentIndexer::with_defaults();
 
     // First indexing
-    let count1 = indexer.index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
+    let count1 = indexer
+        .index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
         .expect("First indexing should succeed");
 
     // Add more documents
     fs::write(docs_dir.join("extra.md"), "Extra content").unwrap();
 
     // Second indexing to same database
-    let count2 = indexer.index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
+    let count2 = indexer
+        .index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
         .expect("Second indexing should succeed");
 
     // Should have indexed more documents
@@ -207,12 +221,20 @@ fn test_indexer_returns_correct_chunk_count_with_custom_storage() {
 
     // Create documents with known content
     fs::write(docs_dir.join("short.md"), "Short").unwrap();
-    fs::write(docs_dir.join("medium.txt"), "Medium length document content here").unwrap();
+    fs::write(
+        docs_dir.join("medium.txt"),
+        "Medium length document content here",
+    )
+    .unwrap();
 
     let indexer = DocumentIndexer::with_defaults();
-    let chunk_count = indexer.index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
+    let chunk_count = indexer
+        .index_directory_with_storage(&docs_dir, &db_path, &vectors_dir)
         .expect("Should index successfully");
 
     // Each small document should create exactly 1 chunk
-    assert!(chunk_count >= 2, "Should have at least 2 chunks for 2 documents");
+    assert!(
+        chunk_count >= 2,
+        "Should have at least 2 chunks for 2 documents"
+    );
 }

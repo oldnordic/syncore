@@ -47,8 +47,7 @@ pub struct CodeGraphStore {
 impl CodeGraphStore {
     /// Create store with custom paths (for test isolation)
     pub fn new_with_paths(db_path: &Path, vectors_dir: &Path) -> Result<Self> {
-        let namespace =
-            std::env::var("GRAPH_NAMESPACE").unwrap_or_else(|_| "default".to_string());
+        let namespace = std::env::var("GRAPH_NAMESPACE").unwrap_or_else(|_| "default".to_string());
 
         let conn = Connection::open(db_path)?;
         Self::init_schema(&conn)?;
@@ -193,7 +192,12 @@ impl CodeGraphStore {
             self.conn.execute(
                 "INSERT INTO code_graph_implementations (namespace, struct_name, trait_name, line)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![self.namespace, imp.struct_name, imp.trait_name, imp.line as i64],
+                params![
+                    self.namespace,
+                    imp.struct_name,
+                    imp.trait_name,
+                    imp.line as i64
+                ],
             )?;
         }
 
@@ -387,13 +391,18 @@ impl CodeGraphStore {
 
         scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-        Ok(scores.into_iter().take(limit).map(|(name, _)| name).collect())
+        Ok(scores
+            .into_iter()
+            .take(limit)
+            .map(|(name, _)| name)
+            .collect())
     }
 
     /// Sync code graph to Neo4j (graceful fallback if unavailable)
     pub fn sync_to_neo4j(&self) -> Result<()> {
         // Try to connect to Neo4j
-        let neo4j_uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
+        let neo4j_uri =
+            std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
         let neo4j_user = std::env::var("NEO4J_USER").unwrap_or_else(|_| "neo4j".to_string());
         let neo4j_pass = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string());
 
@@ -500,7 +509,8 @@ impl CodeGraphStore {
 
     /// Query Neo4j for function calls
     pub fn query_neo4j_calls(&self, function_name: &str) -> Result<Vec<String>> {
-        let neo4j_uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
+        let neo4j_uri =
+            std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
         let neo4j_user = std::env::var("NEO4J_USER").unwrap_or_else(|_| "neo4j".to_string());
         let neo4j_pass = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string());
 
@@ -513,15 +523,22 @@ impl CodeGraphStore {
 
             let query = neo4rs::query(
                 "MATCH (a:Function {name: $name, namespace: $ns})-[:CALLS]->(b:Function)
-                 RETURN b.name AS callee"
+                 RETURN b.name AS callee",
             )
             .param("name", function_name.to_string())
             .param("ns", self.namespace.clone());
 
-            let mut result = graph.execute(query).await.map_err(|e| anyhow!("Neo4j connection/query error: {}", e))?;
+            let mut result = graph
+                .execute(query)
+                .await
+                .map_err(|e| anyhow!("Neo4j connection/query error: {}", e))?;
 
             let mut callees = Vec::new();
-            while let Some(row) = result.next().await.map_err(|e| anyhow!("Neo4j row error: {}", e))? {
+            while let Some(row) = result
+                .next()
+                .await
+                .map_err(|e| anyhow!("Neo4j row error: {}", e))?
+            {
                 if let Ok(name) = row.get::<String>("callee") {
                     callees.push(name);
                 }
@@ -533,7 +550,8 @@ impl CodeGraphStore {
 
     /// Query Neo4j for implementations
     pub fn query_neo4j_implementations(&self, struct_name: &str) -> Result<Vec<String>> {
-        let neo4j_uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
+        let neo4j_uri =
+            std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://localhost:7687".to_string());
         let neo4j_user = std::env::var("NEO4J_USER").unwrap_or_else(|_| "neo4j".to_string());
         let neo4j_pass = std::env::var("NEO4J_PASSWORD").unwrap_or_else(|_| "password".to_string());
 
@@ -546,15 +564,22 @@ impl CodeGraphStore {
 
             let query = neo4rs::query(
                 "MATCH (s:Struct {name: $name, namespace: $ns})-[:IMPLEMENTS]->(t:Trait)
-                 RETURN t.name AS trait_name"
+                 RETURN t.name AS trait_name",
             )
             .param("name", struct_name.to_string())
             .param("ns", self.namespace.clone());
 
-            let mut result = graph.execute(query).await.map_err(|e| anyhow!("Neo4j connection/query error: {}", e))?;
+            let mut result = graph
+                .execute(query)
+                .await
+                .map_err(|e| anyhow!("Neo4j connection/query error: {}", e))?;
 
             let mut traits = Vec::new();
-            while let Some(row) = result.next().await.map_err(|e| anyhow!("Neo4j row error: {}", e))? {
+            while let Some(row) = result
+                .next()
+                .await
+                .map_err(|e| anyhow!("Neo4j row error: {}", e))?
+            {
                 if let Ok(name) = row.get::<String>("trait_name") {
                     traits.push(name);
                 }
@@ -599,7 +624,11 @@ impl CodeGraphStore {
         })
     }
 
-    fn search_similar_with_scores(&self, query: &str, limit: usize) -> Result<Vec<SemanticNeighbor>> {
+    fn search_similar_with_scores(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<SemanticNeighbor>> {
         if self.embeddings.is_empty() {
             return Ok(vec![]);
         }
@@ -627,7 +656,11 @@ impl CodeGraphStore {
             })
             .collect();
 
-        scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scores.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(scores.into_iter().take(limit).collect())
     }

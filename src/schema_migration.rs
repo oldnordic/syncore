@@ -1,7 +1,7 @@
 // Schema Migration System for SynCore
 // Ensures backward compatibility and automatic schema upgrades
 
-use anyhow::{Result, Context, anyhow};
+use anyhow::{anyhow, Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version
@@ -78,13 +78,11 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
     // Apply migrations in order, skipping already-applied ones
     if current_version < 1 {
-        migration_001_initial_schema(conn)
-            .context("Failed to run migration 001")?;
+        migration_001_initial_schema(conn).context("Failed to run migration 001")?;
     }
 
     if current_version < 2 {
-        migration_002_intellitask_fields(conn)
-            .context("Failed to run migration 002")?;
+        migration_002_intellitask_fields(conn).context("Failed to run migration 002")?;
     }
 
     // Verify we're at the expected version
@@ -105,7 +103,11 @@ fn migration_001_initial_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(include_str!("../migrations/01_core.sql"))
         .context("Failed to apply migration 001: Initial core schema")?;
 
-    set_schema_version(conn, 1, "Initial core schema (tasks, memories, steps, embeddings)")?;
+    set_schema_version(
+        conn,
+        1,
+        "Initial core schema (tasks, memories, steps, embeddings)",
+    )?;
     Ok(())
 }
 
@@ -129,8 +131,8 @@ fn migration_002_intellitask_fields(conn: &Connection) -> Result<()> {
         ("prd_title", "TEXT"),
         ("complexity", "TEXT"),
         ("estimated_hours", "REAL"),
-        ("acceptance_criteria", "TEXT"),  // JSON array
-        ("files_to_modify", "TEXT"),      // JSON array
+        ("acceptance_criteria", "TEXT"), // JSON array
+        ("files_to_modify", "TEXT"),     // JSON array
     ];
 
     for (col_name, col_type) in columns_to_add {
@@ -148,7 +150,11 @@ fn migration_002_intellitask_fields(conn: &Connection) -> Result<()> {
         "#,
     )?;
 
-    set_schema_version(conn, 2, "Add IntelliTask fields (task_id, complexity, estimated_hours, etc.)")?;
+    set_schema_version(
+        conn,
+        2,
+        "Add IntelliTask fields (task_id, complexity, estimated_hours, etc.)",
+    )?;
     Ok(())
 }
 
@@ -235,7 +241,10 @@ mod tests {
                 |_| Ok(true),
             )
             .unwrap_or(false);
-        assert!(links_exists, "Task links table should exist after migration 001");
+        assert!(
+            links_exists,
+            "Task links table should exist after migration 001"
+        );
     }
 
     #[test]
@@ -254,7 +263,11 @@ mod tests {
             "SELECT task_id, complexity, estimated_hours, acceptance_criteria, files_to_modify FROM tasks"
         );
 
-        assert!(result.is_ok(), "IntelliTask columns should exist after migration 002: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "IntelliTask columns should exist after migration 002: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -267,7 +280,10 @@ mod tests {
         let result = migration_001_initial_schema(&conn);
 
         // Should not fail on second run (idempotent)
-        assert!(result.is_ok(), "Migration 001 should be idempotent (safe to run twice)");
+        assert!(
+            result.is_ok(),
+            "Migration 001 should be idempotent (safe to run twice)"
+        );
     }
 
     #[test]
@@ -281,7 +297,10 @@ mod tests {
         let result = migration_002_intellitask_fields(&conn);
 
         // Should not fail on second run (idempotent)
-        assert!(result.is_ok(), "Migration 002 should be idempotent (safe to run twice)");
+        assert!(
+            result.is_ok(),
+            "Migration 002 should be idempotent (safe to run twice)"
+        );
     }
 
     #[test]
@@ -293,11 +312,18 @@ mod tests {
 
         // Verify we're at current version
         let version = get_schema_version(&conn).expect("Should have version");
-        assert_eq!(version, CURRENT_SCHEMA_VERSION, "Should be at current schema version");
+        assert_eq!(
+            version, CURRENT_SCHEMA_VERSION,
+            "Should be at current schema version"
+        );
 
         // Verify all tables exist
         let tasks_exists: bool = conn
-            .query_row("SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks'", [], |_| Ok(true))
+            .query_row(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks'",
+                [],
+                |_| Ok(true),
+            )
             .unwrap_or(false);
         assert!(tasks_exists, "Tasks table should exist");
     }
@@ -329,6 +355,9 @@ mod tests {
 
         // Should still be at current version
         let version = get_schema_version(&conn).expect("Should have version");
-        assert_eq!(version, CURRENT_SCHEMA_VERSION, "Should still be at current version");
+        assert_eq!(
+            version, CURRENT_SCHEMA_VERSION,
+            "Should still be at current version"
+        );
     }
 }

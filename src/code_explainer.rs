@@ -1,7 +1,7 @@
-use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
-use crate::parser::Parser;
 use crate::ollama::OllamaClient;
+use crate::parser::Parser;
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 /// Request to explain code
@@ -87,7 +87,9 @@ impl CodeExplainer {
         func_name: &str,
     ) -> Result<ExplainResponse> {
         // Find the function in the parsed structure
-        let func_info = structure.functions.iter()
+        let func_info = structure
+            .functions
+            .iter()
             .find(|f| f.name == func_name)
             .ok_or_else(|| anyhow!("Function '{}' not found in file", func_name))?;
 
@@ -100,7 +102,11 @@ impl CodeExplainer {
         let end_line = func_info.end_line;
 
         if start_line == 0 || end_line == 0 || start_line > lines.len() || end_line > lines.len() {
-            return Err(anyhow!("Invalid line numbers for function: start={}, end={}", start_line, end_line));
+            return Err(anyhow!(
+                "Invalid line numbers for function: start={}, end={}",
+                start_line,
+                end_line
+            ));
         }
 
         let function_code = lines[(start_line - 1)..end_line].join("\n");
@@ -114,13 +120,13 @@ impl CodeExplainer {
              Function signature: {}\n\n\
              Code:\n{}\n\n\
              Explanation:",
-            structure.language,
-            signature,
-            function_code
+            structure.language, signature, function_code
         );
 
         // Get explanation from Ollama
-        let explanation = self.ollama.generate(&prompt)
+        let explanation = self
+            .ollama
+            .generate(&prompt)
             .map_err(|e| anyhow!("Failed to generate explanation: {}", e))?;
 
         Ok(ExplainResponse {
@@ -159,12 +165,13 @@ impl CodeExplainer {
             "Explain the purpose and structure of this {} source file in 3-4 sentences.\n\n\
              File structure:\n{}\n\n\
              Explanation:",
-            structure.language,
-            summary
+            structure.language, summary
         );
 
         // Get explanation from Ollama
-        let explanation = self.ollama.generate(&prompt)
+        let explanation = self
+            .ollama
+            .generate(&prompt)
             .map_err(|e| anyhow!("Failed to generate explanation: {}", e))?;
 
         Ok(ExplainResponse {
@@ -202,9 +209,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     fn create_test_rust_file() -> Result<NamedTempFile> {
-        let file = tempfile::Builder::new()
-            .suffix(".rs")
-            .tempfile()?;
+        let file = tempfile::Builder::new().suffix(".rs").tempfile()?;
         let content = r#"
 pub fn add(a: i32, b: i32) -> i32 {
     a + b

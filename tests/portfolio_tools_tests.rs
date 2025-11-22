@@ -4,12 +4,15 @@
 //! with real database operations (NO MOCKS, NO STUBS)
 
 use anyhow::Result;
-use syncore::router::SynCoreState;
-use syncore::memory::Memory;
-use syncore::tasks::Tasks;
-use syncore::vector::{VectorStore, RealEmbeddings};
-use syncore::message_bus::{MessageBus, message::{AgentId, MsgKind}};
 use std::sync::{Arc, Mutex};
+use syncore::memory::Memory;
+use syncore::message_bus::{
+    message::{AgentId, MsgKind},
+    MessageBus,
+};
+use syncore::router::SynCoreState;
+use syncore::tasks::Tasks;
+use syncore::vector::{RealEmbeddings, VectorStore};
 
 /// Helper to create isolated test state with MessageBus
 fn create_test_state() -> SynCoreState {
@@ -36,7 +39,7 @@ fn create_test_state() -> SynCoreState {
 
 #[test]
 fn test_mapping_tool_records_file_structure() {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
 
     let state = create_test_state();
     let mapper = MappingTool::new(state.clone());
@@ -65,7 +68,7 @@ fn test_mapping_tool_records_file_structure() {
 
 #[test]
 fn test_mapping_tool_broadcasts_event() {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
 
     let state = create_test_state();
     let bus = state.message_bus.clone().expect("Bus should exist");
@@ -86,7 +89,8 @@ fn test_mapping_tool_broadcasts_event() {
 
     // Check that event was broadcast
     let history = bus.message_history();
-    let mapping_events: Vec<_> = history.iter()
+    let mapping_events: Vec<_> = history
+        .iter()
         .filter(|msg| matches!(&msg.kind, MsgKind::Event(e) if e == "mapping_update"))
         .collect();
 
@@ -96,7 +100,7 @@ fn test_mapping_tool_broadcasts_event() {
 
 #[test]
 fn test_mapping_tool_semantic_search() {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
 
     let state = create_test_state();
     let mapper = MappingTool::new(state);
@@ -134,7 +138,7 @@ fn test_mapping_tool_semantic_search() {
 
 #[test]
 fn test_mapping_tool_dependency_graph() {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
 
     let state = create_test_state();
     let mapper = MappingTool::new(state);
@@ -204,7 +208,10 @@ fn test_sequential_step_records_thought() {
     // Verify step is persisted
     let steps = sequential.get_steps_for_task(42).unwrap();
     assert_eq!(steps.len(), 1);
-    assert_eq!(steps[0].thought, "Analyzing the user's request for authentication");
+    assert_eq!(
+        steps[0].thought,
+        "Analyzing the user's request for authentication"
+    );
 }
 
 #[test]
@@ -229,11 +236,15 @@ fn test_sequential_step_broadcasts_event() {
     sequential.record_step(&step).unwrap();
 
     let history = bus.message_history();
-    let step_events: Vec<_> = history.iter()
+    let step_events: Vec<_> = history
+        .iter()
         .filter(|msg| matches!(&msg.kind, MsgKind::Event(e) if e == "sequential_step"))
         .collect();
 
-    assert!(!step_events.is_empty(), "Should broadcast sequential step event");
+    assert!(
+        !step_events.is_empty(),
+        "Should broadcast sequential step event"
+    );
     assert_eq!(step_events[0].payload["task_id"], 10);
     assert_eq!(step_events[0].payload["step_number"], 1);
 }
@@ -286,7 +297,9 @@ fn test_sequential_step_search_by_content() {
     sequential.record_step(&step).unwrap();
 
     // Search by semantic content
-    let results = sequential.search_steps("vector database performance").unwrap();
+    let results = sequential
+        .search_steps("vector database performance")
+        .unwrap();
     assert!(!results.is_empty());
     assert!(results[0].thought.contains("FAISS"));
 }
@@ -314,7 +327,11 @@ fn test_application_tool_records_change() {
     };
 
     let result = app_tool.record_change(&change);
-    assert!(result.is_ok(), "Failed to record change: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to record change: {:?}",
+        result.err()
+    );
 
     // Verify persisted
     let changes = app_tool.get_changes_for_task(42).unwrap();
@@ -346,11 +363,15 @@ fn test_application_tool_broadcasts_event() {
     app_tool.record_change(&change).unwrap();
 
     let history = bus.message_history();
-    let change_events: Vec<_> = history.iter()
+    let change_events: Vec<_> = history
+        .iter()
         .filter(|msg| matches!(&msg.kind, MsgKind::Event(e) if e == "code_change"))
         .collect();
 
-    assert!(!change_events.is_empty(), "Should broadcast code change event");
+    assert!(
+        !change_events.is_empty(),
+        "Should broadcast code change event"
+    );
     assert_eq!(change_events[0].payload["file_path"], "src/api.rs");
     assert_eq!(change_events[0].payload["change_type"], "modify");
 }
@@ -433,9 +454,9 @@ fn test_application_tool_change_history_for_file() {
 
 #[test]
 fn test_all_tools_share_message_bus() {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
-    use syncore::portfolio::sequential_step::{SequentialStep, ThoughtStep};
     use syncore::portfolio::application_tool::{ApplicationTool, CodeChange};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
+    use syncore::portfolio::sequential_step::{SequentialStep, ThoughtStep};
 
     let state = create_test_state();
     let bus = state.message_bus.clone().expect("Bus should exist");
@@ -448,40 +469,47 @@ fn test_all_tools_share_message_bus() {
     let app_tool = ApplicationTool::new(state);
 
     // Each tool publishes an event
-    mapper.record_file(&FileNode {
-        path: "src/test.rs".to_string(),
-        kind: "file".to_string(),
-        language: Some("rust".to_string()),
-        imports: vec![],
-        exports: vec![],
-        dependencies: vec![],
-    }).unwrap();
+    mapper
+        .record_file(&FileNode {
+            path: "src/test.rs".to_string(),
+            kind: "file".to_string(),
+            language: Some("rust".to_string()),
+            imports: vec![],
+            exports: vec![],
+            dependencies: vec![],
+        })
+        .unwrap();
 
-    sequential.record_step(&ThoughtStep {
-        task_id: Some(1),
-        step_number: 1,
-        thought: "Test thought".to_string(),
-        action: None,
-        observation: None,
-        reasoning: "Test reasoning".to_string(),
-    }).unwrap();
+    sequential
+        .record_step(&ThoughtStep {
+            task_id: Some(1),
+            step_number: 1,
+            thought: "Test thought".to_string(),
+            action: None,
+            observation: None,
+            reasoning: "Test reasoning".to_string(),
+        })
+        .unwrap();
 
-    app_tool.record_change(&CodeChange {
-        file_path: "src/test.rs".to_string(),
-        change_type: "add".to_string(),
-        old_content: None,
-        new_content: Some("// test".to_string()),
-        line_start: 1,
-        line_end: 1,
-        description: "Added test file".to_string(),
-        task_id: Some(1),
-    }).unwrap();
+    app_tool
+        .record_change(&CodeChange {
+            file_path: "src/test.rs".to_string(),
+            change_type: "add".to_string(),
+            old_content: None,
+            new_content: Some("// test".to_string()),
+            line_start: 1,
+            line_end: 1,
+            description: "Added test file".to_string(),
+            task_id: Some(1),
+        })
+        .unwrap();
 
     // All events should be in shared history
     let history = bus.message_history();
     assert_eq!(history.len(), 3, "Should have 3 events from 3 tools");
 
-    let event_types: Vec<String> = history.iter()
+    let event_types: Vec<String> = history
+        .iter()
         .filter_map(|msg| match &msg.kind {
             MsgKind::Event(e) => Some(e.clone()),
             _ => None,
@@ -526,7 +554,7 @@ async fn create_neo4j_test_state() -> SynCoreState {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_mapping_tool_creates_neo4j_file_nodes() {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
 
     let state = create_neo4j_test_state().await;
     let mapper = MappingTool::new(state.clone());
@@ -545,22 +573,28 @@ async fn test_mapping_tool_creates_neo4j_file_nodes() {
 
     // Verify Neo4j has the File node and DEPENDS_ON relationship
     let neo4j = state.neo4j.as_ref().unwrap();
-    let results = neo4j.execute_query(
-        "MATCH (f:File {path: $path}) RETURN f.path as path",
-        vec![("path", serde_json::json!("src/test_neo4j_a.rs"))]
-    ).await.unwrap();
+    let results = neo4j
+        .execute_query(
+            "MATCH (f:File {path: $path}) RETURN f.path as path",
+            vec![("path", serde_json::json!("src/test_neo4j_a.rs"))],
+        )
+        .await
+        .unwrap();
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0]["path"], "src/test_neo4j_a.rs");
 
     // Verify DEPENDS_ON relationship was created
-    let dep_results = neo4j.execute_query(
-        "MATCH (a:File {path: $from})-[:DEPENDS_ON]->(b:File {path: $to}) RETURN b.path as dep",
-        vec![
-            ("from", serde_json::json!("src/test_neo4j_a.rs")),
-            ("to", serde_json::json!("src/test_neo4j_b.rs"))
-        ]
-    ).await.unwrap();
+    let dep_results = neo4j
+        .execute_query(
+            "MATCH (a:File {path: $from})-[:DEPENDS_ON]->(b:File {path: $to}) RETURN b.path as dep",
+            vec![
+                ("from", serde_json::json!("src/test_neo4j_a.rs")),
+                ("to", serde_json::json!("src/test_neo4j_b.rs")),
+            ],
+        )
+        .await
+        .unwrap();
 
     assert_eq!(dep_results.len(), 1);
     assert_eq!(dep_results[0]["dep"], "src/test_neo4j_b.rs");
@@ -645,13 +679,16 @@ async fn test_application_tool_creates_neo4j_patch_nodes() {
     // Verify Neo4j has the Patch node
     let neo4j = state.neo4j.as_ref().unwrap();
     let ns = neo4j.namespace();
-    let results = neo4j.execute_query(
-        "MATCH (p:Patch {id: $id, namespace: $ns}) RETURN p.id as id",
-        vec![
-            ("id", serde_json::json!(patch_id)),
-            ("ns", serde_json::json!(ns))
-        ]
-    ).await.unwrap();
+    let results = neo4j
+        .execute_query(
+            "MATCH (p:Patch {id: $id, namespace: $ns}) RETURN p.id as id",
+            vec![
+                ("id", serde_json::json!(patch_id)),
+                ("ns", serde_json::json!(ns)),
+            ],
+        )
+        .await
+        .unwrap();
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0]["id"], patch_id);

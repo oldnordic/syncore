@@ -3,12 +3,12 @@ use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
 
 use syncore::{
-    sequential::{SequentialCore, LanguageModel},
-    tasks::{Tasks, Task},
-    vector::{VectorStore, RealEmbeddings, Embeddings},
-    memory::Memory,
-    logger::CogLogger,
     cognitive_db,
+    logger::CogLogger,
+    memory::Memory,
+    sequential::{LanguageModel, SequentialCore},
+    tasks::{Task, Tasks},
+    vector::{Embeddings, RealEmbeddings, VectorStore},
 };
 
 // Test implementation of LanguageModel that provides realistic responses
@@ -152,7 +152,11 @@ async fn test_sequential_core_real_implementation() -> Result<()> {
     let db = tasks.get_db();
     let db_guard = db.lock().unwrap();
     let steps = syncore::cognitive_db::recent_steps(&db_guard, completed_task.id, 10)?;
-    assert_eq!(steps.len(), 4, "Should have Think, Decide, Act, Reflect steps");
+    assert_eq!(
+        steps.len(),
+        4,
+        "Should have Think, Decide, Act, Reflect steps"
+    );
 
     let step_types: Vec<String> = steps.iter().map(|s| s.state.clone()).collect();
     assert!(step_types.contains(&"Think".to_string()));
@@ -198,8 +202,18 @@ async fn test_sequential_core_context_building_with_real_embeddings() -> Result<
     // Insert some test context into vector store
     {
         let mut vs = vector_store.lock().unwrap();
-        vs.insert_text(task.id, Some(task.id), "Previous context information about cats and dogs", "context")?;
-        vs.insert_text(task.id, Some(task.id), "Additional context about programming and algorithms", "context")?;
+        vs.insert_text(
+            task.id,
+            Some(task.id),
+            "Previous context information about cats and dogs",
+            "context",
+        )?;
+        vs.insert_text(
+            task.id,
+            Some(task.id),
+            "Additional context about programming and algorithms",
+            "context",
+        )?;
     }
 
     // Test context building by accessing the private method through the public interface
@@ -228,13 +242,7 @@ async fn test_sequential_core_no_tasks_with_real_implementation() -> Result<()> 
     let logger = Arc::new(TestLogger::new());
 
     // Create SequentialCore with no tasks
-    let core = SequentialCore::new(
-        tasks.clone(),
-        vector_store.clone(),
-        memory,
-        model,
-        logger,
-    );
+    let core = SequentialCore::new(tasks.clone(), vector_store.clone(), memory, model, logger);
 
     // Run cycle - should complete without error even with no tasks
     core.run_cycle()?;

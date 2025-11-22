@@ -2,7 +2,7 @@
 // Shows how articles and knowledge are shared across all SynCore projects
 
 use anyhow::Result;
-use syncore::global_store::{GlobalDbPool, GlobalVectorStore, get_global_dir, get_global_db_path};
+use syncore::global_store::{get_global_db_path, get_global_dir, GlobalDbPool, GlobalVectorStore};
 
 fn main() -> Result<()> {
     println!("=== SynCore Global Knowledge Store ===\n");
@@ -39,7 +39,11 @@ fn main() -> Result<()> {
 
         conn.execute(
             "INSERT OR REPLACE INTO memory (k, v, ts) VALUES (?1, ?2, ?3)",
-            ("global_demo_key", "This knowledge is shared across all projects!", ts),
+            (
+                "global_demo_key",
+                "This knowledge is shared across all projects!",
+                ts,
+            ),
         )?;
 
         println!("   ✓ Stored knowledge: 'global_demo_key' → 'This knowledge is shared across all projects!'");
@@ -47,9 +51,18 @@ fn main() -> Result<()> {
 
     // Demonstrate vector storage paths
     println!("\n5. Vector Storage:");
-    println!("   Articles index:       {}", vector_store.get_index_path("articles").display());
-    println!("   Code patterns index:  {}", vector_store.get_index_path("code_patterns").display());
-    println!("   Documentation index:  {}", vector_store.get_index_path("documentation").display());
+    println!(
+        "   Articles index:       {}",
+        vector_store.get_index_path("articles").display()
+    );
+    println!(
+        "   Code patterns index:  {}",
+        vector_store.get_index_path("code_patterns").display()
+    );
+    println!(
+        "   Documentation index:  {}",
+        vector_store.get_index_path("documentation").display()
+    );
     println!();
 
     println!("6. Benefits:");

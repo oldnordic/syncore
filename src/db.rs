@@ -1,7 +1,11 @@
-use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
-use std::path::Path;
 use crate::schema_migration;
+use rusqlite::Connection;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+
+// Export DbManager module (new centralized SQLite connection manager)
+pub mod manager;
+pub use manager::DbManager;
 
 pub fn open_db_with_wal(path: &str) -> rusqlite::Result<Connection> {
     let db = Connection::open(path)?;
@@ -28,7 +32,8 @@ pub fn ensure_schema(db_path: &str) -> anyhow::Result<()> {
     let db = open_db_with_wal(db_path)?;
 
     // Check if tasks table exists to determine if we need to run migration
-    let mut stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")?;
+    let mut stmt =
+        db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")?;
     let has_tasks = stmt.exists([])?;
 
     if !has_tasks {
@@ -43,7 +48,8 @@ pub fn ensure_schema(db_path: &str) -> anyhow::Result<()> {
     }
 
     // Check if code_entities table exists for code graph migration
-    let mut stmt = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='code_entities'")?;
+    let mut stmt =
+        db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='code_entities'")?;
     let has_code_entities = stmt.exists([])?;
 
     if !has_code_entities {

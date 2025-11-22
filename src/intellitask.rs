@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
-use schemars::JsonSchema;
-use std::sync::Arc;
 use crate::ollama::OllamaClient;
+use anyhow::{anyhow, Result};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 /// Task breakdown from a Product Requirements Document
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -16,11 +16,11 @@ pub struct TaskBreakdown {
 /// Parent task containing multiple subtasks
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ParentTask {
-    pub id: String,  // e.g., "1.0"
+    pub id: String, // e.g., "1.0"
     pub title: String,
     pub description: String,
     pub subtasks: Vec<Subtask>,
-    pub dependencies: Vec<String>,  // IDs of tasks this depends on
+    pub dependencies: Vec<String>, // IDs of tasks this depends on
     pub complexity: Complexity,
     pub estimated_hours: f32,
 }
@@ -28,10 +28,10 @@ pub struct ParentTask {
 /// Individual subtask within a parent task
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Subtask {
-    pub id: String,  // e.g., "1.1"
+    pub id: String, // e.g., "1.1"
     pub description: String,
     pub acceptance_criteria: Vec<String>,
-    pub dependencies: Vec<String>,  // IDs of subtasks this depends on
+    pub dependencies: Vec<String>, // IDs of subtasks this depends on
     pub files_to_modify: Vec<String>,
     pub complexity: Complexity,
     pub estimated_hours: f32,
@@ -57,22 +57,22 @@ pub enum FileAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Complexity {
-    Trivial,    // < 1 hour
-    Simple,     // 1-4 hours
-    Moderate,   // 4-16 hours
-    Complex,    // 16-40 hours
-    VeryComplex // > 40 hours
+    Trivial,     // < 1 hour
+    Simple,      // 1-4 hours
+    Moderate,    // 4-16 hours
+    Complex,     // 16-40 hours
+    VeryComplex, // > 40 hours
 }
 
 /// Task priority determined by AI reasoning
 /// Ordering: Critical > High > Medium > Low > Optional
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TaskPriority {
-    Optional,   // Can skip if needed (lowest priority)
-    Low,        // Nice to have
-    Medium,     // Normal priority
-    High,       // Important, do soon
-    Critical,   // Blocking, must do first (highest priority)
+    Optional, // Can skip if needed (lowest priority)
+    Low,      // Nice to have
+    Medium,   // Normal priority
+    High,     // Important, do soon
+    Critical, // Blocking, must do first (highest priority)
 }
 
 /// IntelliTask: Advanced AI-powered task management using phi3:mini reasoning
@@ -182,8 +182,13 @@ impl IntelliTask {
 
         // Parse JSON response (strip markdown wrapper if present)
         let cleaned_response = Self::strip_markdown_json(&response);
-        let breakdown: TaskBreakdown = serde_json::from_str(&cleaned_response)
-            .map_err(|e| anyhow!("Failed to parse AI response as JSON: {}. Response was: {}", e, response))?;
+        let breakdown: TaskBreakdown = serde_json::from_str(&cleaned_response).map_err(|e| {
+            anyhow!(
+                "Failed to parse AI response as JSON: {}. Response was: {}",
+                e,
+                response
+            )
+        })?;
 
         Ok(breakdown)
     }
@@ -209,7 +214,11 @@ impl IntelliTask {
     }
 
     /// Generate subtasks for a parent task using AI reasoning with JSON schema constraints
-    pub fn generate_subtasks(&self, parent_task: &ParentTask, codebase_context: &str) -> Result<Vec<Subtask>> {
+    pub fn generate_subtasks(
+        &self,
+        parent_task: &ParentTask,
+        codebase_context: &str,
+    ) -> Result<Vec<Subtask>> {
         let prompt = format!(
             "You are an expert developer breaking down a high-level task into implementation steps.\n\n\
             PARENT TASK:\n\
@@ -258,8 +267,13 @@ impl IntelliTask {
 
         // Parse JSON response (strip markdown wrapper if present)
         let cleaned_response = Self::strip_markdown_json(&response);
-        let subtasks: Vec<Subtask> = serde_json::from_str(&cleaned_response)
-            .map_err(|e| anyhow!("Failed to parse subtasks JSON: {}. Response was: {}", e, response))?;
+        let subtasks: Vec<Subtask> = serde_json::from_str(&cleaned_response).map_err(|e| {
+            anyhow!(
+                "Failed to parse subtasks JSON: {}. Response was: {}",
+                e,
+                response
+            )
+        })?;
 
         Ok(subtasks)
     }
@@ -296,14 +310,23 @@ impl IntelliTask {
             execution_order: Vec<String>,
         }
 
-        let analysis: DependencyAnalysis = serde_json::from_str(json_str)
-            .map_err(|e| anyhow!("Failed to parse dependency analysis: {}. Response was: {}", e, json_str))?;
+        let analysis: DependencyAnalysis = serde_json::from_str(json_str).map_err(|e| {
+            anyhow!(
+                "Failed to parse dependency analysis: {}. Response was: {}",
+                e,
+                json_str
+            )
+        })?;
 
         Ok(analysis.execution_order)
     }
 
     /// Prioritize tasks based on complexity, dependencies, and business value
-    pub fn prioritize_tasks(&self, tasks: &[ParentTask], business_context: &str) -> Result<Vec<(String, TaskPriority)>> {
+    pub fn prioritize_tasks(
+        &self,
+        tasks: &[ParentTask],
+        business_context: &str,
+    ) -> Result<Vec<(String, TaskPriority)>> {
         let tasks_json = serde_json::to_string_pretty(tasks)?;
 
         let prompt = format!(
@@ -323,8 +346,7 @@ impl IntelliTask {
               ]\n\
             }}\n\n\
             Respond ONLY with JSON, no additional text.",
-            tasks_json,
-            business_context
+            tasks_json, business_context
         );
 
         let response = self.generate(&prompt)?;
@@ -341,23 +363,36 @@ impl IntelliTask {
             priority: String,
         }
 
-        let result: PriorityResult = serde_json::from_str(json_str)
-            .map_err(|e| anyhow!("Failed to parse priority analysis: {}. Response was: {}", e, json_str))?;
+        let result: PriorityResult = serde_json::from_str(json_str).map_err(|e| {
+            anyhow!(
+                "Failed to parse priority analysis: {}. Response was: {}",
+                e,
+                json_str
+            )
+        })?;
 
-        Ok(result.priorities.into_iter().map(|p| {
-            let priority = match p.priority.as_str() {
-                "Critical" => TaskPriority::Critical,
-                "High" => TaskPriority::High,
-                "Medium" => TaskPriority::Medium,
-                "Low" => TaskPriority::Low,
-                _ => TaskPriority::Optional,
-            };
-            (p.task_id, priority)
-        }).collect())
+        Ok(result
+            .priorities
+            .into_iter()
+            .map(|p| {
+                let priority = match p.priority.as_str() {
+                    "Critical" => TaskPriority::Critical,
+                    "High" => TaskPriority::High,
+                    "Medium" => TaskPriority::Medium,
+                    "Low" => TaskPriority::Low,
+                    _ => TaskPriority::Optional,
+                };
+                (p.task_id, priority)
+            })
+            .collect())
     }
 
     /// Suggest next task to work on based on current progress
-    pub fn suggest_next_task(&self, completed_tasks: &[String], remaining_tasks: &[ParentTask]) -> Result<String> {
+    pub fn suggest_next_task(
+        &self,
+        completed_tasks: &[String],
+        remaining_tasks: &[ParentTask],
+    ) -> Result<String> {
         let completed = completed_tasks.join(", ");
         let remaining_json = serde_json::to_string_pretty(remaining_tasks)?;
 
@@ -378,8 +413,7 @@ impl IntelliTask {
               \"estimated_completion_time\": \"4 hours\"\n\
             }}\n\n\
             Respond ONLY with JSON, no additional text.",
-            completed,
-            remaining_json
+            completed, remaining_json
         );
 
         let response = self.generate(&prompt)?;
@@ -391,10 +425,18 @@ impl IntelliTask {
             reasoning: String,
         }
 
-        let suggestion: NextTaskSuggestion = serde_json::from_str(json_str)
-            .map_err(|e| anyhow!("Failed to parse next task suggestion: {}. Response was: {}", e, json_str))?;
+        let suggestion: NextTaskSuggestion = serde_json::from_str(json_str).map_err(|e| {
+            anyhow!(
+                "Failed to parse next task suggestion: {}. Response was: {}",
+                e,
+                json_str
+            )
+        })?;
 
-        Ok(format!("Suggested: {} - {}", suggestion.suggested_task_id, suggestion.reasoning))
+        Ok(format!(
+            "Suggested: {} - {}",
+            suggestion.suggested_task_id, suggestion.reasoning
+        ))
     }
 
     /// Extract balanced JSON from AI response (handles markdown blocks and extra text)
@@ -453,8 +495,14 @@ impl IntelliTask {
     }
 
     /// Generate with JSON schema constraint
-    fn generate_with_schema(&self, prompt: &str, schema: Option<serde_json::Value>) -> Result<String> {
-        let ollama = self.ollama.lock()
+    fn generate_with_schema(
+        &self,
+        prompt: &str,
+        schema: Option<serde_json::Value>,
+    ) -> Result<String> {
+        let ollama = self
+            .ollama
+            .lock()
             .map_err(|e| anyhow!("Failed to lock Ollama client: {}", e))?;
 
         ollama.generate_with_schema(prompt, schema)
@@ -577,14 +625,17 @@ mod tests {
     fn test_ollama_connection() {
         // Test that we can connect to Ollama
         let result = OllamaClient::new(OllamaConfig::default());
-        assert!(result.is_ok(), "Failed to create Ollama client: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create Ollama client: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     #[ignore] // Only run when Ollama is available
     fn test_generate_tasks_from_prd() {
-        let intellitask = create_test_intellitask()
-            .expect("Failed to create IntelliTask instance");
+        let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
         let prd = "PRD: User Authentication System\n\
                    Requirements:\n\
@@ -594,56 +645,91 @@ mod tests {
                    - Password reset functionality";
 
         let result = intellitask.generate_tasks_from_prd(prd);
-        assert!(result.is_ok(), "Failed to generate tasks: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to generate tasks: {:?}",
+            result.err()
+        );
 
         let breakdown = result.unwrap();
-        assert!(!breakdown.parent_tasks.is_empty(), "No parent tasks generated");
-        assert!(!breakdown.relevant_files.is_empty(), "No relevant files identified");
+        assert!(
+            !breakdown.parent_tasks.is_empty(),
+            "No parent tasks generated"
+        );
+        assert!(
+            !breakdown.relevant_files.is_empty(),
+            "No relevant files identified"
+        );
         assert!(!breakdown.prd_title.is_empty(), "No PRD title generated");
 
         // Verify at least one task has proper structure
         let first_task = &breakdown.parent_tasks[0];
         assert!(!first_task.id.is_empty(), "Task ID is empty");
         assert!(!first_task.title.is_empty(), "Task title is empty");
-        assert!(!first_task.description.is_empty(), "Task description is empty");
-        assert!(first_task.estimated_hours > 0.0, "Estimated hours should be positive");
+        assert!(
+            !first_task.description.is_empty(),
+            "Task description is empty"
+        );
+        assert!(
+            first_task.estimated_hours > 0.0,
+            "Estimated hours should be positive"
+        );
     }
 
     #[test]
     #[ignore] // Only run when Ollama is available
     fn test_generate_subtasks() {
-        let intellitask = create_test_intellitask()
-            .expect("Failed to create IntelliTask instance");
+        let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
         let parent_task = create_sample_parent_task();
         let codebase_context = "Project: Rust async web service using Axum and PostgreSQL";
 
         let result = intellitask.generate_subtasks(&parent_task, codebase_context);
-        assert!(result.is_ok(), "Failed to generate subtasks: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to generate subtasks: {:?}",
+            result.err()
+        );
 
         let subtasks = result.unwrap();
         assert!(!subtasks.is_empty(), "No subtasks generated");
-        assert!(subtasks.len() >= 3 && subtasks.len() <= 7,
-                "Expected 3-7 subtasks, got {}", subtasks.len());
+        assert!(
+            subtasks.len() >= 3 && subtasks.len() <= 7,
+            "Expected 3-7 subtasks, got {}",
+            subtasks.len()
+        );
 
         // Verify subtask structure
         for subtask in &subtasks {
-            println!("Generated subtask ID: {}, Expected prefix: {}.", subtask.id, parent_task.id);
-            assert!(subtask.id.starts_with(&format!("{}.", parent_task.id)),
-                    "Subtask ID should start with parent ID. Got: {}, Expected prefix: {}.",
-                    subtask.id, parent_task.id);
-            assert!(!subtask.description.is_empty(), "Subtask description is empty");
-            assert!(!subtask.acceptance_criteria.is_empty(),
-                    "Subtask should have acceptance criteria");
-            assert!(subtask.estimated_hours > 0.0, "Estimated hours should be positive");
+            println!(
+                "Generated subtask ID: {}, Expected prefix: {}.",
+                subtask.id, parent_task.id
+            );
+            assert!(
+                subtask.id.starts_with(&format!("{}.", parent_task.id)),
+                "Subtask ID should start with parent ID. Got: {}, Expected prefix: {}.",
+                subtask.id,
+                parent_task.id
+            );
+            assert!(
+                !subtask.description.is_empty(),
+                "Subtask description is empty"
+            );
+            assert!(
+                !subtask.acceptance_criteria.is_empty(),
+                "Subtask should have acceptance criteria"
+            );
+            assert!(
+                subtask.estimated_hours > 0.0,
+                "Estimated hours should be positive"
+            );
         }
     }
 
     #[test]
     #[ignore] // Only run when Ollama is available
     fn test_analyze_dependencies() {
-        let intellitask = create_test_intellitask()
-            .expect("Failed to create IntelliTask instance");
+        let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
         let tasks = vec![
             ParentTask {
@@ -667,7 +753,11 @@ mod tests {
         ];
 
         let result = intellitask.analyze_dependencies(&tasks);
-        assert!(result.is_ok(), "Failed to analyze dependencies: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to analyze dependencies: {:?}",
+            result.err()
+        );
 
         let execution_order = result.unwrap();
         assert!(!execution_order.is_empty(), "No execution order generated");
@@ -684,8 +774,7 @@ mod tests {
     #[test]
     #[ignore] // Only run when Ollama is available
     fn test_prioritize_tasks() {
-        let intellitask = create_test_intellitask()
-            .expect("Failed to create IntelliTask instance");
+        let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
         let tasks = vec![
             create_sample_parent_task(),
@@ -703,18 +792,30 @@ mod tests {
         let business_context = "MVP launch in 4 weeks. Authentication is critical for security.";
 
         let result = intellitask.prioritize_tasks(&tasks, business_context);
-        assert!(result.is_ok(), "Failed to prioritize tasks: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to prioritize tasks: {:?}",
+            result.err()
+        );
 
         let priorities = result.unwrap();
-        assert_eq!(priorities.len(), tasks.len(), "Should have priority for each task");
+        assert_eq!(
+            priorities.len(),
+            tasks.len(),
+            "Should have priority for each task"
+        );
 
         // Verify priorities are valid
         for (task_id, priority) in &priorities {
             assert!(!task_id.is_empty(), "Task ID should not be empty");
             // Priority should be one of the enum values
-            assert!(matches!(priority,
-                TaskPriority::Critical | TaskPriority::High |
-                TaskPriority::Medium | TaskPriority::Low | TaskPriority::Optional
+            assert!(matches!(
+                priority,
+                TaskPriority::Critical
+                    | TaskPriority::High
+                    | TaskPriority::Medium
+                    | TaskPriority::Low
+                    | TaskPriority::Optional
             ));
         }
     }
@@ -722,8 +823,7 @@ mod tests {
     #[test]
     #[ignore] // Only run when Ollama is available
     fn test_suggest_next_task() {
-        let intellitask = create_test_intellitask()
-            .expect("Failed to create IntelliTask instance");
+        let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
         let completed = vec!["1.0".to_string()];
         let remaining = vec![
@@ -748,34 +848,47 @@ mod tests {
         ];
 
         let result = intellitask.suggest_next_task(&completed, &remaining);
-        assert!(result.is_ok(), "Failed to suggest next task: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to suggest next task: {:?}",
+            result.err()
+        );
 
         let suggestion = result.unwrap();
         assert!(!suggestion.is_empty(), "Suggestion should not be empty");
-        assert!(suggestion.contains("Suggested:"), "Should contain 'Suggested:' prefix");
+        assert!(
+            suggestion.contains("Suggested:"),
+            "Should contain 'Suggested:' prefix"
+        );
 
         // Should suggest task 2.0 since 1.0 is complete and 2.0 depends on it
-        assert!(suggestion.contains("2.0"),
-                "Should suggest task 2.0 as its dependency (1.0) is met");
+        assert!(
+            suggestion.contains("2.0"),
+            "Should suggest task 2.0 as its dependency (1.0) is met"
+        );
     }
 
     #[test]
     #[ignore] // Only run when Ollama is available
     fn test_json_parsing_error_handling() {
-        let intellitask = create_test_intellitask()
-            .expect("Failed to create IntelliTask instance");
+        let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
         // Test with invalid PRD that might cause JSON parsing issues
-        let invalid_prd = "";  // Empty PRD
+        let invalid_prd = ""; // Empty PRD
 
         let result = intellitask.generate_tasks_from_prd(invalid_prd);
 
         // Should handle error gracefully (either return error or valid response)
         if let Err(e) = result {
             let error_msg = e.to_string();
-            assert!(error_msg.contains("parse") || error_msg.contains("JSON") ||
-                    error_msg.contains("empty") || error_msg.contains("invalid"),
-                    "Error should mention parsing or validation issue: {}", error_msg);
+            assert!(
+                error_msg.contains("parse")
+                    || error_msg.contains("JSON")
+                    || error_msg.contains("empty")
+                    || error_msg.contains("invalid"),
+                "Error should mention parsing or validation issue: {}",
+                error_msg
+            );
         }
     }
 
@@ -788,15 +901,15 @@ mod tests {
 }
 ```"#;
         let stripped = IntelliTask::strip_markdown_json(wrapped);
-        let parsed: serde_json::Value = serde_json::from_str(&stripped)
-            .expect("Stripped JSON should be parseable");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&stripped).expect("Stripped JSON should be parseable");
         assert_eq!(parsed["key"], "value");
 
         // Test without wrapper (should return as-is)
         let plain = r#"{"key": "value"}"#;
         let stripped = IntelliTask::strip_markdown_json(plain);
-        let parsed: serde_json::Value = serde_json::from_str(&stripped)
-            .expect("Plain JSON should be parseable");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&stripped).expect("Plain JSON should be parseable");
         assert_eq!(parsed["key"], "value");
 
         // Test with extra whitespace
@@ -838,8 +951,8 @@ mod tests {
         let schema_json = serde_json::to_value(&schema).expect("Schema should convert to JSON");
 
         // Compile and validate
-        let validator = jsonschema::JSONSchema::compile(&schema_json)
-            .expect("Schema should compile");
+        let validator =
+            jsonschema::JSONSchema::compile(&schema_json).expect("Schema should compile");
 
         let errors: Vec<String> = validator
             .validate(&broken_json)
@@ -873,7 +986,10 @@ mod tests {
             "Should report missing estimated_complexity field"
         );
 
-        println!("Comprehensive validation found {} errors (good!):", errors.len());
+        println!(
+            "Comprehensive validation found {} errors (good!):",
+            errors.len()
+        );
         for (i, e) in errors.iter().enumerate() {
             println!("  {}. {}", i + 1, e);
         }

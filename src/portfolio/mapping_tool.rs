@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
 use std::time::SystemTime;
 
-use crate::router::SynCoreState;
 use crate::message_bus::message::{AgentId, Msg, MsgKind};
+use crate::router::SynCoreState;
 use crate::vector::SearchScope;
 
 /// File node representing a single file in the application
@@ -264,13 +264,15 @@ impl MappingTool {
     /// Convert ID back to path (from SQLite lookup)
     fn id_to_path(&self, id: i64) -> Option<String> {
         // Query all paths and find matching hash
-        let paths: Vec<String> = self.state.tasks.with_db(|conn| {
-            let mut stmt = conn.prepare("SELECT path FROM file_nodes")?;
-            let paths: Result<Vec<String>, _> = stmt
-                .query_map([], |row| row.get(0))?
-                .collect();
-            paths.map_err(|e| anyhow::anyhow!("Failed to get paths: {}", e))
-        }).unwrap_or_default();
+        let paths: Vec<String> = self
+            .state
+            .tasks
+            .with_db(|conn| {
+                let mut stmt = conn.prepare("SELECT path FROM file_nodes")?;
+                let paths: Result<Vec<String>, _> = stmt.query_map([], |row| row.get(0))?.collect();
+                paths.map_err(|e| anyhow::anyhow!("Failed to get paths: {}", e))
+            })
+            .unwrap_or_default();
 
         paths.into_iter().find(|p| self.path_to_id(p) == id)
     }

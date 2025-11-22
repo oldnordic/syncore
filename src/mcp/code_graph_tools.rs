@@ -4,7 +4,7 @@
 
 use crate::portfolio::code_graph_extractor::CodeGraphExtractor;
 use crate::portfolio::code_graph_refactor::RefactoringSuggestionEngine;
-use crate::portfolio::code_graph_store::{CodeGraphStore, GraphQuery};
+use crate::portfolio::code_graph_store::CodeGraphStore;
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -31,7 +31,7 @@ pub async fn handle_code_graph_index(params: Value) -> Result<Value> {
     let vectors_dir = PathBuf::from(vectors_dir);
 
     let mut store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)?;
-    let mut extractor = CodeGraphExtractor::new();
+    let extractor = CodeGraphExtractor::new();
 
     let mut files_indexed = 0u64;
     let mut functions_found = 0u64;

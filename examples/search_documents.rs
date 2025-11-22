@@ -2,8 +2,8 @@
 // Search indexed documents using vector embeddings for semantic similarity
 
 use anyhow::Result;
-use syncore::global_store::GlobalVectorStore;
 use std::env;
+use syncore::global_store::GlobalVectorStore;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();

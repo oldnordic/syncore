@@ -8,11 +8,11 @@
 //!
 //! Inspired by GPU safety guards, this ensures AI agents don't waste compute cycles.
 
-use std::sync::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tracing::{warn, info};
+use tracing::{info, warn};
 
 /// Circuit breaker state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,7 +29,7 @@ pub enum CircuitState {
 #[derive(Debug, Clone)]
 struct ToolCallRecord {
     tool_name: String,
-    _params_hash: u64,  // Reserved for future debugging/logging
+    _params_hash: u64, // Reserved for future debugging/logging
     timestamp: Instant,
     had_output: bool,
 }
@@ -95,7 +95,11 @@ impl AgentCircuitBreaker {
     }
 
     /// Check if a tool call should be allowed
-    pub fn check_tool_call(&self, tool_name: &str, params: &str) -> Result<(), CircuitBreakerError> {
+    pub fn check_tool_call(
+        &self,
+        tool_name: &str,
+        params: &str,
+    ) -> Result<(), CircuitBreakerError> {
         let mut state = self.state.lock().unwrap();
 
         // Check circuit state
@@ -226,7 +230,8 @@ impl AgentCircuitBreaker {
             state: *self.state.lock().unwrap(),
             total_calls: history.len(),
             no_output_calls: no_output_count,
-            unique_tools: history.iter()
+            unique_tools: history
+                .iter()
                 .map(|r| r.tool_name.clone())
                 .collect::<std::collections::HashSet<_>>()
                 .len(),
@@ -280,8 +285,15 @@ pub enum CircuitBreakerError {
 impl std::fmt::Display for CircuitBreakerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CircuitBreakerError::CircuitOpen { reason, retry_after } => {
-                write!(f, "Circuit breaker is open: {}. Retry after {:?}", reason, retry_after)
+            CircuitBreakerError::CircuitOpen {
+                reason,
+                retry_after,
+            } => {
+                write!(
+                    f,
+                    "Circuit breaker is open: {}. Retry after {:?}",
+                    reason, retry_after
+                )
             }
             CircuitBreakerError::TooManyIdenticalCalls { tool, count } => {
                 write!(f, "Too many identical calls to {}: {} times", tool, count)
@@ -326,7 +338,9 @@ mod tests {
 
         // Make 3 calls with no output
         for i in 0..3 {
-            assert!(breaker.check_tool_call("tool", &format!("param{}", i)).is_ok());
+            assert!(breaker
+                .check_tool_call("tool", &format!("param{}", i))
+                .is_ok());
             breaker.record_result("tool", &format!("param{}", i), false);
         }
 
@@ -338,7 +352,9 @@ mod tests {
         let breaker = AgentCircuitBreaker::new();
 
         for i in 0..10 {
-            assert!(breaker.check_tool_call("tool", &format!("param{}", i)).is_ok());
+            assert!(breaker
+                .check_tool_call("tool", &format!("param{}", i))
+                .is_ok());
             breaker.record_result("tool", &format!("param{}", i), true);
         }
 

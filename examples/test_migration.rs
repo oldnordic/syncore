@@ -5,8 +5,8 @@
 // 3. Verifies the schema was upgraded correctly
 // 4. Shows before/after comparison
 
-use std::fs;
 use rusqlite::Connection;
+use std::fs;
 
 fn main() -> anyhow::Result<()> {
     println!("=== Schema Migration Test ===\n");
@@ -87,8 +87,14 @@ fn show_database_state_connection(conn: &Connection, label: &str) -> anyhow::Res
     println!("   Tasks table columns ({}):", columns.len());
 
     // Check for IntelliTask fields
-    let intellitask_fields = vec!["task_id", "prd_title", "complexity", "estimated_hours",
-                                   "acceptance_criteria", "files_to_modify"];
+    let intellitask_fields = vec![
+        "task_id",
+        "prd_title",
+        "complexity",
+        "estimated_hours",
+        "acceptance_criteria",
+        "files_to_modify",
+    ];
 
     for field in &intellitask_fields {
         let exists = columns.contains(&field.to_string());
@@ -101,12 +107,11 @@ fn show_database_state_connection(conn: &Connection, label: &str) -> anyhow::Res
 
 fn verify_migration(conn: &Connection) -> anyhow::Result<()> {
     // Verify version is 2
-    let version: i32 = conn
-        .query_row(
-            "SELECT MAX(version) FROM _syncore_schema_version",
-            [],
-            |row| row.get(0),
-        )?;
+    let version: i32 = conn.query_row(
+        "SELECT MAX(version) FROM _syncore_schema_version",
+        [],
+        |row| row.get(0),
+    )?;
 
     if version == 2 {
         println!("   ✓ Schema version is 2 (expected)");
@@ -128,7 +133,8 @@ fn verify_migration(conn: &Connection) -> anyhow::Result<()> {
     }
 
     // Verify indexes exist
-    let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='tasks'")?;
+    let mut stmt =
+        conn.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='tasks'")?;
     let indexes: Vec<String> = stmt
         .query_map([], |row| row.get(0))?
         .filter_map(|r| r.ok())

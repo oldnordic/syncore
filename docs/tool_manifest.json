@@ -1,0 +1,1471 @@
+{
+  "manifest_version": "1.0",
+  "syncore_version": "0.1.0",
+  "generated_date": "2025-01-20",
+  "mcp_protocol_version": "2024-11-05",
+  "description": "SynCore MCP Tool Manifest - Complete reference for all 50 MCP tools exposed via the Model Context Protocol server",
+  "architecture": {
+    "delegation_pattern": "42 tools delegate to RealExecutor via mcp_delegate() helper",
+    "custom_implementations": "8 tools have custom MCP-specific logic (Ollama AI, blocking I/O, semantic search)",
+    "error_envelope": {
+      "format": "Unified JSON envelope",
+      "success": {
+        "ok": true,
+        "data": "<result_data>",
+        "tool": "<tool_name>",
+        "executor": "RealExecutor"
+      },
+      "error": {
+        "ok": false,
+        "error": {
+          "message": "<error_message>",
+          "code": "<error_code>",
+          "details": "<optional_details>"
+        },
+        "tool": "<tool_name>",
+        "executor": "RealExecutor"
+      }
+    }
+  },
+  "tool_categories": {
+    "memory": ["memory_store", "memory_query"],
+    "tasks": ["task_create"],
+    "vector": ["vector_insert", "vector_search"],
+    "logs": ["logs_tail"],
+    "sequential": ["sequential_cycle", "sequential_record", "sequential_get", "sequential_search"],
+    "parser": ["parser_analyze", "parser_search"],
+    "code": ["code_index", "code_search", "code_index_directory"],
+    "document": ["document_index", "document_search"],
+    "intellitask": [
+      "intellitask_generate",
+      "intellitask_subtasks",
+      "intellitask_prioritize",
+      "intellitask_next",
+      "intellitask_save",
+      "intellitask_get",
+      "intellitask_list",
+      "intellitask_update_status",
+      "intellitask_next_ready",
+      "intellitask_get_subtasks",
+      "intellitask_subtask_stats",
+      "intellitask_task_statistics",
+      "intellitask_prd_statistics"
+    ],
+    "graph": ["graph_query", "graph_insert", "graph_relate"],
+    "agent": [
+      "agent_send",
+      "agent_recv",
+      "agent_poll",
+      "agent_register",
+      "agent_list",
+      "agent_status",
+      "agent_task",
+      "agent_result"
+    ],
+    "mapping": ["mapping_record", "mapping_get", "mapping_search", "mapping_deps"],
+    "application": ["application_record", "application_get", "application_history", "application_search"]
+  },
+  "tools": [
+    {
+      "name": "memory_store",
+      "description": "Store a value in memory",
+      "category": "memory",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "key",
+          "type": "string",
+          "required": true,
+          "description": "Memory key identifier"
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": true,
+          "description": "Value to store"
+        },
+        {
+          "name": "dry_run",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "If true, validate without persisting"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "key": "string",
+          "message": "string"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "memory_query",
+      "description": "Query a value from memory",
+      "category": "memory",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "key",
+          "type": "string",
+          "required": true,
+          "description": "Memory key to retrieve"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "key": "string",
+          "value": "string | null",
+          "found": "boolean"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "task_create",
+      "description": "Create a new task",
+      "category": "tasks",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "goal",
+          "type": "string",
+          "required": true,
+          "description": "Task goal description"
+        },
+        {
+          "name": "priority",
+          "type": "integer",
+          "required": false,
+          "description": "Task priority (1-5)"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "task_id": "integer",
+          "goal": "string",
+          "status": "string"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "vector_insert",
+      "description": "Insert text into vector memory",
+      "category": "vector",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "Text to vectorize and store"
+        },
+        {
+          "name": "metadata",
+          "type": "object",
+          "required": false,
+          "description": "Optional metadata JSON"
+        },
+        {
+          "name": "dry_run",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "If true, validate without persisting"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "vector_id": "integer",
+          "dimensions": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "vector_search",
+      "description": "Search vector memory",
+      "category": "vector",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Search query text"
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum results to return"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "results": "array of {text: string, score: number, metadata: object}",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "logs_tail",
+      "description": "Get recent log entries",
+      "category": "logs",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "n",
+          "type": "integer",
+          "required": false,
+          "description": "Number of log lines to return"
+        }
+      ],
+      "returns": {
+        "type": "array",
+        "items": "string (log lines)"
+      },
+      "async": true
+    },
+    {
+      "name": "sequential_cycle",
+      "description": "Run sequential thinking cycles for complex task processing",
+      "category": "sequential",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "max_cycles",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum reasoning cycles to execute"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "cycles_completed": "integer",
+          "final_state": "string",
+          "steps": "array"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "parser_analyze",
+      "description": "Analyze code structure using tree-sitter parser",
+      "category": "parser",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "file_path",
+          "type": "string",
+          "required": true,
+          "description": "Path to source file to analyze"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "language": "string",
+          "functions": "array",
+          "classes": "array",
+          "imports": "array"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "parser_search",
+      "description": "Search code patterns using ripgrep",
+      "category": "parser",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "pattern",
+          "type": "string",
+          "required": true,
+          "description": "Regex pattern to search"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "required": false,
+          "description": "Directory or file path to search"
+        },
+        {
+          "name": "context_lines",
+          "type": "integer",
+          "required": false,
+          "description": "Number of context lines around matches"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "matches": "array of {file: string, line: integer, text: string}",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "code_index",
+      "description": "Index a source code file for semantic and structural search",
+      "category": "code",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "file_path",
+          "type": "string",
+          "required": true,
+          "description": "Path to source file to index"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "file_path": "string",
+          "symbols_indexed": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "code_search",
+      "description": "Search code using semantic meaning and structural relationships",
+      "category": "code",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Semantic search query"
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 10,
+          "description": "Maximum results"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "results": "array of {file: string, symbol: string, score: number}",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "code_index_directory",
+      "description": "Index all code files in a directory matching a glob pattern",
+      "category": "code",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "directory",
+          "type": "string",
+          "required": true,
+          "description": "Directory path to index"
+        },
+        {
+          "name": "pattern",
+          "type": "string",
+          "required": true,
+          "description": "Glob pattern (e.g., '**/*.rs')"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "files_indexed": "integer",
+          "total_symbols": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "document_index",
+      "description": "Index documents from a directory into global knowledge store",
+      "category": "document",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "directory",
+          "type": "string",
+          "required": true,
+          "description": "Directory containing documents"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "documents_indexed": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "document_search",
+      "description": "Semantic search across indexed documents using vector embeddings",
+      "category": "document",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Search query"
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "default": 5,
+          "description": "Maximum results"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "results": "array of {document: string, excerpt: string, score: number}",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_generate",
+      "description": "IntelliTask: Generate intelligent task breakdown from PRD using AI",
+      "category": "intellitask",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "Uses Ollama for AI-powered PRD parsing and task generation",
+      "parameters": [
+        {
+          "name": "prd_content",
+          "type": "string",
+          "required": true,
+          "description": "Product Requirements Document text"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "tasks": "array of task objects",
+          "metadata": "object"
+        }
+      },
+      "async": true,
+      "requires_ollama": true
+    },
+    {
+      "name": "intellitask_subtasks",
+      "description": "IntelliTask: Generate subtasks for a parent task",
+      "category": "intellitask",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "Uses Ollama for AI-powered subtask generation",
+      "parameters": [
+        {
+          "name": "parent_task_id",
+          "type": "string",
+          "required": true,
+          "description": "Parent task identifier"
+        },
+        {
+          "name": "parent_task_json",
+          "type": "string",
+          "required": true,
+          "description": "Parent task JSON string"
+        },
+        {
+          "name": "codebase_context",
+          "type": "string",
+          "required": false,
+          "description": "Optional codebase context"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "subtasks": "array",
+          "parent_id": "string"
+        }
+      },
+      "async": true,
+      "requires_ollama": true
+    },
+    {
+      "name": "intellitask_prioritize",
+      "description": "IntelliTask: Prioritize tasks using AI reasoning",
+      "category": "intellitask",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "Uses Ollama for AI-powered task prioritization",
+      "parameters": [
+        {
+          "name": "tasks_json",
+          "type": "string",
+          "required": true,
+          "description": "JSON array of tasks"
+        },
+        {
+          "name": "business_context",
+          "type": "string",
+          "required": false,
+          "description": "Business context for prioritization"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "prioritized_tasks": "array",
+          "reasoning": "string"
+        }
+      },
+      "async": true,
+      "requires_ollama": true
+    },
+    {
+      "name": "intellitask_next",
+      "description": "IntelliTask: Suggest next task to work on",
+      "category": "intellitask",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "Uses Ollama for AI-powered next task suggestion",
+      "parameters": [
+        {
+          "name": "completed_tasks",
+          "type": "array",
+          "required": true,
+          "description": "Array of completed task strings"
+        },
+        {
+          "name": "remaining_tasks_json",
+          "type": "string",
+          "required": true,
+          "description": "JSON of remaining tasks"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "suggested_task": "object",
+          "reasoning": "string"
+        }
+      },
+      "async": true,
+      "requires_ollama": true
+    },
+    {
+      "name": "intellitask_save",
+      "description": "Save IntelliTask breakdown to database",
+      "category": "intellitask",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "Schema validation and persistence with integrity checks",
+      "parameters": [
+        {
+          "name": "breakdown_json",
+          "type": "string",
+          "required": true,
+          "description": "Task breakdown JSON string"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "tasks_saved": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_get",
+      "description": "Get task by ID from database",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "task_id",
+          "type": "integer",
+          "required": true,
+          "description": "Task ID"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "task": "object | null"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_list",
+      "description": "List tasks with optional filtering",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "status",
+          "type": "string",
+          "required": false,
+          "description": "Filter by status"
+        },
+        {
+          "name": "prd_title",
+          "type": "string",
+          "required": false,
+          "description": "Filter by PRD title"
+        },
+        {
+          "name": "parent_id",
+          "type": "integer",
+          "required": false,
+          "description": "Filter by parent task ID"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "tasks": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_update_status",
+      "description": "Update task status",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "task_id",
+          "type": "integer",
+          "required": true,
+          "description": "Task ID"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "New status (pending/in-progress/done/cancelled)"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "task_id": "integer",
+          "new_status": "string"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_next_ready",
+      "description": "Get next task ready to work on (dependencies satisfied)",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "task": "object | null"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_get_subtasks",
+      "description": "Get subtasks for a parent task",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "parent_id",
+          "type": "integer",
+          "required": true,
+          "description": "Parent task ID"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "subtasks": "array",
+          "parent_id": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_subtask_stats",
+      "description": "Get subtask statistics for a parent task",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "parent_id",
+          "type": "integer",
+          "required": true,
+          "description": "Parent task ID"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "total": "integer",
+          "completed": "integer",
+          "pending": "integer",
+          "in_progress": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_task_statistics",
+      "description": "Get overall task statistics across all tasks",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "total_tasks": "integer",
+          "by_status": "object",
+          "by_priority": "object"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "intellitask_prd_statistics",
+      "description": "Get task statistics for a specific PRD",
+      "category": "intellitask",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "prd_title",
+          "type": "string",
+          "required": true,
+          "description": "PRD title"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "prd_title": "string",
+          "task_count": "integer",
+          "completion_rate": "number"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "graph_query",
+      "description": "Execute a Cypher query on Neo4j graph database and return results",
+      "category": "graph",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "cypher",
+          "type": "string",
+          "required": true,
+          "description": "Cypher query string"
+        },
+        {
+          "name": "params",
+          "type": "object",
+          "required": false,
+          "description": "Query parameters"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "results": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "graph_insert",
+      "description": "Execute a Cypher write query (CREATE, MERGE, SET) on Neo4j",
+      "category": "graph",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "cypher",
+          "type": "string",
+          "required": true,
+          "description": "Cypher write query"
+        },
+        {
+          "name": "params",
+          "type": "object",
+          "required": false,
+          "description": "Query parameters"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "nodes_created": "integer",
+          "relationships_created": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "graph_relate",
+      "description": "Create a relationship between two nodes in Neo4j",
+      "category": "graph",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "from_id",
+          "type": "integer",
+          "required": true,
+          "description": "Source node ID"
+        },
+        {
+          "name": "to_id",
+          "type": "integer",
+          "required": true,
+          "description": "Target node ID"
+        },
+        {
+          "name": "rel_type",
+          "type": "string",
+          "required": true,
+          "description": "Relationship type"
+        },
+        {
+          "name": "from_label",
+          "type": "string",
+          "required": false,
+          "description": "Source node label"
+        },
+        {
+          "name": "to_label",
+          "type": "string",
+          "required": false,
+          "description": "Target node label"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "relationship_id": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "agent_send",
+      "description": "Send message to another agent via message bus",
+      "category": "agent",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "to",
+          "type": "string",
+          "required": true,
+          "description": "Target agent ID"
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "required": true,
+          "description": "Message content"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "message_id": "string"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "agent_recv",
+      "description": "Receive pending messages for a given agent ID",
+      "category": "agent",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "string",
+          "required": true,
+          "description": "Agent ID to receive messages for"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "messages": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "agent_poll",
+      "description": "Wait for the next message addressed to the specified agent",
+      "category": "agent",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "Blocking I/O with timeout and message bus integration",
+      "parameters": [
+        {
+          "name": "agent",
+          "type": "string",
+          "required": true,
+          "description": "Agent ID to poll for"
+        },
+        {
+          "name": "timeout_ms",
+          "type": "integer",
+          "required": true,
+          "description": "Timeout in milliseconds"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "message": "object | null",
+          "timeout": "boolean"
+        }
+      },
+      "async": true,
+      "blocking_io": true
+    },
+    {
+      "name": "agent_register",
+      "description": "Register an agent ID and its capabilities",
+      "category": "agent",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Agent ID"
+        },
+        {
+          "name": "capabilities",
+          "type": "array",
+          "required": true,
+          "description": "Array of capability strings"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "agent_id": "string"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "agent_list",
+      "description": "List all registered agents and their metadata",
+      "category": "agent",
+      "delegated_to_real_executor": true,
+      "parameters": [],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "agents": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "agent_status",
+      "description": "Update the status of the specified agent",
+      "category": "agent",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "Agent ID"
+        },
+        {
+          "name": "status",
+          "type": "object",
+          "required": true,
+          "description": "Status object"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "agent_task",
+      "description": "Send a structured task envelope to a specified agent",
+      "category": "agent",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "to",
+          "type": "string",
+          "required": true,
+          "description": "Target agent ID"
+        },
+        {
+          "name": "task_id",
+          "type": "string",
+          "required": true,
+          "description": "Task identifier"
+        },
+        {
+          "name": "task_type",
+          "type": "string",
+          "required": true,
+          "description": "Task type"
+        },
+        {
+          "name": "payload",
+          "type": "object",
+          "required": true,
+          "description": "Task payload"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "task_id": "string"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "agent_result",
+      "description": "Submit the result of a completed task to the router",
+      "category": "agent",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "from",
+          "type": "string",
+          "required": true,
+          "description": "Source agent ID"
+        },
+        {
+          "name": "task_id",
+          "type": "string",
+          "required": true,
+          "description": "Task identifier"
+        },
+        {
+          "name": "result",
+          "type": "object",
+          "required": true,
+          "description": "Task result"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "mapping_record",
+      "description": "Record a file node in the application structure map",
+      "category": "mapping",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "File path"
+        },
+        {
+          "name": "kind",
+          "type": "string",
+          "required": true,
+          "description": "File kind (module, component, etc.)"
+        },
+        {
+          "name": "language",
+          "type": "string",
+          "required": false,
+          "description": "Programming language"
+        },
+        {
+          "name": "imports",
+          "type": "array",
+          "required": true,
+          "description": "Array of import strings"
+        },
+        {
+          "name": "exports",
+          "type": "array",
+          "required": true,
+          "description": "Array of export strings"
+        },
+        {
+          "name": "dependencies",
+          "type": "array",
+          "required": true,
+          "description": "Array of dependency paths"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "path": "string"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "mapping_get",
+      "description": "Get a file node from the application structure map",
+      "category": "mapping",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "File path to retrieve"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "node": "object | null"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "mapping_search",
+      "description": "Search for files related to a query using semantic search",
+      "category": "mapping",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Search query"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "files": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "mapping_deps",
+      "description": "Get all transitive dependencies for a file",
+      "category": "mapping",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "File path"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "dependencies": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "sequential_record",
+      "description": "Record a thought step in the reasoning chain",
+      "category": "sequential",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "task_id",
+          "type": "integer",
+          "required": false,
+          "description": "Associated task ID"
+        },
+        {
+          "name": "step_number",
+          "type": "integer",
+          "required": true,
+          "description": "Step number in sequence"
+        },
+        {
+          "name": "thought",
+          "type": "string",
+          "required": true,
+          "description": "Thought content"
+        },
+        {
+          "name": "reasoning",
+          "type": "string",
+          "required": true,
+          "description": "Reasoning explanation"
+        },
+        {
+          "name": "action",
+          "type": "string",
+          "required": false,
+          "description": "Action taken"
+        },
+        {
+          "name": "observation",
+          "type": "string",
+          "required": false,
+          "description": "Observation from action"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "step_id": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "sequential_get",
+      "description": "Get all thought steps for a task",
+      "category": "sequential",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "task_id",
+          "type": "integer",
+          "required": true,
+          "description": "Task ID"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "steps": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "sequential_search",
+      "description": "Search thought steps by semantic content",
+      "category": "sequential",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Search query"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "results": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "application_record",
+      "description": "Record a code change in the application",
+      "category": "application",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "file_path",
+          "type": "string",
+          "required": true,
+          "description": "File path"
+        },
+        {
+          "name": "change_type",
+          "type": "string",
+          "required": true,
+          "description": "Change type (add/modify/delete)"
+        },
+        {
+          "name": "line_start",
+          "type": "integer",
+          "required": true,
+          "description": "Starting line number"
+        },
+        {
+          "name": "line_end",
+          "type": "integer",
+          "required": true,
+          "description": "Ending line number"
+        },
+        {
+          "name": "old_content",
+          "type": "string",
+          "required": false,
+          "description": "Previous content"
+        },
+        {
+          "name": "new_content",
+          "type": "string",
+          "required": false,
+          "description": "New content"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": "Change description"
+        },
+        {
+          "name": "task_id",
+          "type": "integer",
+          "required": false,
+          "description": "Associated task ID"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "success": "boolean",
+          "change_id": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "application_get",
+      "description": "Get all code changes for a task",
+      "category": "application",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "task_id",
+          "type": "integer",
+          "required": true,
+          "description": "Task ID"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "changes": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "application_history",
+      "description": "Get change history for a specific file",
+      "category": "application",
+      "delegated_to_real_executor": true,
+      "parameters": [
+        {
+          "name": "file_path",
+          "type": "string",
+          "required": true,
+          "description": "File path"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "history": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "application_search",
+      "description": "Search code changes by semantic content",
+      "category": "application",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "Semantic search using vector similarity (not yet in RealExecutor)",
+      "parameters": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "Search query"
+        }
+      ],
+      "returns": {
+        "type": "object",
+        "properties": {
+          "results": "array",
+          "count": "integer"
+        }
+      },
+      "async": true
+    },
+    {
+      "name": "tool_metadata_list",
+      "description": "List metadata for all MCP tools (category, cost, side effects)",
+      "category": "meta",
+      "delegated_to_real_executor": false,
+      "custom_implementation": "MCP-specific metadata and tool categorization",
+      "parameters": [],
+      "returns": {
+        "type": "array",
+        "items": "object with {name, category, cost, has_side_effects, description}"
+      },
+      "async": true
+    }
+  ],
+  "statistics": {
+    "total_tools": 50,
+    "delegated_tools": 42,
+    "custom_tools": 8,
+    "tools_requiring_ollama": 4,
+    "tools_with_blocking_io": 1,
+    "categories": 11
+  }
+}

@@ -1,13 +1,13 @@
 //! Code Relationship Store
 //! Stores code relationships in SQLite, Neo4j, and FAISS for semantic search.
 
-use anyhow::{Result, anyhow};
-use rusqlite::{Connection, params};
+use anyhow::{anyhow, Result};
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use neo4rs::{query, Graph};
+use rusqlite::{params, Connection};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use neo4rs::{Graph, query};
-use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
 
 pub struct CodeRelationshipStore {
     pub db: Arc<Mutex<Connection>>,
@@ -92,7 +92,8 @@ impl CodeRelationshipStore {
     pub async fn get_imports(&self, file: &str) -> Result<Vec<String>> {
         let db = self.db.lock().await;
         let mut stmt = db.prepare("SELECT imports FROM code_imports WHERE file = ?1")?;
-        let imports = stmt.query_map(params![file], |row| row.get(0))?
+        let imports = stmt
+            .query_map(params![file], |row| row.get(0))?
             .collect::<std::result::Result<Vec<String>, _>>()?;
         Ok(imports)
     }
@@ -100,7 +101,8 @@ impl CodeRelationshipStore {
     pub async fn get_files_importing(&self, import: &str) -> Result<Vec<String>> {
         let db = self.db.lock().await;
         let mut stmt = db.prepare("SELECT file FROM code_imports WHERE imports = ?1")?;
-        let files = stmt.query_map(params![import], |row| row.get(0))?
+        let files = stmt
+            .query_map(params![import], |row| row.get(0))?
             .collect::<std::result::Result<Vec<String>, _>>()?;
         Ok(files)
     }
@@ -116,8 +118,10 @@ impl CodeRelationshipStore {
 
     pub async fn get_calls_from(&self, file: &str, caller: &str) -> Result<Vec<String>> {
         let db = self.db.lock().await;
-        let mut stmt = db.prepare("SELECT callee FROM code_calls WHERE file = ?1 AND caller = ?2")?;
-        let callees = stmt.query_map(params![file, caller], |row| row.get(0))?
+        let mut stmt =
+            db.prepare("SELECT callee FROM code_calls WHERE file = ?1 AND caller = ?2")?;
+        let callees = stmt
+            .query_map(params![file, caller], |row| row.get(0))?
             .collect::<std::result::Result<Vec<String>, _>>()?;
         Ok(callees)
     }
@@ -125,9 +129,11 @@ impl CodeRelationshipStore {
     pub async fn get_callers_of(&self, callee: &str) -> Result<Vec<(String, String)>> {
         let db = self.db.lock().await;
         let mut stmt = db.prepare("SELECT file, caller FROM code_calls WHERE callee = ?1")?;
-        let callers = stmt.query_map(params![callee], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?.collect::<std::result::Result<Vec<(String, String)>, _>>()?;
+        let callers = stmt
+            .query_map(params![callee], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<std::result::Result<Vec<(String, String)>, _>>()?;
         Ok(callers)
     }
 
@@ -143,22 +149,27 @@ impl CodeRelationshipStore {
     pub async fn get_impls_for(&self, struct_name: &str) -> Result<Vec<String>> {
         let db = self.db.lock().await;
         let mut stmt = db.prepare("SELECT trait_name FROM code_impls WHERE struct_name = ?1")?;
-        let traits = stmt.query_map(params![struct_name], |row| row.get(0))?
+        let traits = stmt
+            .query_map(params![struct_name], |row| row.get(0))?
             .collect::<std::result::Result<Vec<String>, _>>()?;
         Ok(traits)
     }
 
     pub async fn sync_to_neo4j(&self) -> Result<()> {
-        let graph = self.neo4j.as_ref()
+        let graph = self
+            .neo4j
+            .as_ref()
             .ok_or_else(|| anyhow!("Neo4j not connected"))?;
 
         // Sync imports
         let imports: Vec<(String, String)> = {
             let db = self.db.lock().await;
             let mut stmt = db.prepare("SELECT file, imports FROM code_imports")?;
-            let result = stmt.query_map([], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-            })?.collect::<std::result::Result<Vec<_>, _>>()?;
+            let result = stmt
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
             result
         };
 
@@ -166,7 +177,7 @@ impl CodeRelationshipStore {
             let q = query(
                 "MERGE (f:File {path: $file})
                  MERGE (i:Module {name: $import})
-                 MERGE (f)-[:IMPORTS]->(i)"
+                 MERGE (f)-[:IMPORTS]->(i)",
             )
             .param("file", file)
             .param("import", import);
@@ -177,9 +188,11 @@ impl CodeRelationshipStore {
         let calls: Vec<(String, String)> = {
             let db = self.db.lock().await;
             let mut stmt = db.prepare("SELECT caller, callee FROM code_calls")?;
-            let result = stmt.query_map([], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-            })?.collect::<std::result::Result<Vec<_>, _>>()?;
+            let result = stmt
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
             result
         };
 
@@ -187,7 +200,7 @@ impl CodeRelationshipStore {
             let q = query(
                 "MERGE (c:Function {name: $caller})
                  MERGE (e:Function {name: $callee})
-                 MERGE (c)-[:CALLS]->(e)"
+                 MERGE (c)-[:CALLS]->(e)",
             )
             .param("caller", caller)
             .param("callee", callee);
@@ -198,12 +211,14 @@ impl CodeRelationshipStore {
     }
 
     pub async fn query_neo4j_imports(&self, file: &str) -> Result<Vec<String>> {
-        let graph = self.neo4j.as_ref()
+        let graph = self
+            .neo4j
+            .as_ref()
             .ok_or_else(|| anyhow!("Neo4j not connected"))?;
 
         let q = query(
             "MATCH (f:File {path: $file})-[:IMPORTS]->(i:Module)
-             RETURN i.name as name"
+             RETURN i.name as name",
         )
         .param("file", file.to_string());
 
@@ -220,12 +235,14 @@ impl CodeRelationshipStore {
     }
 
     pub async fn query_neo4j_calls(&self, function: &str) -> Result<Vec<String>> {
-        let graph = self.neo4j.as_ref()
+        let graph = self
+            .neo4j
+            .as_ref()
             .ok_or_else(|| anyhow!("Neo4j not connected"))?;
 
         let q = query(
             "MATCH (c:Function {name: $function})-[:CALLS]->(e:Function)
-             RETURN e.name as name"
+             RETURN e.name as name",
         )
         .param("function", function.to_string());
 
@@ -243,7 +260,9 @@ impl CodeRelationshipStore {
 
     pub async fn index_function(&self, file: &str, function_name: &str, body: &str) -> Result<()> {
         let embeddings = self.embedder.embed(vec![body], None)?;
-        let embedding = embeddings.into_iter().next()
+        let embedding = embeddings
+            .into_iter()
+            .next()
             .ok_or_else(|| anyhow!("No embedding generated"))?;
 
         let mut vectors = self.function_vectors.lock().await;
@@ -256,14 +275,22 @@ impl CodeRelationshipStore {
         Ok(())
     }
 
-    pub async fn find_similar_functions(&self, query: &str, limit: usize) -> Result<Vec<(String, String, f32)>> {
-        let query_embedding = self.embedder.embed(vec![query], None)?
-            .into_iter().next()
+    pub async fn find_similar_functions(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, String, f32)>> {
+        let query_embedding = self
+            .embedder
+            .embed(vec![query], None)?
+            .into_iter()
+            .next()
             .ok_or_else(|| anyhow!("No embedding generated"))?;
 
         let vectors = self.function_vectors.lock().await;
 
-        let mut scored: Vec<(String, String, f32)> = vectors.iter()
+        let mut scored: Vec<(String, String, f32)> = vectors
+            .iter()
             .map(|fv| {
                 let score = cosine_similarity(&query_embedding, &fv.embedding);
                 (fv.file.clone(), fv.function_name.clone(), score)

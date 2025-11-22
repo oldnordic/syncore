@@ -1,14 +1,14 @@
 //! Test that circuit breaker prevents infinite loops in sequential thinking
 
+use std::sync::{Arc, Mutex};
 use syncore::{
+    circuit_breaker::CircuitState,
+    logger::{CogLogger, MarkdownLogger},
+    memory::Memory,
     sequential::SequentialCore,
     tasks::Tasks,
-    memory::Memory,
-    vector::{VectorStore, RealEmbeddings},
-    logger::{CogLogger, MarkdownLogger},
-    circuit_breaker::CircuitState,
+    vector::{RealEmbeddings, VectorStore},
 };
-use std::sync::{Arc, Mutex};
 use tempfile::tempdir;
 
 /// Mock language model that returns empty strings (simulates stuck behavior)
@@ -38,13 +38,16 @@ fn test_circuit_breaker_trips_on_empty_thoughts() {
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let memory = Arc::new(Memory::new(db_path.to_str().unwrap()).unwrap());
-    let model = Arc::new(Mutex::new(StuckModel)) as Arc<Mutex<dyn syncore::sequential::LanguageModel>>;
+    let model =
+        Arc::new(Mutex::new(StuckModel)) as Arc<Mutex<dyn syncore::sequential::LanguageModel>>;
     let logger = Arc::new(MarkdownLogger::new(temp_dir.path())) as Arc<dyn CogLogger>;
 
     let core = SequentialCore::new(tasks.clone(), vector_store, memory, model, logger);
 
     // Create a test task
-    tasks.add_task("Test task", "Test description", 1, None).unwrap();
+    tasks
+        .add_task("Test task", "Test description", 1, None)
+        .unwrap();
 
     // Run cycles until circuit breaker trips
     let mut cycle_count = 0;
@@ -59,9 +62,15 @@ fn test_circuit_breaker_trips_on_empty_thoughts() {
             }
             Err(e) => {
                 let err_str = e.to_string();
-                if err_str.contains("Circuit breaker") || err_str.contains("Empty thought") || err_str.contains("Empty decision") {
+                if err_str.contains("Circuit breaker")
+                    || err_str.contains("Empty thought")
+                    || err_str.contains("Empty decision")
+                {
                     circuit_tripped = true;
-                    println!("✓ Circuit breaker protection triggered after {} cycles: {}", cycle_count, err_str);
+                    println!(
+                        "✓ Circuit breaker protection triggered after {} cycles: {}",
+                        cycle_count, err_str
+                    );
                     break;
                 } else {
                     panic!("Unexpected error: {}", e);
@@ -71,8 +80,14 @@ fn test_circuit_breaker_trips_on_empty_thoughts() {
     }
 
     // ASSERTIONS
-    assert!(circuit_tripped, "Circuit breaker should have tripped on empty thoughts");
-    assert!(cycle_count <= 5, "Should trip within 5 cycles (configured for 4 no-output calls)");
+    assert!(
+        circuit_tripped,
+        "Circuit breaker should have tripped on empty thoughts"
+    );
+    assert!(
+        cycle_count <= 5,
+        "Should trip within 5 cycles (configured for 4 no-output calls)"
+    );
 }
 
 #[test]
@@ -101,7 +116,8 @@ fn test_circuit_breaker_allows_successful_cycles() {
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let memory = Arc::new(Memory::new(db_path.to_str().unwrap()).unwrap());
-    let model = Arc::new(Mutex::new(SuccessModel)) as Arc<Mutex<dyn syncore::sequential::LanguageModel>>;
+    let model =
+        Arc::new(Mutex::new(SuccessModel)) as Arc<Mutex<dyn syncore::sequential::LanguageModel>>;
     let logger = Arc::new(MarkdownLogger::new(temp_dir.path())) as Arc<dyn CogLogger>;
 
     let core = SequentialCore::new(tasks.clone(), vector_store, memory, model, logger);
@@ -126,7 +142,10 @@ fn test_circuit_breaker_allows_successful_cycles() {
         }
     }
 
-    assert_eq!(successful_cycles, 3, "All 3 cycles should complete successfully");
+    assert_eq!(
+        successful_cycles, 3,
+        "All 3 cycles should complete successfully"
+    );
 }
 
 #[test]
@@ -138,7 +157,8 @@ fn test_circuit_breaker_state_accessible() {
     let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     let memory = Arc::new(Memory::new(db_path.to_str().unwrap()).unwrap());
-    let model = Arc::new(Mutex::new(StuckModel)) as Arc<Mutex<dyn syncore::sequential::LanguageModel>>;
+    let model =
+        Arc::new(Mutex::new(StuckModel)) as Arc<Mutex<dyn syncore::sequential::LanguageModel>>;
     let logger = Arc::new(MarkdownLogger::new(temp_dir.path())) as Arc<dyn CogLogger>;
 
     let _core = SequentialCore::new(tasks.clone(), vector_store, memory, model, logger);

@@ -1,9 +1,9 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
-use std::io::{Write, BufRead, BufReader};
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 /// Configuration for Ollama CLI execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,9 +21,9 @@ pub struct OllamaConfig {
 impl Default for OllamaConfig {
     fn default() -> Self {
         Self {
-            model: "qwen2.5-coder:3b".to_string(),  // Better for structured output
+            model: "qwen2.5-coder:3b".to_string(), // Better for structured output
             timeout_secs: 60,
-            temperature: 0.0,  // Deterministic for JSON generation
+            temperature: 0.0, // Deterministic for JSON generation
             max_tokens: 2048,
         }
     }
@@ -43,26 +43,18 @@ impl OllamaClient {
     /// Verifies that ollama CLI is installed and accessible
     pub fn new(config: OllamaConfig) -> Result<Self> {
         // Verify ollama is installed
-        let version_check = Command::new("ollama")
-            .arg("--version")
-            .output();
+        let version_check = Command::new("ollama").arg("--version").output();
 
         match version_check {
-            Ok(output) if output.status.success() => {
-                Ok(Self { config })
-            }
-            Ok(output) => {
-                Err(anyhow!(
-                    "ollama command failed: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                ))
-            }
-            Err(e) => {
-                Err(anyhow!(
-                    "ollama CLI not found. Please install from https://ollama.ai - Error: {}",
-                    e
-                ))
-            }
+            Ok(output) if output.status.success() => Ok(Self { config }),
+            Ok(output) => Err(anyhow!(
+                "ollama command failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )),
+            Err(e) => Err(anyhow!(
+                "ollama CLI not found. Please install from https://ollama.ai - Error: {}",
+                e
+            )),
         }
     }
 
@@ -90,13 +82,17 @@ impl OllamaClient {
 
         // Write prompt to stdin
         {
-            let stdin = child.stdin.as_mut()
+            let stdin = child
+                .stdin
+                .as_mut()
                 .ok_or_else(|| anyhow!("Failed to open stdin"))?;
 
-            stdin.write_all(prompt.as_bytes())
+            stdin
+                .write_all(prompt.as_bytes())
                 .map_err(|e| anyhow!("Failed to write prompt to stdin: {}", e))?;
 
-            stdin.flush()
+            stdin
+                .flush()
                 .map_err(|e| anyhow!("Failed to flush stdin: {}", e))?;
         }
 
@@ -107,7 +103,9 @@ impl OllamaClient {
         let timeout = Duration::from_secs(self.config.timeout_secs);
         let start = std::time::Instant::now();
 
-        let stdout = child.stdout.take()
+        let stdout = child
+            .stdout
+            .take()
             .ok_or_else(|| anyhow!("Failed to open stdout"))?;
 
         let reader = BufReader::new(stdout);
@@ -117,7 +115,10 @@ impl OllamaClient {
         for line in reader.lines() {
             if start.elapsed() > timeout {
                 let _ = child.kill();
-                return Err(anyhow!("Ollama generation timed out after {}s", self.config.timeout_secs));
+                return Err(anyhow!(
+                    "Ollama generation timed out after {}s",
+                    self.config.timeout_secs
+                ));
             }
 
             match line {
@@ -141,10 +142,11 @@ impl OllamaClient {
                     return Ok(());
                 }
             }
-        }).join();
+        })
+        .join();
 
         match wait_result {
-            Ok(Ok(())) => {},
+            Ok(Ok(())) => {}
             Ok(Err(e)) => return Err(e),
             Err(_) => return Err(anyhow!("Thread panicked while waiting for process")),
         }
@@ -163,7 +165,11 @@ impl OllamaClient {
     ///
     /// Note: CLI mode doesn't support schema constraints directly.
     /// This method adds schema instructions to the prompt instead.
-    pub fn generate_with_schema(&self, prompt: &str, schema: Option<serde_json::Value>) -> Result<String> {
+    pub fn generate_with_schema(
+        &self,
+        prompt: &str,
+        schema: Option<serde_json::Value>,
+    ) -> Result<String> {
         let enhanced_prompt = if let Some(schema) = schema {
             format!(
                 "{}\n\nIMPORTANT: Respond with valid JSON matching this schema:\n{}\n\nRespond with JSON only, no explanations.",
@@ -279,10 +285,7 @@ mod tests {
             }
         });
 
-        let response = client.generate_with_schema(
-            "What is 5+5?",
-            Some(schema)
-        )?;
+        let response = client.generate_with_schema("What is 5+5?", Some(schema))?;
 
         println!("Response: {}", response);
         assert!(!response.is_empty());

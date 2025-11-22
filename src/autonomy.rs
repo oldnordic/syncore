@@ -1,25 +1,47 @@
-use crate::tasks::Tasks;
 use crate::logger::MarkdownLogger;
+use crate::tasks::Tasks;
+use anyhow::Result;
+use rusqlite::Connection;
+use serde_json::json;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time::interval;
-use anyhow::Result;
-use serde_json::json;
-use rusqlite::Connection;
 
 pub struct HeartbeatMonitor {
     taskmaster: Arc<Mutex<Tasks>>,
     logger: Arc<MarkdownLogger>,
-    db_path: String,
+    db: Arc<Mutex<Connection>>,
     last_heartbeat: Arc<Mutex<SystemTime>>,
 }
 
 impl HeartbeatMonitor {
-    pub fn new(taskmaster: Arc<Mutex<Tasks>>, logger: Arc<MarkdownLogger>, db_path: &str) -> Self {
+    /// Create HeartbeatMonitor using an existing database connection from DbManager.
+    ///
+    /// This is the preferred constructor when using DbManager. It reuses long-lived
+    /// connections instead of creating new ones per-call.
+    pub fn with_connection(
+        taskmaster: Arc<Mutex<Tasks>>,
+        logger: Arc<MarkdownLogger>,
+        db: Arc<Mutex<Connection>>,
+    ) -> Self {
         Self {
             taskmaster,
             logger,
-            db_path: db_path.to_string(),
+            db,
+            last_heartbeat: Arc::new(Mutex::new(SystemTime::now())),
+        }
+    }
+
+    /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
+    #[deprecated(note = "Use with_connection() with DbManager instead")]
+    pub fn new(taskmaster: Arc<Mutex<Tasks>>, logger: Arc<MarkdownLogger>, db_path: &str) -> Self {
+        let conn =
+            Connection::open(db_path).expect("Failed to open database in HeartbeatMonitor::new");
+
+        Self {
+            taskmaster,
+            logger,
+            db: Arc::new(Mutex::new(conn)),
             last_heartbeat: Arc::new(Mutex::new(SystemTime::now())),
         }
     }
@@ -29,7 +51,7 @@ impl HeartbeatMonitor {
         let _taskmaster = self.taskmaster.clone(); // Keep for potential future use
         let _logger = self.logger.clone(); // Keep for potential future use
         let last_heartbeat = self.last_heartbeat.clone();
-        let db_path = self.db_path.clone();
+        let db = self.db.clone();
 
         tokio::spawn(async move {
             let mut heartbeat_interval = interval(Duration::from_secs(60)); // Every 60 seconds
@@ -42,17 +64,17 @@ impl HeartbeatMonitor {
                     *heartbeat_guard = SystemTime::now();
                 }
 
-                // Create a new monitor instance for this async context
-                if let Err(e) = Self::check_stuck_tasks_static(&db_path) {
+                // Use the stored connection instead of opening a new one
+                if let Err(e) = Self::check_stuck_tasks_with_connection(&db) {
                     eprintln!("Heartbeat check failed: {}", e);
                 }
             }
         });
     }
 
-    // Static method that doesn't need self
-    fn check_stuck_tasks_static(db_path: &str) -> Result<()> {
-        let conn = Connection::open(db_path)?;
+    // Use the stored connection instead of opening a new one
+    fn check_stuck_tasks_with_connection(db: &Arc<Mutex<Connection>>) -> Result<()> {
+        let conn = db.lock().unwrap();
 
         // Find tasks stuck in progress for more than 15 minutes
         let fifteen_min_ago = chrono::Utc::now().timestamp() - (15 * 60);
@@ -60,12 +82,10 @@ impl HeartbeatMonitor {
         let mut stmt = conn.prepare(
             "SELECT id FROM tasks
              WHERE status = 'in_progress'
-             AND updated_at < ?1"
+             AND updated_at < ?1",
         )?;
 
-        let stuck_tasks = stmt.query_map([fifteen_min_ago], |row| {
-            row.get::<_, i64>(0)
-        })?;
+        let stuck_tasks = stmt.query_map([fifteen_min_ago], |row| row.get::<_, i64>(0))?;
 
         for task_id in stuck_tasks {
             let task_id = task_id?;
@@ -99,7 +119,10 @@ impl HeartbeatMonitor {
 
         // Log stuck tasks using eprintln for now
         let stuck_count = stuck_tasks.len();
-        eprintln!("HEARTBEAT: Found {} stuck tasks, attempting to resume", stuck_count);
+        eprintln!(
+            "HEARTBEAT: Found {} stuck tasks, attempting to resume",
+            stuck_count
+        );
 
         for task_id in stuck_tasks {
             // Log heartbeat resumption
@@ -126,20 +149,19 @@ impl HeartbeatMonitor {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_secs() as i64 - (15 * 60) // Default 15 minutes ago
+                .as_secs() as i64
+                - (15 * 60) // Default 15 minutes ago
         });
 
-        let conn = Connection::open(&self.db_path)?;
+        let conn = self.db.lock().unwrap();
 
         let mut stmt = conn.prepare(
             "SELECT id FROM tasks
              WHERE status = 'in_progress'
-              AND updated_at < ?1"
+              AND updated_at < ?1",
         )?;
 
-        let stuck_tasks = stmt.query_map([cutoff], |row| {
-            row.get::<_, i64>(0)
-        })?;
+        let stuck_tasks = stmt.query_map([cutoff], |row| row.get::<_, i64>(0))?;
 
         let mut result = Vec::new();
         for task_id in stuck_tasks {
@@ -151,7 +173,7 @@ impl HeartbeatMonitor {
 
     // Real implementation to enqueue resume subtask
     pub async fn enqueue_resume_subtask(&self, task_id: u64) -> Result<()> {
-        let conn = Connection::open(&self.db_path)?;
+        let conn = self.db.lock().unwrap();
 
         // Reset stuck task to open status
         conn.execute(
@@ -183,16 +205,10 @@ pub struct AutonomyManager {
 }
 
 impl AutonomyManager {
-    pub fn new(
-        taskmaster: Arc<Mutex<Tasks>>,
-        logger: Arc<MarkdownLogger>,
-        db_path: &str
-    ) -> Self {
+    pub fn new(taskmaster: Arc<Mutex<Tasks>>, logger: Arc<MarkdownLogger>, db_path: &str) -> Self {
         let heartbeat = HeartbeatMonitor::new(taskmaster, logger, db_path);
 
-        Self {
-            heartbeat,
-        }
+        Self { heartbeat }
     }
 
     // Start all autonomy features
@@ -211,13 +227,17 @@ mod tests {
         let temp_db = NamedTempFile::new().unwrap();
         let db_path = temp_db.path().to_str().unwrap();
 
-        let _taskmaster = Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap()));
+        let _taskmaster = Arc::new(Mutex::new(
+            Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+        ));
         let _logger = Arc::new(MarkdownLogger::new(db_path));
 
         let _monitor = HeartbeatMonitor::new(
-            Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap())),
+            Arc::new(Mutex::new(
+                Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+            )),
             Arc::new(MarkdownLogger::new(db_path)),
-            &format!("{}_tasks", db_path)
+            &format!("{}_tasks", db_path),
         );
 
         // Test that monitor was created successfully
@@ -230,13 +250,17 @@ mod tests {
         let temp_db = NamedTempFile::new().unwrap();
         let db_path = temp_db.path().to_str().unwrap();
 
-        let _taskmaster = Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap()));
+        let _taskmaster = Arc::new(Mutex::new(
+            Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+        ));
         let _logger = Arc::new(MarkdownLogger::new(db_path));
 
         let _manager = AutonomyManager::new(
-            Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap())),
+            Arc::new(Mutex::new(
+                Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+            )),
             Arc::new(MarkdownLogger::new(db_path)),
-            &format!("{}_tasks", db_path)
+            &format!("{}_tasks", db_path),
         );
 
         // Test that manager was created successfully
@@ -248,17 +272,25 @@ mod tests {
         let temp_db = NamedTempFile::new().unwrap();
         let db_path = temp_db.path().to_str().unwrap();
 
-        let _taskmaster = Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap()));
+        let _taskmaster = Arc::new(Mutex::new(
+            Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+        ));
         let cutoff_time = Some(1234567890);
 
         let monitor = HeartbeatMonitor::new(
-            Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap())),
+            Arc::new(Mutex::new(
+                Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+            )),
             Arc::new(MarkdownLogger::new("/tmp")),
-            &format!("{}_tasks", db_path)
+            &format!("{}_tasks", db_path),
         );
         let stuck_tasks = monitor.get_stuck_tasks(cutoff_time).await?;
 
-        assert_eq!(stuck_tasks.len(), 0, "Should return empty list when no stuck tasks exist");
+        assert_eq!(
+            stuck_tasks.len(),
+            0,
+            "Should return empty list when no stuck tasks exist"
+        );
         Ok(())
     }
 
@@ -267,13 +299,17 @@ mod tests {
         let temp_db = NamedTempFile::new().unwrap();
         let db_path = temp_db.path().to_str().unwrap();
 
-        let _taskmaster = Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap()));
+        let _taskmaster = Arc::new(Mutex::new(
+            Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+        ));
         let task_id = 42;
 
         let monitor = HeartbeatMonitor::new(
-            Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap())),
+            Arc::new(Mutex::new(
+                Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+            )),
             Arc::new(MarkdownLogger::new("/tmp")),
-            &format!("{}_tasks", db_path)
+            &format!("{}_tasks", db_path),
         );
         monitor.enqueue_resume_subtask(task_id).await?;
 
@@ -287,18 +323,25 @@ mod tests {
         let temp_db = NamedTempFile::new().unwrap();
         let db_path = temp_db.path().to_str().unwrap();
 
-        let _taskmaster = Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap()));
+        let _taskmaster = Arc::new(Mutex::new(
+            Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+        ));
         let _logger = Arc::new(MarkdownLogger::new(db_path));
 
         let monitor = HeartbeatMonitor::new(
-            Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap())),
+            Arc::new(Mutex::new(
+                Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
+            )),
             Arc::new(MarkdownLogger::new(db_path)),
-            &format!("{}_tasks", db_path)
+            &format!("{}_tasks", db_path),
         );
         monitor.check_and_resume_stuck_tasks().await?;
 
         // If we reach here, the function completed successfully
-        assert!(true, "Should complete successfully even with no stuck tasks");
+        assert!(
+            true,
+            "Should complete successfully even with no stuck tasks"
+        );
         Ok(())
     }
 }

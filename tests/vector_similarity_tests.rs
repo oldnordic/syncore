@@ -1,7 +1,7 @@
 //! TDD Tests for Vector Normalization and Cosine Similarity
 //! Ensures correct cosine similarity implementation: sim = dot(a, b) / (||a|| * ||b||)
 
-use syncore::vector::{VectorStore, HuggingFaceEmbeddings};
+use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 
 /// Helper to create a test VectorStore
 fn create_test_store() -> VectorStore {
@@ -165,7 +165,11 @@ fn test_unit_vectors() {
 
     // a · b = 0
     let sim_ab = store.cosine_similarity_public(&vec_a, &vec_b);
-    assert!(sim_ab.abs() < 1e-6, "Perpendicular unit vectors: {}", sim_ab);
+    assert!(
+        sim_ab.abs() < 1e-6,
+        "Perpendicular unit vectors: {}",
+        sim_ab
+    );
 
     // a · c = 1/sqrt(2)
     let sim_ac = store.cosine_similarity_public(&vec_a, &vec_c);

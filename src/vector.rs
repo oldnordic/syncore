@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
+
+// Import HNSW vector index
+use crate::vector::hnsw::{HnswConfig, HnswVectorIndex};
 
 pub trait Embeddings: Send + Sync {
     fn embed(&self, text: &str) -> Result<Vec<f32>>;
@@ -22,7 +25,8 @@ pub struct HuggingFaceEmbeddings {
 }
 
 impl HuggingFaceEmbeddings {
-    /// Create new HuggingFace embeddings with all-MiniLM-L6-v2 model
+    /// Create new HuggingFace embeddings with all-MiniLM-L6-v2 model (default)
+    /// Use `new_bge()` for BGE-small-en-v1.5 which may have better code search quality
     pub fn new() -> Result<Self> {
         let model = TextEmbedding::try_new(
             InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
@@ -34,10 +38,25 @@ impl HuggingFaceEmbeddings {
         })
     }
 
+    /// Create embeddings with BGE-small-en-v1.5 model
+    /// This model is optimized for semantic search and may perform better on code
+    pub fn new_bge() -> Result<Self> {
+        let model = TextEmbedding::try_new(
+            InitOptions::new(EmbeddingModel::BGESmallENV15).with_show_download_progress(true),
+        )?;
+
+        Ok(Self {
+            model,
+            dim: 384, // BGE-small-en-v1.5 embedding dimension
+        })
+    }
+
     /// Create with specific model
     pub fn with_model(model_name: EmbeddingModel) -> Result<Self> {
         let dim = match model_name {
             EmbeddingModel::AllMiniLML6V2 => 384,
+            EmbeddingModel::BGESmallENV15 => 384,
+            EmbeddingModel::BGEBaseENV15 => 768,
             _ => 384, // Default dimension for most models
         };
 
@@ -481,6 +500,13 @@ impl QueryCache {
     }
 }
 
+/// Pending vector for queue during HNSW warmup
+#[derive(Debug, Clone)]
+pub struct PendingVector {
+    pub id: i64,
+    pub embedding: Vec<f32>,
+}
+
 pub struct VectorStore {
     embeddings: Box<dyn Embeddings>,
     vectors: Vec<(i64, Option<i64>, Vec<f32>, String)>, // Keep for persistence
@@ -490,6 +516,11 @@ pub struct VectorStore {
     query_cache: RwLock<QueryCache>,
     embedding_cache: RwLock<HashMap<String, Vec<f32>>>, // Cache embeddings for repeated queries
     fast_mode: bool,                                    // Use fast hash-based embeddings for tests
+    hnsw: Arc<RwLock<HnswVectorIndex>>,                 // HNSW index for fast nearest neighbor search
+    hnsw_ready: Arc<std::sync::atomic::AtomicBool>,     // HNSW warmup status flag (legacy)
+    pending_vectors: RwLock<Vec<PendingVector>>,        // Queue for vectors added during warmup
+    bruteforce_warned: std::sync::atomic::AtomicBool,   // Log fallback warning only once
+    warmup_controller: Arc<warmup::WarmupController>,   // State machine for warmup (Cold/WarmingUp/Hot)
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -508,6 +539,12 @@ impl std::fmt::Debug for VectorStore {
                 &self.embedding_cache.read().map(|c| c.len()).unwrap_or(0),
             )
             .field("fast_mode", &self.fast_mode)
+            .field("hnsw_ready", &self.hnsw_ready.load(std::sync::atomic::Ordering::SeqCst))
+            .field("warmup_state", &self.warmup_controller.state())
+            .field(
+                "pending_vectors",
+                &self.pending_vectors.read().map(|v| v.len()).unwrap_or(0),
+            )
             .field("embeddings", &"Box<dyn Embeddings>")
             .finish()
     }
@@ -520,9 +557,13 @@ impl VectorStore {
     }
 
     pub fn with_meta(embeddings: Box<dyn Embeddings>, meta: VectorMeta) -> Self {
-        // Enable fast mode in test builds for better performance
-        // Force it on for now to fix performance tests
-        let fast_mode = true;
+        // Enable fast mode only in test builds via environment variable
+        // Production uses real embeddings for semantic quality
+        let fast_mode = std::env::var("SYNCORE_FAST_EMBED").is_ok();
+
+        // Initialize HNSW index with default config
+        let hnsw_config = HnswConfig::default();
+        let hnsw_index = HnswVectorIndex::new(hnsw_config, 42).expect("Failed to create HNSW index");
 
         Self {
             embeddings,
@@ -533,7 +574,60 @@ impl VectorStore {
             query_cache: RwLock::new(QueryCache::new(16)), // Cache last 16 queries
             embedding_cache: RwLock::new(HashMap::new()),
             fast_mode,
+            hnsw: Arc::new(RwLock::new(hnsw_index)),
+            hnsw_ready: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            pending_vectors: RwLock::new(Vec::new()),
+            bruteforce_warned: std::sync::atomic::AtomicBool::new(false),
+            warmup_controller: Arc::new(warmup::WarmupController::new()),
         }
+    }
+
+    /// Set the HNSW ready flag (called after warmup completes)
+    pub fn set_hnsw_ready(&self, ready: bool) {
+        use std::sync::atomic::Ordering;
+        self.hnsw_ready.store(ready, Ordering::SeqCst);
+    }
+
+    /// Check if HNSW index is ready for fast search
+    pub fn is_hnsw_ready(&self) -> bool {
+        use std::sync::atomic::Ordering;
+        self.hnsw_ready.load(Ordering::SeqCst)
+    }
+
+    /// Get shared reference to HNSW ready flag for external coordination
+    pub fn hnsw_ready_flag(&self) -> Arc<std::sync::atomic::AtomicBool> {
+        self.hnsw_ready.clone()
+    }
+
+    /// Get reference to warmup state controller
+    pub fn warmup_controller(&self) -> &warmup::WarmupController {
+        &self.warmup_controller
+    }
+
+    /// Get shared reference to warmup controller for external coordination
+    pub fn warmup_controller_arc(&self) -> Arc<warmup::WarmupController> {
+        self.warmup_controller.clone()
+    }
+
+    /// Flush pending vectors into HNSW index (called after warmup)
+    pub fn flush_pending_vectors(&mut self) -> Result<usize> {
+        let mut pending = self.pending_vectors.write()
+            .map_err(|e| anyhow::anyhow!("Failed to lock pending vectors: {}", e))?;
+
+        if pending.is_empty() {
+            return Ok(0);
+        }
+
+        let count = pending.len();
+        let mut hnsw = self.hnsw.write()
+            .map_err(|e| anyhow::anyhow!("Failed to lock HNSW: {}", e))?;
+
+        for pv in pending.drain(..) {
+            hnsw.add(pv.id, pv.embedding)?;
+        }
+
+        eprintln!("[SynCore] Flushed {} pending vectors into HNSW index", count);
+        Ok(count)
     }
 
     pub fn set_index_path(&mut self, path: String) {
@@ -545,13 +639,19 @@ impl VectorStore {
         self.fast_mode = enabled;
     }
 
-    pub fn insert_text(
+    /// Insert text without saving snapshot (for batch operations)
+    ///
+    /// Use this during warmup/rebuild to avoid 35k disk writes.
+    /// Caller MUST call save_snapshot() once after batch is complete.
+    pub fn insert_text_no_snapshot(
         &mut self,
         id: i64,
         task_id: Option<i64>,
         text: &str,
         _kind: &str,
     ) -> Result<()> {
+        use std::sync::atomic::Ordering;
+
         // Use fast embedding in test mode for performance (always for any text in fast_mode)
         let embedding = if self.fast_mode {
             fast_embed(text, self.embeddings.dim())
@@ -563,12 +663,42 @@ impl VectorStore {
         self.vectors
             .push((id, task_id, embedding.clone(), text.to_string()));
 
+        // Insert into HNSW index or queue for later
+        if self.hnsw_ready.load(Ordering::SeqCst) {
+            // HNSW ready - insert directly
+            if let Ok(mut hnsw) = self.hnsw.write() {
+                hnsw.add(id, embedding.clone())?;
+            }
+        } else {
+            // HNSW warming up - queue for later insertion
+            if let Ok(mut pending) = self.pending_vectors.write() {
+                pending.push(PendingVector {
+                    id,
+                    embedding: embedding.clone(),
+                });
+            }
+        }
+
         // Clear query cache since results may have changed (ignore if poisoned)
         if let Ok(mut cache) = self.query_cache.write() {
             cache.clear();
         }
 
-        // Skip snapshot in test mode for performance
+        // NOTE: No save_snapshot() here - caller must save explicitly
+        Ok(())
+    }
+
+    pub fn insert_text(
+        &mut self,
+        id: i64,
+        task_id: Option<i64>,
+        text: &str,
+        kind: &str,
+    ) -> Result<()> {
+        // Insert without snapshot
+        self.insert_text_no_snapshot(id, task_id, text, kind)?;
+
+        // Skip snapshot in fast mode for test performance
         if !self.fast_mode {
             self.save_snapshot()?;
         }
@@ -613,35 +743,84 @@ impl VectorStore {
             }
         };
 
-        let mut results = Vec::new();
+        use std::sync::atomic::Ordering;
 
-        for &(id, task_id, ref embedding, ref text) in &self.vectors {
-            match scope {
-                SearchScope::Global => {
-                    let similarity = self.cosine_similarity(&query_embedding, embedding);
-                    results.push(Hit {
-                        id,
-                        score: similarity,
-                        task_id,
-                        text: text.clone(),
-                    });
-                }
-                SearchScope::Task(target_task_id) => {
-                    if task_id == Some(target_task_id) {
-                        let similarity = self.cosine_similarity(&query_embedding, embedding);
-                        results.push(Hit {
-                            id,
-                            score: similarity,
-                            task_id,
-                            text: text.clone(),
-                        });
+        // Check if HNSW is ready - use HNSW if ready, brute-force fallback otherwise
+        let mut results: Vec<Hit> = if self.hnsw_ready.load(Ordering::SeqCst) {
+            // Use HNSW for fast nearest neighbor search
+            let hnsw_results = if let Ok(hnsw) = self.hnsw.read() {
+                hnsw.search(&query_embedding, k * 2)? // Get more candidates for filtering
+            } else {
+                Vec::new()
+            };
+
+            // Build lookup map for vector metadata (task_id, text)
+            let vector_map: HashMap<i64, (Option<i64>, String)> = self
+                .vectors
+                .iter()
+                .map(|(id, task_id, _embedding, text)| (*id, (*task_id, text.clone())))
+                .collect();
+
+            // Convert HNSW results to Hit format with filtering by scope
+            hnsw_results
+                .into_iter()
+                .filter_map(|(id, score)| {
+                    if let Some((task_id, text)) = vector_map.get(&id) {
+                        let should_include = match scope {
+                            SearchScope::Global => true,
+                            SearchScope::Task(target_task_id) => *task_id == Some(target_task_id),
+                        };
+                        if should_include {
+                            Some(Hit {
+                                id,
+                                score,
+                                task_id: *task_id,
+                                text: text.clone(),
+                            })
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
                     }
-                }
+                })
+                .collect()
+        } else {
+            // HNSW not ready - use brute-force cosine similarity search
+            // Log warning only once
+            if !self.bruteforce_warned.swap(true, Ordering::SeqCst) {
+                eprintln!("[SynCore] HNSW not ready — using temporary brute-force search.");
             }
-        }
 
-        // Sort by similarity (descending) and take top k
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+            // Compute cosine similarity for all vectors
+            let mut scored: Vec<Hit> = self
+                .vectors
+                .iter()
+                .filter_map(|(id, task_id, embedding, text)| {
+                    let should_include = match scope {
+                        SearchScope::Global => true,
+                        SearchScope::Task(target_task_id) => *task_id == Some(target_task_id),
+                    };
+                    if should_include {
+                        let score = self.cosine_similarity(&query_embedding, embedding);
+                        Some(Hit {
+                            id: *id,
+                            score,
+                            task_id: *task_id,
+                            text: text.clone(),
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            // Sort by similarity descending
+            scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+            scored
+        };
+
+        // Truncate to k results
         results.truncate(k);
 
         // Store in query cache (ignore if lock poisoned)
@@ -786,21 +965,69 @@ impl VectorStore {
         let meta_bytes = bincode::serialize(&self.meta)?;
         fs::write(meta_path, meta_bytes)?;
 
+        // Save HNSW index to disk
+        let hnsw_path = Path::new(&self.index_path);
+        if let Ok(hnsw) = self.hnsw.read() {
+            if hnsw.len() > 0 {
+                hnsw.save_to_disk(hnsw_path)?;
+            }
+        }
+
         Ok(())
     }
 
+    /// Load snapshot from disk with snapshot-first startup pattern
+    ///
+    /// Tries to load HNSW snapshot directly (O(1) ~20-50ms).
+    /// If successful, marks state as Hot and returns immediately.
+    /// If snapshot missing/corrupt, vectors are loaded for brute-force fallback.
     pub fn load_snapshot(&mut self) -> Result<()> {
         let vectors_path = format!("{}.vectors", self.index_path);
         let meta_path = format!("{}.meta", self.index_path);
 
+        // Load vectors for brute-force fallback (always needed)
         if Path::new(&vectors_path).exists() {
-            let vectors_bytes = fs::read(vectors_path)?;
+            let vectors_bytes = fs::read(&vectors_path)?;
             self.vectors = bincode::deserialize(&vectors_bytes)?;
+            eprintln!("[SynCore] Loaded {} vectors from snapshot", self.vectors.len());
+        } else {
+            eprintln!("[SynCore] No vector snapshot found at {}", vectors_path);
+            return Ok(());
         }
 
         if Path::new(&meta_path).exists() {
-            let meta_bytes = fs::read(meta_path)?;
+            let meta_bytes = fs::read(&meta_path)?;
             self.meta = bincode::deserialize(&meta_bytes)?;
+        }
+
+        // Try to load HNSW index directly (snapshot-first pattern)
+        let hnsw_path = Path::new(&self.index_path);
+        if let Ok(mut hnsw) = self.hnsw.write() {
+            // Try to load existing HNSW index from disk
+            let load_result = hnsw.load_from_disk(hnsw_path);
+
+            if load_result.is_ok() && hnsw.len() > 0 {
+                // HNSW snapshot loaded successfully - mark as Hot
+                self.warmup_controller.mark_hot();
+                self.hnsw_ready.store(true, std::sync::atomic::Ordering::SeqCst);
+                eprintln!("[SynCore] HNSW snapshot loaded ({} vectors) - state=Hot", hnsw.len());
+                return Ok(());
+            }
+
+            // HNSW index missing or empty - rebuild from vectors
+            if !self.vectors.is_empty() {
+                eprintln!("[SynCore] HNSW snapshot missing/empty, rebuilding from {} vectors...", self.vectors.len());
+                let vectors_for_rebuild: Vec<(i64, Vec<f32>)> = self
+                    .vectors
+                    .iter()
+                    .map(|(id, _task_id, embedding, _text)| (*id, embedding.clone()))
+                    .collect();
+
+                hnsw.rebuild_from_vectors(&vectors_for_rebuild)?;
+                self.warmup_controller.mark_hot();
+                self.hnsw_ready.store(true, std::sync::atomic::Ordering::SeqCst);
+                eprintln!("[SynCore] HNSW rebuilt ({} vectors) - state=Hot", hnsw.len());
+            }
         }
 
         Ok(())
@@ -1443,6 +1670,10 @@ impl EmbeddingsClone for dyn Embeddings {
 // HNSW vector index module (standalone, no coupling to existing vector code)
 pub mod hnsw;
 pub mod traits;
+pub mod warmup;
 
 // Re-export VectorIndex trait for public API
 pub use traits::VectorIndex;
+
+// Re-export warmup types for public API
+pub use warmup::{HnswWarmupState, WarmupController};

@@ -85,6 +85,10 @@ impl CodeGraph {
                 line_end: row.get::<_, i64>(5)? as usize,
                 docstring: row.get(6)?,
                 language: row.get(7)?,
+                created_at: None,
+                last_modified_at: None,
+                change_count: None,
+                author_count: None,
             })
         },
     )?;

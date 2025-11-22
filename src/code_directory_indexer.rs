@@ -1,9 +1,9 @@
-use anyhow::{Result, anyhow};
+use crate::code_graph::CodeGraph;
+use crate::vector::VectorStore;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use crate::code_graph::CodeGraph;
-use crate::vector::VectorStore;
 
 /// Request to index a directory of code files
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,7 +45,10 @@ impl DirectoryIndexer {
     /// - "**/*.rs" - All Rust files recursively
     /// - "src/**/*.py" - All Python files under src/ recursively
     /// - "*.js" - All JavaScript files in root directory only
-    pub fn index_directory(&mut self, request: &DirectoryIndexRequest) -> Result<DirectoryIndexResponse> {
+    pub fn index_directory(
+        &mut self,
+        request: &DirectoryIndexRequest,
+    ) -> Result<DirectoryIndexResponse> {
         let directory = Path::new(&request.directory);
 
         // Verify directory exists
@@ -113,7 +116,11 @@ impl DirectoryIndexer {
                 }
                 Err(e) => {
                     // Log error but continue processing other files
-                    eprintln!("Warning: Failed to index file {}: {}", file_path.display(), e);
+                    eprintln!(
+                        "Warning: Failed to index file {}: {}",
+                        file_path.display(),
+                        e
+                    );
                     continue;
                 }
             }
@@ -137,9 +144,9 @@ impl DirectoryIndexer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vector::{HuggingFaceEmbeddings, VectorStore};
     use std::fs;
     use tempfile::TempDir;
-    use crate::vector::{VectorStore, HuggingFaceEmbeddings};
 
     fn create_test_indexer(db_path: &str) -> Result<DirectoryIndexer> {
         let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
@@ -250,7 +257,9 @@ mod tests {
 
         // Create test Rust file
         let rust_file = src_dir.join("test.rs");
-        fs::write(&rust_file, r#"
+        fs::write(
+            &rust_file,
+            r#"
 pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
@@ -258,15 +267,19 @@ pub fn add(a: i32, b: i32) -> i32 {
 pub fn multiply(x: i32, y: i32) -> i32 {
     x * y
 }
-"#)?;
+"#,
+        )?;
 
         // Create another Rust file
         let rust_file2 = src_dir.join("helper.rs");
-        fs::write(&rust_file2, r#"
+        fs::write(
+            &rust_file2,
+            r#"
 pub fn helper() {
     println!("Helper");
 }
-"#)?;
+"#,
+        )?;
 
         let mut indexer = create_test_indexer(db_path.to_str().unwrap())?;
 

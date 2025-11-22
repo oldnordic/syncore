@@ -1,6 +1,6 @@
-use syncore::vector::{HuggingFaceEmbeddings, VectorStore, SearchScope};
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
+use syncore::vector::{HuggingFaceEmbeddings, SearchScope, VectorStore};
 
 /// Integration test: VectorStore with real HuggingFace embeddings
 /// Tests insert, search, and semantic similarity end-to-end
@@ -20,7 +20,8 @@ fn test_vector_store_with_real_embeddings() -> Result<()> {
 
     let rust_add = "fn add(a: i32, b: i32) -> i32 { a + b }";
     let rust_multiply = "fn multiply(x: i32, y: i32) -> i32 { x * y }";
-    let rust_fibonacci = "fn fibonacci(n: u32) -> u32 { if n <= 1 { n } else { fibonacci(n-1) + fibonacci(n-2) } }";
+    let rust_fibonacci =
+        "fn fibonacci(n: u32) -> u32 { if n <= 1 { n } else { fibonacci(n-1) + fibonacci(n-2) } }";
     let python_sum = "def sum(a, b): return a + b";
     let javascript_loop = "for (let i = 0; i < 10; i++) { console.log(i); }";
 
@@ -52,8 +53,13 @@ fn test_vector_store_with_real_embeddings() -> Result<()> {
     println!("Query: '{}'", query);
     println!("Top {} results:", results.len());
     for (i, result) in results.iter().enumerate() {
-        println!("  {}. ID {}, Score: {:.4}, Text: '{}'",
-            i+1, result.id, result.score, result.text);
+        println!(
+            "  {}. ID {}, Score: {:.4}, Text: '{}'",
+            i + 1,
+            result.id,
+            result.score,
+            result.text
+        );
     }
 
     // Verify that addition-related functions are in top results
@@ -61,7 +67,8 @@ fn test_vector_store_with_real_embeddings() -> Result<()> {
     let top_result_text = &results[0].text;
     assert!(
         top_result_text.contains("add") || top_result_text.contains("sum"),
-        "Top result should be about addition, got: '{}'", top_result_text
+        "Top result should be about addition, got: '{}'",
+        top_result_text
     );
     println!("✅ Top result is addition-related\n");
 
@@ -73,14 +80,20 @@ fn test_vector_store_with_real_embeddings() -> Result<()> {
     println!("Query: '{}'", query2);
     println!("Top {} results:", results2.len());
     for (i, result) in results2.iter().enumerate() {
-        println!("  {}. ID {}, Score: {:.4}, Text: '{}'",
-            i+1, result.id, result.score, result.text);
+        println!(
+            "  {}. ID {}, Score: {:.4}, Text: '{}'",
+            i + 1,
+            result.id,
+            result.score,
+            result.text
+        );
     }
 
     let top_result_text2 = &results2[0].text;
     assert!(
         top_result_text2.contains("multiply"),
-        "Top result should be about multiplication, got: '{}'", top_result_text2
+        "Top result should be about multiplication, got: '{}'",
+        top_result_text2
     );
     println!("✅ Top result is multiplication-related\n");
 
@@ -92,14 +105,20 @@ fn test_vector_store_with_real_embeddings() -> Result<()> {
     println!("Query: '{}'", query3);
     println!("Top {} results:", results3.len());
     for (i, result) in results3.iter().enumerate() {
-        println!("  {}. ID {}, Score: {:.4}, Text: '{}'",
-            i+1, result.id, result.score, result.text);
+        println!(
+            "  {}. ID {}, Score: {:.4}, Text: '{}'",
+            i + 1,
+            result.id,
+            result.score,
+            result.text
+        );
     }
 
     let top_result_text3 = &results3[0].text;
     assert!(
         top_result_text3.contains("fibonacci") || top_result_text3.contains("fibonacci"),
-        "Top result should be fibonacci (recursive), got: '{}'", top_result_text3
+        "Top result should be fibonacci (recursive), got: '{}'",
+        top_result_text3
     );
     println!("✅ Top result is recursive function\n");
 
@@ -175,11 +194,17 @@ fn test_vector_store_performance() -> Result<()> {
     let insert_duration = start.elapsed();
 
     println!("Inserted {} items in {:?}", items.len(), insert_duration);
-    println!("Average insert time: {:?}", insert_duration / items.len() as u32);
+    println!(
+        "Average insert time: {:?}",
+        insert_duration / items.len() as u32
+    );
 
     // Should be reasonably fast (<100ms per item on average)
-    assert!(insert_duration.as_millis() < 1000,
-        "Insert should be <1s for 10 items, got {:?}", insert_duration);
+    assert!(
+        insert_duration.as_millis() < 1000,
+        "Insert should be <1s for 10 items, got {:?}",
+        insert_duration
+    );
     println!("✅ Insert performance acceptable\n");
 
     // Test search performance
@@ -192,8 +217,11 @@ fn test_vector_store_performance() -> Result<()> {
     println!("Found {} results", results.len());
 
     // Search should be fast (<200ms)
-    assert!(search_duration.as_millis() < 200,
-        "Search should be <200ms, got {:?}", search_duration);
+    assert!(
+        search_duration.as_millis() < 200,
+        "Search should be <200ms, got {:?}",
+        search_duration
+    );
     println!("✅ Search performance acceptable\n");
 
     println!("=== Performance Tests PASSED! ===");
@@ -210,10 +238,30 @@ fn test_vector_store_semantic_quality() -> Result<()> {
     let mut vector_store = VectorStore::new(embeddings);
 
     // Insert domain-specific content
-    vector_store.insert_text(1, None, "HTTP GET request to fetch user data from API", "operation")?;
-    vector_store.insert_text(2, None, "Database query to retrieve customer records", "operation")?;
-    vector_store.insert_text(3, None, "File system operation to read configuration file", "operation")?;
-    vector_store.insert_text(4, None, "WebSocket connection for real-time chat", "operation")?;
+    vector_store.insert_text(
+        1,
+        None,
+        "HTTP GET request to fetch user data from API",
+        "operation",
+    )?;
+    vector_store.insert_text(
+        2,
+        None,
+        "Database query to retrieve customer records",
+        "operation",
+    )?;
+    vector_store.insert_text(
+        3,
+        None,
+        "File system operation to read configuration file",
+        "operation",
+    )?;
+    vector_store.insert_text(
+        4,
+        None,
+        "WebSocket connection for real-time chat",
+        "operation",
+    )?;
     vector_store.insert_text(5, None, "Redis cache lookup for session data", "operation")?;
 
     println!("Inserted 5 domain-specific operations\n");
@@ -236,10 +284,13 @@ fn test_vector_store_semantic_quality() -> Result<()> {
     println!("Top result: '{}'", results[0].text);
     // Verify we get data-related operations (HTTP, Database, cache, or File are all valid)
     assert!(
-        results[0].text.contains("data") || results[0].text.contains("Database") ||
-        results[0].text.contains("cache") || results[0].text.contains("File") ||
-        results[0].text.contains("HTTP"),
-        "Should find data-related operation, got: '{}'", results[0].text
+        results[0].text.contains("data")
+            || results[0].text.contains("Database")
+            || results[0].text.contains("cache")
+            || results[0].text.contains("File")
+            || results[0].text.contains("HTTP"),
+        "Should find data-related operation, got: '{}'",
+        results[0].text
     );
     println!("✅ Found data-related operation\n");
 

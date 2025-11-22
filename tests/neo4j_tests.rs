@@ -13,12 +13,7 @@ use std::sync::Arc;
 async fn test_connects_to_neo4j() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     // Verify connection by running a simple query
     let result = client.execute_query("RETURN 1 as n", vec![]).await?;
@@ -33,21 +28,14 @@ async fn test_connects_to_neo4j() -> Result<()> {
 async fn test_creates_task_node() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     // Create a task node
     let task_id = 42i64;
     let title = "Test Task";
     let status = "pending";
 
-    client
-        .create_task_node(task_id, title, status)
-        .await?;
+    client.create_task_node(task_id, title, status).await?;
 
     // Verify the node exists
     let query = "MATCH (t:Task {id: $id}) RETURN t.id as id, t.title as title, t.status as status";
@@ -61,7 +49,10 @@ async fn test_creates_task_node() -> Result<()> {
 
     // Cleanup
     client
-        .execute_query("MATCH (t:Task {id: $id}) DELETE t", vec![("id", serde_json::json!(task_id))])
+        .execute_query(
+            "MATCH (t:Task {id: $id}) DELETE t",
+            vec![("id", serde_json::json!(task_id))],
+        )
         .await?;
 
     Ok(())
@@ -72,22 +63,23 @@ async fn test_creates_task_node() -> Result<()> {
 async fn test_creates_subtask_relationship() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     // Create parent and child tasks
     let parent_id = 100i64;
     let child_id = 101i64;
 
-    client.create_task_node(parent_id, "Parent Task", "pending").await?;
-    client.create_task_node(child_id, "Child Task", "pending").await?;
+    client
+        .create_task_node(parent_id, "Parent Task", "pending")
+        .await?;
+    client
+        .create_task_node(child_id, "Child Task", "pending")
+        .await?;
 
     // Create relationship
-    client.create_subtask_relationship(parent_id, child_id).await?;
+    client
+        .create_subtask_relationship(parent_id, child_id)
+        .await?;
 
     // Verify relationship exists
     let query = r#"
@@ -123,12 +115,7 @@ async fn test_creates_subtask_relationship() -> Result<()> {
 async fn test_memory_node_creation() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     let key = "test_memory_key";
     let value = "test_memory_value";
@@ -146,7 +133,10 @@ async fn test_memory_node_creation() -> Result<()> {
 
     // Cleanup
     client
-        .execute_query("MATCH (m:Memory {key: $key}) DELETE m", vec![("key", serde_json::json!(key))])
+        .execute_query(
+            "MATCH (m:Memory {key: $key}) DELETE m",
+            vec![("key", serde_json::json!(key))],
+        )
         .await?;
 
     Ok(())
@@ -157,12 +147,7 @@ async fn test_memory_node_creation() -> Result<()> {
 async fn test_embedding_node_creation() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     let id = 999i64;
     let text = "This is an embedding text";
@@ -182,7 +167,10 @@ async fn test_embedding_node_creation() -> Result<()> {
 
     // Cleanup
     client
-        .execute_query("MATCH (e:Embedding {id: $id}) DELETE e", vec![("id", serde_json::json!(id))])
+        .execute_query(
+            "MATCH (e:Embedding {id: $id}) DELETE e",
+            vec![("id", serde_json::json!(id))],
+        )
         .await?;
 
     Ok(())
@@ -193,16 +181,13 @@ async fn test_embedding_node_creation() -> Result<()> {
 async fn test_reading_graph_nodes() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     // Create multiple tasks
     for i in 200..203 {
-        client.create_task_node(i, &format!("Task {}", i), "pending").await?;
+        client
+            .create_task_node(i, &format!("Task {}", i), "pending")
+            .await?;
     }
 
     // Read all tasks in range
@@ -216,7 +201,10 @@ async fn test_reading_graph_nodes() -> Result<()> {
 
     // Cleanup
     client
-        .execute_query("MATCH (t:Task) WHERE t.id >= 200 AND t.id < 203 DELETE t", vec![])
+        .execute_query(
+            "MATCH (t:Task) WHERE t.id >= 200 AND t.id < 203 DELETE t",
+            vec![],
+        )
         .await?;
 
     Ok(())
@@ -227,16 +215,13 @@ async fn test_reading_graph_nodes() -> Result<()> {
 async fn test_reading_graph_relationships() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     // Create a chain: Task 300 -> Task 301 -> Task 302
     client.create_task_node(300, "Root Task", "pending").await?;
-    client.create_task_node(301, "Middle Task", "pending").await?;
+    client
+        .create_task_node(301, "Middle Task", "pending")
+        .await?;
     client.create_task_node(302, "Leaf Task", "pending").await?;
     client.create_subtask_relationship(300, 301).await?;
     client.create_subtask_relationship(301, 302).await?;
@@ -252,7 +237,10 @@ async fn test_reading_graph_relationships() -> Result<()> {
 
     // Cleanup
     client
-        .execute_query("MATCH (t:Task) WHERE t.id IN [300, 301, 302] DETACH DELETE t", vec![])
+        .execute_query(
+            "MATCH (t:Task) WHERE t.id IN [300, 301, 302] DETACH DELETE t",
+            vec![],
+        )
         .await?;
 
     Ok(())
@@ -261,12 +249,12 @@ async fn test_reading_graph_relationships() -> Result<()> {
 // Test 8: SQLite and Neo4j dual-write consistency
 #[tokio::test]
 async fn test_sqlite_and_neo4j_dual_write_consistency() -> Result<()> {
-    use syncore::graph::neo4j_client::Neo4jClient;
-    use syncore::router::SynCoreState;
-    use syncore::memory::Memory;
-    use syncore::tasks::Tasks;
-    use syncore::vector::{VectorStore, RealEmbeddings};
     use std::sync::Mutex;
+    use syncore::graph::neo4j_client::Neo4jClient;
+    use syncore::memory::Memory;
+    use syncore::router::SynCoreState;
+    use syncore::tasks::Tasks;
+    use syncore::vector::{RealEmbeddings, VectorStore};
 
     // Setup state with Neo4j
     let id = std::process::id();
@@ -282,22 +270,21 @@ async fn test_sqlite_and_neo4j_dual_write_consistency() -> Result<()> {
     let embeddings = Box::new(RealEmbeddings::new(384)?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
-    let neo4j_client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let neo4j_client =
+        Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
-    let state = SynCoreState::new(memory, tasks, vector_store)
-        .with_neo4j(Arc::new(neo4j_client));
+    let state = SynCoreState::new(memory, tasks, vector_store).with_neo4j(Arc::new(neo4j_client));
 
     // Create task in SQLite
-    let task_id = state.tasks.add_task("Dual Write Test", "Testing consistency", 1, None)?;
+    let task_id = state
+        .tasks
+        .add_task("Dual Write Test", "Testing consistency", 1, None)?;
 
     // Sync to Neo4j
     if let Some(neo4j) = &state.neo4j {
-        neo4j.create_task_node(task_id, "Dual Write Test", "pending").await?;
+        neo4j
+            .create_task_node(task_id, "Dual Write Test", "pending")
+            .await?;
     }
 
     // Verify both stores have the data
@@ -308,12 +295,19 @@ async fn test_sqlite_and_neo4j_dual_write_consistency() -> Result<()> {
     // Neo4j check
     if let Some(neo4j) = &state.neo4j {
         let query = "MATCH (t:Task {id: $id}) RETURN t.title as title";
-        let result = neo4j.execute_query(query, vec![("id", serde_json::json!(task_id))]).await?;
+        let result = neo4j
+            .execute_query(query, vec![("id", serde_json::json!(task_id))])
+            .await?;
         assert_eq!(result.len(), 1);
         assert_eq!(result[0]["title"], serde_json::json!("Dual Write Test"));
 
         // Cleanup Neo4j
-        neo4j.execute_query("MATCH (t:Task {id: $id}) DELETE t", vec![("id", serde_json::json!(task_id))]).await?;
+        neo4j
+            .execute_query(
+                "MATCH (t:Task {id: $id}) DELETE t",
+                vec![("id", serde_json::json!(task_id))],
+            )
+            .await?;
     }
 
     Ok(())
@@ -325,9 +319,8 @@ async fn test_neo4j_connection_pooling() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
     use tokio::task::JoinSet;
 
-    let client = Arc::new(
-        Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?,
-    );
+    let client =
+        Arc::new(Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?);
 
     // Spawn multiple concurrent queries
     let mut set = JoinSet::new();
@@ -356,12 +349,7 @@ async fn test_neo4j_connection_pooling() -> Result<()> {
 async fn test_zero_copy_query_execution() -> Result<()> {
     use syncore::graph::neo4j_client::Neo4jClient;
 
-    let client = Neo4jClient::connect(
-        "bolt://localhost:7687",
-        "neo4j",
-        "testpassword123",
-    )
-    .await?;
+    let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     // Create test data with borrowed string slice (no allocation)
     let query_str: &str = "RETURN 'borrowed' as text, 42 as num";

@@ -13,16 +13,19 @@ use std::time::Duration;
 // Test 1: SynCoreMCPServer implements Service<RoleServer> trait
 #[test]
 fn syncore_mcp_server_implements_service_trait() {
-    use syncore::mcp_server::SynCoreMCPServer;
-    use syncore::router::SynCoreState;
-    use syncore::memory::Memory;
-    use syncore::tasks::Tasks;
-    use syncore::vector::{VectorStore, RealEmbeddings};
     use std::sync::Mutex;
+    use syncore::mcp_server::SynCoreMCPServer;
+    use syncore::memory::Memory;
+    use syncore::router::SynCoreState;
+    use syncore::tasks::Tasks;
+    use syncore::vector::{RealEmbeddings, VectorStore};
 
     // Use unique temp paths to avoid lock conflicts
     let id = std::process::id();
-    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let mem_path = format!("/tmp/syncore_dual_test_mem_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_dual_test_task_{}_{}.db", id, ts);
 
@@ -74,7 +77,10 @@ async fn sse_server_binds_to_port() -> Result<()> {
 
     // Verify we can connect to the port
     let tcp_result = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", actual_port)).await;
-    assert!(tcp_result.is_ok(), "Should be able to connect to SSE server port");
+    assert!(
+        tcp_result.is_ok(),
+        "Should be able to connect to SSE server port"
+    );
 
     // Cleanup
     ct.cancel();
@@ -86,18 +92,21 @@ async fn sse_server_binds_to_port() -> Result<()> {
 // Test 3: SSE server serves MCP protocol responses
 #[tokio::test]
 async fn sse_server_serves_mcp_tools() -> Result<()> {
-    use syncore::mcp_server::SynCoreMCPServer;
-    use syncore::router::SynCoreState;
-    use syncore::memory::Memory;
-    use syncore::tasks::Tasks;
-    use syncore::vector::{VectorStore, RealEmbeddings};
     use rmcp::transport::sse_server::{SseServer, SseServerConfig};
-    use tokio_util::sync::CancellationToken;
     use std::sync::Mutex;
+    use syncore::mcp_server::SynCoreMCPServer;
+    use syncore::memory::Memory;
+    use syncore::router::SynCoreState;
+    use syncore::tasks::Tasks;
+    use syncore::vector::{RealEmbeddings, VectorStore};
+    use tokio_util::sync::CancellationToken;
 
     // Use unique temp paths to avoid lock conflicts
     let id = std::process::id();
-    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let mem_path = format!("/tmp/syncore_dual_test_mem2_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_dual_test_task2_{}_{}.db", id, ts);
 
@@ -164,17 +173,20 @@ async fn sse_server_serves_mcp_tools() -> Result<()> {
 // Test 4: Shared state between STDIO and HTTP transports
 #[tokio::test]
 async fn shared_state_between_transports() -> Result<()> {
-    use syncore::mcp_server::SynCoreMCPServer;
-    use syncore::router::SynCoreState;
-    use syncore::memory::Memory;
-    use syncore::tasks::Tasks;
-    use syncore::vector::{VectorStore, RealEmbeddings};
-    use syncore::message_bus::MessageBus;
     use std::sync::Mutex;
+    use syncore::mcp_server::SynCoreMCPServer;
+    use syncore::memory::Memory;
+    use syncore::message_bus::MessageBus;
+    use syncore::router::SynCoreState;
+    use syncore::tasks::Tasks;
+    use syncore::vector::{RealEmbeddings, VectorStore};
 
     // Use unique temp paths to avoid lock conflicts
     let id = std::process::id();
-    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let mem_path = format!("/tmp/syncore_dual_test_mem3_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_dual_test_task3_{}_{}.db", id, ts);
 
@@ -215,12 +227,12 @@ async fn shared_state_between_transports() -> Result<()> {
 // Test 5: Multiple SynCoreMCPServer instances share state
 #[tokio::test]
 async fn multiple_server_instances_share_state() -> Result<()> {
-    use syncore::mcp_server::SynCoreMCPServer;
-    use syncore::router::SynCoreState;
-    use syncore::memory::Memory;
-    use syncore::tasks::Tasks;
-    use syncore::vector::{VectorStore, RealEmbeddings};
     use std::sync::Mutex;
+    use syncore::mcp_server::SynCoreMCPServer;
+    use syncore::memory::Memory;
+    use syncore::router::SynCoreState;
+    use syncore::tasks::Tasks;
+    use syncore::vector::{RealEmbeddings, VectorStore};
 
     let memory = Memory::new(":memory:").unwrap();
     let tasks = Tasks::new(":memory:").unwrap();
@@ -321,12 +333,11 @@ async fn cancellation_token_shuts_down_sse_server() -> Result<()> {
 
     // Port should be released (can't connect anymore)
     tokio::time::sleep(Duration::from_millis(100)).await;
-    let connect_result =
-        tokio::time::timeout(
-            Duration::from_millis(500),
-            tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port)),
-        )
-        .await;
+    let connect_result = tokio::time::timeout(
+        Duration::from_millis(500),
+        tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port)),
+    )
+    .await;
 
     // Connection should fail or timeout
     assert!(

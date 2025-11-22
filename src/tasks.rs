@@ -1,7 +1,7 @@
-use rusqlite::{Connection, OptionalExtension};
-use std::sync::{Arc, Mutex};
-use serde::{Serialize, Deserialize};
 use anyhow::Result;
+use rusqlite::{Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
@@ -17,7 +17,8 @@ pub struct Task {
 
 #[derive(Debug)]
 pub struct Tasks {
-    db: Arc<Mutex<Connection>>,
+    /// Database connection. Public for RealExecutor access only.
+    pub db: Arc<Mutex<Connection>>,
 }
 
 impl Clone for Tasks {
@@ -29,16 +30,43 @@ impl Clone for Tasks {
 }
 
 impl Tasks {
+    /// Create Tasks using an existing database connection from DbManager.
+    ///
+    /// This is the preferred constructor when using DbManager. It reuses long-lived
+    /// connections instead of creating new ones per-call.
+    ///
+    /// # Arguments
+    ///
+    /// * `db` - Arc<Mutex<Connection>> from DbManager.main_conn()
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let db_manager = DbManager::new("syncore.db", "syncore_code_graph.db")?;
+    /// let tasks = Tasks::with_connection(db_manager.main_conn())?;
+    /// ```
+    pub fn with_connection(db: Arc<Mutex<Connection>>) -> Result<Self> {
+        Ok(Self { db })
+    }
+
+    /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
+    ///
+    /// This method is kept for backward compatibility with existing code that hasn't
+    /// been refactored to use DbManager yet.
     pub fn new(db_path: &str) -> Result<Self> {
         let conn = crate::db::open_db_with_wal(db_path)?;
         crate::db::ensure_schema(db_path)?;
 
-        Ok(Self {
-            db: Arc::new(Mutex::new(conn)),
-        })
+        Self::with_connection(Arc::new(Mutex::new(conn)))
     }
 
-    pub fn add_task(&self, goal: &str, description: &str, priority: i32, parent: Option<i64>) -> Result<i64> {
+    pub fn add_task(
+        &self,
+        goal: &str,
+        description: &str,
+        priority: i32,
+        parent: Option<i64>,
+    ) -> Result<i64> {
         let db = self.db.lock().unwrap();
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -54,7 +82,13 @@ impl Tasks {
         Ok(db.last_insert_rowid())
     }
 
-    pub fn update_task(db: &Connection, id: i64, status: Option<&str>, prio: Option<i32>, desc: Option<&str>) -> Result<()> {
+    pub fn update_task(
+        db: &Connection,
+        id: i64,
+        status: Option<&str>,
+        prio: Option<i32>,
+        desc: Option<&str>,
+    ) -> Result<()> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -91,19 +125,26 @@ impl Tasks {
         Ok(())
     }
 
-    pub fn next_task(&self, statuses: Option<&[&str]>, min_prio: Option<i32>) -> Result<Option<Task>> {
+    pub fn next_task(
+        &self,
+        statuses: Option<&[&str]>,
+        min_prio: Option<i32>,
+    ) -> Result<Option<Task>> {
         let db = self.db.lock().unwrap();
 
         let mut query = "
             SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
             FROM tasks
             WHERE status != 'done' AND status != 'cancelled'
-        ".to_string();
+        "
+        .to_string();
 
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
 
         if let Some(statuses) = statuses {
-            let params_list: Vec<String> = statuses.iter().enumerate()
+            let params_list: Vec<String> = statuses
+                .iter()
+                .enumerate()
                 .map(|(i, _)| format!("?{}", i + 1))
                 .collect();
             query.push_str(&format!(" AND status IN ({})", params_list.join(", ")));
@@ -121,18 +162,20 @@ impl Tasks {
 
         let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
         let mut stmt = db.prepare(&query)?;
-        let task = stmt.query_row(rusqlite::params_from_iter(param_refs), |row| {
-            Ok(Task {
-                id: row.get(0)?,
-                goal: row.get(1)?,
-                description: row.get(2)?,
-                status: row.get(3)?,
-                priority: row.get(4)?,
-                parent_id: row.get(5)?,
-                created_at: row.get(6)?,
-                updated_at: row.get(7)?,
+        let task = stmt
+            .query_row(rusqlite::params_from_iter(param_refs), |row| {
+                Ok(Task {
+                    id: row.get(0)?,
+                    goal: row.get(1)?,
+                    description: row.get(2)?,
+                    status: row.get(3)?,
+                    priority: row.get(4)?,
+                    parent_id: row.get(5)?,
+                    created_at: row.get(6)?,
+                    updated_at: row.get(7)?,
+                })
             })
-        }).optional()?;
+            .optional()?;
 
         Ok(task)
     }
@@ -148,23 +191,25 @@ impl Tasks {
 
     pub fn get_task(&self, id: i64) -> Result<Option<Task>> {
         let db = self.db.lock().unwrap();
-        let task = db.query_row(
-            "SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
+        let task = db
+            .query_row(
+                "SELECT id, goal, description, status, priority, parent_id, created_at, updated_at
              FROM tasks WHERE id = ?1",
-            [id],
-            |row| {
-                Ok(Task {
-                    id: row.get(0)?,
-                    goal: row.get(1)?,
-                    description: row.get(2)?,
-                    status: row.get(3)?,
-                    priority: row.get(4)?,
-                    parent_id: row.get(5)?,
-                    created_at: row.get(6)?,
-                    updated_at: row.get(7)?,
-                })
-            },
-        ).optional()?;
+                [id],
+                |row| {
+                    Ok(Task {
+                        id: row.get(0)?,
+                        goal: row.get(1)?,
+                        description: row.get(2)?,
+                        status: row.get(3)?,
+                        priority: row.get(4)?,
+                        parent_id: row.get(5)?,
+                        created_at: row.get(6)?,
+                        updated_at: row.get(7)?,
+                    })
+                },
+            )
+            .optional()?;
 
         Ok(task)
     }
@@ -204,9 +249,9 @@ impl Tasks {
         self.db.clone()
     }
 
-    pub fn with_db<F, R>(&self, f: F) -> Result<R> 
-    where 
-        F: FnOnce(&Connection) -> Result<R>
+    pub fn with_db<F, R>(&self, f: F) -> Result<R>
+    where
+        F: FnOnce(&Connection) -> Result<R>,
     {
         let db = self.db.lock().unwrap();
         f(&db)
@@ -228,7 +273,13 @@ impl Tasks {
 }
 
 // Export the exact functions the user requested
-pub fn add_task(db: &Connection, goal: &str, description: &str, prio: i32, parent: Option<i64>) -> Result<i64> {
+pub fn add_task(
+    db: &Connection,
+    goal: &str,
+    description: &str,
+    prio: i32,
+    parent: Option<i64>,
+) -> Result<i64> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -243,7 +294,13 @@ pub fn add_task(db: &Connection, goal: &str, description: &str, prio: i32, paren
     Ok(db.last_insert_rowid())
 }
 
-pub fn update_task(db: &Connection, id: i64, status: Option<&str>, prio: Option<i32>, desc: Option<&str>) -> Result<()> {
+pub fn update_task(
+    db: &Connection,
+    id: i64,
+    status: Option<&str>,
+    prio: Option<i32>,
+    desc: Option<&str>,
+) -> Result<()> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -278,15 +335,22 @@ pub fn update_task(db: &Connection, id: i64, status: Option<&str>, prio: Option<
     Ok(())
 }
 
-pub fn next_task(db: &Connection, statuses: Option<&[&str]>, min_prio: Option<i32>) -> Result<Option<Task>> {
+pub fn next_task(
+    db: &Connection,
+    statuses: Option<&[&str]>,
+    min_prio: Option<i32>,
+) -> Result<Option<Task>> {
     let mut query_parts: Vec<String> = vec![
-        "SELECT id, goal, description, status, priority, parent_id, created_at, updated_at".to_string(),
+        "SELECT id, goal, description, status, priority, parent_id, created_at, updated_at"
+            .to_string(),
         "FROM tasks".to_string(),
-        "WHERE status != 'done' AND status != 'cancelled'".to_string()
+        "WHERE status != 'done' AND status != 'cancelled'".to_string(),
     ];
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
     if let Some(statuses) = statuses {
-        let params_list: Vec<String> = statuses.iter().enumerate()
+        let params_list: Vec<String> = statuses
+            .iter()
+            .enumerate()
             .map(|(i, _)| format!("?{}", i + 1))
             .collect();
         query_parts.push(format!("AND status IN ({})", params_list.join(", ")));
@@ -304,18 +368,20 @@ pub fn next_task(db: &Connection, statuses: Option<&[&str]>, min_prio: Option<i3
     let query = query_parts.join(" ");
 
     let mut stmt = db.prepare(&query)?;
-    let task = stmt.query_row(rusqlite::params_from_iter(params), |row| {
-        Ok(Task {
-            id: row.get(0)?,
-            goal: row.get(1)?,
-            description: row.get(2)?,
-            status: row.get(3)?,
-            priority: row.get(4)?,
-            parent_id: row.get(5)?,
-            created_at: row.get(6)?,
-            updated_at: row.get(7)?,
+    let task = stmt
+        .query_row(rusqlite::params_from_iter(params), |row| {
+            Ok(Task {
+                id: row.get(0)?,
+                goal: row.get(1)?,
+                description: row.get(2)?,
+                status: row.get(3)?,
+                priority: row.get(4)?,
+                parent_id: row.get(5)?,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+            })
         })
-    }).optional()?;
+        .optional()?;
 
     Ok(task)
 }
@@ -332,11 +398,11 @@ pub fn get_task_links(db: &Connection, task_id: i64, direction: &str) -> Result<
     let (query, _field) = match direction {
         "outgoing" => (
             "SELECT dst_id as linked_id, kind FROM task_links WHERE src_id = ?1",
-            "dst_id"
+            "dst_id",
         ),
         "incoming" => (
-            "SELECT src_id as linked_id, kind FROM task_links WHERE dst_id = ?1", 
-            "src_id"
+            "SELECT src_id as linked_id, kind FROM task_links WHERE dst_id = ?1",
+            "src_id",
         ),
         "both" => (
             "SELECT 
@@ -344,18 +410,25 @@ pub fn get_task_links(db: &Connection, task_id: i64, direction: &str) -> Result<
                 kind 
              FROM task_links 
              WHERE src_id = ?1 OR dst_id = ?1",
-            "linked_id"
+            "linked_id",
         ),
-        _ => return Err(anyhow::anyhow!("Invalid direction: {}. Use 'outgoing', 'incoming', or 'both'", direction)),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid direction: {}. Use 'outgoing', 'incoming', or 'both'",
+                direction
+            ))
+        }
     };
 
     let mut stmt = db.prepare(query)?;
-    let links = stmt.query_map([task_id], |row| {
-        Ok(TaskLink {
-            id: row.get::<_, i64>(0)?,
-            kind: row.get::<_, String>(1)?,
-        })
-    })?.collect::<Result<Vec<_>, _>>()?;
+    let links = stmt
+        .query_map([task_id], |row| {
+            Ok(TaskLink {
+                id: row.get::<_, i64>(0)?,
+                kind: row.get::<_, String>(1)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
 
     Ok(links)
 }

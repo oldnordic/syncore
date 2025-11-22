@@ -1,7 +1,7 @@
 //! Code Dependency Extractor using Tree-sitter
 //! Extracts imports, function calls, trait implementations from Rust source code.
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use tree_sitter::{Parser, Query, QueryCursor};
 
 /// Extracted code dependencies from a source file
@@ -22,12 +22,16 @@ pub struct CodeDependencyExtractor {
 impl CodeDependencyExtractor {
     pub fn new() -> Self {
         let mut parser = Parser::new();
-        parser.set_language(tree_sitter_rust::language()).expect("Failed to set Rust language");
+        parser
+            .set_language(tree_sitter_rust::language())
+            .expect("Failed to set Rust language");
         CodeDependencyExtractor { parser }
     }
 
     pub fn extract_from_source(&mut self, source: &str, path: &str) -> Result<CodeDependencies> {
-        let tree = self.parser.parse(source, None)
+        let tree = self
+            .parser
+            .parse(source, None)
             .ok_or_else(|| anyhow!("Failed to parse source"))?;
 
         let root = tree.root_node();
@@ -56,7 +60,12 @@ impl CodeDependencyExtractor {
         Ok(deps)
     }
 
-    fn extract_imports(&self, root: &tree_sitter::Node, source: &[u8], deps: &mut CodeDependencies) -> Result<()> {
+    fn extract_imports(
+        &self,
+        root: &tree_sitter::Node,
+        source: &[u8],
+        deps: &mut CodeDependencies,
+    ) -> Result<()> {
         let query_str = r#"
             (use_declaration
                 argument: (scoped_identifier) @import)
@@ -74,7 +83,9 @@ impl CodeDependencyExtractor {
 
         for m in matches {
             for capture in m.captures {
-                let import_text = capture.node.utf8_text(source)
+                let import_text = capture
+                    .node
+                    .utf8_text(source)
                     .map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 if !deps.imports.contains(&import_text.to_string()) {
                     deps.imports.push(import_text.to_string());
@@ -85,7 +96,12 @@ impl CodeDependencyExtractor {
         Ok(())
     }
 
-    fn extract_function_defs(&self, root: &tree_sitter::Node, source: &[u8], deps: &mut CodeDependencies) -> Result<()> {
+    fn extract_function_defs(
+        &self,
+        root: &tree_sitter::Node,
+        source: &[u8],
+        deps: &mut CodeDependencies,
+    ) -> Result<()> {
         let query_str = r#"
             (function_item
                 name: (identifier) @fn_name)
@@ -98,7 +114,9 @@ impl CodeDependencyExtractor {
 
         for m in matches {
             for capture in m.captures {
-                let fn_name = capture.node.utf8_text(source)
+                let fn_name = capture
+                    .node
+                    .utf8_text(source)
                     .map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 deps.function_defs.push(fn_name.to_string());
             }
@@ -107,7 +125,12 @@ impl CodeDependencyExtractor {
         Ok(())
     }
 
-    fn extract_struct_defs(&self, root: &tree_sitter::Node, source: &[u8], deps: &mut CodeDependencies) -> Result<()> {
+    fn extract_struct_defs(
+        &self,
+        root: &tree_sitter::Node,
+        source: &[u8],
+        deps: &mut CodeDependencies,
+    ) -> Result<()> {
         let query_str = r#"
             (struct_item
                 name: (type_identifier) @struct_name)
@@ -120,7 +143,9 @@ impl CodeDependencyExtractor {
 
         for m in matches {
             for capture in m.captures {
-                let struct_name = capture.node.utf8_text(source)
+                let struct_name = capture
+                    .node
+                    .utf8_text(source)
                     .map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 deps.struct_defs.push(struct_name.to_string());
             }
@@ -129,7 +154,12 @@ impl CodeDependencyExtractor {
         Ok(())
     }
 
-    fn extract_trait_impls(&self, root: &tree_sitter::Node, source: &[u8], deps: &mut CodeDependencies) -> Result<()> {
+    fn extract_trait_impls(
+        &self,
+        root: &tree_sitter::Node,
+        source: &[u8],
+        deps: &mut CodeDependencies,
+    ) -> Result<()> {
         let query_str = r#"
             (impl_item
                 trait: (type_identifier) @trait_name
@@ -146,7 +176,9 @@ impl CodeDependencyExtractor {
             let mut struct_name = String::new();
 
             for capture in m.captures {
-                let text = capture.node.utf8_text(source)
+                let text = capture
+                    .node
+                    .utf8_text(source)
                     .map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 let capture_name = &query.capture_names()[capture.index as usize];
                 if capture_name == "trait_name" {
@@ -164,7 +196,12 @@ impl CodeDependencyExtractor {
         Ok(())
     }
 
-    fn extract_function_calls(&self, root: &tree_sitter::Node, source: &[u8], deps: &mut CodeDependencies) -> Result<()> {
+    fn extract_function_calls(
+        &self,
+        root: &tree_sitter::Node,
+        source: &[u8],
+        deps: &mut CodeDependencies,
+    ) -> Result<()> {
         // Use recursive tree traversal to find all call_expressions within function bodies
         // This is more robust than pattern matching which can miss nested structures
         self.visit_function_calls(root, source, deps, None)
@@ -184,8 +221,12 @@ impl CodeDependencyExtractor {
                 for i in 0..node.child_count() {
                     if let Some(child) = node.child(i) {
                         if child.kind() == "identifier" {
-                            fn_name = Some(child.utf8_text(source)
-                                .map_err(|e| anyhow!("UTF8 error: {}", e))?.to_string());
+                            fn_name = Some(
+                                child
+                                    .utf8_text(source)
+                                    .map_err(|e| anyhow!("UTF8 error: {}", e))?
+                                    .to_string(),
+                            );
                             break;
                         }
                     }
@@ -206,7 +247,8 @@ impl CodeDependencyExtractor {
                     for i in 0..node.child_count() {
                         if let Some(child) = node.child(i) {
                             if child.kind() == "identifier" {
-                                let callee = child.utf8_text(source)
+                                let callee = child
+                                    .utf8_text(source)
                                     .map_err(|e| anyhow!("UTF8 error: {}", e))?;
                                 deps.calls.push((fn_name.to_string(), callee.to_string()));
                                 break;

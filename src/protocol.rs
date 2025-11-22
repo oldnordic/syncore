@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum SynCoreTool {
@@ -54,7 +54,10 @@ mod tests {
         let serialized = serde_json::to_string(&tool).unwrap();
         let deserialized: SynCoreTool = serde_json::from_str(&serialized).unwrap();
 
-        assert_eq!(tool, deserialized, "SynCoreTool should serialize/deserialize correctly");
+        assert_eq!(
+            tool, deserialized,
+            "SynCoreTool should serialize/deserialize correctly"
+        );
     }
 
     #[test]
@@ -68,8 +71,14 @@ mod tests {
         let serialized = serde_json::to_string(&msg).unwrap();
         let deserialized: SynCoreMsg = serde_json::from_str(&serialized).unwrap();
 
-        assert_eq!(msg.tool, deserialized.tool, "Tool should serialize/deserialize correctly");
-        assert_eq!(msg.args, deserialized.args, "Args should serialize/deserialize correctly");
+        assert_eq!(
+            msg.tool, deserialized.tool,
+            "Tool should serialize/deserialize correctly"
+        );
+        assert_eq!(
+            msg.args, deserialized.args,
+            "Args should serialize/deserialize correctly"
+        );
     }
 
     #[test]
@@ -99,7 +108,12 @@ mod tests {
             let deserialized: Result<SynCoreTool, _> = serde_json::from_str(&serialized_str);
             assert!(deserialized.is_ok(), "Tool {:?} should deserialize", tool);
 
-            assert_eq!(tool, deserialized.unwrap(), "Tool {:?} should round-trip correctly", tool);
+            assert_eq!(
+                tool,
+                deserialized.unwrap(),
+                "Tool {:?} should round-trip correctly",
+                tool
+            );
         }
     }
 
@@ -112,8 +126,14 @@ mod tests {
         };
 
         let debug_str = format!("{:?}", msg);
-        assert!(debug_str.contains("TaskCreate"), "Debug string should contain tool name");
-        assert!(debug_str.contains("[10, 20, 30]"), "Debug string should contain args");
+        assert!(
+            debug_str.contains("TaskCreate"),
+            "Debug string should contain tool name"
+        );
+        assert!(
+            debug_str.contains("[10, 20, 30]"),
+            "Debug string should contain args"
+        );
     }
 
     #[test]
@@ -127,7 +147,11 @@ mod tests {
 
         for tool in tools {
             let debug_str = format!("{:?}", tool);
-            assert!(!debug_str.is_empty(), "Debug string for {:?} should not be empty", tool);
+            assert!(
+                !debug_str.is_empty(),
+                "Debug string for {:?} should not be empty",
+                tool
+            );
         }
     }
 }

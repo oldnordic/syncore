@@ -2,14 +2,14 @@ use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
 
-use syncore::{
-    sequential::{SequentialCore, LanguageModel},
-    tasks::{Tasks, Task},
-    vector::{VectorStore, RealEmbeddings},
-    cognitive_db,
-};
-use syncore::memory::Memory;
 use syncore::logger::CogLogger;
+use syncore::memory::Memory;
+use syncore::{
+    cognitive_db,
+    sequential::{LanguageModel, SequentialCore},
+    tasks::{Task, Tasks},
+    vector::{RealEmbeddings, VectorStore},
+};
 
 // Test implementation of LanguageModel that provides realistic responses
 struct TestLanguageModel {
@@ -91,7 +91,10 @@ impl TestLogger {
 impl CogLogger for TestLogger {
     fn log_step(&self, step: &cognitive_db::Step, task: &Task) -> std::io::Result<()> {
         let mut logs = self.logs.lock().unwrap();
-        logs.push(format!("STEP - Task {}: {} - {}", task.id, step.state, step.content));
+        logs.push(format!(
+            "STEP - Task {}: {} - {}",
+            task.id, step.state, step.content
+        ));
         Ok(())
     }
 
@@ -104,26 +107,26 @@ impl CogLogger for TestLogger {
 
 #[tokio::test]
 async fn test_sequential_core_real_workflow() -> Result<()> {
-        // Setup temp database
-        let temp_file = NamedTempFile::new()?;
-        let db_path = temp_file.path().to_str().unwrap();
+    // Setup temp database
+    let temp_file = NamedTempFile::new()?;
+    let db_path = temp_file.path().to_str().unwrap();
 
-        // Initialize components with REAL implementations
-        let memory = Arc::new(Memory::new(db_path)?);
-        let tasks = Arc::new(Tasks::new(&format!("{}_tasks", db_path))?);
-        let embeddings = Box::new(RealEmbeddings::new(384)?);
-        let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
-        let model = Arc::new(Mutex::new(TestLanguageModel::new()));
-        let logger = Arc::new(TestLogger::new());
+    // Initialize components with REAL implementations
+    let memory = Arc::new(Memory::new(db_path)?);
+    let tasks = Arc::new(Tasks::new(&format!("{}_tasks", db_path))?);
+    let embeddings = Box::new(RealEmbeddings::new(384)?);
+    let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
+    let model = Arc::new(Mutex::new(TestLanguageModel::new()));
+    let logger = Arc::new(TestLogger::new());
 
-        // Create SequentialCore with real components
-        let core = SequentialCore::new(
-            tasks.clone(),
-            vector_store,
-            memory.clone(),
-            model,
-            logger.clone(),
-        );
+    // Create SequentialCore with real components
+    let core = SequentialCore::new(
+        tasks.clone(),
+        vector_store,
+        memory.clone(),
+        model,
+        logger.clone(),
+    );
 
     // Create a test task
     let goal = "Implement sequential thinking functionality";
@@ -140,7 +143,11 @@ async fn test_sequential_core_real_workflow() -> Result<()> {
 
     // Verify logs were captured - sequential core logs all 4 steps
     let logs = logger.get_logs();
-    assert_eq!(logs.len(), 4, "Should have Think, Decide, Act, Reflect logs");
+    assert_eq!(
+        logs.len(),
+        4,
+        "Should have Think, Decide, Act, Reflect logs"
+    );
 
     // Check that all required states are logged
     let log_content = logs.join(" ");
@@ -153,7 +160,11 @@ async fn test_sequential_core_real_workflow() -> Result<()> {
     let db = tasks.get_db();
     let db_guard = db.lock().unwrap();
     let steps = syncore::cognitive_db::recent_steps(&db_guard, completed_task.id, 10)?;
-    assert_eq!(steps.len(), 4, "Should have Think, Decide, Act, Reflect steps");
+    assert_eq!(
+        steps.len(),
+        4,
+        "Should have Think, Decide, Act, Reflect steps"
+    );
 
     let step_types: Vec<String> = steps.iter().map(|s| s.state.clone()).collect();
     assert!(step_types.contains(&"Think".to_string()));
@@ -232,7 +243,12 @@ async fn test_sequential_core_error_handling() -> Result<()> {
     // Insert some test context into vector store
     {
         let mut vs = vector_store.lock().unwrap();
-        vs.insert_text(task.id, Some(task.id), "Previous context information", "context")?;
+        vs.insert_text(
+            task.id,
+            Some(task.id),
+            "Previous context information",
+            "context",
+        )?;
     }
 
     // Test context building by accessing the private method through the public interface
@@ -286,7 +302,10 @@ fn test_logger_functionality() -> Result<()> {
     assert!(!task.goal.is_empty(), "Task goal should not be empty");
     assert!(task.priority > 0, "Task priority should be positive");
     assert!(task.created_at > 0, "Task created_at should be positive");
-    println!("Created test task: {} with priority {}", task.goal, task.priority);
+    println!(
+        "Created test task: {} with priority {}",
+        task.goal, task.priority
+    );
 
     // Test logging think step
     let think_step = cognitive_db::Step {

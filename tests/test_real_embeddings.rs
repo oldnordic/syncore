@@ -1,5 +1,5 @@
-use syncore::vector::{HuggingFaceEmbeddings, Embeddings};
 use anyhow::Result;
+use syncore::vector::{Embeddings, HuggingFaceEmbeddings};
 
 /// Test that HuggingFaceEmbeddings produces real, meaningful embeddings
 /// This is a TDD test to verify the implementation works with REAL text
@@ -8,8 +8,15 @@ fn test_huggingface_embeddings_real_text() -> Result<()> {
     println!("Creating HuggingFaceEmbeddings model...");
     let embeddings = HuggingFaceEmbeddings::new()?;
 
-    println!("Model created successfully! Dimension: {}", embeddings.dim());
-    assert_eq!(embeddings.dim(), 384, "all-MiniLM-L6-v2 should have 384 dimensions");
+    println!(
+        "Model created successfully! Dimension: {}",
+        embeddings.dim()
+    );
+    assert_eq!(
+        embeddings.dim(),
+        384,
+        "all-MiniLM-L6-v2 should have 384 dimensions"
+    );
 
     // Test 1: Simple text embedding
     println!("\nTest 1: Embedding simple text");
@@ -21,7 +28,10 @@ fn test_huggingface_embeddings_real_text() -> Result<()> {
     println!("First 5 values: {:?}", &vec1[..5]);
 
     assert_eq!(vec1.len(), 384, "Embedding should have 384 dimensions");
-    assert!(vec1.iter().any(|&x| x != 0.0), "Embedding should not be all zeros");
+    assert!(
+        vec1.iter().any(|&x| x != 0.0),
+        "Embedding should not be all zeros"
+    );
 
     // Test 2: Different text produces different embeddings
     println!("\nTest 2: Different text produces different embeddings");
@@ -31,7 +41,10 @@ fn test_huggingface_embeddings_real_text() -> Result<()> {
     println!("Text: '{}'", text2);
     println!("First 5 values: {:?}", &vec2[..5]);
 
-    assert_ne!(vec1, vec2, "Different texts should produce different embeddings");
+    assert_ne!(
+        vec1, vec2,
+        "Different texts should produce different embeddings"
+    );
 
     // Test 3: Semantic similarity
     println!("\nTest 3: Semantic similarity test");
@@ -58,7 +71,11 @@ fn test_huggingface_embeddings_real_text() -> Result<()> {
     println!("Similarity (fox vs python): {:.4}", sim_different);
 
     // Similar texts should have higher similarity than unrelated texts
-    assert!(sim_similar > 0.5, "Similar texts should have >0.5 similarity, got {:.4}", sim_similar);
+    assert!(
+        sim_similar > 0.5,
+        "Similar texts should have >0.5 similarity, got {:.4}",
+        sim_similar
+    );
     assert!(sim_similar > sim_different,
         "Similar texts should be more similar than unrelated texts. Got similar: {:.4}, different: {:.4}",
         sim_similar, sim_different);
@@ -98,8 +115,11 @@ fn test_embeddings_performance() -> Result<()> {
     println!("Embedding generation time: {:?}", duration);
 
     // Should be fast on CPU (<100ms for single embedding)
-    assert!(duration.as_millis() < 500,
-        "Embedding should be generated in <500ms, got {:?}", duration);
+    assert!(
+        duration.as_millis() < 500,
+        "Embedding should be generated in <500ms, got {:?}",
+        duration
+    );
 
     println!("✅ Performance is acceptable!");
     Ok(())
