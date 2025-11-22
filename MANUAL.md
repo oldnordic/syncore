@@ -15,8 +15,9 @@ Practical guide to using SynCore MCP tools with real examples.
 9. [Application Mapping](#application-mapping)
 10. [Sequential Reasoning](#sequential-reasoning)
 11. [Application Change Tracking](#application-change-tracking)
-12. [Common Workflows](#common-workflows)
-13. [Troubleshooting](#troubleshooting)
+12. [Project Analysis](#project-analysis)
+13. [Common Workflows](#common-workflows)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -849,6 +850,241 @@ Parameters:
 
 ---
 
+## Project Analysis
+
+LLM-free, deterministic codebase intelligence tools. All read-only - no database modifications.
+
+### project_file_report
+
+Generate a comprehensive report for a single file including entities, relationships, imports, and metrics.
+
+```
+Tool: project_file_report
+Parameters:
+  file_path: "/path/to/src/auth.rs"
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "file_path": "/path/to/src/auth.rs",
+    "loc": 245,
+    "entities": [
+      {"id": 123, "name": "validate_password", "entity_type": "Function", "line_start": 45, "line_end": 67}
+    ],
+    "calls_out": [
+      {"src_entity_name": "validate_password", "dst_entity_name": "hash_check", "edge_type": "calls"}
+    ],
+    "calls_in": [...],
+    "imports": [
+      {"module": "use std::collections::HashMap;", "line": 1}
+    ],
+    "uses": [...],
+    "metrics": {"fan_in": 5, "fan_out": 3, "entity_count": 12}
+  }
+}
+```
+
+### project_hotspots
+
+Find code complexity hotspots - files with high coupling, many entities, or high LOC.
+
+```
+Tool: project_hotspots
+Parameters:
+  limit: 10
+  min_fan_in: 5      # optional
+  min_fan_out: 5     # optional
+  min_loc: 100       # optional
+  min_entity_count: 5  # optional
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "hotspots": [
+      {
+        "file_path": "/path/to/src/vector.rs",
+        "fan_in": 78,
+        "fan_out": 59,
+        "entity_count": 100,
+        "loc": 1676,
+        "score": 236.5
+      }
+    ]
+  }
+}
+```
+
+### project_dead_code
+
+Identify potentially unused entities (no incoming references).
+
+```
+Tool: project_dead_code
+Parameters:
+  exclude_public: true  # optional, default true - excludes pub items
+  limit: 20            # optional
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "dead_entities": [
+      {
+        "id": 456,
+        "name": "unused_helper",
+        "entity_type": "Function",
+        "file_path": "/path/to/src/utils.rs",
+        "visibility": "private",
+        "line_start": 89
+      }
+    ]
+  }
+}
+```
+
+### project_cycles
+
+Detect circular dependencies between files.
+
+```
+Tool: project_cycles
+Parameters:
+  max_cycles: 10   # maximum cycles to return
+  max_depth: 5     # maximum cycle length
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "cycles": [
+      {
+        "files": ["src/a.rs", "src/b.rs", "src/a.rs"],
+        "relation_kinds": ["imports", "imports"],
+        "cycle_length": 2
+      }
+    ]
+  }
+}
+```
+
+### project_unused_imports
+
+Find imports that aren't actually used in the code.
+
+```
+Tool: project_unused_imports
+Parameters:
+  file_path: null  # optional - specific file or all
+  limit: 20        # optional
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "unused_imports": [
+      {
+        "file_path": "/path/to/src/handlers.rs",
+        "import_name": "std::io::Write",
+        "line": 5,
+        "module": "std::io"
+      }
+    ]
+  }
+}
+```
+
+### project_module_map
+
+Generate a module-level dependency map of the project.
+
+```
+Tool: project_module_map
+Parameters:
+  root: null        # optional - start from specific path
+  max_modules: 50   # optional
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "modules": [
+      {
+        "id": "src/vector.rs",
+        "file_path": "/path/to/src/vector.rs",
+        "entity_count": 100,
+        "fan_in": 78,
+        "fan_out": 59,
+        "loc": 1676
+      }
+    ],
+    "edges": [
+      {"from_file": "src/mcp_server.rs", "to_file": "src/vector.rs", "relationship_type": "imports"}
+    ]
+  }
+}
+```
+
+### project_refactor_suggestions
+
+Generate heuristic-based refactoring suggestions.
+
+```
+Tool: project_refactor_suggestions
+Parameters:
+  limit: 10
+  loc_threshold: 300          # optional - suggest split above this LOC
+  fan_out_threshold: 20       # optional - suggest facade above this
+  fan_in_threshold: 30        # optional
+  entity_threshold: 30        # optional
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "suggestions": [
+      {
+        "kind": "SplitFile",
+        "description": "Split /path/to/src/vector.rs (100 entities, ~1676 LOC) into smaller, focused modules",
+        "file_path": "/path/to/src/vector.rs",
+        "related_files": null,
+        "metrics": {"loc": 1676, "entity_count": 100}
+      },
+      {
+        "kind": "PruneDeadCode",
+        "description": "Remove 22 unused entities from /path/to/src/vector.rs",
+        "file_path": "/path/to/src/vector.rs",
+        "metrics": {"dead_entities": 22}
+      }
+    ]
+  }
+}
+```
+
+**Suggestion Kinds:**
+- `SplitFile` - File is too large, split into modules
+- `ExtractFacade` - High fan-out, extract a facade/interface
+- `ReduceCycle` - Circular dependency detected
+- `PruneDeadCode` - Unused code found
+- `SimplifyDependency` - Complex dependency pattern
+
+---
+
 ## Common Workflows
 
 ### Workflow 1: Start a New Session
@@ -940,6 +1176,44 @@ agent_result(from="planner", task_id="feature_1", result={"subtasks": [...]})
 
 # 4. Route to coder
 agent_task(to="coder", task_id="impl_1", task_type="implement", payload={"subtask": "..."})
+```
+
+### Workflow 7: Codebase Health Check
+
+```
+# 1. Find complexity hotspots
+project_hotspots(limit=10)
+# Returns: Top files by coupling and size
+
+# 2. Check for dead code
+project_dead_code(limit=20)
+# Returns: Unused entities to potentially remove
+
+# 3. Detect circular dependencies
+project_cycles(max_cycles=10, max_depth=5)
+# Returns: Files with circular imports
+
+# 4. Find unused imports
+project_unused_imports(limit=20)
+# Returns: Imports that can be removed
+
+# 5. Get refactoring suggestions
+project_refactor_suggestions(limit=10)
+# Returns: Actionable suggestions like "Split vector.rs", "Prune 22 dead entities"
+```
+
+### Workflow 8: Analyze a Specific File
+
+```
+# Get full report for a file
+project_file_report(file_path="/path/to/src/complex_module.rs")
+# Returns:
+# - entities: All functions, structs, etc.
+# - calls_out: What this file depends on
+# - calls_in: What depends on this file
+# - imports: Import statements
+# - metrics: fan_in, fan_out, entity_count
+# - loc: Lines of code estimate
 ```
 
 ---

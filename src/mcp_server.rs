@@ -357,6 +357,55 @@ fn default_only_missing() -> bool {
     true
 }
 
+// Project Analysis Engine (PAE) Tools
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectFileReportRequest {
+    pub file_path: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectModuleMapRequest {
+    pub root: Option<String>,
+    pub max_modules: Option<u32>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectHotspotsRequest {
+    pub limit: u32,
+    pub min_fan_in: Option<u32>,
+    pub min_fan_out: Option<u32>,
+    pub min_entity_count: Option<u32>,
+    pub min_loc: Option<u32>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectCyclesRequest {
+    pub max_cycles: u32,
+    pub max_depth: u32,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectDeadCodeRequest {
+    pub exclude_public: Option<bool>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectUnusedImportsRequest {
+    pub file_path: Option<String>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectRefactorSuggestionsRequest {
+    pub limit: u32,
+    pub loc_threshold: Option<u32>,
+    pub entity_threshold: Option<u32>,
+    pub fan_in_threshold: Option<u32>,
+    pub fan_out_threshold: Option<u32>,
+}
+
 #[derive(Clone)]
 pub struct SynCoreMCPServer {
     state: Arc<SynCoreState>,
@@ -1861,6 +1910,197 @@ impl SynCoreMCPServer {
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&response).unwrap(),
         )]))
+    }
+
+    // ========================================
+    // Project Analysis Engine (PAE) Tools
+    // ========================================
+
+    #[tool(description = "Generate detailed report for a single source file")]
+    async fn project_file_report(
+        &self,
+        Parameters(params): Parameters<ProjectFileReportRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{ProjectAnalysisEngine, file_report::FileReportRequest};
+
+        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = FileReportRequest {
+            file_path: params.file_path,
+        };
+
+        match engine.file_report(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "File report failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Generate module-level dependency map of the project")]
+    async fn project_module_map(
+        &self,
+        Parameters(params): Parameters<ProjectModuleMapRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{ProjectAnalysisEngine, deps::ModuleMapRequest};
+
+        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = ModuleMapRequest {
+            root: params.root,
+            max_modules: params.max_modules,
+        };
+
+        match engine.module_map(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Module map failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Identify code hotspots based on complexity metrics")]
+    async fn project_hotspots(
+        &self,
+        Parameters(params): Parameters<ProjectHotspotsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{ProjectAnalysisEngine, hotspots::HotspotsRequest};
+
+        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = HotspotsRequest {
+            limit: params.limit,
+            min_fan_in: params.min_fan_in,
+            min_fan_out: params.min_fan_out,
+            min_entity_count: params.min_entity_count,
+            min_loc: params.min_loc,
+        };
+
+        match engine.hotspots(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Hotspots analysis failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Detect circular dependencies between files and modules")]
+    async fn project_cycles(
+        &self,
+        Parameters(params): Parameters<ProjectCyclesRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{ProjectAnalysisEngine, cycles::CyclesRequest};
+
+        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = CyclesRequest {
+            max_cycles: params.max_cycles,
+            max_depth: params.max_depth,
+        };
+
+        match engine.cycles(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Cycle detection failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Identify potentially dead code entities")]
+    async fn project_dead_code(
+        &self,
+        Parameters(params): Parameters<ProjectDeadCodeRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{ProjectAnalysisEngine, dead_code::DeadCodeRequest};
+
+        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = DeadCodeRequest {
+            exclude_public: params.exclude_public,
+            limit: params.limit,
+        };
+
+        match engine.dead_code(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Dead code detection failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Identify unused imports in source files")]
+    async fn project_unused_imports(
+        &self,
+        Parameters(params): Parameters<ProjectUnusedImportsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{ProjectAnalysisEngine, unused_imports::UnusedImportsRequest};
+
+        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = UnusedImportsRequest {
+            file_path: params.file_path,
+            limit: params.limit,
+        };
+
+        match engine.unused_imports(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Unused imports detection failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(description = "Generate heuristic refactor suggestions based on project analysis")]
+    async fn project_refactor_suggestions(
+        &self,
+        Parameters(params): Parameters<ProjectRefactorSuggestionsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{ProjectAnalysisEngine, refactor::RefactorSuggestionsRequest};
+
+        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = RefactorSuggestionsRequest {
+            limit: params.limit,
+            loc_threshold: params.loc_threshold,
+            entity_threshold: params.entity_threshold,
+            fan_in_threshold: params.fan_in_threshold,
+            fan_out_threshold: params.fan_out_threshold,
+        };
+
+        match engine.refactor_suggestions(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Refactor suggestions failed: {}",
+                e
+            ))])),
+        }
     }
 }
 

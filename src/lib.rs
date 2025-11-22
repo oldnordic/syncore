@@ -32,6 +32,7 @@ pub mod metrics;
 pub mod ollama;
 pub mod parser;
 pub mod portfolio;
+pub mod project_analysis;
 pub mod protocol;
 pub mod raggraph;
 pub mod router;

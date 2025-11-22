@@ -6,7 +6,7 @@ Built in Rust. Designed for Claude Code and other MCP clients.
 
 ## What This Actually Does
 
-SynCore is an MCP (Model Context Protocol) server exposing **55 tools** for:
+SynCore is an MCP (Model Context Protocol) server exposing **62 tools** for:
 - **Persistent Memory** - Key-value storage (SQLite + Sled cache)
 - **Vector Search** - Semantic search with HNSW indexing + brute-force fallback
 - **Code Intelligence** - Tree-sitter parsing for Rust, JavaScript, Python, JSON, TOML, Bash
@@ -15,6 +15,7 @@ SynCore is an MCP (Model Context Protocol) server exposing **55 tools** for:
 - **Agent Coordination** - Message bus for multi-agent workflows
 - **Application Mapping** - File dependency tracking and change history
 - **Sequential Reasoning** - Multi-step thought recording
+- **Project Analysis** - LLM-free codebase intelligence (hotspots, dead code, cycles, refactoring)
 
 ## Current State (November 2025)
 
@@ -35,6 +36,15 @@ SynCore is an MCP (Model Context Protocol) server exposing **55 tools** for:
 - 7 edge types: CONTAINS, CALLS, USES, IMPORTS, MODULE_CHILD, INHERITS, REFERENCES
 - Multi-hop diffusion with PageRank
 - Temporal metadata enrichment (git history + mtime)
+
+**Project Analysis Engine (NEW - PHASE 6):**
+- `project_file_report` - Detailed file analysis (entities, relationships, metrics)
+- `project_hotspots` - Find complexity hotspots (fan-in/out, LOC, entity count)
+- `project_dead_code` - Detect unused entities
+- `project_cycles` - Find circular dependencies
+- `project_unused_imports` - Find unused imports
+- `project_module_map` - Module dependency map
+- `project_refactor_suggestions` - Heuristic refactoring suggestions
 
 **Incremental Indexing (NEW - PHASE 5):**
 - SHA256 + mtime change detection
@@ -101,7 +111,7 @@ Add to `~/.config/claude/mcp_settings.json`:
 | `NEO4J_PASS` | (required for graph) | Neo4j password |
 | `RUST_LOG` | `info` | Log level |
 
-## All 55 Tools
+## All 62 Tools
 
 ### Memory (2 tools)
 | Tool | Description | Cost |
@@ -209,6 +219,17 @@ Add to `~/.config/claude/mcp_settings.json`:
 |------|-------------|------|
 | `logs_tail` | Get recent log entries | Low |
 | `tool_metadata_list` | List tool metadata (only shows 14 core tools) | Low |
+
+### Project Analysis (7 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `project_file_report` | Detailed analysis of a single file (entities, relationships, imports, metrics) | Medium |
+| `project_hotspots` | Find code complexity hotspots by fan-in, fan-out, LOC, entity count | Medium |
+| `project_dead_code` | Identify potentially unused entities (no incoming references) | Medium |
+| `project_cycles` | Detect circular dependencies between files | Medium |
+| `project_unused_imports` | Find imports that aren't used | Medium |
+| `project_module_map` | Generate module-level dependency map | Medium |
+| `project_refactor_suggestions` | Generate heuristic-based refactoring suggestions | Medium |
 
 ## Performance
 
