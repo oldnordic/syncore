@@ -1,0 +1,1003 @@
+# SynCore User Manual
+
+Practical guide to using SynCore MCP tools with real examples.
+
+## Table of Contents
+
+1. [Memory Tools](#memory-tools)
+2. [Vector Search](#vector-search)
+3. [Code Intelligence](#code-intelligence)
+4. [Parser Tools](#parser-tools)
+5. [Graph Database](#graph-database)
+6. [Code Graph & Fusion](#code-graph--fusion)
+7. [Task Management](#task-management)
+8. [Agent Coordination](#agent-coordination)
+9. [Application Mapping](#application-mapping)
+10. [Sequential Reasoning](#sequential-reasoning)
+11. [Application Change Tracking](#application-change-tracking)
+12. [Common Workflows](#common-workflows)
+13. [Troubleshooting](#troubleshooting)
+
+---
+
+## Memory Tools
+
+Persistent key-value storage that survives across sessions. Uses SQLite for persistence + Sled for fast caching.
+
+### memory_store
+
+Store any value with a key. Overwrites existing values.
+
+```
+Tool: memory_store
+Parameters:
+  key: "project_context"
+  value: "Working on authentication module refactoring"
+  dry_run: false  # optional, if true doesn't actually store
+```
+
+**Response:**
+```json
+{
+  "key": "project_context",
+  "stored": true
+}
+```
+
+### memory_query
+
+Retrieve a stored value.
+
+```
+Tool: memory_query
+Parameters:
+  key: "project_context"
+```
+
+**Response:**
+```json
+{
+  "found": true,
+  "value": "Working on authentication module refactoring"
+}
+```
+
+**Practical Example: Session Continuity**
+
+At the end of a session:
+```
+memory_store(key="last_task", value="Implementing user validation")
+memory_store(key="blockers", value="Need to add rate limiting")
+memory_store(key="files_modified", value="src/auth.rs, src/validation.rs")
+```
+
+At the start of next session:
+```
+memory_query(key="last_task")      # Returns what you were working on
+memory_query(key="blockers")       # Returns open issues
+memory_query(key="files_modified") # Returns which files changed
+```
+
+---
+
+## Vector Search
+
+Semantic search using fastembed embeddings (384 dimensions). Finds similar content by meaning, not exact keywords.
+
+### vector_insert
+
+Add text to the vector store.
+
+```
+Tool: vector_insert
+Parameters:
+  text: "The authentication module handles user login and session management"
+  dry_run: false  # optional
+  metadata: {}    # optional JSON metadata
+```
+
+**Response:**
+```json
+{
+  "inserted": true,
+  "vector_id": 35042
+}
+```
+
+### vector_search
+
+Find semantically similar content.
+
+```
+Tool: vector_search
+Parameters:
+  query: "user login system"
+  limit: 5  # optional, default 10
+```
+
+**Response:**
+```json
+{
+  "count": 3,
+  "results": [
+    {"id": 35042, "score": 0.85, "text": "The authentication module handles..."},
+    {"id": 12003, "score": 0.72, "text": "Session tokens are validated..."},
+    {"id": 8891, "score": 0.65, "text": "Password hashing uses bcrypt..."}
+  ]
+}
+```
+
+**Note:** Scores closer to 1.0 are better matches. TF-IDF embeddings work well for code/technical content but may miss nuanced semantic relationships that transformer models would catch.
+
+---
+
+## Code Intelligence
+
+Index and search code using semantic understanding. Supports incremental indexing (PHASE 5).
+
+### code_index
+
+Index a source file for semantic search. **Incremental:** Returns 0 if file is unchanged.
+
+```
+Tool: code_index
+Parameters:
+  file_path: "/path/to/src/auth.rs"
+```
+
+**Response (first time):**
+```json
+{
+  "indexed": true,
+  "entities": 15,
+  "file_path": "/path/to/src/auth.rs"
+}
+```
+
+**Response (unchanged file):**
+```json
+{
+  "indexed": true,
+  "entities": 0,
+  "file_path": "/path/to/src/auth.rs",
+  "skipped": "unchanged"
+}
+```
+
+### code_search
+
+Find code by semantic meaning.
+
+```
+Tool: code_search
+Parameters:
+  query: "password validation logic"
+  limit: 5
+```
+
+**Response:**
+```json
+{
+  "count": 3,
+  "results": [
+    {
+      "id": 8891,
+      "score": 0.78,
+      "entity_type": "Function",
+      "name": "validate_password",
+      "file_path": "/path/src/auth.rs",
+      "line_start": 45
+    }
+  ]
+}
+```
+
+### code_index_directory
+
+Batch index all code files matching a pattern. **Incremental:** Only processes changed files.
+
+```
+Tool: code_index_directory
+Parameters:
+  directory: "/path/to/src"
+  pattern: "*.rs"
+```
+
+**Response:**
+```json
+{
+  "indexed": true,
+  "files_processed": 45,
+  "files_skipped": 120,
+  "total_entities": 1250,
+  "new_entities": 35
+}
+```
+
+---
+
+## Parser Tools
+
+Tree-sitter based code analysis. Supports: Rust, JavaScript, Python, JSON, TOML, Bash.
+
+### parser_analyze
+
+Extract AST structure from code. **Key feature:** `persist=true` writes to SQLite, HNSW, and Neo4j.
+
+```
+Tool: parser_analyze
+Parameters:
+  file_path: "/path/to/src/auth.rs"
+  persist: true  # IMPORTANT: Set true to index entities
+```
+
+**Response:**
+```json
+{
+  "file_path": "/path/to/src/auth.rs",
+  "language": "rust",
+  "entities": [
+    {
+      "kind": "function",
+      "name": "validate_password",
+      "line_start": 45,
+      "line_end": 67,
+      "visibility": "pub"
+    },
+    {
+      "kind": "struct",
+      "name": "AuthConfig",
+      "line_start": 12,
+      "line_end": 20
+    }
+  ],
+  "imports": ["std::collections::HashMap", "crate::crypto"],
+  "persisted": true,
+  "entities_indexed": 15
+}
+```
+
+### parser_search
+
+Search code patterns using ripgrep.
+
+```
+Tool: parser_search
+Parameters:
+  pattern: "fn.*validate"
+  path: "/path/to/src"  # optional
+  context_lines: 3      # optional lines before/after match
+```
+
+**Response:**
+```json
+{
+  "matches": [
+    {
+      "file": "/path/src/auth.rs",
+      "line": 45,
+      "content": "pub fn validate_password(input: &str) -> Result<bool> {",
+      "context_before": ["/// Validates password strength", "///"],
+      "context_after": ["    if input.len() < 8 {"]
+    }
+  ],
+  "count": 5
+}
+```
+
+---
+
+## Graph Database
+
+Neo4j integration for knowledge graph operations. **Requires Neo4j running.**
+
+### graph_query
+
+Execute a Cypher read query.
+
+```
+Tool: graph_query
+Parameters:
+  cypher: "MATCH (n:CodeEntity) RETURN count(n) as total"
+  params: {}  # optional parameters
+```
+
+**Response:**
+```json
+{
+  "results": [{"total": 2145}]
+}
+```
+
+**Useful Queries:**
+
+```cypher
+-- Count entities by type
+MATCH (n:CodeEntity) RETURN n.entity_type, count(n) ORDER BY count(n) DESC
+
+-- Find functions that call other functions
+MATCH (f:CodeEntity)-[:CALLS]->(g:CodeEntity)
+WHERE f.entity_type = 'Function'
+RETURN f.name, collect(g.name) as calls LIMIT 10
+
+-- Count relationship types
+MATCH ()-[r]->() RETURN type(r), count(r) ORDER BY count(r) DESC
+```
+
+### graph_insert
+
+Execute a Cypher write query.
+
+```
+Tool: graph_insert
+Parameters:
+  cypher: "CREATE (n:Concept {name: 'Authentication', description: 'User identity verification'})"
+```
+
+### graph_relate
+
+Create a relationship between nodes by ID.
+
+```
+Tool: graph_relate
+Parameters:
+  from_id: 123
+  to_id: 456
+  rel_type: "DEPENDS_ON"
+  from_label: "CodeEntity"  # optional
+  to_label: "CodeEntity"    # optional
+```
+
+---
+
+## Code Graph & Fusion
+
+Advanced search combining vector similarity with graph relationships.
+
+### code_graph_fusion_query
+
+Tri-mode search with automatic mode selection:
+- **Simple**: Vector-only search (fast)
+- **Attention**: Weighted vector + graph scores
+- **Reasoning**: Multi-hop graph traversal (thorough)
+
+```
+Tool: code_graph_fusion_query
+Parameters:
+  query: "HNSW vector index implementation"
+  top_k: 5
+  mode_hint: null         # or "simple", "attention", "reasoning"
+  scope: "global"         # "local", "project", "workspace", "global", "auto"
+  project_label: null     # filter by project
+  local_root: null        # filter by path prefix
+  namespace: null         # filter by namespace
+```
+
+**Response:**
+```json
+{
+  "entities": [
+    {
+      "entity": {
+        "id": 74339,
+        "file_path": "/path/to/src/vector.rs",
+        "entity_type": "Function",
+        "name": "search_hnsw",
+        "line_start": 245
+      },
+      "combined_score": 0.85,
+      "vector_score": 0.78,
+      "graph_score": 0.12
+    }
+  ],
+  "selected_mode": "attention",
+  "applied_scope": "global"
+}
+```
+
+### code_graph_sync_neo4j
+
+Sync entities from SQLite to Neo4j. Run after indexing to populate graph.
+
+```
+Tool: code_graph_sync_neo4j
+Parameters:
+  limit: 100       # optional, entities per batch
+  namespace: null  # optional filter
+```
+
+**Response:**
+```json
+{
+  "synced": true,
+  "entities_synced": 100,
+  "relationships_synced": 350
+}
+```
+
+### code_graph_enrich_temporal
+
+Add git history and filesystem metadata to entities.
+
+```
+Tool: code_graph_enrich_temporal
+Parameters:
+  only_missing: true  # only enrich entities without temporal data
+  limit: null         # optional limit
+```
+
+### raggraph_query
+
+RAG query with multi-hop graph reasoning.
+
+```
+Tool: raggraph_query
+Parameters:
+  query_text: "How does authentication work?"
+```
+
+**Response:**
+```json
+{
+  "results": [...],
+  "reasoning_path": [...]
+}
+```
+
+### raggraph_multihop
+
+Execute multi-hop graph diffusion from seed nodes.
+
+```
+Tool: raggraph_multihop
+Parameters:
+  seed_nodes: [74339, 74340, 74341]  # entity IDs
+```
+
+---
+
+## Task Management
+
+Track tasks with priorities and relationships.
+
+### task_create
+
+Create a new task.
+
+```
+Tool: task_create
+Parameters:
+  goal: "Implement rate limiting for API endpoints"
+  priority: 1  # optional, 1=highest
+```
+
+### intellitask_list
+
+List all tasks with optional filtering.
+
+```
+Tool: intellitask_list
+Parameters:
+  status: null     # optional: "open", "done", "in_progress"
+  parent_id: null  # optional: filter by parent task
+  prd_title: null  # optional: filter by PRD
+```
+
+### intellitask_get
+
+Get task by ID.
+
+```
+Tool: intellitask_get
+Parameters:
+  task_id: 15
+```
+
+### intellitask_update_status
+
+Update a task's status.
+
+```
+Tool: intellitask_update_status
+Parameters:
+  task_id: 15
+  status: "done"  # "open", "done", "in_progress", "blocked"
+```
+
+### intellitask_next_ready
+
+Get next task ready to work on (all dependencies satisfied).
+
+```
+Tool: intellitask_next_ready
+Parameters: {}
+```
+
+### intellitask_get_subtasks
+
+Get subtasks for a parent task.
+
+```
+Tool: intellitask_get_subtasks
+Parameters:
+  parent_id: 15
+```
+
+### intellitask_subtask_stats
+
+Get subtask statistics.
+
+```
+Tool: intellitask_subtask_stats
+Parameters:
+  parent_id: 15
+```
+
+### intellitask_task_statistics
+
+Get overall task statistics.
+
+```
+Tool: intellitask_task_statistics
+Parameters: {}
+```
+
+### intellitask_prd_statistics
+
+Get statistics for a specific PRD.
+
+```
+Tool: intellitask_prd_statistics
+Parameters:
+  prd_title: "Authentication System"
+```
+
+### intellitask_save
+
+Save task breakdown to database.
+
+```
+Tool: intellitask_save
+Parameters:
+  breakdown_json: "{...}"  # JSON task breakdown
+```
+
+### AI-Powered Tools (Require Ollama)
+
+These tools require Ollama running locally:
+
+**intellitask_generate** - Generate task breakdown from PRD
+```
+Tool: intellitask_generate
+Parameters:
+  prd_content: "## Feature: User Authentication\n\n..."
+```
+
+**intellitask_subtasks** - Generate subtasks for a task
+```
+Tool: intellitask_subtasks
+Parameters:
+  parent_task_id: "15"
+  parent_task_json: "{...}"
+  codebase_context: null  # optional
+```
+
+**intellitask_prioritize** - AI task prioritization
+```
+Tool: intellitask_prioritize
+Parameters:
+  tasks_json: "[{...}, {...}]"
+  business_context: null  # optional
+```
+
+**intellitask_next** - AI next task suggestion
+```
+Tool: intellitask_next
+Parameters:
+  completed_tasks: ["task1", "task2"]
+  remaining_tasks_json: "[{...}]"
+```
+
+---
+
+## Agent Coordination
+
+Message bus for multi-agent workflows.
+
+### agent_register
+
+Register an agent with capabilities.
+
+```
+Tool: agent_register
+Parameters:
+  id: "code_reviewer"
+  capabilities: ["review", "suggest", "refactor"]
+```
+
+### agent_send
+
+Send message to another agent.
+
+```
+Tool: agent_send
+Parameters:
+  to: "code_reviewer"
+  message: "Please review src/auth.rs"
+```
+
+### agent_recv
+
+Receive pending messages for an agent.
+
+```
+Tool: agent_recv
+Parameters:
+  agent: "code_reviewer"
+```
+
+### agent_poll
+
+Wait for next message (blocking with timeout).
+
+```
+Tool: agent_poll
+Parameters:
+  agent: "code_reviewer"
+  timeout_ms: 5000
+```
+
+### agent_list
+
+List all registered agents.
+
+```
+Tool: agent_list
+Parameters: {}
+```
+
+### agent_status
+
+Update agent status.
+
+```
+Tool: agent_status
+Parameters:
+  id: "code_reviewer"
+  status: {"state": "busy", "current_task": "reviewing auth.rs"}
+```
+
+### agent_task
+
+Send structured task envelope.
+
+```
+Tool: agent_task
+Parameters:
+  to: "code_reviewer"
+  task_id: "review_123"
+  task_type: "code_review"
+  payload: {"file": "src/auth.rs", "focus": "security"}
+```
+
+### agent_result
+
+Submit completed task result.
+
+```
+Tool: agent_result
+Parameters:
+  from: "code_reviewer"
+  task_id: "review_123"
+  result: {"approved": true, "comments": [...]}
+```
+
+---
+
+## Application Mapping
+
+Track file structure, imports, exports, and dependencies.
+
+### mapping_record
+
+Record a file node with its relationships.
+
+```
+Tool: mapping_record
+Parameters:
+  path: "src/auth.rs"
+  kind: "module"
+  language: "rust"
+  imports: ["std::collections", "crate::crypto"]
+  exports: ["validate_password", "AuthConfig"]
+  dependencies: ["src/crypto.rs"]
+```
+
+### mapping_get
+
+Get a file node.
+
+```
+Tool: mapping_get
+Parameters:
+  path: "src/auth.rs"
+```
+
+### mapping_search
+
+Search files by semantic query.
+
+```
+Tool: mapping_search
+Parameters:
+  query: "authentication related files"
+```
+
+### mapping_deps
+
+Get all transitive dependencies for a file.
+
+```
+Tool: mapping_deps
+Parameters:
+  path: "src/auth.rs"
+```
+
+---
+
+## Sequential Reasoning
+
+Record and search reasoning chains.
+
+### sequential_record
+
+Record a thought step.
+
+```
+Tool: sequential_record
+Parameters:
+  step_number: 1
+  thought: "Need to understand the authentication flow"
+  reasoning: "Start by mapping the entry points"
+  task_id: 15    # optional
+  action: null   # optional
+  observation: null  # optional
+```
+
+### sequential_get
+
+Get all thought steps for a task.
+
+```
+Tool: sequential_get
+Parameters:
+  task_id: 15
+```
+
+### sequential_search
+
+Search thought steps by content.
+
+```
+Tool: sequential_search
+Parameters:
+  query: "authentication flow analysis"
+```
+
+### sequential_cycle (Requires Ollama)
+
+Run full reasoning cycle with LLM.
+
+```
+Tool: sequential_cycle
+Parameters:
+  max_cycles: 5  # optional
+```
+
+---
+
+## Application Change Tracking
+
+Record and search code changes.
+
+### application_record
+
+Record a code change.
+
+```
+Tool: application_record
+Parameters:
+  file_path: "src/auth.rs"
+  change_type: "modify"  # "add", "modify", "delete"
+  line_start: 45
+  line_end: 67
+  description: "Added password strength validation"
+  old_content: null  # optional
+  new_content: null  # optional
+  task_id: 15       # optional link to task
+```
+
+### application_get
+
+Get all changes for a task.
+
+```
+Tool: application_get
+Parameters:
+  task_id: 15
+```
+
+### application_history
+
+Get change history for a file.
+
+```
+Tool: application_history
+Parameters:
+  file_path: "src/auth.rs"
+```
+
+### application_search
+
+Search changes by content.
+
+```
+Tool: application_search
+Parameters:
+  query: "password validation changes"
+```
+
+---
+
+## Common Workflows
+
+### Workflow 1: Start a New Session
+
+```
+# 1. Load previous context
+memory_query(key="current_project")
+memory_query(key="last_task")
+memory_query(key="blockers")
+
+# 2. Check task status
+intellitask_list()
+intellitask_next_ready()
+
+# 3. Find relevant code
+code_graph_fusion_query(query="<what you're working on>", top_k=10)
+```
+
+### Workflow 2: Index a Codebase (First Time)
+
+```
+# 1. Index all code files
+code_index_directory(directory="/path/to/src", pattern="*.rs")
+
+# 2. Sync to Neo4j for graph queries
+code_graph_sync_neo4j(limit=500)
+
+# 3. Enrich with git history
+code_graph_enrich_temporal(only_missing=true)
+
+# 4. Verify
+graph_query(cypher="MATCH (n:CodeEntity) RETURN count(n)")
+```
+
+### Workflow 3: Incremental Re-index (After Changes)
+
+```
+# Just run code_index_directory again - it skips unchanged files
+code_index_directory(directory="/path/to/src", pattern="*.rs")
+# Response shows: files_skipped: 120, files_processed: 3
+```
+
+### Workflow 4: Understand Unfamiliar Code
+
+```
+# 1. Search by concept
+code_search(query="the feature you're looking for", limit=10)
+
+# 2. Get deeper context with fusion
+code_graph_fusion_query(query="<specific functionality>", top_k=5)
+
+# 3. Query relationships
+graph_query(cypher="MATCH (f:CodeEntity)-[:CALLS]->(g) WHERE f.name CONTAINS 'auth' RETURN f.name, g.name")
+
+# 4. Parse specific file for structure
+parser_analyze(file_path="/path/to/interesting/file.rs", persist=false)
+```
+
+### Workflow 5: Document Your Work
+
+```
+# 1. Store what you learned
+vector_insert(text="The rate limiter uses token bucket algorithm in src/ratelimit.rs")
+
+# 2. Record reasoning
+sequential_record(step_number=1, thought="Analyzed rate limiter", reasoning="Token bucket chosen for burst handling")
+
+# 3. Save session state
+memory_store(key="session_notes", value="Completed rate limiter, needs testing")
+memory_store(key="next_steps", value="Add unit tests for edge cases")
+
+# 4. Create follow-up task
+task_create(goal="Test rate limiter edge cases", priority=1)
+```
+
+### Workflow 6: Multi-Agent Collaboration
+
+```
+# 1. Register agents
+agent_register(id="planner", capabilities=["plan", "decompose"])
+agent_register(id="coder", capabilities=["implement", "refactor"])
+agent_register(id="reviewer", capabilities=["review", "test"])
+
+# 2. Send task to planner
+agent_task(to="planner", task_id="feature_1", task_type="plan", payload={"feature": "auth"})
+
+# 3. Planner submits result
+agent_result(from="planner", task_id="feature_1", result={"subtasks": [...]})
+
+# 4. Route to coder
+agent_task(to="coder", task_id="impl_1", task_type="implement", payload={"subtask": "..."})
+```
+
+---
+
+## Troubleshooting
+
+### Vector search returns irrelevant results
+- Try more specific queries with technical terms
+- Embeddings are TF-IDF based - exact technical terms work better than natural language
+- Check if content was actually indexed: `vector_search(query="exact phrase from indexed content")`
+
+### Graph queries fail
+- Check Neo4j is running: `systemctl status neo4j`
+- Verify credentials: `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASS`
+- Test connection: `graph_query(cypher="RETURN 1")`
+
+### code_index returns 0 entities
+- File unchanged since last index (incremental behavior)
+- To force re-index, modify file or clear `file_index_state` table
+
+### IntelliTask tools fail
+- Ollama must be running: `ollama list`
+- Check Ollama has a model loaded
+
+### Slow startup
+- First startup loads embedding model (~500MB)
+- Subsequent startups use HNSW snapshot (fast)
+- Cold HNSW falls back to brute-force search (slower but works)
+
+### Tasks not persisting
+- Check `DB_PATH` is set and directory is writable
+- Database is SQLite, survives restarts
+
+### Agent messages not received
+- Agents must be registered first
+- Check agent ID matches exactly
+- Messages are not persisted - agents must poll while running
+
+---
+
+## Tool Cost Reference
+
+| Cost | Meaning | Examples |
+|------|---------|----------|
+| Low | <10ms, no I/O | memory_query, task_create |
+| Medium | 10-100ms, local computation | vector_search, parser_analyze |
+| High | 100ms-1s, network/disk I/O | graph_query, code_index |
+| Very High | >1s, batch operations | code_index_directory, document_index |
+
+---
+
+## Environment Variables Reference
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `DB_PATH` | `syncore.db` | No | SQLite database path |
+| `HTTP_PORT` | `3001` | No | HTTP streaming port |
+| `NEO4J_URI` | `bolt://127.0.0.1:7687` | For graph | Neo4j connection |
+| `NEO4J_USER` | `neo4j` | For graph | Neo4j username |
+| `NEO4J_PASS` | - | For graph | Neo4j password |
+| `RUST_LOG` | `info` | No | Log level (debug, info, warn, error) |

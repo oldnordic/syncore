@@ -1,225 +1,90 @@
 # SynCore
 
-**Multi-LLM concurrent MCP server** with cognitive intelligence, RAG-Graph fusion, and persistent knowledge storage.
+**MCP server for AI-assisted development** with persistent memory, vector search, code intelligence, and Neo4j graph integration.
 
-Built in Rust. Designed for Claude Code and other MCP clients working simultaneously on the same knowledge base.
+Built in Rust. Designed for Claude Code and other MCP clients.
 
-## What This Actually Is
+## What This Actually Does
 
-SynCore is an **experimental cognitive AI server** that provides 70+ tools for intelligent code understanding, task planning, and knowledge management. Multiple LLMs can connect concurrently and share the same knowledge graph.
-
-**Core Capabilities:**
-- **Multi-LLM Concurrency** - Claude, GLM, OpenCode can all connect simultaneously via STDIO/HTTP
-- **RAG-Graph Fusion** - Tri-mode vector + graph reasoning (Simple, Attention, Reasoning)
-- **Cognitive Intelligence** - Intent classification, continuity, pattern mining, self-consistency checks
-- **Code Understanding** - Tree-sitter parsing + semantic search for 6 languages
+SynCore is an MCP (Model Context Protocol) server exposing **55 tools** for:
+- **Persistent Memory** - Key-value storage (SQLite + Sled cache)
+- **Vector Search** - Semantic search with HNSW indexing + brute-force fallback
+- **Code Intelligence** - Tree-sitter parsing for Rust, JavaScript, Python, JSON, TOML, Bash
 - **Knowledge Graphs** - Neo4j integration with Cypher queries
-- **Task Intelligence** - AI-powered task breakdown and planning via Ollama
-- **Persistent Memory** - SQLite + Sled dual-layer with WAL guarantees
+- **Task Management** - Task tracking with parent/child relationships
+- **Agent Coordination** - Message bus for multi-agent workflows
+- **Application Mapping** - File dependency tracking and change history
+- **Sequential Reasoning** - Multi-step thought recording
 
-## Current State (January 2025)
+## Current State (November 2025)
 
-### ✅ What Works (Production-Grade)
+### What Works Reliably
 
-**Infrastructure:**
-- ✅ **4 concurrent transports**: STDIO (Claude), HTTP-SSE, HTTP-Streaming, TCP (all share same state)
-- ✅ **70+ MCP tools** via unified router with auto-generated schemas
-- ✅ **DbManager architecture**: Long-lived SQLite connections prevent WAL data loss
-- ✅ **Multi-LLM knowledge sharing**: All LLMs see all code graphs, patterns, episodes, memory
-- ✅ **Neo4j integration**: Full Cypher support with connection pooling
-- ✅ **Test acceleration**: 174x faster tests with FakeEmbeddings layer
+**Core Tools (Tested Daily):**
+- `memory_store` / `memory_query` - Key-value storage, ~1ms latency
+- `vector_insert` / `vector_search` - Semantic search, 10-50ms latency
+- `code_index` / `code_search` - Code semantic search
+- `code_index_directory` - Batch index with **incremental support** (skips unchanged files)
+- `parser_analyze` - Tree-sitter AST extraction with optional persistence
+- `parser_search` - Ripgrep code pattern search
+- `graph_query` / `graph_insert` - Neo4j Cypher queries
+- `code_graph_sync_neo4j` - Sync SQLite entities to Neo4j
+- `code_graph_fusion_query` - Tri-mode (simple/attention/reasoning) search
 
-**Cognition System (R1-R5 Complete):**
-- ✅ **R1 Intent Classification**: Symbolic, Semantic, Causal query routing
-- ✅ **R2 Context Fusion**: RAG + Graph + Memory combined retrieval
-- ✅ **R3 Reasoning Continuity**: SQL + Graph ledger for episode history
-- ✅ **R4 Pattern Mining**: Success/failure pattern recognition and recommendation
-- ✅ **R5 Planning Engine**: Multi-step execution plans with tool orchestration
+**Graph Features:**
+- 7 edge types: CONTAINS, CALLS, USES, IMPORTS, MODULE_CHILD, INHERITS, REFERENCES
+- Multi-hop diffusion with PageRank
+- Temporal metadata enrichment (git history + mtime)
 
-**RAG-Graph System:**
-- ✅ **Tri-mode fusion**: Simple (vector-only), Attention (weighted), Reasoning (multi-hop)
-- ✅ **Semantic search**: 26,550+ code entities indexed with vector embeddings
-- ✅ **Query routing**: Automatic mode selection based on complexity heuristics
-- ✅ **Graph scores working**: Neo4j integration validated with 1,243 edges (0.0-0.3 score range)
-- ⚠️ **Multi-hop diffusion**: Graph traversal implemented but limited edges (only Contains relationships)
+**Incremental Indexing (NEW - PHASE 5):**
+- SHA256 + mtime change detection
+- Skips unchanged files (0 entities returned = skipped)
+- Detects new, modified, deleted files
+- Idempotent (safe to run repeatedly)
 
-**Code Intelligence:**
-- ✅ **Tree-sitter parsing**: Rust, JavaScript, Python, JSON, TOML, Bash
-- ✅ **Semantic code search**: Find functions/classes by intent, not just name
-- ✅ **Dependency tracking**: Import/export extraction and relationship mapping
-- ✅ **Application mapping**: Track codebase evolution with change history
+### What's Experimental
 
-### ⚠️ What's Experimental
+- **IntelliTask AI features** - Requires Ollama running locally, quality depends on model
+- **Sequential reasoning** - `sequential_cycle` requires Ollama
+- **Agent message bus** - Works but not heavily tested in production
+- **RAGGraph multi-hop** - Works but scoring may need tuning
 
-**Vector Search:**
-- ⚠️ **Linear scan implementation**: O(n) search, no HNSW optimization despite dependency
-- ⚠️ **Custom embeddings**: Simple TF-IDF semantic vectors (384-dim), not transformer-based
-- ⚠️ **Degrades with scale**: Works well <10k vectors, slow beyond that
+### Honest Limitations
 
-**AI Features:**
-- ⚠️ **IntelliTask**: Ollama-based task generation (prompt quality varies by model)
-- ⚠️ **Sequential reasoning**: Experimental thought chain recording with circuit breaker
-- ⚠️ **Pattern confidence scores**: Statistical only, no causal inference
+- **Single-node only** - No distributed mode
+- **No authentication** - Designed for local use
+- **TF-IDF embeddings** - Not transformer-based (fastembed gives ~384 dim vectors)
+- **Neo4j required for graph features** - Some tools fail silently without it
+- **Ollama required for AI features** - IntelliTask, sequential_cycle need it
+- **~500MB RAM after startup** - Embedding model needs to load
 
-**Graph Relationships:**
-- ⚠️ **Edge extraction incomplete**: Only `class → method` Contains relationships extracted. Missing: `calls`, `imports`, `references`, `uses`, `inherits`
-- ✅ **Neo4j sync tool ready**: `code_graph_sync_neo4j` fully implemented, waiting for edge extraction to be completed
-- ⚠️ **Manual graph construction**: You can manually create relationships via `graph_insert` tool with Cypher
+## Quick Start
 
-### ❌ What Doesn't Exist
-
-**Architecture:**
-- ❌ **HNSW indexing**: Listed in Cargo.toml, NOT IMPLEMENTED (uses linear scan)
-- ❌ **Distributed mode**: Single-node only, no replication
-- ❌ **Authentication**: No security, access controls, or encryption
-
-**Features:**
-- ❌ **Direct LLM communication**: LLMs share knowledge but don't message each other
-- ❌ **Autonomous agents**: Tools for agents, not autonomous behavior
-- ❌ **Production monitoring**: No metrics, alerting, or health checks
-- ❌ **Documentation**: Most features documented through code and TOOLS_MANUAL.md
-
-## Architecture
-
-### Cognitive Stack
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Multiple LLM Clients                      │
-│  Claude (STDIO) │ GLM (HTTP-SSE) │ OpenCode (HTTP-Stream)   │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                ┌───────────▼────────────┐
-                │   MCP Server (70+ tools) │
-                │   Unified Tool Router    │
-                └───────────┬─────────────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        │                   │                   │
-┌───────▼────────┐  ┌──────▼──────┐  ┌────────▼────────┐
-│   Cognition    │  │  RAG-Graph  │  │  Code Analysis  │
-│   ────────────  │  │  ──────────  │  │  ─────────────  │
-│ • Intent        │  │ • Tri-mode  │  │ • Tree-sitter   │
-│ • Continuity    │  │ • Attention │  │ • Semantic      │
-│ • Patterns      │  │ • Diffusion │  │ • Dependencies  │
-│ • Planning      │  │ • Fusion    │  │ • Change track  │
-└───────┬────────┘  └──────┬──────┘  └────────┬────────┘
-        │                   │                   │
-        └───────────────────┼───────────────────┘
-                            │
-        ┌───────────────────▼───────────────────┐
-        │         Knowledge Storage             │
-        │  ─────────────────────────────────    │
-        │  SQLite (WAL) │ Neo4j │ Sled Cache   │
-        │  Memory • Tasks • Episodes • Patterns │
-        └───────────────────────────────────────┘
-```
-
-### Multi-LLM Concurrency Model
-
-```
-Claude Code (STDIO)  ┐
-GLM (HTTP-SSE)       ├──▶  Shared SynCoreState (Arc)
-OpenCode (HTTP)      ┘           │
-                                 ├─▶ Unified Code Graph
-                                 ├─▶ Shared RAGGraph Entities
-                                 ├─▶ Shared Memory (KV store)
-                                 ├─▶ Shared Reasoning Episodes
-                                 ├─▶ Shared Success/Failure Patterns
-                                 └─▶ Shared Task Database
-
-• All LLMs see ALL knowledge (no isolation)
-• client_id field is metadata only (attribution, not filtering)
-• Namespace separation for different projects
-• Concurrent requests don't block each other
-```
-
-### Cognition Workflow
-
-```
-User Query
-    │
-    ▼
-┌─────────────────────┐
-│ Intent Classifier    │ ──▶ Symbolic / Semantic / Causal / Unknown
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ Context Composer     │ ──▶ Fetch: RAGGraph + Memory + Graph
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ Continuity Engine    │ ──▶ Load: Past episodes + patterns
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ Pattern Engine       │ ──▶ Recommend: Success patterns for intent+mode
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ Self-Consistency     │ ──▶ Validate: Tool order, detect loops, conflicts
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ Plan Engine          │ ──▶ Generate: Multi-step execution plan
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ Plan Executor        │ ──▶ Execute: Tools in sequence, handle errors
-└──────┬──────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ Reasoning Ledger     │ ──▶ Store: Episode to SQL + Neo4j for next query
-└─────────────────────┘
-```
-
-## Building
+### Build
 
 ```bash
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/syncore.git
 cd syncore
-
-# Build release binaries (5-10 minutes)
 cargo build --release
-
-# Two binaries created:
-# - target/release/syncore_mcp_stdio  (STDIO transport for Claude Code)
-# - target/release/syncore            (All transports: STDIO + HTTP-SSE + HTTP-Streaming + TCP)
 ```
 
-**Requirements:**
-- Rust 1.70+ with cargo
-- C compiler (gcc/clang) for SQLite and ONNX
-- ~4GB disk space for build artifacts
-- ~2GB RAM during compilation
-- ~8GB RAM at runtime (embedding model loading)
+Produces two binaries:
+- `target/release/syncore_mcp_stdio` (~55 MB) - MCP server for Claude Code
+- `target/release/syncore_graph_cli` (~33 MB) - CLI for graph operations
 
-## Configuration
-
-### Claude Code Setup (Recommended)
+### Configure Claude Code
 
 Add to `~/.config/claude/mcp_settings.json`:
 
 ```json
 {
   "syncore": {
-    "command": "/absolute/path/to/syncore/target/release/syncore_mcp_stdio",
+    "command": "/path/to/syncore/target/release/syncore_mcp_stdio",
     "args": [],
     "env": {
-      "DB_PATH": "/absolute/path/to/syncore.db",
+      "DB_PATH": "/path/to/syncore.db",
       "NEO4J_URI": "bolt://127.0.0.1:7687",
       "NEO4J_USER": "neo4j",
-      "NEO4J_PASS": "testpassword123",
-      "OLLAMA_HOST": "http://localhost:11434",
-      "RUST_LOG": "info"
+      "NEO4J_PASS": "your_password"
     }
   }
 }
@@ -227,284 +92,168 @@ Add to `~/.config/claude/mcp_settings.json`:
 
 ### Environment Variables
 
-**Core:**
-- `DB_PATH` - Main SQLite database (default: `syncore.db`)
-- `RUST_LOG` - Logging level: `debug`, `info`, `warn`, `error`
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_PATH` | `syncore.db` | SQLite database path |
+| `HTTP_PORT` | `3001` | HTTP streaming server port |
+| `NEO4J_URI` | `bolt://127.0.0.1:7687` | Neo4j connection |
+| `NEO4J_USER` | `neo4j` | Neo4j username |
+| `NEO4J_PASS` | (required for graph) | Neo4j password |
+| `RUST_LOG` | `info` | Log level |
 
-**Neo4j (Optional but Recommended):**
-- `NEO4J_URI` - Bolt connection (default: `bolt://127.0.0.1:7687`)
-- `NEO4J_USER` - Database user (default: `neo4j`)
-- `NEO4J_PASS` - Database password (required)
-- `GRAPH_NAMESPACE` - Node namespace for project isolation
+## All 55 Tools
 
-**Ollama (Optional):**
-- `OLLAMA_HOST` - API endpoint (default: `http://localhost:11434`)
+### Memory (2 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `memory_store` | Store key-value pair | Low |
+| `memory_query` | Retrieve value by key | Low |
 
-**Multi-Transport (for main binary):**
-- `TRANSPORT` - Which transports to run: `all`, `stdio`, `http-sse`, `http-streaming`, `http` (default: `all`)
-- `SSE_ADDR` - HTTP-SSE bind address (default: `127.0.0.1:8081`)
-- `STREAM_ADDR` - HTTP-Streaming bind address (default: `127.0.0.1:8082`)
-- `SOCKET_PATH` - TCP bind address (default: `127.0.0.1:8080`)
+### Vector Search (2 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `vector_insert` | Add text with embeddings | Medium |
+| `vector_search` | Semantic similarity search | Medium |
 
-## Running the Server
+### Code Intelligence (5 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `code_index` | Index a source file | High |
+| `code_search` | Semantic code search | Medium |
+| `code_index_directory` | Batch index directory (incremental) | Very High |
+| `parser_analyze` | Tree-sitter AST extraction, `persist=true` writes to DB/HNSW/Neo4j | Medium |
+| `parser_search` | Ripgrep pattern search | Medium |
 
-### STDIO Mode (Claude Code)
+### Documents (2 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `document_index` | Index documents from directory | Very High |
+| `document_search` | Semantic document search | Medium |
 
-```bash
-# Standard mode (single LLM via STDIO)
-./target/release/syncore_mcp_stdio
+### Graph Database (3 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `graph_query` | Execute Cypher read query | High |
+| `graph_insert` | Execute Cypher write query | High |
+| `graph_relate` | Create relationship between nodes | High |
 
-# With custom config
-DB_PATH=./my.db \
-NEO4J_PASS=mypassword \
-./target/release/syncore_mcp_stdio
-```
+### Code Graph (4 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `code_graph_fusion_query` | Tri-mode (simple/attention/reasoning) search | High |
+| `code_graph_sync_neo4j` | Sync SQLite entities to Neo4j | Very High |
+| `code_graph_enrich_temporal` | Add git history + mtime metadata | Very High |
+| `raggraph_multihop` | Multi-hop graph diffusion from seed nodes | High |
 
-### Multi-LLM Mode (All Transports)
+### RAG (1 tool)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `raggraph_query` | RAG query with multi-hop graph reasoning | High |
 
-```bash
-# Run all 4 transports concurrently (default)
-./target/release/syncore
+### Task Management (11 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `task_create` | Create a task | Low |
+| `intellitask_list` | List all tasks | Low |
+| `intellitask_get` | Get task by ID | Low |
+| `intellitask_update_status` | Update task status | Low |
+| `intellitask_next_ready` | Get next ready task | Low |
+| `intellitask_get_subtasks` | Get subtasks | Low |
+| `intellitask_subtask_stats` | Subtask statistics | Low |
+| `intellitask_task_statistics` | Overall task statistics | Low |
+| `intellitask_prd_statistics` | PRD-specific statistics | Low |
+| `intellitask_save` | Save task breakdown to DB | Low |
+| `intellitask_generate` | **Requires Ollama** - AI task breakdown from PRD | High |
+| `intellitask_subtasks` | **Requires Ollama** - Generate subtasks | High |
+| `intellitask_prioritize` | **Requires Ollama** - AI task prioritization | High |
+| `intellitask_next` | **Requires Ollama** - AI next task suggestion | High |
 
-# Now connect:
-# - Claude Code via STDIO (auto-connected via mcp_settings.json)
-# - GLM/OpenCode via HTTP-SSE on http://127.0.0.1:8081
-# - Other clients via HTTP-Streaming on http://127.0.0.1:8082
-# - Legacy clients via TCP on 127.0.0.1:8080
+### Agent Coordination (8 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `agent_send` | Send message to agent via message bus | Low |
+| `agent_recv` | Receive pending messages | Low |
+| `agent_poll` | Wait for next message (blocking) | Low |
+| `agent_register` | Register agent with capabilities | Low |
+| `agent_list` | List registered agents | Low |
+| `agent_status` | Update agent status | Low |
+| `agent_task` | Send structured task envelope | Low |
+| `agent_result` | Submit completed task result | Low |
 
-# All clients share the same knowledge base!
-```
+### Application Mapping (4 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `mapping_record` | Record file node with imports/exports/deps | Low |
+| `mapping_get` | Get file node | Low |
+| `mapping_search` | Semantic file search | Medium |
+| `mapping_deps` | Get transitive dependencies | Medium |
 
-### HTTP Endpoints
+### Sequential Reasoning (4 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `sequential_record` | Record thought step in reasoning chain | Low |
+| `sequential_get` | Get thought steps for task | Low |
+| `sequential_search` | Search thought steps semantically | Medium |
+| `sequential_cycle` | **Requires Ollama** - Run reasoning cycle | Very High |
 
-When running HTTP transports:
-- `GET /` - Server info (name, version, tools)
-- `GET /mcp/v1/info` - MCP protocol metadata
-- `GET /mcp/v1/tools` - List all 70+ tools with schemas
+### Application Change Tracking (4 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `application_record` | Record code change | Low |
+| `application_get` | Get changes for task | Low |
+| `application_history` | Get file change history | Low |
+| `application_search` | Search changes semantically | Medium |
 
-## Available Tools
+### System (2 tools)
+| Tool | Description | Cost |
+|------|-------------|------|
+| `logs_tail` | Get recent log entries | Low |
+| `tool_metadata_list` | List tool metadata (only shows 14 core tools) | Low |
 
-See [`TOOLS_MANUAL.md`](TOOLS_MANUAL.md) for complete documentation of all 70+ tools.
-
-**Categories:**
-- **Memory** (2): Key-value storage with SQLite + Sled cache
-- **Tasks** (1): Task creation with parent/dependency links
-- **Vector** (2): Semantic embedding and similarity search
-- **Code** (5): Parsing, indexing, semantic search, dependency tracking
-- **Graph** (3): Neo4j Cypher queries and relationship creation
-- **RAGGraph** (2): Tri-mode fusion query and multi-hop diffusion
-- **Application Mapping** (8): File tracking, change history, dependency analysis
-- **Sequential Reasoning** (4): Thought chain recording and search
-- **IntelliTask** (13): AI-powered task breakdown and prioritization
-- **Agent Communication** (8): Message bus and task routing
-- **Document** (2): Document indexing and semantic search
-- **System** (2): Logs and tool metadata
-
-## External Dependencies
-
-**Required:**
-- Rust 1.70+ toolchain
-- SQLite3 (bundled with rusqlite)
-- 8GB+ RAM for embedding models
-
-**Optional but Recommended:**
-- **Neo4j 5.x** - Graph database for knowledge graphs
-  ```bash
-  # Arch Linux
-  yay -S neo4j-community
-  sudo systemctl start neo4j
-  sudo neo4j-admin dbms set-initial-password testpassword123
-  ```
-
-- **Ollama** - Local LLM for IntelliTask and sequential reasoning
-  ```bash
-  # Install from ollama.ai
-  ollama pull llama3
-  ollama serve
-  ```
-
-## Performance Expectations
+## Performance
 
 **Tested on Ryzen 7, 32GB RAM:**
 
-| Operation | Latency | Notes |
-|-----------|---------|-------|
-| Memory store/query | <1ms | SQLite + Sled |
-| Code graph fusion query | 10-50ms | Depends on mode (simple/attention/reasoning) |
-| Vector search (1k) | ~10ms | Linear scan O(n) |
-| Vector search (10k) | ~100ms | Degrades linearly |
-| Tree-sitter parse | 10-200ms | File size dependent |
-| Neo4j simple query | 1-10ms | Network + query |
-| IntelliTask generation | 5-30s | Ollama LLM latency |
+| Operation | Latency |
+|-----------|---------|
+| Memory store/query | <1ms |
+| Vector search (cold) | 10-50ms |
+| Vector search (hot HNSW) | 1-10ms |
+| Code graph fusion | 10-50ms |
+| Neo4j query | 1-10ms |
+| Incremental index (unchanged file) | <1ms |
 
-**Memory Usage:**
-- Base: ~50MB runtime
-- After embeddings: ~500MB (model in RAM)
-- With Neo4j: ~1GB (Java heap)
-- Peak indexing: ~1.5GB
+## Requirements
 
-## Honest Limitations
+**Required:**
+- Rust 1.70+
+- ~4GB disk for build artifacts
+- ~500MB RAM after embedding model loads
 
-**Architecture:**
-- Single-node only (no replication, no distributed mode)
-- No authentication, encryption, or access controls
-- No rate limiting (except sequential reasoning circuit breaker)
-- Linear vector search (O(n), no HNSW optimization)
+**Optional:**
+- Neo4j 5.x (for graph features - `graph_*`, `code_graph_*`, `raggraph_*`)
+- Ollama (for AI features - `intellitask_generate/subtasks/prioritize/next`, `sequential_cycle`)
 
-**Performance:**
-- Vector search degrades linearly with dataset size
-- Edge extraction partially implemented (only class → method `Contains` relationships)
-- Ollama dependency adds 5-30s latency for AI features
+## CLI Tool
 
-**Stability:**
-- Sled cache can corrupt on unclean shutdown (auto-recovery implemented)
-- Test database files accumulate in /tmp (manual cleanup)
-- Some Ollama prompts assume llama3 model behavior
-
-**Known Issues:**
-- **Edge extraction incomplete**: Indexing extracts 26,550+ code entities but limited edges. Only `class → method` Contains relationships are extracted. Missing: `calls`, `imports`, `references`, `uses`, `inherits` extraction.
-- **Neo4j sync working**: `code_graph_sync_neo4j` fully operational with 1,243 edges synced. Graph scores: 0.0-0.3 range.
-- Test artifacts need manual cleanup: `rm -f /tmp/syncore_test_*.db*`
-
-**Recent Fixes (Jan 2025):**
-- ✅ Fixed Neo4j graph_score=0 bug (vector snapshot ID mismatch, :memory: database, silent failures)
-- ✅ Added snapshot validation: Vector IDs now validated against SQLite on load
-- ✅ Added debug logging: Failed lookups now logged with actionable error messages
-- ✅ All fixes TDD-tested: 8 new tests covering edge cases
-
-## Testing
+`syncore_graph_cli` provides command-line graph operations:
 
 ```bash
-# Fast tests with FakeEmbeddings (8 seconds)
-cargo test
+# Sync SQLite entities to Neo4j
+NEO4J_URI="bolt://127.0.0.1:7687" NEO4J_USER="neo4j" NEO4J_PASS="password" \
+  ./target/release/syncore_graph_cli sync
 
-# With output
-cargo test -- --nocapture
+# Validate graph integrity
+./target/release/syncore_graph_cli validate
 
-# Specific test
-cargo test test_name
-
-# Neo4j integration tests (requires Neo4j running)
-NEO4J_URI=bolt://127.0.0.1:7687 \
-NEO4J_USER=neo4j \
-NEO4J_PASS=testpassword123 \
-cargo test --test real_executor_graph_tests
+# Show graph statistics
+./target/release/syncore_graph_cli stats
 ```
-
-## Development
-
-### Adding New Tools
-
-1. Define request struct with `#[derive(Deserialize, JsonSchema)]`
-2. Add `#[tool]` handler in `src/mcp_server.rs`
-3. RMCP auto-generates schemas and routing
-4. Test with `cargo test`
-
-Example:
-```rust
-#[derive(Deserialize, JsonSchema)]
-struct MyToolRequest {
-    query: String,
-}
-
-#[tool]
-async fn my_tool(state: ToolState, req: MyToolRequest) -> Result<String> {
-    Ok(format!("Result: {}", req.query))
-}
-```
-
-### Understanding the Cognition Stack
-
-Key files for reasoning intelligence:
-- `src/cognition/orchestrator.rs` - Main cognitive entry point
-- `src/cognition/intent_classifier.rs` - Query intent detection
-- `src/cognition/continuity_engine.rs` - Reasoning history
-- `src/cognition/pattern_engine.rs` - Success/failure patterns
-- `src/cognition/plan_engine.rs` - Multi-step planning
-- `src/cognition/self_consistency.rs` - Validation and anomaly detection
-
-### Understanding RAG-Graph Fusion
-
-Key files for tri-mode retrieval:
-- `src/raggraph/fusion.rs` - Mode selection and fusion logic
-- `src/raggraph/attention.rs` - Attention-weighted combination
-- `src/raggraph/diffusion.rs` - Multi-hop graph traversal
-- `src/raggraph/hopgraph.rs` - Graph structure and operations
-
-## Why GPL-3.0?
-
-1. Built on open source (Neo4j Community, Ollama, RMCP, Tree-sitter)
-2. Experimental software should be shared openly
-3. Improvements benefit the community
-4. Not intended for proprietary commercial use
-
-**Need different license?** Open an issue with use case.
-
-## Contributing
-
-Personal learning project. Contributions welcome but no promises on response time.
-
-1. Fork repository
-2. Create feature branch
-3. Write tests (use `cargo test` for fast iteration)
-4. Submit PR with clear rationale
-5. Follow existing code style
-
-## What This Is NOT
-
-- ❌ **Not production-ready**: No security, no guarantees, experimental features
-- ❌ **Not a vector database**: Linear search, no HNSW optimization
-- ❌ **Not an AGI system**: Tools for AI agents, not autonomous intelligence
-- ❌ **Not feature-complete**: Many features experimental or work-in-progress
-- ❌ **Not well-documented**: Code and TOOLS_MANUAL are primary docs
-- ❌ **Not battle-tested**: Personal projects only, limited real-world use
-
-## Future Directions
-
-No formal roadmap. Development driven by personal needs:
-
-**Short-term (maybe):**
-- [ ] Complete Neo4j relationship extraction (edges pending)
-- [ ] Real HNSW implementation (currently linear scan)
-- [ ] Redis caching for agent communication
-- [ ] Better error messages and recovery
-
-**Long-term (aspirational):**
-- [ ] Distributed mode with replication
-- [ ] Authentication and access controls
-- [ ] Transformer-based embeddings
-- [ ] Comprehensive documentation site
-- [ ] Performance profiling and optimization
-
-**Never (out of scope):**
-- Commercial support or SLAs
-- Cloud-hosted service
-- Multi-tenancy
-- Enterprise features
 
 ## License
 
-GNU General Public License v3.0 (GPL-3.0)
-
-See LICENSE file for full text.
+GPL-3.0
 
 ## Acknowledgments
 
-Built with:
-- [rmcp](https://github.com/anthropics/rmcp) - MCP protocol
-- [neo4rs](https://github.com/neo4j-labs/neo4rs) - Neo4j driver
-- [rusqlite](https://github.com/rusqlite/rusqlite) - SQLite with WAL
-- [tree-sitter](https://tree-sitter.github.io/) - Multi-language parsing
-- [fastembed](https://github.com/Anush008/fastembed-rs) - Text embeddings
-- [tokio](https://tokio.rs/) - Async runtime
-- [sled](https://github.com/spacejam/sled) - Key-value store
-
-Special thanks to Claude Code (Anthropic) for AI-assisted development.
-
----
-
-**Status**: Active development (January 2025)
-**Phase**: Post-R5 Cognition, Multi-LLM Concurrency, RAG-Graph Fusion
-**Next**: Complete Neo4j relationship extraction, Real HNSW implementation
-
-*"Honest software: Tell users what works, what doesn't, and why."*
+Built with rmcp, neo4rs, rusqlite, tree-sitter, fastembed, tokio, sled, hnsw_rs.
