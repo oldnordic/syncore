@@ -2,7 +2,7 @@
 //!
 //! Generates deterministic LLM prompts from TOON state (graph + memory + pointer store)
 
-use super::{MemoryEntry, ToonGraph, ToonInstr};
+use super::{MemoryEntry, ToonGraph};
 use std::collections::HashMap;
 
 pub struct ToonPromptBuilder {

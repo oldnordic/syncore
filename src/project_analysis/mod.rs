@@ -29,7 +29,6 @@ pub mod rust_backend_ingestion;
 pub mod rust_macro_expander;
 pub mod unused_imports;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

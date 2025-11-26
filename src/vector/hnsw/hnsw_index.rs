@@ -7,8 +7,6 @@ use super::config::HnswConfig;
 use crate::vector::traits::VectorIndex;
 use anyhow::{anyhow, Result};
 use hnsw_rs::prelude::*;
-use std::fs::File;
-use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 

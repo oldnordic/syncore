@@ -16,7 +16,12 @@ use tempfile::TempDir;
 /// Helper to create test VectorStore with temp directory
 fn create_test_store() -> Result<(VectorStore, TempDir)> {
     let temp_dir = TempDir::new()?;
-    let index_path = temp_dir.path().join("test_hnsw").to_str().unwrap().to_string();
+    let index_path = temp_dir
+        .path()
+        .join("test_hnsw")
+        .to_str()
+        .unwrap()
+        .to_string();
 
     let embeddings = Box::new(RealEmbeddings::new(384)?);
     let mut store = VectorStore::new(embeddings);
@@ -66,7 +71,12 @@ fn test_vector_store_insert_populates_hnsw() -> Result<()> {
 #[test]
 fn test_vector_store_persistence_roundtrip() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let index_path = temp_dir.path().join("test_hnsw").to_str().unwrap().to_string();
+    let index_path = temp_dir
+        .path()
+        .join("test_hnsw")
+        .to_str()
+        .unwrap()
+        .to_string();
 
     // Phase 1: Insert and search
     let search_results_before = {
@@ -107,11 +117,11 @@ fn test_vector_store_persistence_roundtrip() -> Result<()> {
         "Search results count should match before and after persistence"
     );
 
-    for (before, after) in search_results_before.iter().zip(search_results_after.iter()) {
-        assert_eq!(
-            before.id, after.id,
-            "Search results should have same IDs"
-        );
+    for (before, after) in search_results_before
+        .iter()
+        .zip(search_results_after.iter())
+    {
+        assert_eq!(before.id, after.id, "Search results should have same IDs");
         // Similarity scores might differ slightly due to floating point precision
         assert!(
             (before.score - after.score).abs() < 0.01,
@@ -125,7 +135,12 @@ fn test_vector_store_persistence_roundtrip() -> Result<()> {
 #[test]
 fn test_vector_store_rebuild_from_snapshot_if_hnsw_missing() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let index_path = temp_dir.path().join("test_hnsw").to_str().unwrap().to_string();
+    let index_path = temp_dir
+        .path()
+        .join("test_hnsw")
+        .to_str()
+        .unwrap()
+        .to_string();
 
     // Phase 1: Insert vectors and save snapshot
     {

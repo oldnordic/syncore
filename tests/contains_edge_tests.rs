@@ -40,9 +40,7 @@ const VERSION: &str = "1.0";
     let edges = extractor.extract_from_source(code, "src/main.rs").unwrap();
 
     // Should find CONTAINS edges from file to each item
-    let contains_edges: Vec<_> = edges.iter()
-        .filter(|e| e.edge_type == "contains")
-        .collect();
+    let contains_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == "contains").collect();
 
     // Should have file→main, file→helper, file→Config, file→Status, file→VERSION
     assert!(
@@ -52,7 +50,8 @@ const VERSION: &str = "1.0";
     );
 
     // Verify file is the source for all contains edges
-    let file_as_src: Vec<_> = contains_edges.iter()
+    let file_as_src: Vec<_> = contains_edges
+        .iter()
         .filter(|e| e.src_name.contains("main.rs") || e.src_name == "main.rs")
         .collect();
     assert!(
@@ -86,12 +85,11 @@ impl Config {
     let edges = extractor.extract_from_source(code, "test.rs").unwrap();
 
     // Should find CONTAINS edges from Config struct to its methods
-    let contains_edges: Vec<_> = edges.iter()
-        .filter(|e| e.edge_type == "contains")
-        .collect();
+    let contains_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == "contains").collect();
 
     // Config -> new, Config -> validate
-    let struct_method_edges: Vec<_> = contains_edges.iter()
+    let struct_method_edges: Vec<_> = contains_edges
+        .iter()
         .filter(|e| e.src_name == "Config")
         .collect();
 
@@ -120,7 +118,8 @@ fn main_function() {}
     let edges = extractor.extract_from_source(code, "src/lib.rs").unwrap();
 
     // Should find MODULE_CHILD edges from parent module to child modules
-    let module_child_edges: Vec<_> = edges.iter()
+    let module_child_edges: Vec<_> = edges
+        .iter()
         .filter(|e| e.edge_type == "module_child")
         .collect();
 
@@ -131,13 +130,20 @@ fn main_function() {}
     );
 
     // Verify child module names
-    let child_names: HashSet<_> = module_child_edges.iter()
+    let child_names: HashSet<_> = module_child_edges
+        .iter()
         .map(|e| e.dst_name.as_str())
         .collect();
 
     assert!(child_names.contains("utils"), "Should have utils as child");
-    assert!(child_names.contains("parser"), "Should have parser as child");
-    assert!(child_names.contains("config"), "Should have config as child");
+    assert!(
+        child_names.contains("parser"),
+        "Should have parser as child"
+    );
+    assert!(
+        child_names.contains("config"),
+        "Should have config as child"
+    );
 }
 
 #[test]
@@ -155,7 +161,8 @@ trait Validator {
     let edges = extractor.extract_from_source(code, "test.rs").unwrap();
 
     // Should find CONTAINS edges from trait to its methods
-    let contains_edges: Vec<_> = edges.iter()
+    let contains_edges: Vec<_> = edges
+        .iter()
         .filter(|e| e.edge_type == "contains" && e.src_name == "Validator")
         .collect();
 
@@ -182,7 +189,8 @@ enum Status {
     let edges = extractor.extract_from_source(code, "test.rs").unwrap();
 
     // Should find CONTAINS edges from enum to its variants
-    let contains_edges: Vec<_> = edges.iter()
+    let contains_edges: Vec<_> = edges
+        .iter()
         .filter(|e| e.edge_type == "contains" && e.src_name == "Status")
         .collect();
 
@@ -266,7 +274,9 @@ async fn test_graph_connectivity_after_contains_edges() -> Result<()> {
 
     println!(
         "Graph connectivity: {}/{} ({:.1}%)",
-        stats.nodes_with_edges, stats.total_nodes, connectivity * 100.0
+        stats.nodes_with_edges,
+        stats.total_nodes,
+        connectivity * 100.0
     );
 
     // After CONTAINS edges, connectivity should be >= 95%

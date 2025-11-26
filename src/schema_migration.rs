@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version
-pub const CURRENT_SCHEMA_VERSION: i32 = 4;
+pub const CURRENT_SCHEMA_VERSION: i32 = 5;
 
 /// Get the current schema version from the database
 /// Returns 0 if version table doesn't exist (brand new database)
@@ -91,6 +91,10 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
     if current_version < 4 {
         migration_004_code_graph(conn).context("Failed to run migration 004")?;
+    }
+
+    if current_version < 5 {
+        migration_005_memory_extended_fields(conn).context("Failed to run migration 005")?;
     }
 
     // Verify we're at the expected version
@@ -188,6 +192,19 @@ fn migration_004_code_graph(conn: &Connection) -> Result<()> {
         conn,
         4,
         "Add code graph tables (code_entities, code_edges, code_embeddings)",
+    )?;
+    Ok(())
+}
+
+/// Migration 005: Add extended memory fields for APEX 2.0-M-FIX (namespace isolation)
+fn migration_005_memory_extended_fields(conn: &Connection) -> Result<()> {
+    conn.execute_batch(include_str!("../migrations/05_memory_extended_fields.sql"))
+        .context("Failed to apply migration 005: Memory extended fields")?;
+
+    set_schema_version(
+        conn,
+        5,
+        "Add extended memory fields (namespace, summary, importance, created_at, last_accessed, access_count)",
     )?;
     Ok(())
 }

@@ -11,7 +11,7 @@
 
 use anyhow::Result;
 use crate::graph::Neo4jClient;
-use super::schema::{NodeLabel, RelationType, project_namespace};
+use super::schema::{NodeLabel, project_namespace};
 use serde_json::Value;
 
 /// Entity result from Neo4j query

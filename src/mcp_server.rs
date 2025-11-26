@@ -1557,7 +1557,7 @@ impl SynCoreMCPServer {
         Parameters(params): Parameters<TaskSaveRequest>,
     ) -> Result<CallToolResult, McpError> {
         let persistence =
-            match crate::intellitask_persistence::IntelliTaskPersistence::new("./syncore.db_tasks")
+            match crate::intellitask_persistence::IntelliTaskPersistence::new(crate::common::db_paths::intellitask_db_path().as_str())
             {
                 Ok(p) => p,
                 Err(e) => {

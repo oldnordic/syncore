@@ -5,11 +5,11 @@ use rusqlite::Connection;
 use std::path::Path;
 use std::time::SystemTime;
 
-use super::body_extractor::{extract_body_snippet, should_extract_body}; // APEX v1.7 Phase 3
+use super::body_extractor::{extract_body_snippet}; // APEX v1.7 Phase 3
 use super::graph::CodeGraph;
 use super::incremental::{
     compute_file_sha256, get_file_mtime, get_stored_file_state, update_file_state,
-    FileChangeStatus, FileIndexState,
+    FileIndexState,
 };
 use super::neo4j_writer::create_code_entity_node;
 use super::temporal_extractor::extract_temporal_metadata; // PHASE 3

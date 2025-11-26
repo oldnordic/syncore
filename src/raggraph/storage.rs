@@ -24,7 +24,6 @@ use super::types::NodeId;
 use crate::graph::Neo4jClient;
 use crate::vector::traits::VectorIndex;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// Error types specific to RagGraph storage operations

@@ -2,7 +2,7 @@
 //! Stores extracted code graphs with cross-linked queries across multiple backends.
 
 use crate::portfolio::code_graph_extractor::{
-    CallEdge, CodeGraph, FunctionNode, ImplementationEdge, ImportNode, StructNode, TraitNode,
+    CodeGraph, FunctionNode,
 };
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Connection};

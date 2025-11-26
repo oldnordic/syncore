@@ -5,7 +5,6 @@
 use crate::project_analysis::{ModuleEdge, ModuleInfo, PAEResponse, ProjectAnalysisEngine};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Request parameters for project_module_map
 #[derive(Debug, Deserialize)]

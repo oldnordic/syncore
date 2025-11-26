@@ -1,0 +1,468 @@
+{
+  "version": "1.4.0",
+  "description": "APEX v1.4 Tool Suite Migration Mapping",
+  "suites": ["memory_suite", "code_suite", "graph_suite", "mapping_suite", "debug_suite"],
+  "mappings": [
+    {
+      "legacy_name": "memory_store",
+      "suite_name": "memory_suite",
+      "suite_command": "store",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "memory_query",
+      "suite_name": "memory_suite",
+      "suite_command": "query",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "vector_insert",
+      "suite_name": "memory_suite",
+      "suite_command": "vector_insert",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "vector_search",
+      "suite_name": "memory_suite",
+      "suite_command": "vector_search",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "sequential_record",
+      "suite_name": "memory_suite",
+      "suite_command": "sequential_record",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "sequential_get",
+      "suite_name": "memory_suite",
+      "suite_command": "sequential_get",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "sequential_search",
+      "suite_name": "memory_suite",
+      "suite_command": "sequential_search",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "sequential_cycle",
+      "suite_name": "memory_suite",
+      "suite_command": "sequential_cycle",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "code_index",
+      "suite_name": "code_suite",
+      "suite_command": "index",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "code_search",
+      "suite_name": "code_suite",
+      "suite_command": "search",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "code_index_directory",
+      "suite_name": "code_suite",
+      "suite_command": "index_directory",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "parser_analyze",
+      "suite_name": "code_suite",
+      "suite_command": "parse",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "parser_search",
+      "suite_name": "code_suite",
+      "suite_command": "grep",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "document_index",
+      "suite_name": "code_suite",
+      "suite_command": "doc_index",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "document_search",
+      "suite_name": "code_suite",
+      "suite_command": "doc_search",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "explain_function",
+      "suite_name": "code_suite",
+      "suite_command": "explain",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "code_graph_sync_neo4j",
+      "suite_name": "code_suite",
+      "suite_command": "sync_neo4j",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "code_graph_enrich_temporal",
+      "suite_name": "code_suite",
+      "suite_command": "enrich_temporal",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "code_graph_fusion_query",
+      "suite_name": "code_suite",
+      "suite_command": "fusion_query",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "graph_query",
+      "suite_name": "graph_suite",
+      "suite_command": "query",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "graph_insert",
+      "suite_name": "graph_suite",
+      "suite_command": "insert",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "graph_relate",
+      "suite_name": "graph_suite",
+      "suite_command": "relate",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "raggraph_query",
+      "suite_name": "graph_suite",
+      "suite_command": "rag_query",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "raggraph_multihop",
+      "suite_name": "graph_suite",
+      "suite_command": "rag_multihop",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "mapping_record",
+      "suite_name": "mapping_suite",
+      "suite_command": "record",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "mapping_get",
+      "suite_name": "mapping_suite",
+      "suite_command": "get",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "mapping_search",
+      "suite_name": "mapping_suite",
+      "suite_command": "search",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "mapping_deps",
+      "suite_name": "mapping_suite",
+      "suite_command": "deps",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "application_record",
+      "suite_name": "mapping_suite",
+      "suite_command": "app_record",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "application_get",
+      "suite_name": "mapping_suite",
+      "suite_command": "app_get",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "application_history",
+      "suite_name": "mapping_suite",
+      "suite_command": "app_history",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "application_search",
+      "suite_name": "mapping_suite",
+      "suite_command": "app_search",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "logs_tail",
+      "suite_name": "debug_suite",
+      "suite_command": "logs_tail",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "tool_metadata_list",
+      "suite_name": "debug_suite",
+      "suite_command": "tool_metadata_list",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_file_report",
+      "suite_name": "debug_suite",
+      "suite_command": "project_file_report",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_module_map",
+      "suite_name": "debug_suite",
+      "suite_command": "project_module_map",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_hotspots",
+      "suite_name": "debug_suite",
+      "suite_command": "project_hotspots",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_cycles",
+      "suite_name": "debug_suite",
+      "suite_command": "project_cycles",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_dead_code",
+      "suite_name": "debug_suite",
+      "suite_command": "project_dead_code",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_unused_imports",
+      "suite_name": "debug_suite",
+      "suite_command": "project_unused_imports",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_refactor_suggestions",
+      "suite_name": "debug_suite",
+      "suite_command": "project_refactor_suggestions",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_code_smells",
+      "suite_name": "debug_suite",
+      "suite_command": "project_code_smells",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "project_cleanup_excluded",
+      "suite_name": "debug_suite",
+      "suite_command": "project_cleanup_excluded",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "task_create",
+      "suite_name": "memory_suite",
+      "suite_command": "task_create",
+      "status": "exact_parity",
+      "deprecated": true
+    },
+    {
+      "legacy_name": "intellitask_generate",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_generate",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_subtasks",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_subtasks",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_prioritize",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_prioritize",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_next",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_next",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_save",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_save",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_get",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_get",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_list",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_list",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_update_status",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_update_status",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_next_ready",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_next_ready",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_get_subtasks",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_get_subtasks",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_subtask_stats",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_subtask_stats",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_task_statistics",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_task_statistics",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "intellitask_prd_statistics",
+      "suite_name": "memory_suite",
+      "suite_command": "intellitask_prd_statistics",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_send",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_send",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_recv",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_recv",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_poll",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_poll",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_register",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_register",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_list",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_list",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_status",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_status",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_task",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_task",
+      "status": "exact_parity",
+      "deprecated": false
+    },
+    {
+      "legacy_name": "agent_result",
+      "suite_name": "memory_suite",
+      "suite_command": "agent_result",
+      "status": "exact_parity",
+      "deprecated": false
+    }
+  ],
+  "statistics": {
+    "total_legacy_tools": 65,
+    "exact_parity": 65,
+    "missing": 0,
+    "suites_count": 5
+  }
+}

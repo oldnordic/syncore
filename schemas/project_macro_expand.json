@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "file_path": {
+      "type": "string",
+      "description": "Path to the Rust file to get macro expansions for"
+    },
+    "db_path": {
+      "type": "string",
+      "description": "Path to the SQLite database containing macro expansion data",
+      "default": "./syncore.db"
+    }
+  },
+  "required": ["file_path"],
+  "additionalProperties": false
+}

@@ -9,9 +9,9 @@
 //! - Module hierarchy (MODULE_CHILD)
 
 use anyhow::Result;
-use tree_sitter::{Node, Parser, Query, QueryCursor};
+use tree_sitter::{Node, Parser};
 
-use super::types::{CodeEdge, EdgeType};
+use super::types::{EdgeType};
 
 /// Semantic edge extractor for Rust code
 pub struct SemanticExtractor {

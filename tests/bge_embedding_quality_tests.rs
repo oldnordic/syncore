@@ -27,7 +27,11 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 #[test]
 fn test_bge_embeddings_dimension_is_384() {
     let embeddings = HuggingFaceEmbeddings::new().expect("Failed to create embeddings");
-    assert_eq!(embeddings.dim(), 384, "BGE-small-en produces 384-dim vectors");
+    assert_eq!(
+        embeddings.dim(),
+        384,
+        "BGE-small-en produces 384-dim vectors"
+    );
 }
 
 #[test]
@@ -47,9 +51,15 @@ fn test_bge_semantic_similarity_error_handling() {
     let embeddings = HuggingFaceEmbeddings::new().expect("Failed to create embeddings");
 
     // Semantically related concepts
-    let error_handling = embeddings.embed("error handling and exception management").unwrap();
-    let exception_catching = embeddings.embed("catching exceptions and handling errors").unwrap();
-    let database_schema = embeddings.embed("database schema design and table structure").unwrap();
+    let error_handling = embeddings
+        .embed("error handling and exception management")
+        .unwrap();
+    let exception_catching = embeddings
+        .embed("catching exceptions and handling errors")
+        .unwrap();
+    let database_schema = embeddings
+        .embed("database schema design and table structure")
+        .unwrap();
 
     let sim_related = cosine_similarity(&error_handling, &exception_catching);
     let sim_unrelated = cosine_similarity(&error_handling, &database_schema);
@@ -78,9 +88,15 @@ fn test_bge_semantic_similarity_code_concepts() {
     let embeddings = HuggingFaceEmbeddings::new().expect("Failed to create embeddings");
 
     // Code-related concepts
-    let parse_function = embeddings.embed("parse function that processes input data").unwrap();
-    let parser_code = embeddings.embed("parser implementation for processing text").unwrap();
-    let render_ui = embeddings.embed("render user interface components on screen").unwrap();
+    let parse_function = embeddings
+        .embed("parse function that processes input data")
+        .unwrap();
+    let parser_code = embeddings
+        .embed("parser implementation for processing text")
+        .unwrap();
+    let render_ui = embeddings
+        .embed("render user interface components on screen")
+        .unwrap();
 
     let sim_related = cosine_similarity(&parse_function, &parser_code);
     let sim_unrelated = cosine_similarity(&parse_function, &render_ui);
@@ -105,12 +121,20 @@ fn test_bge_rust_function_search_relevance() {
     let query_emb = embeddings.embed(query).unwrap();
 
     // Relevant candidates
-    let relevant1 = embeddings.embed("fn handle_error(e: Error) -> Result<()> { ... }").unwrap();
-    let relevant2 = embeddings.embed("impl From<io::Error> for MyError { ... }").unwrap();
+    let relevant1 = embeddings
+        .embed("fn handle_error(e: Error) -> Result<()> { ... }")
+        .unwrap();
+    let relevant2 = embeddings
+        .embed("impl From<io::Error> for MyError { ... }")
+        .unwrap();
 
     // Irrelevant candidates
-    let irrelevant1 = embeddings.embed("fn calculate_sum(a: i32, b: i32) -> i32 { a + b }").unwrap();
-    let irrelevant2 = embeddings.embed("struct User { name: String, age: u32 }").unwrap();
+    let irrelevant1 = embeddings
+        .embed("fn calculate_sum(a: i32, b: i32) -> i32 { a + b }")
+        .unwrap();
+    let irrelevant2 = embeddings
+        .embed("struct User { name: String, age: u32 }")
+        .unwrap();
 
     let sim_r1 = cosine_similarity(&query_emb, &relevant1);
     let sim_r2 = cosine_similarity(&query_emb, &relevant2);
@@ -138,7 +162,8 @@ fn test_bge_rust_function_search_relevance() {
 #[test]
 fn test_bge_embedding_performance_under_100ms() {
     let embeddings = HuggingFaceEmbeddings::new().expect("Failed to create embeddings");
-    let text = "pub async fn execute_query(conn: &Connection, query: &str) -> Result<Vec<Row>, DbError>";
+    let text =
+        "pub async fn execute_query(conn: &Connection, query: &str) -> Result<Vec<Row>, DbError>";
 
     let start = std::time::Instant::now();
     let _emb = embeddings.embed(text).expect("Failed to embed");
@@ -180,9 +205,18 @@ fn test_bge_batch_embedding_consistency() {
     println!("load_settings <-> read_configuration: {:.4}", sim_12);
 
     // These should all be reasonably similar (>0.4) since they're all config functions
-    assert!(sim_01 > 0.4, "Config functions should have similarity > 0.4");
-    assert!(sim_02 > 0.4, "Config functions should have similarity > 0.4");
-    assert!(sim_12 > 0.4, "Config functions should have similarity > 0.4");
+    assert!(
+        sim_01 > 0.4,
+        "Config functions should have similarity > 0.4"
+    );
+    assert!(
+        sim_02 > 0.4,
+        "Config functions should have similarity > 0.4"
+    );
+    assert!(
+        sim_12 > 0.4,
+        "Config functions should have similarity > 0.4"
+    );
 }
 
 #[test]

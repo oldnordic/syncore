@@ -8,7 +8,7 @@
 use super::{SuiteDispatcher, SuiteResult};
 use crate::refrag::{RefragConfig, RefragPipeline, SelectionPolicy};
 use crate::router::SynCoreState;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize};
 use serde_json::json;
 
 /// REFRAG query request

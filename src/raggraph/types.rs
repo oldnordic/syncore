@@ -1,6 +1,5 @@
 //! Core RagGraph types
 
-use std::collections::HashMap;
 
 pub type NodeId = i64;
 

@@ -10,12 +10,12 @@
 //! All tests use REAL databases (no mocks).
 
 use anyhow::Result;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 use syncore::code_graph::multi_hop::{multi_hop, multi_hop_sqlite, neighbors_sqlite, MultiHopNode};
 use syncore::code_graph::{CodeEntity, CodeGraph, EdgeType, EntityType};
 use syncore::graph::Neo4jClient;
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
-use std::path::Path;
-use std::sync::{Arc, Mutex};
 
 /// Test 1: Single-hop neighbors from SQLite
 ///

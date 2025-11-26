@@ -6,7 +6,6 @@ use crate::project_analysis::{
     EntityInfo, ImportInfo, ProjectAnalysisEngine, RelationshipInfo, UseInfo,
 };
 use anyhow::Result;
-use std::collections::HashMap;
 
 impl ProjectAnalysisEngine {
     /// Get all entities in a specific file

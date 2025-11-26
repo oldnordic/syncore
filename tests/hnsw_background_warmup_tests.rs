@@ -18,7 +18,10 @@ fn test_hnsw_flag_initially_false() {
     let store = VectorStore::new(embeddings);
 
     // HNSW should NOT be ready initially (requires warmup)
-    assert!(!store.is_hnsw_ready(), "HNSW ready flag should be false initially");
+    assert!(
+        !store.is_hnsw_ready(),
+        "HNSW ready flag should be false initially"
+    );
 }
 
 /// Test that HNSW ready flag can be set to true
@@ -34,7 +37,10 @@ fn test_hnsw_flag_becomes_true_after_warmup() {
     store.set_hnsw_ready(true);
 
     // Now should be true
-    assert!(store.is_hnsw_ready(), "HNSW ready flag should be true after set_hnsw_ready(true)");
+    assert!(
+        store.is_hnsw_ready(),
+        "HNSW ready flag should be true after set_hnsw_ready(true)"
+    );
 }
 
 /// Test that search works with brute-force fallback when HNSW not ready
@@ -47,15 +53,24 @@ fn test_fallback_bruteforce_when_not_ready() {
     assert!(!store.is_hnsw_ready());
 
     // Insert some vectors
-    store.insert_text(1, None, "cat sitting on mat", "test").unwrap();
-    store.insert_text(2, None, "dog running in park", "test").unwrap();
-    store.insert_text(3, None, "car driving on road", "test").unwrap();
+    store
+        .insert_text(1, None, "cat sitting on mat", "test")
+        .unwrap();
+    store
+        .insert_text(2, None, "dog running in park", "test")
+        .unwrap();
+    store
+        .insert_text(3, None, "car driving on road", "test")
+        .unwrap();
 
     // Search should still work via brute-force fallback
     let results = store.search("cat on mat", 2, SearchScope::Global).unwrap();
 
     // Should get results even with HNSW not ready
-    assert!(!results.is_empty(), "Search should work with brute-force fallback");
+    assert!(
+        !results.is_empty(),
+        "Search should work with brute-force fallback"
+    );
     assert!(results.len() <= 2, "Should respect k limit");
 }
 
@@ -69,15 +84,22 @@ fn test_insert_queue_when_not_ready() {
     assert!(!store.is_hnsw_ready());
 
     // Insert vectors - they should be queued
-    store.insert_text(1, None, "test vector one", "test").unwrap();
-    store.insert_text(2, None, "test vector two", "test").unwrap();
+    store
+        .insert_text(1, None, "test vector one", "test")
+        .unwrap();
+    store
+        .insert_text(2, None, "test vector two", "test")
+        .unwrap();
 
     // Vectors should be in the main list
     assert_eq!(store.len(), 2, "Vectors should be stored in main list");
 
     // Search should still work (via brute-force)
     let results = store.search("test vector", 5, SearchScope::Global).unwrap();
-    assert!(!results.is_empty(), "Search should work with queued vectors");
+    assert!(
+        !results.is_empty(),
+        "Search should work with queued vectors"
+    );
 }
 
 /// Test that pending vectors are flushed when HNSW becomes ready
@@ -90,8 +112,12 @@ fn test_queue_flush_when_ready() {
     assert!(!store.is_hnsw_ready());
 
     // Insert vectors while HNSW not ready (queued)
-    store.insert_text(1, None, "queued vector one", "test").unwrap();
-    store.insert_text(2, None, "queued vector two", "test").unwrap();
+    store
+        .insert_text(1, None, "queued vector one", "test")
+        .unwrap();
+    store
+        .insert_text(2, None, "queued vector two", "test")
+        .unwrap();
 
     // Mark HNSW as ready and flush
     store.set_hnsw_ready(true);
@@ -102,7 +128,10 @@ fn test_queue_flush_when_ready() {
 
     // Subsequent flush should return 0
     let flushed_again = store.flush_pending_vectors().unwrap();
-    assert_eq!(flushed_again, 0, "Second flush should return 0 (queue empty)");
+    assert_eq!(
+        flushed_again, 0,
+        "Second flush should return 0 (queue empty)"
+    );
 }
 
 /// Test that HNSW ready flag is shared correctly via Arc
@@ -121,7 +150,10 @@ fn test_hnsw_ready_flag_shared() {
     store.set_hnsw_ready(true);
 
     // Shared flag should reflect the change
-    assert!(flag.load(Ordering::SeqCst), "Shared flag should reflect store's hnsw_ready state");
+    assert!(
+        flag.load(Ordering::SeqCst),
+        "Shared flag should reflect store's hnsw_ready state"
+    );
 }
 
 /// Test search works correctly after HNSW becomes ready
@@ -131,16 +163,24 @@ fn test_search_after_warmup() {
     let mut store = VectorStore::new(embeddings);
 
     // Insert vectors while HNSW not ready
-    store.insert_text(1, None, "machine learning algorithm", "test").unwrap();
-    store.insert_text(2, None, "deep neural network", "test").unwrap();
-    store.insert_text(3, None, "natural language processing", "test").unwrap();
+    store
+        .insert_text(1, None, "machine learning algorithm", "test")
+        .unwrap();
+    store
+        .insert_text(2, None, "deep neural network", "test")
+        .unwrap();
+    store
+        .insert_text(3, None, "natural language processing", "test")
+        .unwrap();
 
     // Mark HNSW ready and flush
     store.set_hnsw_ready(true);
     store.flush_pending_vectors().unwrap();
 
     // Search should now use HNSW (though behavior is same, internal path differs)
-    let results = store.search("neural network", 2, SearchScope::Global).unwrap();
+    let results = store
+        .search("neural network", 2, SearchScope::Global)
+        .unwrap();
 
     assert!(!results.is_empty(), "Search should work after HNSW warmup");
     assert!(results.len() <= 2, "Should respect k limit");

@@ -83,8 +83,14 @@ async fn test_fusion_query_with_global_scope_returns_all_results() -> Result<()>
     let mut code_graph = CodeGraph::new(db_file.path().to_str().unwrap(), vector_store)?;
 
     // Create and index a sample file
-    let mut temp_file = Builder::new().prefix("test_global_").suffix(".rs").tempfile()?;
-    writeln!(temp_file, "pub fn global_test_function(s: &str) -> String {{")?;
+    let mut temp_file = Builder::new()
+        .prefix("test_global_")
+        .suffix(".rs")
+        .tempfile()?;
+    writeln!(
+        temp_file,
+        "pub fn global_test_function(s: &str) -> String {{"
+    )?;
     writeln!(temp_file, "    s.to_string()")?;
     writeln!(temp_file, "}}")?;
     temp_file.flush()?;
@@ -177,7 +183,10 @@ async fn test_fusion_query_with_local_scope_filters_by_path() -> Result<()> {
     // Create temp file
     let temp_dir = Builder::new().prefix("local_test").tempdir()?;
     let local_file = temp_dir.path().join("local_func.rs");
-    std::fs::write(&local_file, "pub fn local_specific_function() -> bool { true }\n")?;
+    std::fs::write(
+        &local_file,
+        "pub fn local_specific_function() -> bool { true }\n",
+    )?;
 
     code_graph.index_file_with_neo4j(&local_file, Some(&neo4j))?;
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -254,7 +263,15 @@ async fn test_auto_scope_aliases_to_global() -> Result<()> {
 
     // Query with Auto scope
     let response = api
-        .query_with_scope("test query", None, None, Some(5), QueryScope::Auto, None, None)
+        .query_with_scope(
+            "test query",
+            None,
+            None,
+            Some(5),
+            QueryScope::Auto,
+            None,
+            None,
+        )
         .await?;
 
     // Auto should be recorded as "auto" in response
@@ -272,7 +289,11 @@ fn test_matches_project_path_detection() {
         // (file_path, project_label, expected_match)
         ("/home/user/Projects/SynCore/src/main.rs", "SynCore", true),
         ("/home/user/Projects/SynCore/src/main.rs", "syncore", true), // case insensitive
-        ("/home/user/Projects/OtherProject/src/main.rs", "SynCore", false),
+        (
+            "/home/user/Projects/OtherProject/src/main.rs",
+            "SynCore",
+            false,
+        ),
         ("/workspace/my-project/lib/util.js", "my-project", true),
         ("C:\\Users\\dev\\SynCore\\src\\lib.rs", "SynCore", true), // Windows paths
     ];

@@ -191,22 +191,35 @@ impl MemorySuite {
             None => return SuiteResult::err("store", "Missing required parameter: value"),
         };
 
+        // APEX 2.0-M-FIX: Extract namespace parameter
+        let namespace = args.namespace.as_deref();
+
         if args.dry_run.unwrap_or(false) {
             return SuiteResult::ok(
                 "store",
                 serde_json::json!({
                     "dry_run": true,
-                    "would_store": { "key": key, "value": value }
+                    "would_store": { "key": key, "value": value, "namespace": namespace }
                 }),
             );
         }
 
-        match self.state.memory.store(&key, &value) {
+        // APEX 2.0-M-FIX: Use store_with_metadata() with namespace instead of store()
+        let result = if let Some(ns) = namespace {
+            // Explicit namespace provided
+            self.state.memory.store_with_metadata(&key, &value, ns, &[], 0.5)
+        } else {
+            // No namespace - use configured default via store()
+            self.state.memory.store(&key, &value).map(|_| 0)
+        };
+
+        match result {
             Ok(_) => SuiteResult::ok(
                 "store",
                 serde_json::json!({
                     "stored": true,
-                    "key": key
+                    "key": key,
+                    "namespace": namespace.unwrap_or("default")
                 }),
             ),
             Err(e) => SuiteResult::err("store", e.to_string()),

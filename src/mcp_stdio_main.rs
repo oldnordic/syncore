@@ -12,9 +12,20 @@ use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Load configuration from file (or use defaults)
-    let config_path =
-        env::var("SYNCORE_CONFIG").unwrap_or_else(|_| "config/syncore.toml".to_string());
+    // Load configuration from file (optional - if not found, uses defaults)
+    // Config file should be next to the binary: ~/.config/syncore/syncore.toml
+    let config_path = env::var("SYNCORE_CONFIG").unwrap_or_else(|_| {
+        if let Ok(exe_path) = env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let config = exe_dir.join("syncore.toml");
+                if config.exists() {
+                    return config.to_string_lossy().to_string();
+                }
+            }
+        }
+        // No config found - will use defaults with DBs next to binary
+        "syncore.toml".to_string()
+    });
 
     let config = if std::path::Path::new(&config_path).exists() {
         match SyncoreConfig::load(&config_path) {

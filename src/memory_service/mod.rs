@@ -25,7 +25,7 @@ pub use toon_prompt::ToonPromptBuilder;
 pub use toon_result::{ToonResult, ToonStepResult};
 
 use crate::db::DbManager;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 
 /// Memory Service with short-term (RAM) and long-term (persistent) storage
 pub struct MemoryService {

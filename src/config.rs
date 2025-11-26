@@ -13,6 +13,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::OnceLock;
 
+// APEX 2.0-M-FIX: Import MemoryConfig
+use crate::memory::MemoryConfig;
+
 /// Global configuration singleton
 static GLOBAL_CONFIG: OnceLock<SyncoreConfig> = OnceLock::new();
 
@@ -375,6 +378,9 @@ pub struct SyncoreConfig {
     pub llm: LlmConfig,
     #[serde(default)]
     pub http: HttpConfig,
+    /// APEX 2.0-M-FIX: Memory configuration
+    #[serde(default)]
+    pub memory: MemoryConfig,
 }
 
 impl SyncoreConfig {
@@ -445,6 +451,11 @@ impl SyncoreConfig {
             if let Ok(port) = val.parse() {
                 self.http.metrics_port = port;
             }
+        }
+
+        // APEX 2.0-M-FIX: Memory overrides
+        if let Ok(val) = std::env::var("SYNCORE_MEMORY_DEFAULT_NAMESPACE") {
+            self.memory.default_namespace = val;
         }
     }
 

@@ -14,10 +14,10 @@
 //! - `EmbeddingConfig`: Domain-specific configuration (model, index path, dimension)
 //! - `DomainRouter`: Routes namespace strings to domains
 
-use anyhow::{Context, Result};
+use anyhow::{Result};
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use std::sync::{Arc, Mutex};
+
 
 /// Embedding domain - CODE or GENERAL
 ///

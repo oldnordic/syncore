@@ -5,11 +5,10 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::project_analysis::{
     architecture_overview::ArchitectureOverviewData, complexity_dashboard::ComplexityDashboardData,
-    ProjectAnalysisEngine, UnifiedDependency, UnifiedDependencySummary, UnifiedModule,
+    ProjectAnalysisEngine, UnifiedDependencySummary,
 };
 
 /// Module summary for topology analysis

@@ -8,7 +8,6 @@ use crate::project_analysis::{
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Request parameters for project_refactor_action_plan

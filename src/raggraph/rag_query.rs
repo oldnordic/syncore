@@ -1,6 +1,6 @@
 //! RAG query engine
 
-use super::config::{RagGraphConfig, RaggraphBackendMode};
+use super::config::{RagGraphConfig};
 use super::hopgraph::HopGraphTransformer;
 use super::storage::StorageAdapter;
 use super::types::{NodeId, RagGraphResult};

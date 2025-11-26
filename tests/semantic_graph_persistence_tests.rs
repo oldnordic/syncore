@@ -65,7 +65,9 @@ async fn insert_test_entity(
 
     // Directly insert into SQLite and get ID
     let db_conn = graph.db_conn();
-    let conn = db_conn.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+    let conn = db_conn
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
@@ -107,7 +109,9 @@ async fn check_sqlite_edge(
     edge_type: &str,
 ) -> Result<bool> {
     let db_conn = graph.db_conn();
-    let conn = db_conn.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+    let conn = db_conn
+        .lock()
+        .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
 
     let count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM code_edges WHERE src_entity_id = ?1 AND dst_entity_id = ?2 AND edge_type = ?3",

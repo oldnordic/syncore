@@ -5,7 +5,7 @@
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use syncore::code_graph::CodeGraph;
-use syncore::vector::{VectorStore, HuggingFaceEmbeddings};
+use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 
 #[test]
 fn test_search_logs_failed_vector_entity_lookup() {
@@ -34,7 +34,11 @@ fn test_search_logs_failed_vector_entity_lookup() {
     let result = code_graph.search_code("orphan text", 10);
 
     // Should return Ok with empty or partial results (orphan ID skipped)
-    assert!(result.is_ok(), "search_code should not fail: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "search_code should not fail: {:?}",
+        result.err()
+    );
 
     let matches = result.unwrap();
     // The orphaned vector should be skipped (not returned in matches)

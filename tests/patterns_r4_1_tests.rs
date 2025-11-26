@@ -241,7 +241,7 @@ fn test_recommend_patterns_returns_top_by_success_rate() -> Result<()> {
             failure_count: 2,
             success_rate: 10.0 / 12.0,
             last_updated: 2000,
-        client_id: None,
+            client_id: None,
         },
         ReasoningPattern {
             id: 2,
@@ -253,7 +253,7 @@ fn test_recommend_patterns_returns_top_by_success_rate() -> Result<()> {
             failure_count: 1,
             success_rate: 20.0 / 21.0,
             last_updated: 2001,
-        client_id: None,
+            client_id: None,
         },
         ReasoningPattern {
             id: 3,
@@ -265,7 +265,7 @@ fn test_recommend_patterns_returns_top_by_success_rate() -> Result<()> {
             failure_count: 0,
             success_rate: 1.0,
             last_updated: 2002,
-        client_id: None,
+            client_id: None,
         },
     ];
 
@@ -305,7 +305,7 @@ fn test_recommend_patterns_filters_by_intent_and_mode() -> Result<()> {
             failure_count: 0,
             success_rate: 1.0,
             last_updated: 2000,
-        client_id: None,
+            client_id: None,
         },
         ReasoningPattern {
             id: 2,
@@ -317,7 +317,7 @@ fn test_recommend_patterns_filters_by_intent_and_mode() -> Result<()> {
             failure_count: 0,
             success_rate: 1.0,
             last_updated: 2001,
-        client_id: None,
+            client_id: None,
         },
         ReasoningPattern {
             id: 3,
@@ -329,7 +329,7 @@ fn test_recommend_patterns_filters_by_intent_and_mode() -> Result<()> {
             failure_count: 0,
             success_rate: 1.0,
             last_updated: 2002,
-        client_id: None,
+            client_id: None,
         },
     ];
 

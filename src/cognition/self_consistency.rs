@@ -14,7 +14,6 @@ use super::continuity_engine::ReasoningContinuity;
 use super::intent_classifier::QueryIntent;
 use super::pattern_engine::ReasoningPattern;
 use super::reasoning_ledger::ReasoningEpisode;
-use super::self_consistency_types::*;
 
 // Re-export types for convenience
 pub use super::self_consistency_types::{

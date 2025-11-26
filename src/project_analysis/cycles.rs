@@ -5,7 +5,7 @@
 use crate::project_analysis::{CycleInfo, PAEResponse, ProjectAnalysisEngine};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 /// Request parameters for project_cycles
 #[derive(Debug, Deserialize)]

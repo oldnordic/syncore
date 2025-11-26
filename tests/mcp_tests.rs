@@ -232,7 +232,7 @@ async fn vector_search_defaults_ok() {
 
     // Insert some test data
     {
-        let mut store = state.vector_store.lock().unwrap();
+        let mut store = state.general_store.lock().unwrap();
         store
             .insert_text(1, Some(1), "branch misprediction in CPU pipeline", "note")
             .unwrap();
@@ -278,7 +278,7 @@ async fn vector_search_scope_task_ok() {
 
     // Insert test data for different tasks
     {
-        let mut store = state.vector_store.lock().unwrap();
+        let mut store = state.general_store.lock().unwrap();
         store
             .insert_text(1, Some(7), "task 7: simd fused operations", "note")
             .unwrap();

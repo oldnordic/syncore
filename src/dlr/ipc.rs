@@ -7,7 +7,7 @@ use crate::dlr::{
 };
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, Stdio};
+use std::process::{Child};
 
 pub struct IpcClient {
     child: Child,

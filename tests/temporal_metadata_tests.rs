@@ -9,11 +9,11 @@
 use anyhow::Result;
 use std::io::Write;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use syncore::code_graph::temporal_extractor::{extract_temporal_metadata, TemporalMetadata};
 use syncore::code_graph::CodeGraph;
 use syncore::graph::Neo4jClient;
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
-use std::sync::{Arc, Mutex};
 
 /// Test 1: Extract filesystem metadata from real files
 ///
@@ -226,8 +226,8 @@ pub struct Config {
          WHERE file_path = ?",
     )?;
 
-    let entities: Vec<(String, Option<i64>, Option<i64>, Option<i32>, Option<i32>)> =
-        stmt.query_map([&source_file], |row| {
+    let entities: Vec<(String, Option<i64>, Option<i64>, Option<i32>, Option<i32>)> = stmt
+        .query_map([&source_file], |row| {
             Ok((
                 row.get(0)?,
                 row.get(1)?,
@@ -246,14 +246,18 @@ pub struct Config {
     // Debug: print all entities
     println!("Found {} entities:", entities.len());
     for (name, created, modified, changes, authors) in &entities {
-        println!("  Entity '{}': created={:?}, modified={:?}, changes={:?}, authors={:?}",
-                 name, created, modified, changes, authors);
+        println!(
+            "  Entity '{}': created={:?}, modified={:?}, changes={:?}, authors={:?}",
+            name, created, modified, changes, authors
+        );
     }
 
     // Check that at least one entity has temporal metadata
-    let entity_with_metadata = entities.iter().find(|(_, created, modified, changes, authors)| {
-        created.is_some() && modified.is_some() && changes.is_some() && authors.is_some()
-    });
+    let entity_with_metadata = entities
+        .iter()
+        .find(|(_, created, modified, changes, authors)| {
+            created.is_some() && modified.is_some() && changes.is_some() && authors.is_some()
+        });
 
     assert!(
         entity_with_metadata.is_some(),

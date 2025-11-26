@@ -17,6 +17,7 @@
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Code suite arguments
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,7 +97,6 @@ impl CodeSuite {
         };
 
         use crate::code_graph::CodeGraph;
-        use std::path::Path;
 
         let db_conn = self.state.db_manager.code_graph_conn();
         match CodeGraph::with_connection(db_conn, self.state.code_store.clone()) {
@@ -165,7 +165,6 @@ impl CodeSuite {
         };
 
         use crate::parser::Parser;
-        use std::path::Path;
 
         match Parser::new() {
             Ok(parser) => match parser.parse_file(Path::new(&file_path)) {
@@ -201,7 +200,6 @@ impl CodeSuite {
 
         use crate::code_graph::CodeGraph;
         use glob::glob;
-        use std::path::Path;
 
         let db_conn = self.state.db_manager.code_graph_conn();
         match CodeGraph::with_connection(db_conn, self.state.code_store.clone()) {
@@ -253,7 +251,6 @@ impl CodeSuite {
         };
 
         use crate::parser::RipgrepSearcher;
-        use std::path::Path;
 
         let path = args.file_path.unwrap_or_else(|| ".".to_string());
         let context_lines = args.context_lines.unwrap_or(2);
@@ -294,7 +291,6 @@ impl CodeSuite {
         };
 
         use crate::document_indexer::DocumentIndexer;
-        use std::path::Path;
 
         let indexer = DocumentIndexer::with_defaults();
         let dir_path = Path::new(&directory);
@@ -396,7 +392,6 @@ impl CodeSuite {
         };
 
         use crate::code_graph::{CodeGraph, QueryScope, RagGraphAPI};
-        use std::str::FromStr;
 
         // Parse scope from string if provided
         let scope = args
@@ -720,6 +715,7 @@ impl SuiteDispatcher for CodeSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn test_code_suite_args_deserialization() {

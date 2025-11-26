@@ -23,10 +23,7 @@ fn setup_test_env() -> Result<(DbManager, Arc<Mutex<VectorStore>>, String)> {
     let db_path = temp_dir.path().join("test.db");
     let code_graph_path = temp_dir.path().join("code_graph.db");
 
-    let db_manager = DbManager::new(
-        db_path.to_str().unwrap(),
-        code_graph_path.to_str().unwrap(),
-    )?;
+    let db_manager = DbManager::new(db_path.to_str().unwrap(), code_graph_path.to_str().unwrap())?;
 
     let embeddings = Box::new(RealEmbeddings::new(384)?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
@@ -74,10 +71,8 @@ fn test_parser_analyze_no_persist_does_not_modify_db() -> Result<()> {
     let file_path = create_test_rust_file(&temp_path)?;
 
     // Create CodeGraph
-    let _code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
+    let _code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
 
     // Get initial entity count
     let initial_count: i64 = {
@@ -97,7 +92,10 @@ fn test_parser_analyze_no_persist_does_not_modify_db() -> Result<()> {
         db.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?
     };
 
-    assert_eq!(initial_count, final_count, "persist=false should not modify database");
+    assert_eq!(
+        initial_count, final_count,
+        "persist=false should not modify database"
+    );
 
     // Cleanup
     std::fs::remove_dir_all(&temp_path)?;
@@ -111,10 +109,8 @@ fn test_parser_analyze_persist_inserts_entities_into_sqlite() -> Result<()> {
     let file_path = create_test_rust_file(&temp_path)?;
 
     // Create CodeGraph
-    let mut code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
+    let mut code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
 
     // Get initial entity count
     let initial_count: i64 = {
@@ -158,10 +154,8 @@ fn test_parser_analyze_persist_updates_hnsw_index() -> Result<()> {
     };
 
     // Create CodeGraph and index
-    let mut code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
+    let mut code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
     let entities_indexed = code_graph.index_file(std::path::Path::new(&file_path))?;
 
     // Verify vector store has new entries
@@ -192,16 +186,18 @@ fn test_parser_analyze_persist_allows_vector_search_after() -> Result<()> {
     let file_path = create_test_rust_file(&temp_path)?;
 
     // Index file
-    let mut code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
+    let mut code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
     code_graph.index_file(std::path::Path::new(&file_path))?;
 
     // Search for indexed content
     let results = {
         let vs = vector_store.lock().unwrap();
-        vs.search("hello world function", 5, syncore::vector::SearchScope::Global)?
+        vs.search(
+            "hello world function",
+            5,
+            syncore::vector::SearchScope::Global,
+        )?
     };
 
     assert!(!results.is_empty(), "Should find results after indexing");
@@ -216,7 +212,8 @@ fn test_parser_analyze_persist_allows_vector_search_after() -> Result<()> {
 async fn test_parser_analyze_persist_syncs_neo4j() -> Result<()> {
     use syncore::graph::Neo4jClient;
 
-    let neo4j_uri = std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://127.0.0.1:7687".to_string());
+    let neo4j_uri =
+        std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://127.0.0.1:7687".to_string());
     let neo4j_user = std::env::var("NEO4J_USER").unwrap_or_else(|_| "neo4j".to_string());
     let neo4j_pass = std::env::var("NEO4J_PASS").unwrap_or_else(|_| "testpassword123".to_string());
 
@@ -235,35 +232,55 @@ async fn test_parser_analyze_persist_syncs_neo4j() -> Result<()> {
     // Get initial Neo4j node count for our test file
     // Neo4j nodes use :Function:SynCore, :Class:SynCore labels (not :CodeEntity)
     let initial_count: i64 = neo4j
-        .execute_query("MATCH (n:SynCore) WHERE n.file_path CONTAINS 'test_sample.rs' RETURN count(n) as cnt", vec![])
+        .execute_query(
+            "MATCH (n:SynCore) WHERE n.file_path CONTAINS 'test_sample.rs' RETURN count(n) as cnt",
+            vec![],
+        )
         .await
-        .map(|rows| rows.first().and_then(|r| r.get("cnt").and_then(|v| v.as_i64())).unwrap_or(0))
+        .map(|rows| {
+            rows.first()
+                .and_then(|r| r.get("cnt").and_then(|v| v.as_i64()))
+                .unwrap_or(0)
+        })
         .unwrap_or(0);
 
     // Index file WITH Neo4j sync
-    let mut code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
-    let _indexed = code_graph.index_file_with_neo4j(std::path::Path::new(&file_path), Some(&neo4j))?;
+    let mut code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
+    let _indexed =
+        code_graph.index_file_with_neo4j(std::path::Path::new(&file_path), Some(&neo4j))?;
 
     // Wait for async Neo4j sync (fire-and-forget task needs time)
     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
     // Verify nodes were created in Neo4j
     let final_count: i64 = neo4j
-        .execute_query("MATCH (n:SynCore) WHERE n.file_path CONTAINS 'test_sample.rs' RETURN count(n) as cnt", vec![])
+        .execute_query(
+            "MATCH (n:SynCore) WHERE n.file_path CONTAINS 'test_sample.rs' RETURN count(n) as cnt",
+            vec![],
+        )
         .await
-        .map(|rows| rows.first().and_then(|r| r.get("cnt").and_then(|v| v.as_i64())).unwrap_or(0))
+        .map(|rows| {
+            rows.first()
+                .and_then(|r| r.get("cnt").and_then(|v| v.as_i64()))
+                .unwrap_or(0)
+        })
         .unwrap_or(0);
 
     assert!(
         final_count > initial_count,
-        "Neo4j should have more nodes after indexing (initial={}, final={})", initial_count, final_count
+        "Neo4j should have more nodes after indexing (initial={}, final={})",
+        initial_count,
+        final_count
     );
 
     // Cleanup Neo4j test data
-    let _ = neo4j.execute_query("MATCH (n:SynCore) WHERE n.file_path CONTAINS 'test_sample.rs' DELETE n", vec![]).await;
+    let _ = neo4j
+        .execute_query(
+            "MATCH (n:SynCore) WHERE n.file_path CONTAINS 'test_sample.rs' DELETE n",
+            vec![],
+        )
+        .await;
 
     // Cleanup filesystem
     std::fs::remove_dir_all(&temp_path)?;
@@ -277,10 +294,8 @@ fn test_parser_analyze_persist_uses_common_extractor() -> Result<()> {
     let file_path = create_test_rust_file(&temp_path)?;
 
     // Index via CodeGraph (the common extractor)
-    let mut code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
+    let mut code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
     let entities_indexed = code_graph.index_file(std::path::Path::new(&file_path))?;
 
     // Verify specific entity types were extracted
@@ -296,13 +311,22 @@ fn test_parser_analyze_persist_uses_common_extractor() -> Result<()> {
     eprintln!("DEBUG: func_count = {}", func_count);
 
     // List all entities for debugging
-    let mut stmt = db.prepare("SELECT entity_type, name FROM code_entities WHERE file_path LIKE '%test_sample.rs'")?;
-    let entities: Vec<(String, String)> = stmt.query_map([], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-    })?.filter_map(|r| r.ok()).collect();
+    let mut stmt = db.prepare(
+        "SELECT entity_type, name FROM code_entities WHERE file_path LIKE '%test_sample.rs'",
+    )?;
+    let entities: Vec<(String, String)> = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
     eprintln!("DEBUG: entities = {:?}", entities);
 
-    assert!(func_count >= 2, "Should extract at least 2 functions (hello_world, helper_function), got {}", func_count);
+    assert!(
+        func_count >= 2,
+        "Should extract at least 2 functions (hello_world, helper_function), got {}",
+        func_count
+    );
 
     // Should have classes/structs (stored as lowercase)
     let class_count: i64 = db.query_row(
@@ -310,7 +334,11 @@ fn test_parser_analyze_persist_uses_common_extractor() -> Result<()> {
         [],
         |row| row.get(0),
     )?;
-    assert!(class_count >= 1, "Should extract at least 1 class (TestStruct), got {}", class_count);
+    assert!(
+        class_count >= 1,
+        "Should extract at least 1 class (TestStruct), got {}",
+        class_count
+    );
 
     // Note: The current parser extracts impl methods as top-level functions, not methods
     // So we just verify we have all expected functions
@@ -320,7 +348,11 @@ fn test_parser_analyze_persist_uses_common_extractor() -> Result<()> {
         |row| row.get(0),
     )?;
     // Should have hello_world, helper_function, and new (from impl)
-    assert!(total_funcs >= 3, "Should extract at least 3 functions, got {}", total_funcs);
+    assert!(
+        total_funcs >= 3,
+        "Should extract at least 3 functions, got {}",
+        total_funcs
+    );
 
     assert!(entities_indexed > 0, "Should index entities");
 
@@ -342,10 +374,8 @@ fn test_parser_analyze_persist_does_not_call_save_snapshot() -> Result<()> {
     }
 
     // Index file
-    let mut code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
+    let mut code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
     code_graph.index_file(std::path::Path::new(&file_path))?;
 
     // Verify NO snapshot files were created during indexing
@@ -381,10 +411,8 @@ fn test_parser_analyze_persist_respects_state_machine() -> Result<()> {
     }
 
     // Index file - should still work (inserts to pending or direct)
-    let mut code_graph = CodeGraph::with_connection(
-        db_manager.code_graph_conn(),
-        vector_store.clone(),
-    )?;
+    let mut code_graph =
+        CodeGraph::with_connection(db_manager.code_graph_conn(), vector_store.clone())?;
     let entities_indexed = code_graph.index_file(std::path::Path::new(&file_path))?;
     assert!(entities_indexed > 0, "Should index even when Cold");
 
@@ -393,7 +421,10 @@ fn test_parser_analyze_persist_respects_state_machine() -> Result<()> {
         let vs = vector_store.lock().unwrap();
         vs.search("hello world", 5, syncore::vector::SearchScope::Global)?
     };
-    assert!(!results.is_empty(), "Brute-force search should work when Cold");
+    assert!(
+        !results.is_empty(),
+        "Brute-force search should work when Cold"
+    );
 
     // Cleanup
     std::fs::remove_dir_all(&temp_path)?;

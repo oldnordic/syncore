@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "file_path": {
+      "type": "string"
+    },
+    "macro_expansions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "macro_name": {
+            "type": "string"
+          },
+          "span_start": {
+            "type": "integer"
+          },
+          "span_end": {
+            "type": "integer"
+          },
+          "original_code": {
+            "type": "string"
+          },
+          "expanded_code": {
+            "type": "string"
+          },
+          "expansion_type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "count": {
+      "type": "integer"
+    }
+  },
+  "required": ["file_path", "macro_expansions", "count"]
+}

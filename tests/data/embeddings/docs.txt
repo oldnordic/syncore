@@ -1,0 +1,62 @@
+# Doc 0: Memory storage uses hybrid SQLite and Sled cache for key-value persistence
+SynCore provides memory storage through a hybrid architecture combining SQLite for persistent storage and Sled for fast in-memory caching. The memory module handles key-value operations with automatic cache invalidation.
+
+# Doc 1: MCP server routes tool calls to specialized handlers using rmcp library
+The MCP server implementation uses the rmcp library to handle Model Context Protocol requests. Tool calls are routed through a central router that dispatches to specialized handlers like memory_suite, code_suite, and graph_suite based on the tool name.
+
+# Doc 2: Vector search uses HNSW algorithm for fast approximate nearest neighbor queries
+Vector search is implemented using the HNSW (Hierarchical Navigable Small World) algorithm for efficient approximate nearest neighbor search. The system supports semantic search with configurable scoring thresholds and result limits.
+
+# Doc 3: Task management supports parent-child relationships and dependency tracking
+The task system provides hierarchical task management with parent-child relationships stored in SQLite. Tasks can have dependencies tracked through the task_links table with support for depends_on and relates_to relationship types.
+
+# Doc 4: SQLite database schema with WAL mode for concurrent access
+All databases use SQLite with Write-Ahead Logging (WAL) mode enabled for better concurrent access. The schema includes tables for memory, tasks, task_links, cognitive steps, and vector metadata.
+
+# Doc 5: Ollama integration provides local LLM capabilities via CLI subprocess
+Ollama integration uses CLI subprocess execution rather than HTTP API for 99% reliability. The system supports models like qwen2.5-coder:3b for code-related tasks with configurable timeouts and retry logic.
+
+# Doc 6: Tree-sitter parser analyzes code structure for multiple languages
+The parser module uses tree-sitter to analyze code structure across Rust, JavaScript, Python, JSON, TOML, and Bash. It extracts functions, classes, imports, and other entities with line number ranges.
+
+# Doc 7: Neo4j graph database stores code entity relationships and dependencies
+Neo4j integration provides graph storage for code entities and their relationships. The system syncs entity data from SQLite to Neo4j for advanced graph traversal and dependency analysis.
+
+# Doc 8: Embedding configuration supports multiple backends including HuggingFace models
+The embedding system supports configurable backends through syncore.toml. HuggingFace models like all-MiniLM-L6-v2 (384 dimensions) provide semantic understanding with batch processing capabilities.
+
+# Doc 9: Sequential reasoning implements think-decide-act-reflect cognitive loops
+Sequential reasoning provides multi-step cognitive loops with Ollama LLM integration. The cycle includes thinking, decision making, action execution, and reflection phases with circuit breaker protection.
+
+# Doc 10: Code entity extraction includes function signatures and metadata
+fn extract_entities(file_path: &Path, language: Language) -> Result<Vec<Entity>> {
+    let parser = create_parser(language)?;
+    let entities = parse_tree_for_entities(&parser, file_path)?;
+    Ok(entities.into_iter().map(|e| Entity { name: e.name, kind: e.kind, span: e.span }).collect())
+}
+
+# Doc 11: Function body indexing captures implementation details
+pub fn index_function_body(func: &FunctionNode) -> Result<BodySnippet> {
+    let body_text = extract_body_text(&func.span)?;
+    let tokens = tokenize_code(&body_text, func.language);
+    let snippet = truncate_tokens(tokens, MAX_BODY_TOKENS);
+    Ok(BodySnippet { text: snippet, language: func.language })
+}
+
+# Doc 12: Ripgrep search with context lines and file type filtering
+pub fn search_with_ripgrep(pattern: &str, directory: &Path, context: usize) -> Result<Vec<Match>> {
+    let output = Command::new("rg")
+        .args(&[pattern, "--context", &context.to_string()])
+        .current_dir(directory)
+        .output()?;
+    parse_ripgrep_output(&output.stdout)
+}
+
+# Doc 13: Task hierarchy with priority-based scheduling
+The task system maintains parent-child hierarchies where subtasks inherit context from parents. Priority-based scheduling ensures high-priority tasks are processed first, with dependency resolution preventing circular references.
+
+# Doc 14: MCP stdio transport for Claude Desktop integration
+The MCP server runs in stdio mode for integration with Claude Desktop and other MCP clients. The transport uses JSON-RPC over stdin/stdout with structured logging to stderr for debugging.
+
+# Doc 15: IntelliTask generates task breakdowns from PRDs using LLM
+IntelliTask analyzes product requirement documents using Ollama to generate structured task breakdowns. It creates parent tasks with subtasks, estimates complexity, identifies dependencies, and suggests implementation order.

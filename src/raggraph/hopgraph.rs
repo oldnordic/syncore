@@ -1,6 +1,6 @@
 //! HopGraph transformer implementation
 
-use super::config::{RagGraphConfig, RaggraphBackendMode};
+use super::config::{RagGraphConfig};
 use super::storage::StorageAdapter;
 use super::types::{NodeId, RagGraphResult};
 use anyhow::Result;

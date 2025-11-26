@@ -11,9 +11,9 @@
 //! - search accuracy matches brute-force cosine
 
 use anyhow::Result;
+use std::path::PathBuf;
 use syncore::vector::hnsw::{HnswConfig, HnswVectorIndex};
 use syncore::vector::traits::VectorIndex;
-use std::path::PathBuf;
 
 /// Test index file path
 fn test_index_path() -> PathBuf {
@@ -103,7 +103,9 @@ fn test_hnsw_persistence_roundtrip() -> Result<()> {
     // Note: dimension is inferred lazily on first search, check it after
 
     // Verify search results match
-    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
+    let query: Vec<f32> = (0..384)
+        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
+        .collect();
     let results1 = index.search(&query, 5)?;
     let results2 = index2.search(&query, 5)?;
 
@@ -147,7 +149,9 @@ fn test_hnsw_rebuild_from_vectors_if_file_missing() -> Result<()> {
     assert_eq!(index.dimension(), Some(384));
 
     // Search should work immediately after rebuild
-    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
+    let query: Vec<f32> = (0..384)
+        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
+        .collect();
     let results = index.search(&query, 5)?;
     assert_eq!(results.len(), 5);
 
@@ -193,7 +197,9 @@ fn test_hnsw_delete_requires_rebuild() -> Result<()> {
     assert_eq!(index.len(), 19);
 
     // Verify deleted vector not in search results
-    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
+    let query: Vec<f32> = (0..384)
+        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
+        .collect();
     let results = index.search(&query, 20)?;
 
     for (id, _) in results {
@@ -288,7 +294,9 @@ fn test_hnsw_startup_loads_index_before_use() -> Result<()> {
     let index2 = HnswVectorIndex::new(config, 42)?;
 
     // PHASE 5: This should auto-load on first search
-    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
+    let query: Vec<f32> = (0..384)
+        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
+        .collect();
     let results = index2.search(&query, 5)?;
 
     assert_eq!(results.len(), 5);

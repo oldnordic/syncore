@@ -10,7 +10,9 @@ Built in Rust. Production-tested with Claude Code.
 
 SynCore is an MCP (Model Context Protocol) server exposing **65 tools** for:
 - **Persistent Memory** - Key-value storage (SQLite + Sled cache)
-- **Vector Search** - Semantic search with HNSW indexing + brute-force fallback
+- **Dual-Domain Vector Search** - Separate embedding models for code vs. text
+  - CODE domain: BGE-small-en-v1.5 (optimized for semantic code search)
+  - GENERAL domain: all-MiniLM-L6-v2 (optimized for documents/tasks)
 - **Code Intelligence** - Tree-sitter parsing for Rust, JavaScript, Python, JSON, TOML, Bash
 - **Knowledge Graphs** - Neo4j integration with Cypher queries
 - **Task Management** - Task tracking with parent/child relationships
@@ -71,10 +73,10 @@ SynCore is an MCP (Model Context Protocol) server exposing **65 tools** for:
 
 - **Single-node only** - No distributed mode
 - **No authentication** - Designed for local use
-- **TF-IDF embeddings** - Not transformer-based (fastembed gives ~384 dim vectors)
 - **Neo4j required for graph features** - Some tools fail silently without it
 - **Ollama required for AI features** - IntelliTask, sequential_cycle need it
-- **~500MB RAM after startup** - Embedding model needs to load
+- **~500MB RAM after startup** - Two HuggingFace embedding models loaded (BGE + MiniLM)
+- **Graph features partially tested** - Neo4j sync works but entity population needs validation
 
 ## Quick Start
 
@@ -247,6 +249,30 @@ Add to `~/.config/claude/mcp_settings.json`:
 | `configure` | Update expansion policy | Low |
 | `help` | Show REFRAG usage | Low |
 
+## Architecture Notes
+
+### Dual-Domain Embeddings
+
+SynCore uses two separate vector stores with specialized models:
+
+**CODE Domain** (`syncore_code.index`):
+- Model: BGE-small-en-v1.5 (384 dims)
+- Purpose: Semantic code search
+- Why: Trained on code+text, understands programming semantics
+- Routed: Code entities, functions, classes
+
+**GENERAL Domain** (`syncore_general.index`):
+- Model: all-MiniLM-L6-v2 (384 dims)
+- Purpose: Documents, tasks, notes
+- Why: Optimized for natural language understanding
+- Routed: Memory, documents, reasoning steps
+
+This prevents "domain pollution" where code embeddings contaminate document search and vice versa.
+
+### Graph-BERT Integration Point
+
+The codebase includes a `GraphEmbeddingStrategy` trait for future integration of Graph-BERT or other GNN models to combine CODE embeddings with graph structural features. Currently uses deterministic feature injection.
+
 ## Performance
 
 **Tested on Ryzen 7, 32GB RAM:**
@@ -254,11 +280,13 @@ Add to `~/.config/claude/mcp_settings.json`:
 | Operation | Latency |
 |-----------|---------|
 | Memory store/query | <1ms |
-| Vector search (cold) | 10-50ms |
-| Vector search (hot HNSW) | 1-10ms |
+| Vector search (CODE domain) | 10-50ms |
+| Vector search (GENERAL domain) | 10-50ms |
 | Code graph fusion | 10-50ms |
 | Neo4j query | 1-10ms |
 | Incremental index (unchanged file) | <1ms |
+
+Note: HNSW indexing reduces search to 1-10ms after warmup, but initial queries use linear scan.
 
 ## Requirements
 
@@ -291,6 +319,31 @@ NEO4J_URI="bolt://127.0.0.1:7687" NEO4J_USER="neo4j" NEO4J_PASS="password" \
 
 GPL-3.0
 
+## Technical Highlights (Engineer-Grounded)
+
+**What makes this interesting:**
+1. **Dual-domain embeddings** - Separate BGE/MiniLM models with automatic routing (rare in MCP servers)
+2. **Multi-modal storage** - SQLite + Sled + Neo4j + HNSW in single coherent API
+3. **Incremental indexing** - SHA256+mtime change detection, idempotent re-runs
+4. **Code graph fusion** - Tri-mode search (simple/attention/reasoning) with temporal scoring
+5. **Graph-BERT seam** - Extensibility point for GNN integration via trait abstraction
+6. **Zero-dependency project analysis** - Complexity metrics without LLM calls
+
+**What's not production-ready:**
+- Neo4j entity queries return empty (sync works but population logic needs debugging)
+- Graph-BERT is architectural placeholder (uses deterministic feature injection)
+- No streaming for large result sets
+- Limited integration test coverage
+- Single-node architecture (no replication/sharding)
+
+**Development context:**
+- 2 weeks, solo developer, $15 budget
+- 100% AI-assisted code generation (Claude Code + free tier models)
+- 7866 lines of Rust across 250 files
+- Daily production use with Claude Code CLI
+
 ## Acknowledgments
 
 Built with rmcp, neo4rs, rusqlite, tree-sitter, fastembed, tokio, sled, hnsw_rs.
+
+Core embedding models: BGE-small-en-v1.5 (BAAI), all-MiniLM-L6-v2 (sentence-transformers).

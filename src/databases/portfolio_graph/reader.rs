@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use crate::graph::Neo4jClient;
-use super::schema::{portfolio_namespace, RelationType};
+use super::schema::{portfolio_namespace};
 
 /// Result of a Patch query
 #[derive(Debug, Clone)]

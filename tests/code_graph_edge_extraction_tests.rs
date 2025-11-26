@@ -17,8 +17,8 @@
 use anyhow::Result;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
-use syncore::code_graph::{CodeGraph, EdgeType};
 use syncore::code_graph::neo4j_sync::sync_relationships_to_neo4j;
+use syncore::code_graph::{CodeGraph, EdgeType};
 use syncore::graph::Neo4jClient;
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 use tempfile::Builder;
@@ -49,11 +49,7 @@ fn count_total_edges(code_graph: &CodeGraph) -> Result<usize> {
     let db = code_graph.db_conn();
     let conn = db.lock().unwrap();
 
-    let count: usize = conn.query_row(
-        "SELECT COUNT(*) FROM code_edges",
-        [],
-        |row| row.get(0),
-    )?;
+    let count: usize = conn.query_row("SELECT COUNT(*) FROM code_edges", [], |row| row.get(0))?;
 
     Ok(count)
 }
@@ -76,7 +72,10 @@ fn test_extract_calls_edges() -> Result<()> {
     let mut code_graph = create_test_code_graph()?;
 
     // Create Rust file with function calls
-    let mut temp_file = Builder::new().prefix("test_calls_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_calls_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "fn main() {{")?;
     writeln!(temp_file, "    helper_function();")?;
     writeln!(temp_file, "    another_helper();")?;
@@ -119,13 +118,19 @@ fn test_extract_import_edges() -> Result<()> {
     let mut code_graph = create_test_code_graph()?;
 
     // Create Rust file with imports
-    let mut temp_file = Builder::new().prefix("test_imports_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_imports_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "use std::collections::HashMap;")?;
     writeln!(temp_file, "use anyhow::Result;")?;
     writeln!(temp_file, "use super::helper;")?;
     writeln!(temp_file, "")?;
     writeln!(temp_file, "fn main() -> Result<()> {{")?;
-    writeln!(temp_file, "    let map: HashMap<String, i32> = HashMap::new();")?;
+    writeln!(
+        temp_file,
+        "    let map: HashMap<String, i32> = HashMap::new();"
+    )?;
     writeln!(temp_file, "    Ok(())")?;
     writeln!(temp_file, "}}")?;
     temp_file.flush()?;
@@ -155,7 +160,10 @@ fn test_extract_uses_edges() -> Result<()> {
     let mut code_graph = create_test_code_graph()?;
 
     // Create Rust file with type usage
-    let mut temp_file = Builder::new().prefix("test_uses_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_uses_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "struct MyStruct {{")?;
     writeln!(temp_file, "    value: i32,")?;
     writeln!(temp_file, "}}")?;
@@ -197,7 +205,10 @@ fn test_extract_references_edges() -> Result<()> {
     let mut code_graph = create_test_code_graph()?;
 
     // Create Rust file with references
-    let mut temp_file = Builder::new().prefix("test_refs_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_refs_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "const CONFIG: i32 = 100;")?;
     writeln!(temp_file, "")?;
     writeln!(temp_file, "fn use_config() -> i32 {{")?;
@@ -236,7 +247,10 @@ fn test_extract_inherits_edges() -> Result<()> {
     let mut code_graph = create_test_code_graph()?;
 
     // Create Rust file with trait implementations
-    let mut temp_file = Builder::new().prefix("test_inherits_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_inherits_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "trait Display {{")?;
     writeln!(temp_file, "    fn display(&self);")?;
     writeln!(temp_file, "}}")?;
@@ -289,7 +303,10 @@ fn test_combined_edge_extraction() -> Result<()> {
     let mut code_graph = create_test_code_graph()?;
 
     // Comprehensive Rust sample with multiple edge types
-    let mut temp_file = Builder::new().prefix("test_combined_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_combined_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "use std::fmt;")?;
     writeln!(temp_file, "")?;
     writeln!(temp_file, "trait Processor {{")?;
@@ -311,7 +328,10 @@ fn test_combined_edge_extraction() -> Result<()> {
     writeln!(temp_file, "}}")?;
     writeln!(temp_file, "")?;
     writeln!(temp_file, "fn main() {{")?;
-    writeln!(temp_file, "    let processor = DataProcessor {{ value: 42 }};")?;
+    writeln!(
+        temp_file,
+        "    let processor = DataProcessor {{ value: 42 }};"
+    )?;
     writeln!(temp_file, "    let result = processor.process();")?;
     writeln!(temp_file, "    println!(\"{{}}\", result);")?;
     writeln!(temp_file, "}}")?;
@@ -329,7 +349,11 @@ fn test_combined_edge_extraction() -> Result<()> {
     // - Calls: process -> compute, main -> process
     // - Imports: use std::fmt
     // - Inherits: DataProcessor implements Processor
-    assert!(calls_count >= 1, "Expected Calls edges, got {}", calls_count);
+    assert!(
+        calls_count >= 1,
+        "Expected Calls edges, got {}",
+        calls_count
+    );
     assert!(
         imports_count >= 1,
         "Expected Imports edges, got {}",
@@ -360,7 +384,10 @@ fn test_combined_edge_extraction() -> Result<()> {
 fn test_edges_written_to_sqlite() -> Result<()> {
     let mut code_graph = create_test_code_graph()?;
 
-    let mut temp_file = Builder::new().prefix("test_sqlite_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_sqlite_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "fn main() {{")?;
     writeln!(temp_file, "    helper();")?;
     writeln!(temp_file, "}}")?;
@@ -377,11 +404,10 @@ fn test_edges_written_to_sqlite() -> Result<()> {
     let db = code_graph.db_conn();
     let conn = db.lock().unwrap();
 
-    let mut stmt = conn.prepare("SELECT src_entity_id, dst_entity_id, edge_type FROM code_edges")?;
+    let mut stmt =
+        conn.prepare("SELECT src_entity_id, dst_entity_id, edge_type FROM code_edges")?;
     let all_edges: Vec<(i64, i64, String)> = stmt
-        .query_map([], |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-        })?
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
         .collect::<std::result::Result<Vec<_>, _>>()?;
 
     assert!(
@@ -416,7 +442,10 @@ async fn test_edges_sync_to_neo4j() -> Result<()> {
 
     let mut code_graph = create_test_code_graph()?;
 
-    let mut temp_file = Builder::new().prefix("test_neo4j_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("test_neo4j_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "fn main() {{")?;
     writeln!(temp_file, "    helper();")?;
     writeln!(temp_file, "}}")?;
@@ -445,6 +474,7 @@ async fn test_edges_sync_to_neo4j() -> Result<()> {
                 line_end: row.get(6)?,
                 docstring: None,
                 language: row.get(7)?,
+                body_snippet: None, // APEX v1.7 Phase 3
                 created_at: None,
                 last_modified_at: None,
                 change_count: None,
@@ -492,7 +522,10 @@ async fn test_backward_compatibility_r2_to_r5() -> Result<()> {
 
     // R2.2: CodeGraph indexing still works
     let mut code_graph = create_test_code_graph()?;
-    let mut temp_file = Builder::new().prefix("backward_").suffix(".rs").tempfile()?;
+    let mut temp_file = Builder::new()
+        .prefix("backward_")
+        .suffix(".rs")
+        .tempfile()?;
     writeln!(temp_file, "fn test() {{")?;
     writeln!(temp_file, "    println!(\"test\");")?;
     writeln!(temp_file, "}}")?;

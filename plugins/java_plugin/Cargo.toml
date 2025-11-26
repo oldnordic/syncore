@@ -1,0 +1,18 @@
+[package]
+name = "syncore_java_plugin"
+version = "1.0.0"
+edition = "2021"
+
+[[bin]]
+name = "syncore_java_plugin"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tree-sitter = "0.20"
+tree-sitter-java = "0.20"
+walkdir = "2.5"
+anyhow = "1.0"
+regex = "1.10"
+tempfile = "3.0"

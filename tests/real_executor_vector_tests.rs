@@ -43,7 +43,7 @@ fn test_vector_insert_real_basic() {
 
     // Get initial vector store size
     let initial_size = {
-        let store = executor.state.vector_store.lock().unwrap();
+        let store = executor.state.general_store.lock().unwrap();
         store.len()
     };
 
@@ -81,7 +81,7 @@ fn test_vector_insert_real_basic() {
 
     // Verify side effect: vector store size MUST increase
     let final_size = {
-        let store = executor.state.vector_store.lock().unwrap();
+        let store = executor.state.general_store.lock().unwrap();
         store.len()
     };
 
@@ -249,7 +249,7 @@ fn test_vector_insert_respects_dry_run() {
 
     // Get initial size
     let initial_size = {
-        let store = executor.state.vector_store.lock().unwrap();
+        let store = executor.state.general_store.lock().unwrap();
         store.len()
     };
 
@@ -295,7 +295,7 @@ fn test_vector_insert_respects_dry_run() {
 
     // Verify NO side effect: size must NOT change
     let final_size = {
-        let store = executor.state.vector_store.lock().unwrap();
+        let store = executor.state.general_store.lock().unwrap();
         store.len()
     };
 

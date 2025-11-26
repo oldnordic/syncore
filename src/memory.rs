@@ -1,16 +1,17 @@
 use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sled::Db;
 use std::sync::{Arc, Mutex};
 
 // NEW: Import DualEmbeddingService and Neo4j for semantic capabilities
 use crate::vector::dual_service::DualEmbeddingService;
-use crate::vector::domain::{EmbeddingDomain, EmbeddingService};
+use crate::vector::domain::{EmbeddingService};
 use crate::vector::{SearchScope, VectorStore};
 
 /// Memory configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct MemoryConfig {
     pub enable_semantic_search: bool,
     pub auto_summarize_threshold: usize,
@@ -267,6 +268,49 @@ impl Memory {
         Ok(())
     }
 
+    /// Query with explicit namespace support (APEX 2.0-M-FIX)
+    pub fn query_with_namespace(&self, key: &str, namespace: Option<&str>) -> Result<Option<String>> {
+        let ns = namespace.unwrap_or(&self.config.default_namespace);
+
+        // Update access tracking (namespace-aware)
+        self.update_access_with_namespace(key, ns)?;
+
+        // Try cache first (with namespace-aware key)
+        let cache_key = format!("{}:{}", ns, key);
+        if let Some(v) = self.cache.get(&cache_key)? {
+            return Ok(Some(String::from_utf8(v.to_vec())?));
+        }
+
+        // Fallback to database
+        let db = self.db.lock().unwrap();
+        let value = db
+            .query_row("SELECT v FROM memory WHERE k=?1 AND namespace=?2",
+                       rusqlite::params![key, ns], |r| {
+                r.get::<_, String>(0)
+            })
+            .optional()?;
+
+        Ok(value)
+    }
+
+    /// Delete with explicit namespace support (APEX 2.0-M-FIX)
+    pub fn delete_with_namespace(&self, key: &str, namespace: Option<&str>) -> Result<()> {
+        let ns = namespace.unwrap_or(&self.config.default_namespace);
+
+        let db = self.db.lock().unwrap();
+        db.execute("DELETE FROM memory WHERE k=?1 AND namespace=?2",
+                   rusqlite::params![key, ns])?;
+
+        drop(db);
+
+        // Remove from cache (with namespace-aware key)
+        let cache_key = format!("{}:{}", ns, key);
+        self.cache.remove(&cache_key)?;
+        self.cache.flush()?;
+
+        Ok(())
+    }
+
     pub fn list_keys(&self, limit: Option<i64>) -> Result<Vec<String>> {
         let db = self.db.lock().unwrap();
         let mut query = "SELECT k FROM memory ORDER BY ts DESC".to_string();
@@ -349,8 +393,9 @@ impl Memory {
 
         drop(db);
 
-        // Update cache
-        self.cache.insert(key, value.as_bytes())?;
+        // Update cache (namespace-aware key for APEX 2.0-M-FIX)
+        let cache_key = format!("{}:{}", namespace, key);
+        self.cache.insert(&cache_key, value.as_bytes())?;
         self.cache.flush()?;
 
         // Generate and store embedding if semantic search is enabled
@@ -867,6 +912,20 @@ impl Memory {
         db.execute(
             "UPDATE memory SET last_accessed = ?1, access_count = access_count + 1 WHERE k = ?2 AND namespace = ?3",
             (now, key, default_ns),
+        )?;
+        Ok(())
+    }
+
+    fn update_access_with_namespace(&self, key: &str, namespace: &str) -> Result<()> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        let db = self.db.lock().unwrap();
+        db.execute(
+            "UPDATE memory SET last_accessed = ?1, access_count = access_count + 1 WHERE k = ?2 AND namespace = ?3",
+            (now, key, namespace),
         )?;
         Ok(())
     }

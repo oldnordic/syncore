@@ -4,7 +4,6 @@
 // Provides tools to remove stale data from code graph tables
 // for paths that are now excluded (e.g., target/, node_modules/).
 
-use crate::config::SyncoreConfig;
 use crate::macro_tools::path_filter::get_excluded_dirs;
 use crate::project_analysis::{PAEResponse, ProjectAnalysisEngine};
 use anyhow::Result;

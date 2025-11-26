@@ -6,7 +6,7 @@
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use syncore::code_graph::CodeGraph;
-use syncore::vector::{VectorStore, HuggingFaceEmbeddings};
+use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 
 #[test]
 fn test_vector_snapshot_with_invalid_ids_triggers_rebuild() {
@@ -29,7 +29,8 @@ fn test_vector_snapshot_with_invalid_ids_triggers_rebuild() {
         "INSERT INTO code_embeddings (entity_id, vector_id, model_version, created_at)
          VALUES (1000, 1000, 'test', 0)",
         [],
-    ).unwrap();
+    )
+    .unwrap();
 
     drop(conn);
 
@@ -57,7 +58,11 @@ fn test_vector_snapshot_with_invalid_ids_triggers_rebuild() {
     let result = vector_store2.load_snapshot_with_validation(&db_conn);
 
     // Should succeed but trigger rebuild (clear vectors)
-    assert!(result.is_ok(), "load_snapshot_with_validation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "load_snapshot_with_validation should succeed: {:?}",
+        result.err()
+    );
 
     // Vectors should be empty after rebuild
     assert_eq!(
@@ -93,7 +98,8 @@ fn test_vector_snapshot_with_valid_ids_loads_normally() {
         "INSERT INTO code_embeddings (entity_id, vector_id, model_version, created_at)
          VALUES (2000, 2000, 'test', 0)",
         [],
-    ).unwrap();
+    )
+    .unwrap();
 
     drop(conn);
 
@@ -121,7 +127,11 @@ fn test_vector_snapshot_with_valid_ids_loads_normally() {
     let result = vector_store2.load_snapshot_with_validation(&db_conn);
 
     // Should succeed and keep vectors
-    assert!(result.is_ok(), "load_snapshot_with_validation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "load_snapshot_with_validation should succeed: {:?}",
+        result.err()
+    );
 
     // Vectors should be preserved
     assert_eq!(
@@ -156,7 +166,9 @@ fn test_after_rebuild_reindexing_works() {
     std::fs::write(test_file, "fn test_function() { println!(\"test\"); }").unwrap();
 
     // Index the file
-    let entity_count = code_graph.index_file(std::path::Path::new(test_file)).unwrap();
+    let entity_count = code_graph
+        .index_file(std::path::Path::new(test_file))
+        .unwrap();
 
     assert!(entity_count > 0, "Should index at least one entity");
 

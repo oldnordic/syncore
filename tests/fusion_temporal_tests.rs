@@ -4,8 +4,8 @@
 //! Default weights: α=0.65, β=0.25, τ=0.10
 
 use anyhow::Result;
-use syncore::code_graph::fusion_simple::{compute_temporal_score, FusionSimple};
 use std::time::{SystemTime, UNIX_EPOCH};
+use syncore::code_graph::fusion_simple::{compute_temporal_score, FusionSimple};
 
 #[test]
 fn test_fusion_only_vector() -> Result<()> {
@@ -14,7 +14,10 @@ fn test_fusion_only_vector() -> Result<()> {
     let fusion = FusionSimple::default();
     let result = fusion.combine(1.0, 0.0, 0.0);
 
-    assert!((result - 0.65).abs() < 0.001, "Pure vector score should be 0.65");
+    assert!(
+        (result - 0.65).abs() < 0.001,
+        "Pure vector score should be 0.65"
+    );
     Ok(())
 }
 
@@ -25,7 +28,10 @@ fn test_fusion_only_graph() -> Result<()> {
     let fusion = FusionSimple::default();
     let result = fusion.combine(0.0, 1.0, 0.0);
 
-    assert!((result - 0.25).abs() < 0.001, "Pure graph score should be 0.25");
+    assert!(
+        (result - 0.25).abs() < 0.001,
+        "Pure graph score should be 0.25"
+    );
     Ok(())
 }
 
@@ -104,7 +110,10 @@ fn test_fusion_end_to_end_rag_query() -> Result<()> {
     );
 
     // Verify all components contribute
-    assert!(combined > vector * 0.65, "Temporal and graph should boost score");
+    assert!(
+        combined > vector * 0.65,
+        "Temporal and graph should boost score"
+    );
 
     Ok(())
 }
@@ -117,12 +126,18 @@ fn test_fusion_clamps_score() -> Result<()> {
     // Test upper clamp (scores > 1.0 should be clamped to 1.0)
     let result_high = fusion.combine(1.2, 1.5, 1.8);
     assert!(result_high <= 1.0, "Score should be clamped to 1.0");
-    assert!(result_high >= 0.95, "Clamping should preserve near-1.0 values");
+    assert!(
+        result_high >= 0.95,
+        "Clamping should preserve near-1.0 values"
+    );
 
     // Test lower clamp (negative scores should be clamped to 0.0)
     let result_low = fusion.combine(0.0, 0.0, 0.0);
     assert!(result_low >= 0.0, "Score should never be negative");
-    assert!(result_low < 0.01, "All-zero inputs should give near-zero score");
+    assert!(
+        result_low < 0.01,
+        "All-zero inputs should give near-zero score"
+    );
 
     Ok(())
 }
@@ -141,7 +156,10 @@ fn test_temporal_score_boundary_conditions() -> Result<()> {
     // Test 2: Ancient file (5 years old, 1 commit)
     let ancient = now - (5 * 365 * 24 * 3600);
     let ancient_file = compute_temporal_score(ancient, 1, 1);
-    assert!(ancient_file < 0.3, "Ancient file should have low temporal score");
+    assert!(
+        ancient_file < 0.3,
+        "Ancient file should have low temporal score"
+    );
 
     // Test 3: Active old file (2 years old, 100 commits)
     let two_years = now - (2 * 365 * 24 * 3600);

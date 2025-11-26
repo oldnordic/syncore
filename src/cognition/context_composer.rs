@@ -14,7 +14,6 @@ use super::router_logic::RoutingDecision;
 use crate::code_graph::CodeGraph;
 use crate::graph::Neo4jClient;
 use crate::memory::Memory;
-use crate::vector::SearchScope;
 use anyhow::Result;
 use std::collections::HashSet;
 

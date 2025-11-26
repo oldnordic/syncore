@@ -11,7 +11,6 @@
 //! - Format: "file:path, symbols:list, lines:N-M"
 
 use super::types::ChunkMetadata;
-use crate::portfolio::mapping_tool::MappingTool;
 use crate::router::SynCoreState;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};

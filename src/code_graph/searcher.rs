@@ -2,7 +2,6 @@
 
 use anyhow::{anyhow, Result};
 use rusqlite::Connection;
-use std::collections::HashSet;
 
 use super::graph::CodeGraph;
 use super::types::{CodeEntity, CodeMatch, EntityType, MatchType};

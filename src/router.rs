@@ -10,7 +10,7 @@ use crate::vector::domain::EmbeddingDomain;
 use crate::vector::dual_service::DualEmbeddingService;
 use crate::vector::{SearchScope, VectorStore};
 use anyhow::Result;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]

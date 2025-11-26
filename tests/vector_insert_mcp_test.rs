@@ -22,13 +22,18 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
         )
         .unwrap(),
     );
-    let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
+    // Create dual vector stores for CODE and GENERAL domains
+    let code_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let code_store = Arc::new(Mutex::new(VectorStore::new(code_embeddings)));
+    let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
+
     let state = SynCoreState {
         db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
-        vector_store,
+        code_store,
+        general_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
         message_bus: None,
         write_queue: None,
@@ -37,6 +42,7 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        intellitask: None,
     };
 
     // Create MCP request to insert vector
@@ -90,13 +96,18 @@ async fn test_vector_insert_should_handle_missing_text() {
         )
         .unwrap(),
     );
-    let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
+    // Create dual vector stores for CODE and GENERAL domains
+    let code_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let code_store = Arc::new(Mutex::new(VectorStore::new(code_embeddings)));
+    let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
+
     let state = SynCoreState {
         db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
-        vector_store,
+        code_store,
+        general_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
         message_bus: None,
         write_queue: None,
@@ -105,6 +116,7 @@ async fn test_vector_insert_should_handle_missing_text() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        intellitask: None,
     };
 
     // Create request missing text parameter
@@ -150,13 +162,18 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         )
         .unwrap(),
     );
-    let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
+    // Create dual vector stores for CODE and GENERAL domains
+    let code_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let code_store = Arc::new(Mutex::new(VectorStore::new(code_embeddings)));
+    let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
+
     let state = SynCoreState {
         db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
-        vector_store,
+        code_store,
+        general_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
         message_bus: None,
         write_queue: None,
@@ -165,6 +182,7 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        intellitask: None,
     };
 
     // Test valid scopes
@@ -215,13 +233,18 @@ async fn test_vector_insert_should_store_in_vector_store() {
         )
         .unwrap(),
     );
-    let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
-    let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
+    // Create dual vector stores for CODE and GENERAL domains
+    let code_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let code_store = Arc::new(Mutex::new(VectorStore::new(code_embeddings)));
+    let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+    let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
+
     let state = SynCoreState {
         db_manager,
         memory: memory.clone(),
         tasks: tasks.clone(),
-        vector_store,
+        code_store,
+        general_store,
         logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
         message_bus: None,
         write_queue: None,
@@ -230,6 +253,7 @@ async fn test_vector_insert_should_store_in_vector_store() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        intellitask: None,
     };
 
     // Insert a document

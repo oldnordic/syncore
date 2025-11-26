@@ -1,0 +1,16 @@
+memory storage implementation
+MCP server tool routing
+vector search HNSW
+task management with dependencies
+SQLite database schema
+Ollama LLM integration
+tree-sitter code parsing
+graph database Neo4j
+embedding model configuration
+sequential reasoning loops
+code entity extraction
+function body indexing
+ripgrep pattern search
+parent-child task hierarchy
+MCP protocol stdio transport
+IntelliTask AI planning

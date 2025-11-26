@@ -5,7 +5,7 @@
 
 use crate::project_analysis::{
     compute_risk_score, cycles::CyclesData, dead_code::DeadCodeData,
-    diagnostics::DiagnosticsManager, hotspots::HotspotsData, normalize_severity,
+    diagnostics::DiagnosticsManager,
     unused_imports::UnusedImportsData, FileRiskInputs, HotspotInfo, PAEResponse,
     ProjectAnalysisEngine, RefactorKind, RefactorSuggestion,
 };
