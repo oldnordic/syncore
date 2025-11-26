@@ -118,7 +118,7 @@ impl SynCoreState {
     /// # Example
     ///
     /// ```rust
-    /// let embeddings = Box::new(RealEmbeddings::new(384)?);
+    /// let embeddings = Box::new(StubEmbeddings::new(384));
     /// let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     /// let state = SynCoreState::with_db_manager(vector_store)?;
     /// ```
@@ -303,10 +303,10 @@ impl SynCoreState {
 
         // Create separate stores for CODE and GENERAL domains (test mode)
         let code_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
-            crate::vector::RealEmbeddings::new(384).unwrap(),
+            crate::vector::StubEmbeddings::new(384).unwrap(),
         ))));
         let general_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
-            crate::vector::RealEmbeddings::new(384).unwrap(),
+            crate::vector::StubEmbeddings::new(384).unwrap(),
         ))));
         let vector_store = Arc::clone(&general_store);
 
@@ -524,7 +524,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vector::HuggingFaceEmbeddings;
+    use crate::vector::StubEmbeddings;
     use serde_json::Value;
     use tempfile::NamedTempFile;
 
@@ -536,7 +536,7 @@ mod tests {
 
         let memory = Memory::new(db_path)?;
         let tasks = Tasks::new(&format!("{}_tasks", db_path))?;
-        let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
+        let embeddings = Box::new(StubEmbeddings::new(384)?);
         let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
         let state = SynCoreState::new(memory, tasks, vector_store);
@@ -560,7 +560,7 @@ mod tests {
         memory.store("test_key", "test_value")?;
 
         let tasks = Tasks::new(&format!("{}_tasks", db_path))?;
-        let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
+        let embeddings = Box::new(StubEmbeddings::new(384)?);
         let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
         let state = SynCoreState::new(memory, tasks, vector_store);
@@ -582,7 +582,7 @@ mod tests {
 
         let memory = Memory::new(db_path)?;
         let tasks = Tasks::new(&format!("{}_tasks", db_path))?;
-        let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
+        let embeddings = Box::new(StubEmbeddings::new(384)?);
         let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
         let state = SynCoreState::new(memory, tasks, vector_store);

@@ -71,14 +71,14 @@ mod tests {
     use super::*;
     use crate::memory::Memory;
     use crate::tasks::Tasks;
-    use crate::vector::{RealEmbeddings, VectorStore};
+    use crate::vector::{StubEmbeddings, VectorStore};
     use std::sync::Mutex;
 
     #[tokio::test]
     async fn test_http_stream_server_creation() {
         let memory = Memory::new(":memory:").unwrap();
         let tasks = Tasks::new(":memory:").unwrap();
-        let embeddings = Box::new(RealEmbeddings::new(384).unwrap());
+        let embeddings = Box::new(StubEmbeddings::new(384).unwrap());
         let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
         let state = SynCoreState::new(memory, tasks, vector_store);
 

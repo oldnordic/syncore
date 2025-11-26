@@ -2570,16 +2570,17 @@ impl ExecutionRecorder for RealExecutor {
     }
 }
 
+#[cfg(test)]
 impl Default for RealExecutor {
     fn default() -> Self {
         // Default uses minimal state (for testing)
         use crate::memory::Memory;
         use crate::tasks::Tasks;
-        use crate::vector::{RealEmbeddings, VectorStore};
+        use crate::vector::{StubEmbeddings, VectorStore};
 
         let memory = Memory::new(":memory:").expect("Failed to create memory");
         let tasks = Tasks::new(":memory:").expect("Failed to create tasks");
-        let embeddings = Box::new(RealEmbeddings::new(384).expect("Failed to create embeddings"));
+        let embeddings = Box::new(StubEmbeddings::new(384).unwrap());
         let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
         let state = SynCoreState::new(memory, tasks, vector_store);
 
