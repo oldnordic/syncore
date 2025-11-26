@@ -14,6 +14,7 @@ pub mod databases;  // Canonical database modules (Neo4j, etc.)
 pub mod db;
 pub mod dlr;
 pub mod document_indexer;
+pub mod fs_watcher;  // APEX 2.2-FW: Filesystem watcher
 pub mod global_store;
 pub mod graph;
 pub mod graph_cli;
@@ -23,6 +24,7 @@ pub mod intellitask;
 pub mod intellitask_persistence;
 pub mod llm;
 pub mod logger;
+pub mod lsp_bridge;  // APEX 2.5-LSP: External LSP bridge
 pub mod macro_tools;
 pub mod mcp;
 pub mod mcp_server;
@@ -35,6 +37,7 @@ pub mod meta_cognition;
 pub mod metrics;
 pub mod ollama;
 pub mod parser;
+pub mod parser_service;  // APEX 2.2-FW: Incremental parser
 pub mod path_resolver; // APEX v1.7 Phase 5: Central path resolution
 pub mod polyglot;
 pub mod portfolio;

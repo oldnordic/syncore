@@ -63,12 +63,15 @@ pub fn ensure_schema(db_path: &str) -> anyhow::Result<()> {
         }
     }
 
-    // Check if memory_tags table exists for semantic memory migration
-    let mut stmt =
-        db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory_tags'")?;
-    let has_memory_tags = stmt.exists([])?;
+    // Check if 'summary' column exists in memory table for semantic memory migration
+    // APEX 2.4-CG-SCHEMA-FIX: Check for column existence instead of memory_tags table
+    // to prevent duplicate column errors when migration partially fails
+    let has_summary_column: bool = db
+        .prepare("SELECT name FROM pragma_table_info('memory') WHERE name='summary'")
+        .and_then(|mut stmt| stmt.exists([]))
+        .unwrap_or(false);
 
-    if !has_memory_tags {
+    if !has_summary_column {
         // Run the v3 semantic memory migration
         let migration_path = "migrations/03_semantic_memory.sql";
         if Path::new(migration_path).exists() {

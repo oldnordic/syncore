@@ -2,8 +2,14 @@
 --
 -- Adds semantic search, metadata, tags, and graph capabilities to memory store.
 -- APEX 1.9 - REAL implementation using DualEmbeddingService + Neo4j.
+-- APEX 2.4-CG-SCHEMA-FIX: Made idempotent to prevent duplicate column errors
 
 -- Add new columns to existing memory table
+-- SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN,
+-- so this migration will fail if run twice. This is handled by:
+-- 1. ensure_schema() checking for memory_tags table before running this migration
+-- 2. migration_005 checking for 'summary' column before running duplicate migration
+
 ALTER TABLE memory ADD COLUMN summary TEXT;
 ALTER TABLE memory ADD COLUMN namespace TEXT NOT NULL DEFAULT 'default';
 ALTER TABLE memory ADD COLUMN importance REAL NOT NULL DEFAULT 0.5;

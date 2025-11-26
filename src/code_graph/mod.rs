@@ -9,6 +9,7 @@
 
 // Submodules
 pub mod body_extractor; // APEX v1.7 Phase 3: Function body extraction for semantic search
+pub mod delta; // APEX 2.6-CG-GRAPH-DELTA: Delta-based selective reindexing
 pub mod edge_extractor;
 mod edge_persistence; // PHASE 2: Semantic edge persistence (SQLite + Neo4j)
 pub mod entity_boost; // STEP C: Entity type boosting for relevance
@@ -33,6 +34,7 @@ mod searcher;
 pub mod semantic_extractor; // PHASE 1: Semantic edge extraction
 pub mod temporal_extractor; // PHASE 3: Temporal metadata extraction
 mod types;
+pub mod update_service; // APEX 2.3-CG: Incremental code graph updates
 mod utils;
 
 // Re-export public API

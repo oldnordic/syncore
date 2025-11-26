@@ -5,6 +5,7 @@ use crate::parser::Parser;
 use crate::vector::VectorStore;
 use anyhow::{anyhow, Result};
 use rusqlite::Connection;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 /// Main code graph structure for indexing and searching code
@@ -179,6 +180,14 @@ impl CodeGraph {
         self.neo4j
             .as_ref()
             .ok_or_else(|| anyhow!("Neo4j client not available. Use new_with_neo4j() constructor."))
+    }
+
+    /// Get database connection for testing purposes
+    ///
+    /// This is a test-only helper to allow verification of schema state.
+    /// Should only be used in test code.
+    pub fn db_for_testing(&self) -> &Arc<Mutex<Connection>> {
+        &self.db
     }
 
     /// Ensure code_graph schema exists (fallback for test environments)
@@ -534,5 +543,27 @@ impl CodeGraph {
 
         eprintln!("[SynCore] Rebuilt HNSW index ({} vectors)", count);
         Ok(count)
+    }
+
+    /// Delete all entities for a given file path (APEX 2.6-CG-GRAPH-DELTA)
+    ///
+    /// This is used by the delta engine when a file is deleted or renamed.
+    /// Cascading deletes will remove associated edges automatically.
+    pub fn delete_entities_by_path(&self, file_path: &PathBuf) -> Result<usize> {
+        let path_str = file_path
+            .to_str()
+            .ok_or_else(|| anyhow!("Invalid UTF-8 in file path"))?;
+
+        let db = self
+            .db
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock db: {}", e))?;
+
+        let deleted = db.execute(
+            "DELETE FROM code_entities WHERE file_path = ?",
+            [path_str],
+        )?;
+
+        Ok(deleted)
     }
 }

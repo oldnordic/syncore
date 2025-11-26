@@ -198,6 +198,43 @@ fn migration_004_code_graph(conn: &Connection) -> Result<()> {
 
 /// Migration 005: Add extended memory fields for APEX 2.0-M-FIX (namespace isolation)
 fn migration_005_memory_extended_fields(conn: &Connection) -> Result<()> {
+    // APEX 2.4-CG-SCHEMA-FIX: Check if memory table exists AND if columns already exist
+    // This prevents failures from duplicate migration attempts (migration 03 vs 05 conflict)
+
+    // Check if memory table exists
+    let has_memory_table: bool = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory'")
+        .and_then(|mut stmt| stmt.exists([]))
+        .unwrap_or(false);
+
+    if !has_memory_table {
+        // Skip this migration if memory table doesn't exist (CodeGraph-only databases)
+        set_schema_version(
+            conn,
+            5,
+            "Skipped memory extended fields (memory table not present)",
+        )?;
+        return Ok(());
+    }
+
+    // Check if 'summary' column already exists (added by migration 03_semantic_memory.sql)
+    // Use PRAGMA table_info to check actual column existence
+    let has_summary_column: bool = conn
+        .prepare("SELECT name FROM pragma_table_info('memory') WHERE name='summary'")
+        .and_then(|mut stmt| stmt.exists([]))
+        .unwrap_or(false);
+
+    if has_summary_column {
+        // Columns already exist from migration 03, skip this migration
+        set_schema_version(
+            conn,
+            5,
+            "Skipped memory extended fields (columns already exist from migration 03)",
+        )?;
+        return Ok(());
+    }
+
+    // Memory table exists AND columns don't exist yet - apply the migration
     conn.execute_batch(include_str!("../migrations/05_memory_extended_fields.sql"))
         .context("Failed to apply migration 005: Memory extended fields")?;
 
