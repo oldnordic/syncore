@@ -1,8 +1,8 @@
 //! Refactor Hotspots Detection
-//! 
+//!
 //! SQL queries for detecting refactor opportunities in the codebase.
 
-use crate::project_analysis::{RefactorSuggestion, RefactorKind, ProjectAnalysisEngine};
+use crate::project_analysis::{ProjectAnalysisEngine, RefactorKind, RefactorSuggestion};
 use anyhow::Result;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -30,26 +30,33 @@ impl ProjectAnalysisEngine {
             "#,
         )?;
 
-        let suggestions = stmt.query_map([entity_threshold as i64, loc_threshold as i64], |row| {
-            let file_path: String = row.get(0)?;
-            let entity_count: i64 = row.get(1)?;
-            let max_line: i64 = row.get(2)?;
+        let suggestions =
+            stmt.query_map([entity_threshold as i64, loc_threshold as i64], |row| {
+                let file_path: String = row.get(0)?;
+                let entity_count: i64 = row.get(1)?;
+                let max_line: i64 = row.get(2)?;
 
-            let mut metrics = HashMap::new();
-            metrics.insert("entity_count".to_string(), Value::Number(serde_json::Number::from(entity_count)));
-            metrics.insert("loc".to_string(), Value::Number(serde_json::Number::from(max_line)));
+                let mut metrics = HashMap::new();
+                metrics.insert(
+                    "entity_count".to_string(),
+                    Value::Number(serde_json::Number::from(entity_count)),
+                );
+                metrics.insert(
+                    "loc".to_string(),
+                    Value::Number(serde_json::Number::from(max_line)),
+                );
 
-            Ok(RefactorSuggestion {
-                kind: RefactorKind::SplitFile,
-                description: format!(
-                    "Split {} ({} entities, ~{} LOC) into smaller, focused modules",
-                    file_path, entity_count, max_line
-                ),
-                file_path: Some(file_path),
-                related_files: None,
-                metrics,
-            })
-        })?;
+                Ok(RefactorSuggestion {
+                    kind: RefactorKind::SplitFile,
+                    description: format!(
+                        "Split {} ({} entities, ~{} LOC) into smaller, focused modules",
+                        file_path, entity_count, max_line
+                    ),
+                    file_path: Some(file_path),
+                    related_files: None,
+                    metrics,
+                })
+            })?;
 
         let mut result = Vec::new();
         for suggestion in suggestions {
@@ -87,8 +94,14 @@ impl ProjectAnalysisEngine {
             let fan_out: i64 = row.get(2)?;
 
             let mut metrics = HashMap::new();
-            metrics.insert("fan_in".to_string(), Value::Number(serde_json::Number::from(fan_in)));
-            metrics.insert("fan_out".to_string(), Value::Number(serde_json::Number::from(fan_out)));
+            metrics.insert(
+                "fan_in".to_string(),
+                Value::Number(serde_json::Number::from(fan_in)),
+            );
+            metrics.insert(
+                "fan_out".to_string(),
+                Value::Number(serde_json::Number::from(fan_out)),
+            );
 
             Ok(RefactorSuggestion {
                 kind: RefactorKind::ExtractFacade,
@@ -110,7 +123,10 @@ impl ProjectAnalysisEngine {
     }
 
     /// Suggest cycle reduction
-    pub fn suggest_cycle_reduction(&self, conn: &rusqlite::Connection) -> Result<Vec<RefactorSuggestion>> {
+    pub fn suggest_cycle_reduction(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> Result<Vec<RefactorSuggestion>> {
         let mut stmt = conn.prepare(
             r#"
             SELECT DISTINCT
@@ -136,8 +152,14 @@ impl ProjectAnalysisEngine {
             let cycle_strength: i64 = row.get(2)?;
 
             let mut metrics = HashMap::new();
-            metrics.insert("cycle_strength".to_string(), Value::Number(serde_json::Number::from(cycle_strength)));
-            metrics.insert("cycle_length".to_string(), Value::Number(serde_json::Number::from(2)));
+            metrics.insert(
+                "cycle_strength".to_string(),
+                Value::Number(serde_json::Number::from(cycle_strength)),
+            );
+            metrics.insert(
+                "cycle_length".to_string(),
+                Value::Number(serde_json::Number::from(2)),
+            );
 
             Ok(RefactorSuggestion {
                 kind: RefactorKind::ReduceCycle,
@@ -159,7 +181,10 @@ impl ProjectAnalysisEngine {
     }
 
     /// Suggest dead code pruning
-    pub fn suggest_dead_code_pruning(&self, conn: &rusqlite::Connection) -> Result<Vec<RefactorSuggestion>> {
+    pub fn suggest_dead_code_pruning(
+        &self,
+        conn: &rusqlite::Connection,
+    ) -> Result<Vec<RefactorSuggestion>> {
         let mut stmt = conn.prepare(
             r#"
             SELECT 
@@ -182,14 +207,14 @@ impl ProjectAnalysisEngine {
             let dead_count: i64 = row.get(1)?;
 
             let mut metrics = HashMap::new();
-            metrics.insert("dead_entities".to_string(), Value::Number(serde_json::Number::from(dead_count)));
+            metrics.insert(
+                "dead_entities".to_string(),
+                Value::Number(serde_json::Number::from(dead_count)),
+            );
 
             Ok(RefactorSuggestion {
                 kind: RefactorKind::PruneDeadCode,
-                description: format!(
-                    "Remove {} unused entities from {}",
-                    dead_count, file_path
-                ),
+                description: format!("Remove {} unused entities from {}", dead_count, file_path),
                 file_path: Some(file_path),
                 related_files: None,
                 metrics,
@@ -233,8 +258,14 @@ impl ProjectAnalysisEngine {
             let total_deps: i64 = row.get(2)?;
 
             let mut metrics = HashMap::new();
-            metrics.insert("distinct_dependencies".to_string(), Value::Number(serde_json::Number::from(distinct_deps)));
-            metrics.insert("total_dependencies".to_string(), Value::Number(serde_json::Number::from(total_deps)));
+            metrics.insert(
+                "distinct_dependencies".to_string(),
+                Value::Number(serde_json::Number::from(distinct_deps)),
+            );
+            metrics.insert(
+                "total_dependencies".to_string(),
+                Value::Number(serde_json::Number::from(total_deps)),
+            );
 
             Ok(RefactorSuggestion {
                 kind: RefactorKind::SimplifyDependency,

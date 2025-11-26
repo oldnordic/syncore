@@ -8,8 +8,8 @@
 //! - Inherits: trait implementations
 //! - References: constant/static references
 
-use anyhow::{Context, Result};
 use crate::code_graph::EdgeType;
+use anyhow::{Context, Result};
 
 /// Represents an extracted edge from source code
 #[derive(Debug, Clone)]
@@ -53,7 +53,11 @@ impl RelationshipExtractor {
     /// Extract relationships from Rust source code
     ///
     /// Returns a list of edges with src_name, dst_name, edge_type
-    pub fn extract_from_source(&mut self, source_code: &str, file_path: &str) -> Result<Vec<ExtractedEdge>> {
+    pub fn extract_from_source(
+        &mut self,
+        source_code: &str,
+        file_path: &str,
+    ) -> Result<Vec<ExtractedEdge>> {
         // Detect language from file extension
         let lang = detect_language(file_path);
 
@@ -75,10 +79,8 @@ impl RelationshipExtractor {
         let root = tree.root_node();
 
         // Use existing edge extractor logic
-        let raw_edges = crate::code_graph::edge_extractor::extract_edges_from_rust_ast(
-            source_code,
-            root,
-        )?;
+        let raw_edges =
+            crate::code_graph::edge_extractor::extract_edges_from_rust_ast(source_code, root)?;
 
         // Convert to our ExtractedEdge format
         // Replace "__FILE__" placeholder with actual file path for CONTAINS/MODULE_CHILD edges
@@ -110,7 +112,10 @@ impl RelationshipExtractor {
     }
 
     /// Extract edges from multiple files in a directory
-    pub fn extract_from_directory(&mut self, dir_path: &std::path::Path) -> Result<Vec<ExtractedEdge>> {
+    pub fn extract_from_directory(
+        &mut self,
+        dir_path: &std::path::Path,
+    ) -> Result<Vec<ExtractedEdge>> {
         let mut all_edges = Vec::new();
 
         // Walk directory for Rust files
@@ -122,7 +127,11 @@ impl RelationshipExtractor {
             match self.extract_from_file(entry.path()) {
                 Ok(edges) => all_edges.extend(edges),
                 Err(e) => {
-                    eprintln!("Warning: Failed to extract from {}: {}", entry.path().display(), e);
+                    eprintln!(
+                        "Warning: Failed to extract from {}: {}",
+                        entry.path().display(),
+                        e
+                    );
                 }
             }
         }
@@ -183,7 +192,9 @@ fn main() {
         // Should find call edge from main to helper
         let call_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == "calls").collect();
         assert!(
-            call_edges.iter().any(|e| e.src_name == "main" && e.dst_name == "helper"),
+            call_edges
+                .iter()
+                .any(|e| e.src_name == "main" && e.dst_name == "helper"),
             "Should extract call from main to helper"
         );
     }

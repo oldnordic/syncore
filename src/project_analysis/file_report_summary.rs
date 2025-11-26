@@ -1,10 +1,8 @@
 //! Project File Report Summary
-//! 
+//!
 //! Summary calculation and formatting for file analysis.
 
-use crate::project_analysis::{
-    EntityInfo, FileMetrics, ProjectAnalysisEngine, RelationshipInfo,
-};
+use crate::project_analysis::{EntityInfo, FileMetrics, ProjectAnalysisEngine, RelationshipInfo};
 
 impl ProjectAnalysisEngine {
     /// Calculate file-level metrics

@@ -10,9 +10,11 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
+use std::path::Path;
 use std::time::SystemTime;
 
 use crate::message_bus::message::{AgentId, Msg, MsgKind};
+use crate::path_resolver::PathResolver; // APEX v1.7 Phase 6
 use crate::router::SynCoreState;
 use crate::vector::SearchScope;
 
@@ -111,14 +113,16 @@ impl MappingTool {
             node.dependencies.join(",")
         );
         {
-            let mut store = self.state.vector_store.lock().unwrap();
+            let mut store = self.state.general_store.lock().unwrap();
             // Use path hash as ID
             let id = self.path_to_id(&node.path);
             store.insert_text(id, None, &description, "file_mapping")?;
         }
 
-        // Neo4j integration: MERGE File node and DEPENDS_ON relationships
+        // Neo4j integration: Use canonical neo4j module for File dependency tracking
         if let Some(neo4j) = &self.state.neo4j {
+            use crate::databases::neo4j::{upsert_file_by_path, create_file_dependency};
+
             let neo4j = neo4j.clone();
             let path = node.path.clone();
             let deps = node.dependencies.clone();
@@ -126,21 +130,12 @@ impl MappingTool {
             // Spawn async task for Neo4j operations
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async move {
-                    // MERGE the File node
-                    let _ = neo4j.execute_query(
-                        "MERGE (f:File {path: $path})",
-                        vec![("path", serde_json::json!(path.clone()))]
-                    ).await;
+                    // Create File node
+                    let _ = upsert_file_by_path(&neo4j, &path).await;
 
-                    // MERGE DEPENDS_ON relationships for each dependency
+                    // Create DEPENDS_ON relationships for each dependency
                     for dep in deps {
-                        let _ = neo4j.execute_query(
-                            "MERGE (a:File {path: $from}) MERGE (b:File {path: $to}) MERGE (a)-[:DEPENDS_ON]->(b)",
-                            vec![
-                                ("from", serde_json::json!(path.clone())),
-                                ("to", serde_json::json!(dep))
-                            ]
-                        ).await;
+                        let _ = create_file_dependency(&neo4j, &path, &dep).await;
                     }
                 })
             });
@@ -202,7 +197,7 @@ impl MappingTool {
     /// Search for files related to a query using semantic search
     pub fn search_related(&self, query: &str) -> Result<Vec<FileNode>> {
         let results = {
-            let store = self.state.vector_store.lock().unwrap();
+            let store = self.state.general_store.lock().unwrap();
             store.search(query, 10, SearchScope::Global)?
         };
 
@@ -220,26 +215,16 @@ impl MappingTool {
     }
 
     /// Get all transitive dependencies for a file
+    ///
+    /// Falls back to parsing Rust source files when file_nodes table is empty.
     pub fn get_all_dependencies(&self, path: &str) -> Result<Vec<String>> {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         let mut result = Vec::new();
 
-        // Get direct dependencies
+        // Try file_nodes table first
         if let Some(node) = self.get_file(path)? {
-            for dep in &node.dependencies {
-                if !visited.contains(dep) {
-                    queue.push_back(dep.clone());
-                    visited.insert(dep.clone());
-                }
-            }
-        }
-
-        // BFS to find all transitive dependencies
-        while let Some(current) = queue.pop_front() {
-            result.push(current.clone());
-
-            if let Some(node) = self.get_file(&current)? {
+            if !node.dependencies.is_empty() {
                 for dep in &node.dependencies {
                     if !visited.contains(dep) {
                         queue.push_back(dep.clone());
@@ -249,7 +234,80 @@ impl MappingTool {
             }
         }
 
+        // If no dependencies found, fall back to parsing Rust imports
+        if queue.is_empty() && path.ends_with(".rs") {
+            let deps = self.extract_rust_dependencies(path)?;
+            for dep in deps {
+                if !visited.contains(&dep) {
+                    queue.push_back(dep.clone());
+                    visited.insert(dep);
+                }
+            }
+        }
+
+        // BFS to find all transitive dependencies
+        while let Some(current) = queue.pop_front() {
+            result.push(current.clone());
+
+            // Try file_nodes first
+            if let Some(node) = self.get_file(&current)? {
+                for dep in &node.dependencies {
+                    if !visited.contains(dep) {
+                        queue.push_back(dep.clone());
+                        visited.insert(dep.clone());
+                    }
+                }
+            } else if current.ends_with(".rs") {
+                // Fall back to parsing
+                let deps = self.extract_rust_dependencies(&current)?;
+                for dep in deps {
+                    if !visited.contains(&dep) {
+                        queue.push_back(dep.clone());
+                        visited.insert(dep);
+                    }
+                }
+            }
+        }
+
         Ok(result)
+    }
+
+    /// Extract Rust dependencies by parsing use statements
+    fn extract_rust_dependencies(&self, path: &str) -> Result<Vec<String>> {
+        use crate::macro_tools::import_extractor::{extract_rust_imports, resolve_import_to_file};
+
+        // Check if file exists first
+        if !std::path::Path::new(path).exists() {
+            // Return empty vec for non-existent files (graceful handling)
+            return Ok(Vec::new());
+        }
+
+        // Read the file
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => return Ok(Vec::new()), // Gracefully return empty on read error
+        };
+
+        // Extract imports
+        let imports = extract_rust_imports(&content);
+
+        // APEX v1.7 Phase 6: Use PathResolver instead of current_dir()
+        let mut resolver = PathResolver::new();
+        let project_root = resolver
+            .resolve_workspace_root(Path::new(path))
+            .ok()
+            .flatten()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string());
+
+        let mut dependencies = Vec::new();
+        for import in imports {
+            if let Some(resolved) = resolve_import_to_file(&import.path, path, &project_root) {
+                dependencies.push(resolved);
+            }
+        }
+
+        Ok(dependencies)
     }
 
     /// Convert path to numeric ID for FAISS

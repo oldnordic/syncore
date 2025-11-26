@@ -394,6 +394,10 @@ impl RealEmbeddings {
 pub enum SearchScope {
     Global,
     Task(i64),
+    /// Filter by embedding domain (CODE or GENERAL)
+    Domain(crate::vector::domain::EmbeddingDomain),
+    /// Filter by both domain and task
+    DomainTask(crate::vector::domain::EmbeddingDomain, i64),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -516,11 +520,11 @@ pub struct VectorStore {
     query_cache: RwLock<QueryCache>,
     embedding_cache: RwLock<HashMap<String, Vec<f32>>>, // Cache embeddings for repeated queries
     fast_mode: bool,                                    // Use fast hash-based embeddings for tests
-    hnsw: Arc<RwLock<HnswVectorIndex>>,                 // HNSW index for fast nearest neighbor search
-    hnsw_ready: Arc<std::sync::atomic::AtomicBool>,     // HNSW warmup status flag (legacy)
-    pending_vectors: RwLock<Vec<PendingVector>>,        // Queue for vectors added during warmup
-    bruteforce_warned: std::sync::atomic::AtomicBool,   // Log fallback warning only once
-    warmup_controller: Arc<warmup::WarmupController>,   // State machine for warmup (Cold/WarmingUp/Hot)
+    hnsw: Arc<RwLock<HnswVectorIndex>>, // HNSW index for fast nearest neighbor search
+    hnsw_ready: Arc<std::sync::atomic::AtomicBool>, // HNSW warmup status flag (legacy)
+    pending_vectors: RwLock<Vec<PendingVector>>, // Queue for vectors added during warmup
+    bruteforce_warned: std::sync::atomic::AtomicBool, // Log fallback warning only once
+    warmup_controller: Arc<warmup::WarmupController>, // State machine for warmup (Cold/WarmingUp/Hot)
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -539,7 +543,10 @@ impl std::fmt::Debug for VectorStore {
                 &self.embedding_cache.read().map(|c| c.len()).unwrap_or(0),
             )
             .field("fast_mode", &self.fast_mode)
-            .field("hnsw_ready", &self.hnsw_ready.load(std::sync::atomic::Ordering::SeqCst))
+            .field(
+                "hnsw_ready",
+                &self.hnsw_ready.load(std::sync::atomic::Ordering::SeqCst),
+            )
             .field("warmup_state", &self.warmup_controller.state())
             .field(
                 "pending_vectors",
@@ -563,7 +570,8 @@ impl VectorStore {
 
         // Initialize HNSW index with default config
         let hnsw_config = HnswConfig::default();
-        let hnsw_index = HnswVectorIndex::new(hnsw_config, 42).expect("Failed to create HNSW index");
+        let hnsw_index =
+            HnswVectorIndex::new(hnsw_config, 42).expect("Failed to create HNSW index");
 
         Self {
             embeddings,
@@ -611,7 +619,9 @@ impl VectorStore {
 
     /// Flush pending vectors into HNSW index (called after warmup)
     pub fn flush_pending_vectors(&mut self) -> Result<usize> {
-        let mut pending = self.pending_vectors.write()
+        let mut pending = self
+            .pending_vectors
+            .write()
             .map_err(|e| anyhow::anyhow!("Failed to lock pending vectors: {}", e))?;
 
         if pending.is_empty() {
@@ -619,14 +629,19 @@ impl VectorStore {
         }
 
         let count = pending.len();
-        let mut hnsw = self.hnsw.write()
+        let mut hnsw = self
+            .hnsw
+            .write()
             .map_err(|e| anyhow::anyhow!("Failed to lock HNSW: {}", e))?;
 
         for pv in pending.drain(..) {
             hnsw.add(pv.id, pv.embedding)?;
         }
 
-        eprintln!("[SynCore] Flushed {} pending vectors into HNSW index", count);
+        eprintln!(
+            "[SynCore] Flushed {} pending vectors into HNSW index",
+            count
+        );
         Ok(count)
     }
 
@@ -713,6 +728,12 @@ impl VectorStore {
         match scope {
             SearchScope::Global => "global".hash(&mut hasher),
             SearchScope::Task(tid) => tid.hash(&mut hasher),
+            SearchScope::Domain(domain) => {
+                format!("domain_{:?}", domain).hash(&mut hasher);
+            }
+            SearchScope::DomainTask(domain, tid) => {
+                format!("domain_{:?}_task_{}", domain, tid).hash(&mut hasher);
+            }
         }
         let cache_key = hasher.finish();
 
@@ -769,6 +790,9 @@ impl VectorStore {
                         let should_include = match scope {
                             SearchScope::Global => true,
                             SearchScope::Task(target_task_id) => *task_id == Some(target_task_id),
+                            // Domain filtering via store selection (router.rs routes to correct store)
+                            SearchScope::Domain(_) => true,
+                            SearchScope::DomainTask(_, target_task_id) => *task_id == Some(target_task_id),
                         };
                         if should_include {
                             Some(Hit {
@@ -800,6 +824,9 @@ impl VectorStore {
                     let should_include = match scope {
                         SearchScope::Global => true,
                         SearchScope::Task(target_task_id) => *task_id == Some(target_task_id),
+                        // Domain filtering via store selection (router.rs routes to correct store)
+                        SearchScope::Domain(_) => true,
+                        SearchScope::DomainTask(_, target_task_id) => *task_id == Some(target_task_id),
                     };
                     if should_include {
                         let score = self.cosine_similarity(&query_embedding, embedding);
@@ -816,7 +843,11 @@ impl VectorStore {
                 .collect();
 
             // Sort by similarity descending
-            scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+            scored.sort_by(|a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             scored
         };
 
@@ -901,6 +932,9 @@ impl VectorStore {
                 let should_include = match scope {
                     SearchScope::Global => true,
                     SearchScope::Task(target_task_id) => task_id == Some(target_task_id),
+                    // Domain filtering via store selection (router.rs routes to correct store)
+                    SearchScope::Domain(_) => true,
+                    SearchScope::DomainTask(_, target_task_id) => task_id == Some(target_task_id),
                 };
 
                 if should_include {
@@ -989,7 +1023,10 @@ impl VectorStore {
         if Path::new(&vectors_path).exists() {
             let vectors_bytes = fs::read(&vectors_path)?;
             self.vectors = bincode::deserialize(&vectors_bytes)?;
-            eprintln!("[SynCore] Loaded {} vectors from snapshot", self.vectors.len());
+            eprintln!(
+                "[SynCore] Loaded {} vectors from snapshot",
+                self.vectors.len()
+            );
         } else {
             eprintln!("[SynCore] No vector snapshot found at {}", vectors_path);
             return Ok(());
@@ -1009,14 +1046,21 @@ impl VectorStore {
             if load_result.is_ok() && hnsw.len() > 0 {
                 // HNSW snapshot loaded successfully - mark as Hot
                 self.warmup_controller.mark_hot();
-                self.hnsw_ready.store(true, std::sync::atomic::Ordering::SeqCst);
-                eprintln!("[SynCore] HNSW snapshot loaded ({} vectors) - state=Hot", hnsw.len());
+                self.hnsw_ready
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                eprintln!(
+                    "[SynCore] HNSW snapshot loaded ({} vectors) - state=Hot",
+                    hnsw.len()
+                );
                 return Ok(());
             }
 
             // HNSW index missing or empty - rebuild from vectors
             if !self.vectors.is_empty() {
-                eprintln!("[SynCore] HNSW snapshot missing/empty, rebuilding from {} vectors...", self.vectors.len());
+                eprintln!(
+                    "[SynCore] HNSW snapshot missing/empty, rebuilding from {} vectors...",
+                    self.vectors.len()
+                );
                 let vectors_for_rebuild: Vec<(i64, Vec<f32>)> = self
                     .vectors
                     .iter()
@@ -1025,8 +1069,12 @@ impl VectorStore {
 
                 hnsw.rebuild_from_vectors(&vectors_for_rebuild)?;
                 self.warmup_controller.mark_hot();
-                self.hnsw_ready.store(true, std::sync::atomic::Ordering::SeqCst);
-                eprintln!("[SynCore] HNSW rebuilt ({} vectors) - state=Hot", hnsw.len());
+                self.hnsw_ready
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                eprintln!(
+                    "[SynCore] HNSW rebuilt ({} vectors) - state=Hot",
+                    hnsw.len()
+                );
             }
         }
 
@@ -1074,7 +1122,9 @@ impl VectorStore {
                         invalid_ids.len(),
                         &invalid_ids[..invalid_ids.len().min(10)] // Show first 10
                     );
-                    eprintln!("[WARN] Rebuilding vector store - clearing snapshot and deleting files");
+                    eprintln!(
+                        "[WARN] Rebuilding vector store - clearing snapshot and deleting files"
+                    );
 
                     // Clear vectors in memory
                     self.vectors.clear();
@@ -1106,7 +1156,13 @@ impl VectorStore {
 
     /// Test helper: Add vector directly for testing
     /// **For testing only** - bypasses normal insert_text flow
-    pub fn add_test_vector(&mut self, id: i64, task_id: Option<i64>, embedding: Vec<f32>, text: String) {
+    pub fn add_test_vector(
+        &mut self,
+        id: i64,
+        task_id: Option<i64>,
+        embedding: Vec<f32>,
+        text: String,
+    ) {
         self.vectors.push((id, task_id, embedding, text));
     }
 }
@@ -1636,6 +1692,11 @@ impl HybridVectorStore {
                         SearchScope::Task(task_id) => {
                             store.search_task(&query_embedding, k, task_id)
                         }
+                        // Domain filtering via store selection (router.rs routes to correct store)
+                        SearchScope::Domain(_) => store.search(&query_embedding, k),
+                        SearchScope::DomainTask(_, task_id) => {
+                            store.search_task(&query_embedding, k, task_id)
+                        }
                     }
                 } else {
                     Err(anyhow::anyhow!("USearch store not initialized"))
@@ -1668,6 +1729,8 @@ impl EmbeddingsClone for dyn Embeddings {
 }
 
 // HNSW vector index module (standalone, no coupling to existing vector code)
+pub mod domain;
+pub mod dual_service;
 pub mod hnsw;
 pub mod traits;
 pub mod warmup;

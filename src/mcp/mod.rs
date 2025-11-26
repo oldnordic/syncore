@@ -26,4 +26,5 @@ pub use protocol::{
 pub use code_graph_tools::{
     handle_code_graph_explain, handle_code_graph_impact, handle_code_graph_index,
     handle_code_graph_query, handle_code_graph_refactor_check, handle_code_graph_refactor_symbol,
+    handle_project_macro_expand,
 };

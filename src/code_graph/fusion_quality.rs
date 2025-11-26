@@ -116,11 +116,8 @@ impl FusionQualityEvaluator {
         let quality_score = 0.5 * confidence + 0.3 * completeness + 0.2 * diversity;
 
         // Deep-read recommendation
-        let (recommend_deep_read, reason) = self.should_recommend_deep_read(
-            quality_score,
-            confidence,
-            entities,
-        );
+        let (recommend_deep_read, reason) =
+            self.should_recommend_deep_read(quality_score, confidence, entities);
 
         let token_budget = if recommend_deep_read {
             self.config.max_deep_read_tokens
@@ -166,9 +163,9 @@ impl FusionQualityEvaluator {
 
         // Estimate expected results based on query complexity
         let expected_results = match query_tokens {
-            0..=2 => 3,   // Simple query expects few results
-            3..=5 => 5,   // Medium query
-            _ => 8,       // Complex query
+            0..=2 => 3, // Simple query expects few results
+            3..=5 => 5, // Medium query
+            _ => 8,     // Complex query
         };
 
         // Completeness = actual / expected, clamped to 1.0
@@ -183,10 +180,8 @@ impl FusionQualityEvaluator {
         }
 
         // Count unique source files
-        let unique_files: std::collections::HashSet<_> = entities
-            .iter()
-            .map(|e| &e.source_file)
-            .collect();
+        let unique_files: std::collections::HashSet<_> =
+            entities.iter().map(|e| &e.source_file).collect();
 
         // Diversity = unique files / total entities, with bonus for multiple files
         let base_diversity = unique_files.len() as f32 / entities.len() as f32;
@@ -236,8 +231,8 @@ impl FusionQualityEvaluator {
 
         // Rule 4: Score distribution too flat (no clear winner)
         if entities.len() >= 3 {
-            let score_range = entities.first().unwrap().fused_score
-                - entities.last().unwrap().fused_score;
+            let score_range =
+                entities.first().unwrap().fused_score - entities.last().unwrap().fused_score;
             if score_range < 0.1 {
                 return (
                     true,
@@ -247,7 +242,10 @@ impl FusionQualityEvaluator {
         }
 
         // Good quality - snippet mode sufficient
-        (false, "Good fusion quality - snippet mode sufficient".to_string())
+        (
+            false,
+            "Good fusion quality - snippet mode sufficient".to_string(),
+        )
     }
 
     /// Token efficiency guard - limits tokens based on quality
@@ -258,7 +256,11 @@ impl FusionQualityEvaluator {
     ///
     /// # Returns
     /// Adjusted token count that respects efficiency bounds
-    pub fn guard_token_budget(&self, quality: &FusionQualityResult, requested_tokens: usize) -> usize {
+    pub fn guard_token_budget(
+        &self,
+        quality: &FusionQualityResult,
+        requested_tokens: usize,
+    ) -> usize {
         let max_allowed = quality.token_budget;
 
         // If quality is low, allow more tokens
@@ -323,9 +325,7 @@ mod tests {
     #[test]
     fn test_low_confidence_deep_read() {
         let evaluator = FusionQualityEvaluator::new();
-        let entities = vec![
-            make_entity(0.4, 0.4, 0.3, "test.rs"),
-        ];
+        let entities = vec![make_entity(0.4, 0.4, 0.3, "test.rs")];
 
         let result = evaluator.evaluate(&entities, "complex multi word query here");
 

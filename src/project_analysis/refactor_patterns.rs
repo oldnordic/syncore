@@ -1,8 +1,8 @@
 //! Refactor Patterns and Heuristics
-//! 
+//!
 //! Priority calculation and pattern matching for refactor suggestions.
 
-use crate::project_analysis::{RefactorSuggestion, RefactorKind, ProjectAnalysisEngine};
+use crate::project_analysis::{ProjectAnalysisEngine, RefactorKind, RefactorSuggestion};
 
 impl ProjectAnalysisEngine {
     /// Calculate priority score for a refactor suggestion

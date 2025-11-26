@@ -86,13 +86,20 @@ pub fn neighbors_sqlite(db: &Connection, entity_id: i64) -> Result<Vec<(i64, Edg
 /// Returns deduplicated list of (neighbor_id, edge_type) pairs.
 /// Sorted by neighbor_id for deterministic ordering.
 ///
+/// # Specialized Multi-Hop Traversal Query
+///
+/// This query is intentionally NOT migrated to the canonical Neo4j module because:
+/// 1. Multi-hop traversal requires edge type information for BFS algorithm
+/// 2. Canonical `get_neighbors()` returns full `EntityResult` without edge types
+/// 3. This is a specialized graph algorithm, not general-purpose CRUD
+/// 4. Query already follows best practices: namespace filtering, :SynCore label, parameterization
+///
+/// For normal neighbor queries (without edge types), use canonical `get_neighbors()`.
+///
 /// # Arguments
 /// * `neo4j` - Neo4j client
 /// * `entity_id` - Starting entity ID
-pub async fn neighbors_neo4j(
-    neo4j: &Neo4jClient,
-    entity_id: i64,
-) -> Result<Vec<(i64, EdgeType)>> {
+pub async fn neighbors_neo4j(neo4j: &Neo4jClient, entity_id: i64) -> Result<Vec<(i64, EdgeType)>> {
     // TASK C: Restrict to :SynCore label for project isolation
     let query = r#"
         MATCH (a:SynCore {namespace: $ns})-[r]->(b:SynCore {namespace: $ns})

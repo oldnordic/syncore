@@ -16,8 +16,9 @@ Practical guide to using SynCore MCP tools with real examples.
 10. [Sequential Reasoning](#sequential-reasoning)
 11. [Application Change Tracking](#application-change-tracking)
 12. [Project Analysis](#project-analysis)
-13. [Common Workflows](#common-workflows)
-14. [Troubleshooting](#troubleshooting)
+13. [Meta-Tools](#meta-tools)
+14. [Common Workflows](#common-workflows)
+15. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -1082,6 +1083,243 @@ Parameters:
 - `ReduceCycle` - Circular dependency detected
 - `PruneDeadCode` - Unused code found
 - `SimplifyDependency` - Complex dependency pattern
+
+---
+
+## Meta-Tools
+
+Meta-tools aggregate data from multiple PAE analysis tools into unified, actionable reports. All are read-only (no database modifications).
+
+### project_architecture_overview
+
+Get a comprehensive project-wide summary including entity counts, dependency statistics, and top files by coupling.
+
+```
+Tool: project_architecture_overview
+Parameters: {}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "total_files": 45,
+    "total_entities": 2145,
+    "entity_breakdown": {
+      "Function": 890,
+      "Struct": 234,
+      "Impl": 156,
+      "Const": 89
+    },
+    "total_edges": 4521,
+    "edge_breakdown": {
+      "calls": 1234,
+      "imports": 890,
+      "contains": 567
+    },
+    "top_files_by_fan_in": [
+      {"file_path": "src/vector.rs", "fan_in": 78}
+    ],
+    "top_files_by_fan_out": [
+      {"file_path": "src/mcp_server.rs", "fan_out": 89}
+    ],
+    "avg_fan_in": 5.2,
+    "avg_fan_out": 4.8,
+    "max_loc": 1676,
+    "total_loc": 15420
+  }
+}
+```
+
+### project_complexity_dashboard
+
+Get a complexity-focused dashboard with hotspots, cycles, and a computed health score.
+
+```
+Tool: project_complexity_dashboard
+Parameters:
+  hotspot_limit: 10     # optional, default 10
+  cycle_limit: 5        # optional, default 5
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "health_score": 72.5,
+    "health_grade": "C",
+    "top_hotspots": [
+      {
+        "file_path": "src/vector.rs",
+        "score": 236.5,
+        "fan_in": 78,
+        "fan_out": 59,
+        "entity_count": 100,
+        "loc": 1676
+      }
+    ],
+    "worst_cycles": [
+      {
+        "files": ["src/a.rs", "src/b.rs"],
+        "cycle_length": 2
+      }
+    ],
+    "complexity_by_file": [
+      {"file_path": "src/vector.rs", "complexity_score": 236.5}
+    ],
+    "summary": {
+      "files_analyzed": 45,
+      "hotspot_count": 12,
+      "cycle_count": 3,
+      "avg_complexity": 45.2
+    }
+  }
+}
+```
+
+**Health Score Grades:**
+- A (90-100): Excellent - few hotspots, no cycles
+- B (75-89): Good - some complexity but manageable
+- C (60-74): Fair - notable complexity issues
+- D (40-59): Poor - significant refactoring needed
+- F (0-39): Critical - major architectural problems
+
+### project_improvement_roadmap
+
+Get a prioritized list of improvements with effort/impact analysis and category breakdown.
+
+```
+Tool: project_improvement_roadmap
+Parameters:
+  limit_per_category: 20      # optional
+  high_priority_only: false   # optional
+  hotspot_loc_threshold: 100  # optional
+  project_label: null         # optional
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "summary": {
+      "total_improvements": 45,
+      "by_priority": {"Critical": 3, "High": 12, "Medium": 20, "Low": 10},
+      "by_type": {"RemoveDeadCode": 15, "BreakCycle": 3, "ReduceComplexity": 8},
+      "estimated_total_effort": 22.5,
+      "files_affected": 28
+    },
+    "improvements": [
+      {
+        "id": "cycle_0",
+        "improvement_type": "BreakCycle",
+        "priority": "Critical",
+        "file_path": "src/a.rs",
+        "line_number": null,
+        "description": "Break circular dependency in 2 files",
+        "effort": 4,
+        "impact": 5,
+        "metadata": {"cycle_length": 2, "files": ["src/a.rs", "src/b.rs"]}
+      }
+    ],
+    "by_category": {
+      "dead_code": [...],
+      "unused_imports": [...],
+      "refactor_suggestions": [...],
+      "cycle_fixes": [...],
+      "complexity_reductions": [...]
+    },
+    "effort_impact_matrix": {
+      "quick_wins": [...],
+      "major_projects": [...],
+      "fill_ins": [...],
+      "reconsider": [...]
+    }
+  }
+}
+```
+
+**Effort/Impact Matrix:**
+- `quick_wins`: Low effort (≤2), high impact (≥4) - do these first
+- `major_projects`: High effort (≥4), high impact (≥4) - plan carefully
+- `fill_ins`: Low effort (≤2), low impact (≤2) - do when time permits
+- `reconsider`: High effort (≥4), low impact (≤2) - likely not worth it
+
+### project_refactor_action_plan
+
+Get an actionable refactoring plan with specific items to address.
+
+```
+Tool: project_refactor_action_plan
+Parameters: {}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "data": {
+    "high_risk_hotspots": [
+      {
+        "file_path": "src/vector.rs",
+        "score": 236.5,
+        "fan_in": 78,
+        "fan_out": 59,
+        "entity_count": 100,
+        "loc": 1676
+      }
+    ],
+    "dead_code_cleanup": [
+      {
+        "id": 456,
+        "name": "unused_helper",
+        "entity_type": "Function",
+        "file_path": "src/utils.rs",
+        "line_start": 89
+      }
+    ],
+    "unused_imports": [
+      {
+        "file_path": "src/handlers.rs",
+        "import_name": "std::io::Write",
+        "line": 5,
+        "module": "std::io"
+      }
+    ],
+    "cycle_break_candidates": [
+      {"file_path": "src/a.rs"},
+      {"file_path": "src/b.rs"}
+    ],
+    "module_refactor_ops": [
+      {
+        "file_path": "src/vector.rs",
+        "operation": "split",
+        "loc": 1676,
+        "entity_count": 100,
+        "reason": "Module exceeds 500 LOC (actual: 1676)"
+      },
+      {
+        "file_path": "src/tiny.rs",
+        "operation": "merge_candidate",
+        "loc": 45,
+        "entity_count": 3,
+        "reason": "Small module with 45 LOC and 3 entities"
+      }
+    ]
+  }
+}
+```
+
+**Action Plan Thresholds:**
+- `high_risk_hotspots`: Files with complexity score ≥ 100
+- `dead_code_cleanup`: All detected unused entities
+- `unused_imports`: Top 10 unused imports
+- `cycle_break_candidates`: All files involved in circular dependencies
+- `module_refactor_ops`:
+  - `split`: Files with LOC > 500
+  - `merge_candidate`: Files with LOC < 100 AND entity_count < 5
 
 ---
 

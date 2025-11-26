@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version
-pub const CURRENT_SCHEMA_VERSION: i32 = 2;
+pub const CURRENT_SCHEMA_VERSION: i32 = 4;
 
 /// Get the current schema version from the database
 /// Returns 0 if version table doesn't exist (brand new database)
@@ -85,6 +85,14 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         migration_002_intellitask_fields(conn).context("Failed to run migration 002")?;
     }
 
+    if current_version < 3 {
+        migration_003_code_diagnostics(conn).context("Failed to run migration 003")?;
+    }
+
+    if current_version < 4 {
+        migration_004_code_graph(conn).context("Failed to run migration 004")?;
+    }
+
     // Verify we're at the expected version
     let final_version = get_schema_version(conn)?;
     if final_version != CURRENT_SCHEMA_VERSION {
@@ -154,6 +162,32 @@ fn migration_002_intellitask_fields(conn: &Connection) -> Result<()> {
         conn,
         2,
         "Add IntelliTask fields (task_id, complexity, estimated_hours, etc.)",
+    )?;
+    Ok(())
+}
+
+/// Migration 003: Add code_diagnostics table for static analysis results
+fn migration_003_code_diagnostics(conn: &Connection) -> Result<()> {
+    conn.execute_batch(include_str!("../migrations/03_code_diagnostics.sql"))
+        .context("Failed to apply migration 003: Code diagnostics schema")?;
+
+    set_schema_version(
+        conn,
+        3,
+        "Add code_diagnostics table for static analysis results (Clippy, etc.)",
+    )?;
+    Ok(())
+}
+
+/// Migration 004: Add code graph tables (code_entities, code_edges, code_embeddings)
+fn migration_004_code_graph(conn: &Connection) -> Result<()> {
+    conn.execute_batch(include_str!("../migrations/02_code_graph.sql"))
+        .context("Failed to apply migration 004: Code graph schema")?;
+
+    set_schema_version(
+        conn,
+        4,
+        "Add code graph tables (code_entities, code_edges, code_embeddings)",
     )?;
     Ok(())
 }

@@ -5,6 +5,7 @@
 
 use super::types::{CodeEdge, EdgeType};
 use crate::graph::Neo4jClient;
+use crate::databases::neo4j::{RelationType, create_relationship};
 use anyhow::Result;
 
 /// Create a Neo4j relationship for a CodeEdge
@@ -21,32 +22,30 @@ use anyhow::Result;
 /// # Returns
 /// Ok(()) on success, or error if Neo4j operation fails
 pub async fn create_code_relationship(neo4j: &Neo4jClient, edge: &CodeEdge) -> Result<()> {
-    let rel_type = edge_type_to_neo4j_type(&edge.edge_type);
+    // Map EdgeType to canonical RelationType
+    let rel_type = edge_type_to_relation_type(&edge.edge_type);
 
-    // Build Cypher query with MERGE for idempotency (TASK C: restrict to :SynCore)
-    let cypher = format!(
-        r#"
-        MATCH (a:SynCore {{id: $src_id, namespace: $ns}}), (b:SynCore {{id: $dst_id, namespace: $ns}})
-        MERGE (a)-[:{}]->(b)
-        "#,
-        rel_type
-    );
-
-    neo4j
-        .execute_query(
-            &cypher,
-            vec![
-                ("src_id", serde_json::json!(edge.src_entity_id)),
-                ("dst_id", serde_json::json!(edge.dst_entity_id)),
-                ("ns", serde_json::json!(neo4j.namespace())),
-            ],
-        )
-        .await?;
-
-    Ok(())
+    // Use canonical create_relationship (handles namespace, :SynCore filtering, idempotency)
+    create_relationship(neo4j, edge.src_entity_id, edge.dst_entity_id, rel_type).await
 }
 
-/// Map EdgeType to Neo4j relationship type string
+/// Map EdgeType to canonical RelationType
+fn edge_type_to_relation_type(edge_type: &EdgeType) -> RelationType {
+    match edge_type {
+        EdgeType::Calls => RelationType::Calls,
+        EdgeType::Imports => RelationType::Imports,
+        EdgeType::Inherits => RelationType::Inherits,
+        EdgeType::References => RelationType::References,
+        EdgeType::Uses => RelationType::Uses,
+        EdgeType::Contains => RelationType::Contains,
+        EdgeType::UsesField => RelationType::UsesField,
+        EdgeType::Implements => RelationType::Implements,
+        EdgeType::UsesType => RelationType::UsesType,
+        EdgeType::ModuleChild => RelationType::ModuleChild,
+    }
+}
+
+// Deprecated: Use edge_type_to_relation_type() instead
 fn edge_type_to_neo4j_type(edge_type: &EdgeType) -> &str {
     match edge_type {
         EdgeType::Calls => "CALLS",

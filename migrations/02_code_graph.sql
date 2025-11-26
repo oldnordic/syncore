@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS code_entities (
     docstring TEXT,              -- Documentation/comments
     language TEXT NOT NULL,      -- rust|javascript|python|json|toml|bash
     indexed_at INTEGER NOT NULL, -- Epoch seconds
+    body_snippet TEXT,           -- APEX v1.7: First N lines of function body for semantic search
     UNIQUE(file_path, entity_type, name, line_start)
 );
 

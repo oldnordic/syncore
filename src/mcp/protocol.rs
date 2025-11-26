@@ -137,6 +137,13 @@ pub async fn list_tools() -> Vec<ToolInfo> {
             input_schema: "schemas/code_graph_refactor_symbol.json".into(),
             output_schema: "schemas/code_graph_refactor_symbol_output.json".into(),
         },
+        // SMEL - Static Macro Expansion Layer
+        ToolInfo {
+            name: "project.macro_expand".into(),
+            description: "Get macro expansions for a Rust file from the Static Macro Expansion Layer (SMEL).".into(),
+            input_schema: "schemas/project_macro_expand.json".into(),
+            output_schema: "schemas/project_macro_expand_output.json".into(),
+        },
     ]
 }
 
@@ -146,7 +153,7 @@ pub async fn describe_server() -> serde_json::Value {
         "version": env!("CARGO_PKG_VERSION"),
         "description": "Cognitive micro-kernel with sequential thinking, memory, and task management",
         "encodings": ["json", "msgpack"],
-        "tools_count": 16,
+        "tools_count": 17,
         "capabilities": {
             "memory": true,
             "vector_search": true,
@@ -410,6 +417,11 @@ async fn invoke_tool(
                     .to_string(),
             };
             rmp_serde::to_vec(&request)?
+        }
+        "project.macro_expand" => {
+            use crate::mcp::code_graph_tools::handle_project_macro_expand;
+            let result = handle_project_macro_expand(arguments.clone()).await?;
+            rmp_serde::to_vec(&result)?
         }
         _ => return Err(format!("Unknown tool: {}", name).into()),
     };

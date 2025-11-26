@@ -80,7 +80,9 @@ impl WarmupController {
     ///
     /// Used for testing or reset scenarios.
     pub fn mark_cold(&self) {
-        let old = self.state.swap(HnswWarmupState::Cold as u8, Ordering::SeqCst);
+        let old = self
+            .state
+            .swap(HnswWarmupState::Cold as u8, Ordering::SeqCst);
         eprintln!(
             "[SynCore] HNSW warmup state: {:?} -> Cold",
             HnswWarmupState::from(old)
@@ -91,7 +93,9 @@ impl WarmupController {
     ///
     /// Called at the start of HNSW warmup/rebuild.
     pub fn mark_warming_up(&self) {
-        let old = self.state.swap(HnswWarmupState::WarmingUp as u8, Ordering::SeqCst);
+        let old = self
+            .state
+            .swap(HnswWarmupState::WarmingUp as u8, Ordering::SeqCst);
         eprintln!(
             "[SynCore] HNSW warmup state: {:?} -> WarmingUp",
             HnswWarmupState::from(old)
@@ -102,7 +106,9 @@ impl WarmupController {
     ///
     /// Called when HNSW warmup completes and index is ready.
     pub fn mark_hot(&self) {
-        let old = self.state.swap(HnswWarmupState::Hot as u8, Ordering::SeqCst);
+        let old = self
+            .state
+            .swap(HnswWarmupState::Hot as u8, Ordering::SeqCst);
         eprintln!(
             "[SynCore] HNSW warmup state: {:?} -> Hot",
             HnswWarmupState::from(old)

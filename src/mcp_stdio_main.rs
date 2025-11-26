@@ -3,19 +3,46 @@ use std::env;
 use std::net::SocketAddr;
 use std::sync::atomic::Ordering;
 
+use syncore::config::SyncoreConfig;
 use syncore::http_stream_server::HttpStreamServer;
 use syncore::mcp_server::run_mcp_stdio_server;
-use syncore::memory::Memory;
 use syncore::router::SynCoreState;
-use syncore::tasks::Tasks;
 use syncore::tools_cli::log_registered_tools;
-use syncore::vector::{RealEmbeddings, VectorStore};
+use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Get configuration from environment
-    let db_path = env::var("DB_PATH").unwrap_or_else(|_| "syncore.db".to_string());
-    let http_port = env::var("HTTP_PORT").unwrap_or_else(|_| "3001".to_string());
+    // Load configuration from file (or use defaults)
+    let config_path =
+        env::var("SYNCORE_CONFIG").unwrap_or_else(|_| "config/syncore.toml".to_string());
+
+    let config = if std::path::Path::new(&config_path).exists() {
+        match SyncoreConfig::load(&config_path) {
+            Ok(c) => {
+                eprintln!("Loaded config from: {}", config_path);
+                c
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to load config from {}: {}", config_path, e);
+                eprintln!("Using default configuration");
+                SyncoreConfig::default()
+            }
+        }
+    } else {
+        eprintln!("Config file not found at {}, using defaults", config_path);
+        SyncoreConfig::default()
+    };
+
+    // Initialize global config for path filtering and other config-aware tools
+    SyncoreConfig::init_global(config.clone());
+    eprintln!(
+        "Global config initialized ({} excluded dirs)",
+        config.indexing.excluded_dirs.len()
+    );
+
+    // Get configuration from environment (overrides config file)
+    let db_path = env::var("DB_PATH").unwrap_or_else(|_| config.paths.db_path.clone());
+    let http_port = env::var("HTTP_PORT").unwrap_or_else(|_| config.http.port.to_string());
     let http_bind: SocketAddr = format!("127.0.0.1:{}", http_port).parse()?;
 
     eprintln!("Starting SynCore MCP servers...");
@@ -25,17 +52,59 @@ async fn main() -> Result<()> {
     // Log all registered MCP tools
     log_registered_tools().await;
 
-    // Initialize state (single instance shared by STDIO and HTTP)
-    let memory = Memory::new(&db_path)?;
-    let tasks = Tasks::new(&format!("{}_tasks", db_path))?;
-    let embeddings = Box::new(RealEmbeddings::new(384)?);
-    let vector_store = std::sync::Arc::new(std::sync::Mutex::new(VectorStore::new(embeddings)));
-    let mut state = SynCoreState::new(memory, tasks, vector_store);
+    // Initialize dual VectorStores for domain-aware embedding routing (APEX 1.7)
+    // CODE domain: code entities with code-optimized embeddings
+    // GENERAL domain: documents, tasks, notes with general-purpose embeddings
+    use syncore::common::db_paths;
+
+    // Create CODE domain store with BGE embeddings (optimized for code)
+    eprintln!("[syncore] Initializing CODE domain VectorStore (BGE-small-en-v1.5 for code entities)...");
+    let code_embeddings = Box::new(HuggingFaceEmbeddings::new_bge()?);
+    let mut code_store = VectorStore::new(code_embeddings);
+    let code_index_path = db_paths::code_vector_index_path();
+    eprintln!("[syncore] CODE vector index path: {}", code_index_path);
+    code_store.set_index_path(code_index_path);
+    let code_store = std::sync::Arc::new(std::sync::Mutex::new(code_store));
+
+    // Create GENERAL domain store with all-MiniLM embeddings (for general text)
+    eprintln!("[syncore] Initializing GENERAL domain VectorStore (all-MiniLM-L6-v2 for documents, tasks, notes)...");
+    let general_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
+    let mut general_store = VectorStore::new(general_embeddings);
+    let general_index_path = db_paths::general_vector_index_path();
+    eprintln!("[syncore] GENERAL vector index path: {}", general_index_path);
+    general_store.set_index_path(general_index_path);
+    let general_store = std::sync::Arc::new(std::sync::Mutex::new(general_store));
+
+    // Initialize state with dual stores
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store)?;
+    eprintln!("[syncore] Dual-embedding architecture initialized (CODE + GENERAL domains)");
 
     {
         use syncore::message_bus::MessageBus;
         let bus = MessageBus::new();
         state = state.with_message_bus(bus);
+    }
+
+    // Initialize IntelliTask with Ollama backend
+    {
+        use std::sync::Arc;
+        use syncore::ollama::OllamaClient;
+        use syncore::intellitask::IntelliTask;
+
+        eprintln!("Initializing IntelliTask with Ollama backend...");
+
+        match OllamaClient::new_default() {
+            Ok(ollama) => {
+                let intellitask = Arc::new(IntelliTask::new(ollama));
+                state = state.with_intellitask(intellitask);
+                eprintln!("IntelliTask initialized successfully");
+            }
+            Err(e) => {
+                eprintln!("IntelliTask initialization failed: {}", e);
+                eprintln!("IntelliTask AI features will be unavailable");
+                eprintln!("Ensure Ollama is running for production");
+            }
+        }
     }
 
     // Connect to Neo4j if available
@@ -71,11 +140,12 @@ async fn main() -> Result<()> {
         let hnsw_ready = state.hnsw_ready.clone();
 
         tokio::spawn(async move {
-            eprintln!("[SynCore] Starting HNSW warmup (snapshot-first pattern)...");
+            eprintln!("[SynCore] Starting HNSW warmup for CODE domain (snapshot-first pattern)...");
 
             // Clone references needed for spawn_blocking
             let blocking_state = warmup_state.clone();
-            let vector_store_for_warmup = warmup_state.vector_store.clone();
+            // Use CODE domain store for warmup (code entities only)
+            let vector_store_for_warmup = warmup_state.code_store.clone();
 
             // Mark as WarmingUp state
             if let Ok(vs) = vector_store_for_warmup.lock() {
@@ -114,7 +184,7 @@ async fn main() -> Result<()> {
             let result = tokio::task::spawn_blocking(move || {
                 match CodeGraph::with_connection(
                     blocking_state.db_manager.code_graph_conn(),
-                    blocking_state.vector_store.clone(),
+                    blocking_state.code_store.clone(),
                 ) {
                     Ok(code_graph) => code_graph.rebuild_hnsw_from_entities(),
                     Err(e) => Err(e),
@@ -123,7 +193,7 @@ async fn main() -> Result<()> {
             .await;
 
             // Handle rebuild result
-            let vector_store_for_flush = warmup_state.vector_store.clone();
+            let vector_store_for_flush = warmup_state.code_store.clone();
             match result {
                 Ok(Ok(count)) => {
                     // Mark HNSW as ready
@@ -136,7 +206,10 @@ async fn main() -> Result<()> {
                         // Flush pending vectors
                         match vs.flush_pending_vectors() {
                             Ok(flushed) if flushed > 0 => {
-                                eprintln!("[SynCore] HNSW ready. Rebuilt {} vectors, flushed {} pending.", count, flushed);
+                                eprintln!(
+                                    "[SynCore] HNSW ready. Rebuilt {} vectors, flushed {} pending.",
+                                    count, flushed
+                                );
                             }
                             Ok(_) => {
                                 if count > 0 {
@@ -171,15 +244,19 @@ async fn main() -> Result<()> {
         });
     }
 
-    // Spawn HTTP Streaming server (for non-STDIO clients)
-    // Uses the SAME state instance as STDIO server
+    // Spawn HTTP Streamable server (for non-STDIO clients like Codex, other AI tools)
+    // Uses rmcp's StreamableHttpService for proper MCP protocol compliance
+    // Endpoint: http://{http_bind}/mcp (handles both POST and GET per MCP 2025-03-26 spec)
     {
         let http_state = state.clone();
         tokio::spawn(async move {
             let server = HttpStreamServer::new(http_state);
-            eprintln!("HTTP Streaming server listening on {}", http_bind);
+            eprintln!(
+                "HTTP Streamable MCP server listening on http://{}/mcp",
+                http_bind
+            );
             if let Err(e) = server.start(http_bind).await {
-                eprintln!("HTTP Streaming server error: {:?}", e);
+                eprintln!("HTTP Streamable server error: {:?}", e);
             }
         });
     }
@@ -195,7 +272,7 @@ async fn main() -> Result<()> {
 
     // Keep the process alive for HTTP clients even if STDIO is closed
     // Wait for ctrl-c signal to shut down
-    eprintln!("STDIO closed, HTTP Streaming server still running. Press Ctrl-C to stop.");
+    eprintln!("STDIO closed, HTTP Streamable MCP server still running at http://{}/mcp. Press Ctrl-C to stop.", http_bind);
     tokio::signal::ctrl_c().await?;
 
     eprintln!("MCP servers shut down");

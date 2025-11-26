@@ -59,8 +59,7 @@ impl CodeGraph {
     /// * `user_id` - Entity ID of the function/struct using the type
     /// * `type_id` - Entity ID of the type being used
     pub async fn upsert_type_usage_edge(&self, user_id: i64, type_id: i64) -> Result<()> {
-        self.upsert_edge(user_id, type_id, EdgeType::UsesType)
-            .await
+        self.upsert_edge(user_id, type_id, EdgeType::UsesType).await
     }
 
     /// Upsert a MODULE_CHILD edge for module hierarchy

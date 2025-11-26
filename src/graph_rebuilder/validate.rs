@@ -7,6 +7,7 @@
 //! - Diffusion returns >0.0 scores for connected nodes
 
 use crate::graph::Neo4jClient;
+use crate::databases::neo4j::{validate_structure, find_orphan_entities};
 use anyhow::Result;
 
 /// Statistics about node connectivity in the graph
@@ -31,48 +32,15 @@ impl GraphValidator {
     ///
     /// Requirement: >95% of nodes should have at least 1 relationship
     pub async fn validate_node_connectivity(&self) -> Result<ConnectivityStats> {
-        // Count total nodes (all SynCore labeled nodes)
-        let total_query = r#"
-            MATCH (n)
-            WHERE n.namespace = $ns
-            RETURN count(n) as total
-        "#;
+        // Use canonical validate_structure to get comprehensive graph stats
+        let stats = validate_structure(&self.neo4j).await?;
 
-        let total_result = self
-            .neo4j
-            .execute_query(total_query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
-            .await?;
-
-        let total_nodes: u64 = total_result
-            .first()
-            .and_then(|r| r.get("total"))
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        // Count nodes with at least 1 relationship
-        let connected_query = r#"
-            MATCH (n)
-            WHERE n.namespace = $ns AND EXISTS { (n)--() }
-            RETURN count(n) as connected
-        "#;
-
-        let connected_result = self
-            .neo4j
-            .execute_query(
-                connected_query,
-                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
-            )
-            .await?;
-
-        let nodes_with_edges: u64 = connected_result
-            .first()
-            .and_then(|r| r.get("connected"))
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        // Calculate nodes_with_edges = total_nodes - orphan_count
+        let nodes_with_edges = stats.total_nodes.saturating_sub(stats.orphan_count);
 
         Ok(ConnectivityStats {
-            total_nodes,
-            nodes_with_edges,
+            total_nodes: stats.total_nodes as u64,
+            nodes_with_edges: nodes_with_edges as u64,
         })
     }
 
@@ -92,7 +60,10 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
+            .execute_query(
+                query,
+                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
+            )
             .await?;
 
         let duplicates: u64 = result
@@ -108,30 +79,28 @@ impl GraphValidator {
     ///
     /// Returns list of file_path prefixes that have disconnected nodes
     pub async fn find_orphan_clusters(&self) -> Result<Vec<String>> {
-        // Find nodes that are only connected to other nodes with same file_path prefix
-        // but not connected to the main graph
-        let query = r#"
-            MATCH (n)
-            WHERE n.namespace = $ns AND NOT EXISTS { (n)--() }
-            WITH n.file_path as path
-            WHERE path IS NOT NULL
-            RETURN DISTINCT substring(path, 0, 50) as orphan_prefix
-            LIMIT 100
-        "#;
+        // Use canonical find_orphan_entities to get nodes without relationships
+        let orphans = find_orphan_entities(&self.neo4j).await?;
 
-        let result = self
-            .neo4j
-            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
-            .await?;
-
-        let orphans: Vec<String> = result
+        // Extract unique file path prefixes from orphan entities
+        let mut prefixes: Vec<String> = orphans
             .iter()
-            .filter_map(|r| r.get("orphan_prefix"))
-            .filter_map(|v| v.as_str())
-            .map(|s| s.to_string())
+            .filter_map(|entity| entity.path.as_ref())
+            .map(|path| {
+                // Get first 50 chars as prefix
+                if path.len() > 50 {
+                    path[..50].to_string()
+                } else {
+                    path.clone()
+                }
+            })
             .collect();
 
-        Ok(orphans)
+        // Deduplicate
+        prefixes.sort();
+        prefixes.dedup();
+
+        Ok(prefixes)
     }
 
     /// Test diffusion on a connected node - should return >0.0 scores
@@ -153,7 +122,10 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
+            .execute_query(
+                query,
+                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
+            )
             .await?;
 
         let scores: Vec<f64> = result
@@ -183,7 +155,10 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
+            .execute_query(
+                query,
+                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
+            )
             .await?;
 
         let coverage: f64 = result
@@ -209,7 +184,10 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
+            .execute_query(
+                query,
+                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
+            )
             .await?;
 
         let count: u64 = result
@@ -267,6 +245,9 @@ pub struct ValidationReport {
 impl ValidationReport {
     /// Check if all validations passed
     pub fn all_ok(&self) -> bool {
-        self.connectivity_ok && self.duplicates_ok && self.orphan_clusters.len() <= 1 && self.diffusion_ok
+        self.connectivity_ok
+            && self.duplicates_ok
+            && self.orphan_clusters.len() <= 1
+            && self.diffusion_ok
     }
 }

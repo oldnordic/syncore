@@ -180,58 +180,40 @@ impl StorageAdapter for RealStorageAdapter {
     }
 
     fn resolve_embedding(&self, node_id: NodeId) -> Result<Vec<f32>> {
-        // Query Neo4j for the embedding text/content associated with this node
-        let cypher = r#"
-            MATCH (n:Embedding {id: $node_id})
-            RETURN n.text as text
-        "#;
+        // Use canonical RAG graph module for type-safe query
+        use crate::databases::rag_graph::get_embedding_text;
 
-        let results = tokio::task::block_in_place(|| {
+        let text = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                self.neo4j
-                    .execute_query(cypher, vec![("node_id", serde_json::json!(node_id))])
-                    .await
+                get_embedding_text(&self.neo4j, node_id).await
             })
         })
         .context("Failed to query embedding text from Neo4j")?;
 
         // Extract text and generate embedding
-        if let Some(row) = results.first() {
-            if let Some(text) = row.get("text").and_then(|v| v.as_str()) {
-                // Generate embedding from text
-                return Ok(self.text_to_embedding(text));
-            }
+        if let Some(text) = text {
+            return Ok(self.text_to_embedding(&text));
         }
 
         Err(StorageError::EmbeddingNotFound(node_id).into())
     }
 
     fn neighbors_of(&self, node_id: NodeId) -> Result<Vec<(NodeId, f32)>> {
-        // Query Neo4j for neighbors and edge weights
-        let cypher = r#"
-            MATCH (n {id: $node_id})-[r]-(neighbor)
-            RETURN neighbor.id as neighbor_id, COALESCE(r.weight, 1.0) as weight
-        "#;
+        // Use canonical RAG graph module for type-safe query
+        use crate::databases::rag_graph::get_neighbors;
 
-        let results = tokio::task::block_in_place(|| {
+        let neighbor_results = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                self.neo4j
-                    .execute_query(cypher, vec![("node_id", serde_json::json!(node_id))])
-                    .await
+                get_neighbors(&self.neo4j, node_id).await
             })
         })
         .map_err(|e| StorageError::GraphQueryFailed(format!("Neo4j query failed: {}", e)))?;
 
-        // Parse results into (neighbor_id, weight) tuples
-        let mut neighbors = Vec::new();
-        for row in results {
-            if let (Some(neighbor_id), Some(weight)) = (
-                row.get("neighbor_id").and_then(|v| v.as_i64()),
-                row.get("weight").and_then(|v| v.as_f64()),
-            ) {
-                neighbors.push((neighbor_id, weight as f32));
-            }
-        }
+        // Convert NeighborResult to (NodeId, weight) tuples
+        let neighbors: Vec<(NodeId, f32)> = neighbor_results
+            .into_iter()
+            .map(|n| (n.id, n.weight.unwrap_or(1.0)))
+            .collect();
 
         Ok(neighbors)
     }

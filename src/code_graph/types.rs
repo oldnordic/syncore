@@ -53,11 +53,13 @@ pub struct CodeEntity {
     pub line_end: usize,
     pub docstring: Option<String>,
     pub language: String,
+    // APEX v1.7 Phase 3: Function body snippet for semantic search
+    pub body_snippet: Option<String>, // Truncated function body (first N tokens/lines)
     // PHASE 3: Temporal metadata fields
-    pub created_at: Option<i64>,      // Unix timestamp from Git or filesystem
+    pub created_at: Option<i64>, // Unix timestamp from Git or filesystem
     pub last_modified_at: Option<i64>, // Unix timestamp from Git or filesystem
-    pub change_count: Option<i32>,     // Number of commits touching this entity
-    pub author_count: Option<i32>,     // Number of unique authors
+    pub change_count: Option<i32>, // Number of commits touching this entity
+    pub author_count: Option<i32>, // Number of unique authors
 }
 
 impl CodeEntity {
@@ -83,6 +85,7 @@ impl CodeEntity {
             line_end,
             docstring,
             language,
+            body_snippet: None,
             created_at: None,
             last_modified_at: None,
             change_count: None,
@@ -147,10 +150,10 @@ pub enum EdgeType {
     Uses,
     Contains,
     // PHASE 1: New semantic edge types
-    UsesField,    // Type/var uses struct field (foo.bar)
-    Implements,   // impl Trait for Type
-    UsesType,     // Function/struct uses type (Vec<MyType>)
-    ModuleChild,  // Module/file hierarchy
+    UsesField,   // Type/var uses struct field (foo.bar)
+    Implements,  // impl Trait for Type
+    UsesType,    // Function/struct uses type (Vec<MyType>)
+    ModuleChild, // Module/file hierarchy
 }
 
 impl EdgeType {

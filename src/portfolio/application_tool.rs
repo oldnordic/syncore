@@ -120,49 +120,44 @@ impl ApplicationTool {
             change.new_content.as_deref().unwrap_or("")
         );
         {
-            let mut store = self.state.vector_store.lock().unwrap();
+            let mut store = self.state.general_store.lock().unwrap();
             store.insert_text(change_id, change.task_id, &description, "code_change")?;
         }
 
-        // Neo4j integration: MERGE Patch node, APPLIES_TO and FOR_TASK relationships
+        // Neo4j integration: Use canonical portfolio_graph module
         if let Some(neo4j) = &self.state.neo4j {
+            use crate::databases::portfolio_graph::{
+                upsert_patch, create_applies_to_relationship,
+                create_for_task_relationship, upsert_task, PatchProperties
+            };
+
             let neo4j = neo4j.clone();
             let patch_id = change_id;
             let file_path = change.file_path.clone();
             let task_id_opt = change.task_id;
-            let ns = neo4j.namespace().to_string();
 
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async move {
-                    // MERGE the Patch node with namespace for identity isolation
-                    let _ = neo4j.execute_query(
-                        "MERGE (p:Patch {id: $id, namespace: $ns})",
-                        vec![
-                            ("id", serde_json::json!(patch_id)),
-                            ("ns", serde_json::json!(ns.clone()))
-                        ]
-                    ).await;
+                    // Create Patch node
+                    let _ = upsert_patch(&neo4j, PatchProperties {
+                        id: patch_id,
+                        metadata: None,
+                    }).await;
 
-                    // MERGE APPLIES_TO relationship to File (File uses path as global key)
-                    let _ = neo4j.execute_query(
-                        "MERGE (p:Patch {id: $patch_id, namespace: $ns}) MERGE (f:File {path: $path}) MERGE (p)-[:APPLIES_TO]->(f)",
-                        vec![
-                            ("patch_id", serde_json::json!(patch_id)),
-                            ("ns", serde_json::json!(ns.clone())),
-                            ("path", serde_json::json!(file_path))
-                        ]
-                    ).await;
+                    // Create APPLIES_TO relationship to File
+                    let _ = create_applies_to_relationship(&neo4j, patch_id, &file_path).await;
 
-                    // MERGE FOR_TASK relationship if task_id exists
+                    // Create FOR_TASK relationship if task_id exists
                     if let Some(task_id) = task_id_opt {
-                        let _ = neo4j.execute_query(
-                            "MERGE (p:Patch {id: $patch_id, namespace: $ns}) MERGE (t:Task {id: $task_id, namespace: $ns}) MERGE (p)-[:FOR_TASK]->(t)",
-                            vec![
-                                ("patch_id", serde_json::json!(patch_id)),
-                                ("ns", serde_json::json!(ns.clone())),
-                                ("task_id", serde_json::json!(task_id))
-                            ]
-                        ).await;
+                        // Ensure Task node exists
+                        use crate::databases::portfolio_graph::TaskProperties;
+                        let _ = upsert_task(&neo4j, TaskProperties {
+                            id: task_id,
+                            metadata: None,
+                        }).await;
+
+                        // Create relationship
+                        let _ = create_for_task_relationship(&neo4j, patch_id, task_id).await;
                     }
                 })
             });
@@ -257,7 +252,7 @@ impl ApplicationTool {
     /// Search changes by semantic content
     pub fn search_changes(&self, query: &str) -> Result<Vec<CodeChange>> {
         let results = {
-            let store = self.state.vector_store.lock().unwrap();
+            let store = self.state.general_store.lock().unwrap();
             store.search(query, 10, SearchScope::Global)?
         };
 

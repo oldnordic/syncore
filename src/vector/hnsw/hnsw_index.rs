@@ -84,15 +84,15 @@ impl HnswVectorIndex {
     /// Uses hnsw_rs native file_dump which saves to multiple files with basename prefix.
     /// Example: path="/tmp/hnsw.index" saves to /tmp/hnsw_* files
     pub fn save_to_disk(&self, path: &Path) -> Result<()> {
-        let hnsw_guard = self.hnsw.read().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+        let hnsw_guard = self
+            .hnsw
+            .read()
+            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
 
         if let Some(ref hnsw) = *hnsw_guard {
             // hnsw_rs file_dump API: file_dump(&self, dir: &Path, basename: &str)
             let dir = path.parent().unwrap_or_else(|| Path::new("."));
-            let basename = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("hnsw");
+            let basename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("hnsw");
 
             hnsw.file_dump(dir, basename)
                 .map_err(|e| anyhow!("HNSW serialization failed: {:?}", e))?;
@@ -108,7 +108,10 @@ impl HnswVectorIndex {
     /// Uses hnsw_rs native HnswIO::load_hnsw_with_dist for loading.
     /// Requires the index to be uninitialized.
     pub fn load_from_disk(&mut self, path: &Path) -> Result<()> {
-        let mut hnsw_guard = self.hnsw.write().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+        let mut hnsw_guard = self
+            .hnsw
+            .write()
+            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
 
         if hnsw_guard.is_some() {
             return Err(anyhow!("Cannot load into already-initialized HNSW index"));
@@ -116,10 +119,7 @@ impl HnswVectorIndex {
 
         // hnsw_rs stores multiple files with basename prefix
         let dir = path.parent().unwrap_or_else(|| Path::new("."));
-        let basename = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("hnsw");
+        let basename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("hnsw");
 
         // Use HnswIo to load
         use hnsw_rs::hnswio::HnswIo;
@@ -132,8 +132,7 @@ impl HnswVectorIndex {
         // The lifetime parameter 'b is a phantom type parameter for type safety,
         // but the actual data structure is self-contained after loading.
         // We need 'static lifetime to store in our struct.
-        let loaded: Hnsw<'static, f32, DistL2> =
-            unsafe { std::mem::transmute(loaded_temp) };
+        let loaded: Hnsw<'static, f32, DistL2> = unsafe { std::mem::transmute(loaded_temp) };
 
         // Update metadata
         self.count = loaded.get_nb_point();
@@ -156,7 +155,10 @@ impl HnswVectorIndex {
 
         // Clear existing index
         {
-            let mut hnsw_guard = self.hnsw.write().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+            let mut hnsw_guard = self
+                .hnsw
+                .write()
+                .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
             *hnsw_guard = None;
         }
 
@@ -205,10 +207,7 @@ impl HnswVectorIndex {
     /// Returns true only if the main graph file exists.
     pub fn files_exist(path: &Path) -> bool {
         let dir = path.parent().unwrap_or_else(|| Path::new("."));
-        let basename = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("hnsw");
+        let basename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("hnsw");
 
         // Check for main HNSW file (graph structure)
         let graph_file = dir.join(format!("{}.hnsw.graph", basename));

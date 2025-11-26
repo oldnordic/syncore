@@ -85,11 +85,17 @@ pub async fn run_validate(config: &GraphCliConfig) -> Result<bool> {
     );
 
     // Print diffusion
-    println!("\nDiffusion Test: {}", if report.diffusion_ok { "OK" } else { "FAIL" });
+    println!(
+        "\nDiffusion Test: {}",
+        if report.diffusion_ok { "OK" } else { "FAIL" }
+    );
 
     // Overall status
     let all_ok = report.all_ok();
-    println!("\n=== Overall: {} ===", if all_ok { "PASS" } else { "FAIL" });
+    println!(
+        "\n=== Overall: {} ===",
+        if all_ok { "PASS" } else { "FAIL" }
+    );
 
     Ok(all_ok)
 }
@@ -150,62 +156,27 @@ pub async fn run_stats(config: &GraphCliConfig) -> Result<()> {
         .await
         .context("Failed to connect to Neo4j")?;
 
-    // Query node count
-    let node_result = client
-        .execute_query(
-            "MATCH (n) WHERE n.namespace = $ns RETURN count(n) as cnt",
-            vec![("ns", serde_json::json!(client.namespace()))],
-        )
-        .await?;
-
-    let node_count = node_result
-        .first()
-        .and_then(|r| r.get("cnt"))
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-
-    // Query edge count
-    let edge_result = client
-        .execute_query(
-            r#"
-            MATCH (a)-[r]->(b)
-            WHERE a.namespace = $ns AND b.namespace = $ns
-            RETURN count(r) as cnt
-            "#,
-            vec![("ns", serde_json::json!(client.namespace()))],
-        )
-        .await?;
-
-    let edge_count = edge_result
-        .first()
-        .and_then(|r| r.get("cnt"))
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
-
-    // Query edge types
-    let type_result = client
-        .execute_query(
-            r#"
-            MATCH (a)-[r]->(b)
-            WHERE a.namespace = $ns AND b.namespace = $ns
-            RETURN type(r) as rel_type, count(r) as cnt
-            ORDER BY cnt DESC
-            "#,
-            vec![("ns", serde_json::json!(client.namespace()))],
-        )
-        .await?;
+    // Get comprehensive graph statistics using canonical API
+    use crate::databases::neo4j::validate_structure;
+    let stats = validate_structure(&client).await?;
 
     println!("\n=== Graph Statistics ===\n");
     println!("Namespace: {}", client.namespace());
-    println!("Total Nodes: {}", node_count);
-    println!("Total Edges: {}", edge_count);
+    println!("Total Nodes: {}", stats.total_nodes);
+    println!("Total Edges: {}", stats.total_edges);
+    println!("Orphan Nodes: {}", stats.orphan_count);
 
-    if !type_result.is_empty() {
+    if !stats.entity_types.is_empty() {
+        println!("\nEntity Types:");
+        for (entity_type, count) in &stats.entity_types {
+            println!("  {}: {}", entity_type, count);
+        }
+    }
+
+    if !stats.edge_types.is_empty() {
         println!("\nEdge Types:");
-        for row in type_result {
-            let rel_type = row.get("rel_type").and_then(|v| v.as_str()).unwrap_or("?");
-            let cnt = row.get("cnt").and_then(|v| v.as_u64()).unwrap_or(0);
-            println!("  {}: {}", rel_type, cnt);
+        for (rel_type, count) in &stats.edge_types {
+            println!("  {}: {}", rel_type, count);
         }
     }
 
@@ -282,13 +253,20 @@ pub async fn run_sync(config: &GraphCliConfig) -> Result<()> {
     let connectivity = stats.nodes_with_edges as f64 / stats.total_nodes.max(1) as f64;
 
     println!("\n=== Sync Complete ===");
-    println!("Connectivity: {}/{} ({:.1}%)",
-        stats.nodes_with_edges, stats.total_nodes, connectivity * 100.0);
+    println!(
+        "Connectivity: {}/{} ({:.1}%)",
+        stats.nodes_with_edges,
+        stats.total_nodes,
+        connectivity * 100.0
+    );
 
     if connectivity >= 0.95 {
         println!("Status: PASS (target >= 95%)");
     } else {
-        println!("Status: BELOW TARGET (got {:.1}%, need 95%)", connectivity * 100.0);
+        println!(
+            "Status: BELOW TARGET (got {:.1}%, need 95%)",
+            connectivity * 100.0
+        );
     }
 
     Ok(())

@@ -6,6 +6,7 @@
 
 use super::types::{CodeEntity, EntityType};
 use crate::graph::Neo4jClient;
+use crate::databases::neo4j::{NodeLabel, NodeProperties, upsert_entity};
 use anyhow::Result;
 
 /// Create a Neo4j node for a CodeEntity
@@ -33,58 +34,49 @@ pub async fn create_code_entity_node(
     entity_id: i64,
     entity: &CodeEntity,
 ) -> Result<()> {
-    // Get label for this entity type
-    let label = entity_type_to_label(&entity.entity_type);
+    // Map EntityType to canonical NodeLabel
+    let label = entity_type_to_node_label(&entity.entity_type);
 
-    // Build Cypher query with dynamic label + SynCore project label (TASK C)
-    // All SynCore entities get :SynCore label for project isolation
-    let cypher = format!(
-        r#"
-        MERGE (e:{}:SynCore {{id: $id, namespace: $ns}})
-        SET e.file_path = $file_path,
-            e.name = $name,
-            e.signature = $signature,
-            e.line_start = $line_start,
-            e.line_end = $line_end,
-            e.docstring = $docstring,
-            e.language = $language,
-            e.indexed_at = datetime(),
-            e.created_at = $created_at,
-            e.last_modified_at = $last_modified_at,
-            e.change_count = $change_count,
-            e.author_count = $author_count
-        "#,
-        label
-    );
+    // Map CodeEntity to canonical NodeProperties
+    let props = NodeProperties {
+        id: entity_id,
+        name: entity.name.clone(),
+        path: Some(entity.file_path.clone()),
+        start_line: Some(entity.line_start as i64),
+        end_line: Some(entity.line_end as i64),
+        signature: entity.signature.clone(),
+        body_snippet: entity.body_snippet.clone(),
+        docstring: entity.docstring.clone(),
+        hash: None, // Not available in CodeEntity
+        language: Some(entity.language.clone()),
+        file_sha256: None, // Not available in CodeEntity
+        mtime: None, // Not available in CodeEntity
+        created_at: entity.created_at.map(|ts| ts.to_string()),
+        last_modified_at: entity.last_modified_at.map(|ts| ts.to_string()),
+        change_count: entity.change_count.map(|c| c as i64),
+        author_count: entity.author_count.map(|c| c as i64),
+    };
 
-    // Execute with parameters
-    neo4j
-        .execute_query(
-            &cypher,
-            vec![
-                ("id", serde_json::json!(entity_id)),
-                ("ns", serde_json::json!(neo4j.namespace())),
-                ("file_path", serde_json::json!(entity.file_path)),
-                ("name", serde_json::json!(entity.name)),
-                ("signature", serde_json::json!(entity.signature)),
-                ("line_start", serde_json::json!(entity.line_start as i64)),
-                ("line_end", serde_json::json!(entity.line_end as i64)),
-                ("docstring", serde_json::json!(entity.docstring)),
-                ("language", serde_json::json!(entity.language)),
-                ("created_at", serde_json::json!(entity.created_at)),
-                ("last_modified_at", serde_json::json!(entity.last_modified_at)),
-                ("change_count", serde_json::json!(entity.change_count)),
-                ("author_count", serde_json::json!(entity.author_count)),
-            ],
-        )
-        .await?;
-
-    Ok(())
+    // Use canonical upsert function (handles :EntityType:SynCore, namespace, idempotency)
+    upsert_entity(neo4j, label, props).await
 }
 
-/// Map EntityType to Neo4j node label
+/// Map EntityType to canonical NodeLabel
 ///
 /// Each entity type gets a specific label for optimal Cypher query performance.
+fn entity_type_to_node_label(entity_type: &EntityType) -> NodeLabel {
+    match entity_type {
+        EntityType::Function => NodeLabel::Function,
+        EntityType::Class => NodeLabel::Struct, // Map Class to Struct (closest match)
+        EntityType::Method => NodeLabel::Function, // Methods are functions
+        EntityType::Import => NodeLabel::Import,
+        EntityType::Struct => NodeLabel::Struct,
+        EntityType::Enum => NodeLabel::Enum,
+        EntityType::Trait => NodeLabel::Trait,
+    }
+}
+
+// Deprecated: Use entity_type_to_node_label() instead
 fn entity_type_to_label(entity_type: &EntityType) -> &str {
     match entity_type {
         EntityType::Function => "Function",
@@ -125,6 +117,7 @@ mod tests {
             line_end: 10,
             docstring: None,
             language: "rust".to_string(),
+            body_snippet: None, // APEX v1.7 Phase 3
             created_at: Some(1234567890),
             last_modified_at: Some(1234567890),
             change_count: Some(5),
@@ -141,7 +134,13 @@ mod tests {
         );
 
         // Verify query includes both type label and :SynCore label
-        assert!(cypher.contains(":Function:SynCore"), "Query should include both :Function and :SynCore labels");
-        assert!(cypher.contains("MERGE (e:Function:SynCore"), "Query should use correct label syntax");
+        assert!(
+            cypher.contains(":Function:SynCore"),
+            "Query should include both :Function and :SynCore labels"
+        );
+        assert!(
+            cypher.contains("MERGE (e:Function:SynCore"),
+            "Query should use correct label syntax"
+        );
     }
 }

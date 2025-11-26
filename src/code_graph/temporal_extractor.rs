@@ -66,9 +66,7 @@ fn extract_filesystem_temporal(path: &Path) -> Result<(i64, i64)> {
 
     // Get created time (platform-specific)
     let created = match metadata.created() {
-        Ok(time) => time
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs() as i64,
+        Ok(time) => time.duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64,
         Err(_) => modified, // Fall back to modified if created unavailable
     };
 

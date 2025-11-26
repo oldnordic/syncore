@@ -21,8 +21,8 @@ pub struct SemanticExtractor {
 /// Extracted semantic relationship
 #[derive(Debug, Clone)]
 pub struct SemanticEdge {
-    pub source_name: String,     // Caller/user entity name
-    pub target_name: String,     // Callee/used entity name
+    pub source_name: String, // Caller/user entity name
+    pub target_name: String, // Callee/used entity name
     pub edge_type: EdgeType,
     pub source_line: usize,
     pub target_line: Option<usize>, // None if target is external
@@ -38,7 +38,9 @@ impl SemanticExtractor {
 
     /// Extract all semantic edges from Rust source code
     pub fn extract_edges(&mut self, source: &str, file_path: &str) -> Result<Vec<SemanticEdge>> {
-        let tree = self.parser.parse(source, None)
+        let tree = self
+            .parser
+            .parse(source, None)
             .ok_or_else(|| anyhow::anyhow!("Failed to parse source"))?;
 
         let mut edges = Vec::new();
@@ -61,7 +63,6 @@ impl SemanticExtractor {
     /// Extract function call edges
     fn extract_calls(&self, root: Node, source: &str) -> Result<Vec<SemanticEdge>> {
         let mut edges = Vec::new();
-        
 
         // Find all function/method definitions
         let functions = self.find_functions(root, source)?;
@@ -158,14 +159,23 @@ impl SemanticExtractor {
 
     // Helper methods
 
-    fn find_functions<'a>(&self, root: Node<'a>, source: &str) -> Result<Vec<(String, Node<'a>, usize)>> {
+    fn find_functions<'a>(
+        &self,
+        root: Node<'a>,
+        source: &str,
+    ) -> Result<Vec<(String, Node<'a>, usize)>> {
         // Use recursive traversal without closures to avoid lifetime issues
         let mut functions = Vec::new();
         self.collect_functions_recursive(root, source, &mut functions);
         Ok(functions)
     }
 
-    fn collect_functions_recursive<'a>(&self, node: Node<'a>, source: &str, functions: &mut Vec<(String, Node<'a>, usize)>) {
+    fn collect_functions_recursive<'a>(
+        &self,
+        node: Node<'a>,
+        source: &str,
+        functions: &mut Vec<(String, Node<'a>, usize)>,
+    ) {
         if node.kind() == "function_item" || node.kind() == "function_signature_item" {
             if let Some(name) = self.get_function_name(node, source) {
                 functions.push((name, node, node.start_position().row + 1));

@@ -181,7 +181,8 @@ fn execute_vector_search(args: &serde_json::Value, state: &SynCoreState) -> Resu
         .ok_or_else(|| anyhow::anyhow!("Missing query"))?;
     let limit = args["limit"].as_u64().unwrap_or(10) as usize;
 
-    let store = state.vector_store.lock().unwrap();
+    // Use GENERAL domain store for plan documents
+    let store = state.general_store.lock().unwrap();
     let results = store.search(query, limit, crate::vector::SearchScope::Global)?;
 
     Ok(format!("Found {} vector results", results.len()))
@@ -193,7 +194,7 @@ fn execute_vector_insert(args: &serde_json::Value, state: &SynCoreState) -> Resu
         .ok_or_else(|| anyhow::anyhow!("Missing text"))?;
     let id = args["id"].as_i64().unwrap_or(0);
 
-    let mut store = state.vector_store.lock().unwrap();
+    let mut store = state.general_store.lock().unwrap();
     store.insert_text(id, None, text, "plan")?;
 
     Ok(format!("Inserted vector: id={}", id))

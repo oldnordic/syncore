@@ -99,11 +99,7 @@ pub fn compute_graph_score(depth: Option<usize>) -> f32 {
 /// # Implementation
 /// - Recency: Normalized by 1 year window (entities modified within last year get higher scores)
 /// - Churn: log(1 + change_count) normalized by log(101) for [0.0, 1.0] range
-pub fn compute_temporal_score(
-    last_modified_at: i64,
-    change_count: i32,
-    _author_count: i32,
-) -> f32 {
+pub fn compute_temporal_score(last_modified_at: i64, change_count: i32, _author_count: i32) -> f32 {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -174,7 +170,10 @@ mod tests {
     fn test_compute_graph_score_self_node() {
         // Self node (depth 0) should have score 1.0
         let score = compute_graph_score(Some(0));
-        assert_eq!(score, 1.0, "Self node (depth=0) should have graph_score = 1.0");
+        assert_eq!(
+            score, 1.0,
+            "Self node (depth=0) should have graph_score = 1.0"
+        );
     }
 
     #[test]
@@ -182,7 +181,10 @@ mod tests {
         // Direct neighbor (depth 1) should have score 0.5
         // Formula: 1.0 / (1.0 + 1) = 0.5
         let score = compute_graph_score(Some(1));
-        assert!((score - 0.5).abs() < 0.001, "Direct neighbor (depth=1) should have graph_score ≈ 0.5");
+        assert!(
+            (score - 0.5).abs() < 0.001,
+            "Direct neighbor (depth=1) should have graph_score ≈ 0.5"
+        );
     }
 
     #[test]
@@ -190,7 +192,10 @@ mod tests {
         // Depth 2 neighbor should have score ~0.33
         // Formula: 1.0 / (1.0 + 2) = 0.333...
         let score = compute_graph_score(Some(2));
-        assert!((score - 0.333).abs() < 0.01, "Depth-2 neighbor should have graph_score ≈ 0.33");
+        assert!(
+            (score - 0.333).abs() < 0.01,
+            "Depth-2 neighbor should have graph_score ≈ 0.33"
+        );
     }
 
     #[test]
@@ -200,7 +205,13 @@ mod tests {
         let score_2 = compute_graph_score(Some(2));
         let score_3 = compute_graph_score(Some(3));
 
-        assert!(score_1 > score_2, "Depth 1 should score higher than depth 2");
-        assert!(score_2 > score_3, "Depth 2 should score higher than depth 3");
+        assert!(
+            score_1 > score_2,
+            "Depth 1 should score higher than depth 2"
+        );
+        assert!(
+            score_2 > score_3,
+            "Depth 2 should score higher than depth 3"
+        );
     }
 }

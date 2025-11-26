@@ -6,6 +6,7 @@ use crate::portfolio::code_graph_extractor::CodeGraphExtractor;
 use crate::portfolio::code_graph_refactor::RefactoringSuggestionEngine;
 use crate::portfolio::code_graph_store::CodeGraphStore;
 use anyhow::{anyhow, Result};
+use rusqlite;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -394,5 +395,47 @@ pub async fn handle_code_graph_refactor_symbol(params: Value) -> Result<Value> {
         "symbol_name": symbol_name,
         "symbol_kind": symbol_kind,
         "refactoring_plan": plan
+    }))
+}
+
+/// Get macro expansions for a Rust file
+pub async fn handle_project_macro_expand(params: Value) -> Result<Value> {
+    let file_path = params["file_path"]
+        .as_str()
+        .ok_or_else(|| anyhow!("Missing 'file_path' parameter"))?;
+
+    let db_path = params["db_path"]
+        .as_str()
+        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+
+    // Connect to database and query macro expansions
+    let conn = rusqlite::Connection::open(db_path)?;
+
+    let mut stmt = conn.prepare(
+        r#"
+        SELECT macro_name, span_start, span_end, original_code, expanded_code, expansion_type
+        FROM code_macro_expansions
+        WHERE file_path = ?
+        ORDER BY span_start
+        "#,
+    )?;
+
+    let expansions = stmt
+        .query_map([file_path], |row| {
+            Ok(json!({
+                "macro_name": row.get::<_, String>(0)?,
+                "span_start": row.get::<_, i64>(1)?,
+                "span_end": row.get::<_, i64>(2)?,
+                "original_code": row.get::<_, String>(3)?,
+                "expanded_code": row.get::<_, String>(4)?,
+                "expansion_type": row.get::<_, String>(5)?
+            }))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(json!({
+        "file_path": file_path,
+        "macro_expansions": expansions,
+        "count": expansions.len()
     }))
 }

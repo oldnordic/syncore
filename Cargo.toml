@@ -52,7 +52,7 @@ tree-sitter-json = "0.20"
 tree-sitter-toml = "0.20"
 tree-sitter-bash = "0.20"
 regex = "1.10"
-rmcp = { version = "0.8", features = ["transport-io", "transport-sse-server"] }
+rmcp = { version = "0.8", features = ["transport-io", "transport-streamable-http-server"] }
 walkdir = "2.5"
 glob = "0.3"
 deadpool = "0.12"

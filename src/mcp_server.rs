@@ -275,6 +275,15 @@ pub struct MappingDepsRequest {
     pub path: String,
 }
 
+// STEP D: Explain Function Tool
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ExplainFunctionRequest {
+    /// Name of the function to explain
+    pub function_name: String,
+    /// Path to the file containing the function
+    pub file_path: String,
+}
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct SequentialRecordRequest {
     pub task_id: Option<i64>,
@@ -398,12 +407,230 @@ pub struct ProjectUnusedImportsRequest {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectCodeSmellsRequest {
+    pub limit: Option<u32>,
+    pub include_entities: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ProjectRefactorSuggestionsRequest {
     pub limit: u32,
     pub loc_threshold: Option<u32>,
     pub entity_threshold: Option<u32>,
     pub fan_in_threshold: Option<u32>,
     pub fan_out_threshold: Option<u32>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct ProjectCleanupExcludedRequest {
+    /// If true, only report what would be deleted without actually deleting
+    #[serde(default)]
+    pub dry_run: bool,
+    /// Override excluded directories (uses config if not provided)
+    pub excluded_dirs: Option<Vec<String>>,
+}
+
+// APEX v1.3 Suite Tools
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct MemorySuiteRequest {
+    /// Command to execute: store, query, vector_insert, vector_search, task_create, sequential_record, sequential_get, sequential_search, sequential_cycle, agent_send, agent_recv, agent_poll, agent_register, agent_list, agent_status, agent_task, agent_result, intellitask_generate, intellitask_subtasks, intellitask_prioritize, intellitask_next, intellitask_save, intellitask_get, intellitask_list, intellitask_update_status, intellitask_next_ready, intellitask_get_subtasks, intellitask_subtask_stats, intellitask_task_statistics, intellitask_prd_statistics, help
+    pub command: String,
+    // Memory operations
+    #[serde(default)]
+    pub key: Option<String>,
+    #[serde(default)]
+    pub value: Option<String>,
+    // Vector operations
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub query: Option<String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub namespace: Option<String>,
+    // Task operations
+    #[serde(default)]
+    pub goal: Option<String>,
+    #[serde(default)]
+    pub priority: Option<i32>,
+    // Sequential operations
+    #[serde(default)]
+    pub task_id: Option<i64>,
+    #[serde(default)]
+    pub step_number: Option<i32>,
+    #[serde(default)]
+    pub thought: Option<String>,
+    #[serde(default)]
+    pub reasoning: Option<String>,
+    #[serde(default)]
+    pub action: Option<String>,
+    #[serde(default)]
+    pub observation: Option<String>,
+    #[serde(default)]
+    pub max_cycles: Option<usize>,
+    // Agent operations
+    #[serde(default)]
+    pub to: Option<String>,
+    #[serde(default)]
+    pub from: Option<String>,
+    #[serde(default)]
+    pub agent: Option<String>,
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub message: Option<String>,
+    #[serde(default)]
+    pub capabilities: Option<Vec<String>>,
+    #[serde(default)]
+    pub status: Option<serde_json::Value>,
+    #[serde(default)]
+    pub task_type: Option<String>,
+    #[serde(default)]
+    pub payload: Option<serde_json::Value>,
+    #[serde(default)]
+    pub result: Option<serde_json::Value>,
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+    // IntelliTask operations
+    #[serde(default)]
+    pub prd_content: Option<String>,
+    #[serde(default)]
+    pub parent_task_id: Option<String>,
+    #[serde(default)]
+    pub parent_task_json: Option<String>,
+    #[serde(default)]
+    pub tasks_json: Option<String>,
+    #[serde(default)]
+    pub business_context: Option<String>,
+    #[serde(default)]
+    pub completed_tasks: Option<Vec<String>>,
+    #[serde(default)]
+    pub remaining_tasks_json: Option<String>,
+    #[serde(default)]
+    pub breakdown_json: Option<String>,
+    #[serde(default)]
+    pub parent_id: Option<i64>,
+    #[serde(default)]
+    pub prd_title: Option<String>,
+    // Common
+    #[serde(default)]
+    pub dry_run: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct CodeSuiteRequest {
+    /// Command to execute: index, index_directory, search, parse, grep, doc_index, doc_search, explain, help
+    pub command: String,
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub query: Option<String>,
+    #[serde(default)]
+    pub pattern: Option<String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub directory: Option<String>,
+    #[serde(default)]
+    pub context_lines: Option<usize>,
+    #[serde(default)]
+    pub function_name: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct GraphSuiteRequest {
+    /// Command to execute: query, insert, relate, help
+    pub command: String,
+    #[serde(default)]
+    pub cypher: Option<String>,
+    #[serde(default)]
+    pub params: Option<serde_json::Value>,
+    #[serde(default)]
+    pub from_id: Option<i64>,
+    #[serde(default)]
+    pub to_id: Option<i64>,
+    #[serde(default)]
+    pub rel_type: Option<String>,
+    #[serde(default)]
+    pub from_label: Option<String>,
+    #[serde(default)]
+    pub to_label: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct MappingSuiteRequest {
+    /// Command to execute: record, get, search, deps, help
+    pub command: String,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub imports: Option<Vec<String>>,
+    #[serde(default)]
+    pub exports: Option<Vec<String>>,
+    #[serde(default)]
+    pub dependencies: Option<Vec<String>>,
+    #[serde(default)]
+    pub query: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct DebugSuiteRequest {
+    /// Command to execute: logs_tail, tool_metadata_list, project_file_report, project_module_map, project_hotspots, project_cycles, project_dead_code, project_unused_imports, project_refactor_suggestions, help
+    pub command: String,
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub n: Option<usize>,
+    #[serde(default)]
+    pub limit: Option<u32>,
+    #[serde(default)]
+    pub root: Option<String>,
+    #[serde(default)]
+    pub max_modules: Option<u32>,
+    #[serde(default)]
+    pub max_cycles: Option<u32>,
+    #[serde(default)]
+    pub max_depth: Option<u32>,
+    #[serde(default)]
+    pub min_loc: Option<u32>,
+    #[serde(default)]
+    pub min_fan_in: Option<u32>,
+    #[serde(default)]
+    pub min_fan_out: Option<u32>,
+    #[serde(default)]
+    pub min_entity_count: Option<u32>,
+    #[serde(default)]
+    pub exclude_public: Option<bool>,
+    #[serde(default)]
+    pub loc_threshold: Option<u32>,
+    #[serde(default)]
+    pub fan_in_threshold: Option<u32>,
+    #[serde(default)]
+    pub fan_out_threshold: Option<u32>,
+    #[serde(default)]
+    pub entity_threshold: Option<u32>,
+}
+
+/// APEX 1.8 REFRAG Suite request
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct RefragSuiteRequest {
+    /// Command to execute: query, configure, help
+    pub command: String,
+    // Query parameters
+    #[serde(default)]
+    pub query: Option<String>,
+    #[serde(default)]
+    pub top_k_raw: Option<usize>,
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    #[serde(default)]
+    pub policy: Option<String>,
 }
 
 #[derive(Clone)]
@@ -498,11 +725,244 @@ impl SynCoreMCPServer {
         Self::tool_router()
     }
 
-    #[tool(description = "Store a value in memory")]
+    // ==================== APEX v1.3 UNIFIED SUITE TOOLS ====================
+
+    #[tool(
+        description = "Unified memory and vector operations. Commands: store, query, vector_insert, vector_search, task_create, sequential_record, sequential_get, sequential_search, sequential_cycle, agent_send, agent_recv, agent_poll, agent_register, agent_list, agent_status, agent_task, agent_result, intellitask_generate, intellitask_subtasks, intellitask_prioritize, intellitask_next, intellitask_save, intellitask_get, intellitask_list, intellitask_update_status, intellitask_next_ready, intellitask_get_subtasks, intellitask_subtask_stats, intellitask_task_statistics, intellitask_prd_statistics, help"
+    )]
+    async fn memory_suite(
+        &self,
+        Parameters(params): Parameters<MemorySuiteRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::mcp_tools::memory_suite::{MemorySuite, MemorySuiteArgs};
+
+        let args = MemorySuiteArgs {
+            command: params.command,
+            key: params.key,
+            value: params.value,
+            text: params.text,
+            query: params.query,
+            limit: params.limit,
+            namespace: params.namespace,
+            goal: params.goal,
+            priority: params.priority,
+            task_id: params.task_id,
+            step_number: params.step_number,
+            thought: params.thought,
+            reasoning: params.reasoning,
+            action: params.action,
+            observation: params.observation,
+            max_cycles: params.max_cycles,
+            to: params.to,
+            from: params.from,
+            agent: params.agent,
+            id: params.id,
+            message: params.message,
+            capabilities: params.capabilities,
+            status: params.status,
+            task_type: params.task_type,
+            payload: params.payload,
+            result: params.result,
+            timeout_ms: params.timeout_ms,
+            prd_content: params.prd_content,
+            parent_task_id: params.parent_task_id,
+            parent_task_json: params.parent_task_json,
+            tasks_json: params.tasks_json,
+            business_context: params.business_context,
+            completed_tasks: params.completed_tasks,
+            remaining_tasks_json: params.remaining_tasks_json,
+            breakdown_json: params.breakdown_json,
+            parent_id: params.parent_id,
+            prd_title: params.prd_title,
+            keywords: None,
+            tags: None,
+            min_importance: None,
+            unix_timestamp: None,
+            seconds: None,
+            threshold: None,
+            dry_run: params.dry_run,
+        };
+
+        let suite = MemorySuite::new((*self.state).clone());
+        let result = suite.execute(args);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_else(|_| format!("{:?}", result)),
+        )]))
+    }
+
+    #[tool(
+        description = "Unified code indexing, search, and parsing. Commands: index, search, parse, help"
+    )]
+    async fn code_suite(
+        &self,
+        Parameters(params): Parameters<CodeSuiteRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::mcp_tools::code_suite::{CodeSuite, CodeSuiteArgs};
+
+        let args = CodeSuiteArgs {
+            command: params.command,
+            file_path: params.file_path,
+            query: params.query,
+            pattern: params.pattern,
+            limit: params.limit,
+            directory: params.directory,
+            context_lines: params.context_lines,
+            function_name: params.function_name,
+            namespace: None,
+            mode_hint: None,
+            top_k: None,
+            scope: None,
+            project_label: None,
+            local_root: None,
+            only_missing: None,
+        };
+
+        let suite = CodeSuite::new((*self.state).clone());
+        let result = suite.execute(args);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_else(|_| format!("{:?}", result)),
+        )]))
+    }
+
+    #[tool(description = "Unified Neo4j graph operations. Commands: query, insert, relate, help")]
+    async fn graph_suite(
+        &self,
+        Parameters(params): Parameters<GraphSuiteRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::mcp_tools::graph_suite::{GraphSuite, GraphSuiteArgs};
+
+        let args = GraphSuiteArgs {
+            command: params.command,
+            cypher: params.cypher,
+            params: params.params,
+            from_id: params.from_id,
+            to_id: params.to_id,
+            rel_type: params.rel_type,
+            from_label: params.from_label,
+            to_label: params.to_label,
+            query_text: None,
+            seed_nodes: None,
+        };
+
+        let suite = GraphSuite::new((*self.state).clone());
+        let result = suite.execute(args);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_else(|_| format!("{:?}", result)),
+        )]))
+    }
+
+    #[tool(
+        description = "Unified application structure mapping. Commands: record, get, search, deps, help"
+    )]
+    async fn mapping_suite(
+        &self,
+        Parameters(params): Parameters<MappingSuiteRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::mcp_tools::mapping_suite::{MappingSuite, MappingSuiteArgs};
+
+        let args = MappingSuiteArgs {
+            command: params.command,
+            path: params.path,
+            kind: params.kind,
+            language: params.language,
+            imports: params.imports,
+            exports: params.exports,
+            dependencies: params.dependencies,
+            query: params.query,
+            file_path: None,
+            change_type: None,
+            old_content: None,
+            new_content: None,
+            line_start: None,
+            line_end: None,
+            description: None,
+            task_id: None,
+        };
+
+        let suite = MappingSuite::new((*self.state).clone());
+        let result = suite.execute(args);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_else(|_| format!("{:?}", result)),
+        )]))
+    }
+
+    #[tool(
+        description = "Unified debugging, logs, and project analysis. Commands: logs_tail, tool_metadata_list, project_file_report, project_module_map, project_hotspots, project_cycles, project_dead_code, project_unused_imports, project_refactor_suggestions, help"
+    )]
+    async fn debug_suite(
+        &self,
+        Parameters(params): Parameters<DebugSuiteRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::mcp_tools::debug_suite::{DebugSuite, DebugSuiteArgs};
+
+        let args = DebugSuiteArgs {
+            command: params.command,
+            file_path: params.file_path,
+            n: params.n,
+            limit: params.limit,
+            root: params.root,
+            max_modules: params.max_modules,
+            max_cycles: params.max_cycles,
+            max_depth: params.max_depth,
+            min_loc: params.min_loc,
+            min_fan_in: params.min_fan_in,
+            min_fan_out: params.min_fan_out,
+            min_entity_count: params.min_entity_count,
+            exclude_public: params.exclude_public,
+            loc_threshold: params.loc_threshold,
+            fan_in_threshold: params.fan_in_threshold,
+            fan_out_threshold: params.fan_out_threshold,
+            entity_threshold: params.entity_threshold,
+        };
+
+        let suite = DebugSuite::new((*self.state).clone());
+        let result = suite.execute(args);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_else(|_| format!("{:?}", result)),
+        )]))
+    }
+
+    #[tool(
+        description = "APEX 1.8 REFRAG - Selective expansion pipeline. Commands: query, configure, help"
+    )]
+    async fn refrag_suite(
+        &self,
+        Parameters(params): Parameters<RefragSuiteRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::mcp_tools::refrag_suite::RefragSuite;
+        use crate::mcp_tools::SuiteDispatcher;
+
+        let suite = RefragSuite::new((*self.state).clone());
+
+        let args = serde_json::json!({
+            "query": params.query,
+            "top_k_raw": params.top_k_raw,
+            "max_tokens": params.max_tokens,
+            "policy": params.policy,
+        });
+
+        let result = suite.dispatch(&params.command, args);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap_or_else(|_| format!("{:?}", result)),
+        )]))
+    }
+
+    // ==================== DEPRECATED TOOLS ====================
+
+    #[tool(
+        description = "[DEPRECATED] Store a value in memory. Use memory_suite with command='store' instead."
+    )]
     async fn memory_store(
         &self,
         Parameters(params): Parameters<MemoryStoreRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("memory_store", "memory_suite", "store");
         self.mcp_delegate(
             "memory_store",
             serde_json::json!({
@@ -514,11 +974,14 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Query a value from memory")]
+    #[tool(
+        description = "[DEPRECATED] Query a value from memory. Use memory_suite with command='query' instead."
+    )]
     async fn memory_query(
         &self,
         Parameters(params): Parameters<MemoryQueryRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("memory_query", "memory_suite", "query");
         self.mcp_delegate(
             "memory_query",
             serde_json::json!({
@@ -543,11 +1006,18 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Insert text into vector memory")]
+    #[tool(
+        description = "[DEPRECATED] Insert text into vector memory. Use memory_suite with command='vector_insert' instead."
+    )]
     async fn vector_insert(
         &self,
         Parameters(params): Parameters<VectorInsertRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning(
+            "vector_insert",
+            "memory_suite",
+            "vector_insert",
+        );
         self.mcp_delegate(
             "vector_insert",
             serde_json::json!({
@@ -559,11 +1029,18 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Search vector memory")]
+    #[tool(
+        description = "[DEPRECATED] Search vector memory. Use memory_suite with command='vector_search' instead."
+    )]
     async fn vector_search(
         &self,
         Parameters(params): Parameters<VectorSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning(
+            "vector_search",
+            "memory_suite",
+            "vector_search",
+        );
         self.mcp_delegate(
             "vector_search",
             serde_json::json!({
@@ -574,11 +1051,14 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Get recent log entries")]
+    #[tool(
+        description = "[DEPRECATED] Get recent log entries. Use debug_suite with command='logs_tail' instead."
+    )]
     async fn logs_tail(
         &self,
         Parameters(params): Parameters<LogsTailRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("logs_tail", "debug_suite", "logs_tail");
         self.mcp_delegate(
             "logs_tail",
             serde_json::json!({
@@ -636,7 +1116,9 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Analyze code structure using tree-sitter parser. Set persist=true to also index entities to SQLite, update HNSW, and sync to Neo4j.")]
+    #[tool(
+        description = "Analyze code structure using tree-sitter parser. Set persist=true to also index entities to SQLite, update HNSW, and sync to Neo4j."
+    )]
     async fn parser_analyze(
         &self,
         Parameters(params): Parameters<ParserAnalyzeRequest>,
@@ -667,11 +1149,14 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Index a source code file for semantic and structural search")]
+    #[tool(
+        description = "[DEPRECATED] Index a source code file. Use code_suite with command='index' instead."
+    )]
     async fn code_index(
         &self,
         Parameters(params): Parameters<CodeIndexRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("code_index", "code_suite", "index");
         self.mcp_delegate(
             "code_index",
             serde_json::json!({
@@ -681,11 +1166,14 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Search code using semantic meaning and structural relationships")]
+    #[tool(
+        description = "[DEPRECATED] Search code using semantic meaning. Use code_suite with command='search' instead."
+    )]
     async fn code_search(
         &self,
         Parameters(params): Parameters<CodeSearchRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("code_search", "code_suite", "search");
         self.mcp_delegate(
             "code_search",
             serde_json::json!({
@@ -709,6 +1197,185 @@ impl SynCoreMCPServer {
             }),
         )
         .await
+    }
+
+    // STEP D: Explain Function Tool - returns signature, docstring, callers, callees, complexity
+    #[tool(
+        description = "Explain a function with signature, docstring, callers, callees, and complexity metrics"
+    )]
+    async fn explain_function(
+        &self,
+        Parameters(params): Parameters<ExplainFunctionRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::code_graph::explain::FunctionExplainer;
+
+        // Read the source file
+        let code = match std::fs::read_to_string(&params.file_path) {
+            Ok(c) => c,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to read file '{}': {}",
+                    params.file_path, e
+                ))]));
+            }
+        };
+
+        // Get callers and callees from code graph via mcp_delegate
+        let callers = self.get_callers(&params.function_name).await;
+        let callees = self.get_callees(&params.function_name).await;
+
+        // Use FunctionExplainer to analyze the function
+        let explainer = FunctionExplainer::new();
+        match explainer.explain(
+            &params.function_name,
+            &params.file_path,
+            &code,
+            callers,
+            callees,
+        ) {
+            Some(response) => {
+                let json_output = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json_output)]))
+            }
+            None => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Function '{}' not found in '{}'",
+                params.function_name, params.file_path
+            ))])),
+        }
+    }
+
+    /// Helper to get callers of a function from Neo4j or SQLite code_edges
+    async fn get_callers(&self, function_name: &str) -> Vec<String> {
+        // Try Neo4j first
+        if self.state.neo4j.is_some() {
+            let query = format!(
+                "MATCH (caller:CodeEntity)-[:CALLS]->(f:CodeEntity {{name: '{}'}}) RETURN caller.name AS name LIMIT 20",
+                function_name
+            );
+
+            if let Ok(result) = self
+                .mcp_delegate("graph_query", serde_json::json!({"cypher": query}))
+                .await
+            {
+                let names = Self::extract_names_from_result(result);
+                if !names.is_empty() {
+                    return names;
+                }
+            }
+        }
+
+        // Fall back to SQLite code_edges (CALLS edges)
+        self.get_callers_from_sqlite(function_name)
+    }
+
+    /// Helper to get callees of a function from Neo4j or SQLite code_edges
+    async fn get_callees(&self, function_name: &str) -> Vec<String> {
+        // Try Neo4j first
+        if self.state.neo4j.is_some() {
+            let query = format!(
+                "MATCH (f:CodeEntity {{name: '{}'}})-[:CALLS]->(callee:CodeEntity) RETURN callee.name AS name LIMIT 20",
+                function_name
+            );
+
+            if let Ok(result) = self
+                .mcp_delegate("graph_query", serde_json::json!({"cypher": query}))
+                .await
+            {
+                let names = Self::extract_names_from_result(result);
+                if !names.is_empty() {
+                    return names;
+                }
+            }
+        }
+
+        // Fall back to SQLite code_edges (CALLS edges)
+        self.get_callees_from_sqlite(function_name)
+    }
+
+    /// Get callers from SQLite code_edges table
+    fn get_callers_from_sqlite(&self, function_name: &str) -> Vec<String> {
+        let conn = self.state.db_manager.code_graph_conn();
+        let conn_guard = conn.lock().unwrap();
+
+        let query = r#"
+            SELECT DISTINCT src.name
+            FROM code_edges e
+            JOIN code_entities src ON e.src_entity_id = src.id
+            JOIN code_entities dst ON e.dst_entity_id = dst.id
+            WHERE dst.name = ?1 AND e.edge_type = 'calls'
+            LIMIT 20
+        "#;
+
+        let mut stmt = match conn_guard.prepare(query) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+
+        let names: Vec<String> = stmt
+            .query_map([function_name], |row| row.get::<_, String>(0))
+            .ok()
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default();
+
+        names
+    }
+
+    /// Get callees from SQLite code_edges table
+    fn get_callees_from_sqlite(&self, function_name: &str) -> Vec<String> {
+        let conn = self.state.db_manager.code_graph_conn();
+        let conn_guard = conn.lock().unwrap();
+
+        let query = r#"
+            SELECT DISTINCT dst.name
+            FROM code_edges e
+            JOIN code_entities src ON e.src_entity_id = src.id
+            JOIN code_entities dst ON e.dst_entity_id = dst.id
+            WHERE src.name = ?1 AND e.edge_type = 'calls'
+            LIMIT 20
+        "#;
+
+        let mut stmt = match conn_guard.prepare(query) {
+            Ok(s) => s,
+            Err(_) => return vec![],
+        };
+
+        let names: Vec<String> = stmt
+            .query_map([function_name], |row| row.get::<_, String>(0))
+            .ok()
+            .map(|rows| rows.filter_map(|r| r.ok()).collect())
+            .unwrap_or_default();
+
+        names
+    }
+
+    /// Extract names from a graph query result
+    fn extract_names_from_result(result: CallToolResult) -> Vec<String> {
+        // Get text content from result
+        for content in &result.content {
+            // Content is an enum - check if it's a text variant
+            if let Some(text) = Self::get_text_from_content(content) {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                    if let Some(rows) = json.get("rows").and_then(|r| r.as_array()) {
+                        return rows
+                            .iter()
+                            .filter_map(|row| row.get("name").and_then(|n| n.as_str()))
+                            .map(|s| s.to_string())
+                            .collect();
+                    }
+                }
+            }
+        }
+        vec![]
+    }
+
+    /// Extract text from a Content item if it's a text variant
+    fn get_text_from_content(content: &Content) -> Option<String> {
+        // Use serde to extract text - Content is serializable
+        let json = serde_json::to_value(content).ok()?;
+        json.get("text")
+            .and_then(|t| t.as_str())
+            .map(|s| s.to_string())
     }
 
     #[tool(description = "Index documents from a directory into global knowledge store")]
@@ -1230,11 +1897,14 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Execute a Cypher query on Neo4j graph database and return results")]
+    #[tool(
+        description = "[DEPRECATED] Execute a Cypher query. Use graph_suite with command='query' instead."
+    )]
     async fn graph_query(
         &self,
         Parameters(params): Parameters<GraphQueryRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("graph_query", "graph_suite", "query");
         self.mcp_delegate(
             "graph_query",
             serde_json::json!({
@@ -1245,11 +1915,14 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Execute a Cypher write query (CREATE, MERGE, SET) on Neo4j")]
+    #[tool(
+        description = "[DEPRECATED] Execute a Cypher write query. Use graph_suite with command='insert' instead."
+    )]
     async fn graph_insert(
         &self,
         Parameters(params): Parameters<GraphInsertRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("graph_insert", "graph_suite", "insert");
         self.mcp_delegate(
             "graph_insert",
             serde_json::json!({
@@ -1260,11 +1933,14 @@ impl SynCoreMCPServer {
         .await
     }
 
-    #[tool(description = "Create a relationship between two nodes in Neo4j")]
+    #[tool(
+        description = "[DEPRECATED] Create a relationship in Neo4j. Use graph_suite with command='relate' instead."
+    )]
     async fn graph_relate(
         &self,
         Parameters(params): Parameters<GraphRelateRequest>,
     ) -> Result<CallToolResult, McpError> {
+        crate::mcp_tools::emit_deprecation_warning("graph_relate", "graph_suite", "relate");
         self.mcp_delegate(
             "graph_relate",
             serde_json::json!({
@@ -1494,14 +2170,14 @@ impl SynCoreMCPServer {
         let query_engine = if config.backend_mode == RaggraphBackendMode::Real {
             // Real mode: create storage adapter with VectorStore + Neo4j
             if let Some(ref neo4j) = self.state.neo4j {
-                // Cast VectorStore to VectorIndex trait object
+                // Cast VectorStore to VectorIndex trait object (CODE domain for graph operations)
                 let vector_index =
-                    self.state.vector_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+                    self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
 
                 // Get dimension from VectorStore (via VectorIndex trait)
                 let dimension = {
                     use crate::vector::VectorIndex;
-                    let store = self.state.vector_store.lock().unwrap();
+                    let store = self.state.code_store.lock().unwrap();
                     VectorIndex::dimension(&*store).unwrap_or(384)
                 };
 
@@ -1585,14 +2261,14 @@ impl SynCoreMCPServer {
         let transformer = if config.backend_mode == RaggraphBackendMode::Real {
             // Real mode: create storage adapter with VectorStore + Neo4j
             if let Some(ref neo4j) = self.state.neo4j {
-                // Cast VectorStore to VectorIndex trait object
+                // Cast VectorStore to VectorIndex trait object (CODE domain for graph operations)
                 let vector_index =
-                    self.state.vector_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+                    self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
 
                 // Get dimension from VectorStore (via VectorIndex trait)
                 let dimension = {
                     use crate::vector::VectorIndex;
-                    let store = self.state.vector_store.lock().unwrap();
+                    let store = self.state.code_store.lock().unwrap();
                     VectorIndex::dimension(&*store).unwrap_or(384)
                 };
 
@@ -1682,7 +2358,7 @@ impl SynCoreMCPServer {
             let code_graph_conn = self.state.db_manager.code_graph_conn();
             let code_graph = match crate::code_graph::CodeGraph::with_connection(
                 code_graph_conn,
-                self.state.vector_store.clone(),
+                self.state.code_store.clone(),
             ) {
                 Ok(cg) => cg,
                 Err(e) => {
@@ -1734,7 +2410,9 @@ impl SynCoreMCPServer {
         }
     }
 
-    #[tool(description = "Sync code entities and relationships from SQLite to Neo4j (post-index rebuild)")]
+    #[tool(
+        description = "Sync code entities and relationships from SQLite to Neo4j (post-index rebuild)"
+    )]
     async fn code_graph_sync_neo4j(
         &self,
         Parameters(params): Parameters<CodeGraphSyncNeo4jRequest>,
@@ -1763,7 +2441,9 @@ impl SynCoreMCPServer {
                 Ok(summary) => {
                     eprintln!(
                         "[CodeGraphSync] entities synced: processed={}, created={}, skipped={}",
-                        summary.entities_processed, summary.entities_created, summary.entities_skipped
+                        summary.entities_processed,
+                        summary.entities_created,
+                        summary.entities_skipped
                     );
                     summary
                 }
@@ -1792,7 +2472,9 @@ impl SynCoreMCPServer {
 
                     eprintln!(
                         "[CodeGraphSync] edges synced: processed={}, created={}, skipped={}",
-                        edge_summary.edges_processed, edge_summary.edges_created, edge_summary.edges_skipped
+                        edge_summary.edges_processed,
+                        edge_summary.edges_created,
+                        edge_summary.edges_skipped
                     );
 
                     let json_response = serde_json::to_string_pretty(&edge_summary)
@@ -1851,8 +2533,9 @@ impl SynCoreMCPServer {
                         McpError::internal_error(format!("Failed to query entities: {}", e), None)
                     })?;
 
-                rows.collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| McpError::internal_error(format!("Failed to collect entities: {}", e), None))?
+                rows.collect::<Result<Vec<_>, _>>().map_err(|e| {
+                    McpError::internal_error(format!("Failed to collect entities: {}", e), None)
+                })?
             }
             Err(e) => {
                 return Ok(CallToolResult::error(vec![Content::text(format!(
@@ -1921,9 +2604,10 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ProjectFileReportRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::project_analysis::{ProjectAnalysisEngine, file_report::FileReportRequest};
+        use crate::project_analysis::{file_report::FileReportRequest, ProjectAnalysisEngine};
 
-        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = FileReportRequest {
             file_path: params.file_path,
         };
@@ -1946,9 +2630,10 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ProjectModuleMapRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::project_analysis::{ProjectAnalysisEngine, deps::ModuleMapRequest};
+        use crate::project_analysis::{deps::ModuleMapRequest, ProjectAnalysisEngine};
 
-        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = ModuleMapRequest {
             root: params.root,
             max_modules: params.max_modules,
@@ -1972,9 +2657,10 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ProjectHotspotsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::project_analysis::{ProjectAnalysisEngine, hotspots::HotspotsRequest};
+        use crate::project_analysis::{hotspots::HotspotsRequest, ProjectAnalysisEngine};
 
-        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = HotspotsRequest {
             limit: params.limit,
             min_fan_in: params.min_fan_in,
@@ -2001,9 +2687,10 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ProjectCyclesRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::project_analysis::{ProjectAnalysisEngine, cycles::CyclesRequest};
+        use crate::project_analysis::{cycles::CyclesRequest, ProjectAnalysisEngine};
 
-        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = CyclesRequest {
             max_cycles: params.max_cycles,
             max_depth: params.max_depth,
@@ -2027,9 +2714,10 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ProjectDeadCodeRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::project_analysis::{ProjectAnalysisEngine, dead_code::DeadCodeRequest};
+        use crate::project_analysis::{dead_code::DeadCodeRequest, ProjectAnalysisEngine};
 
-        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = DeadCodeRequest {
             exclude_public: params.exclude_public,
             limit: params.limit,
@@ -2053,9 +2741,12 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<ProjectUnusedImportsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::project_analysis::{ProjectAnalysisEngine, unused_imports::UnusedImportsRequest};
+        use crate::project_analysis::{
+            unused_imports::UnusedImportsRequest, ProjectAnalysisEngine,
+        };
 
-        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = UnusedImportsRequest {
             file_path: params.file_path,
             limit: params.limit,
@@ -2074,14 +2765,57 @@ impl SynCoreMCPServer {
         }
     }
 
+    #[tool(description = "Detect code smells and anti-patterns in project")]
+    async fn project_code_smells(
+        &self,
+        Parameters(params): Parameters<ProjectCodeSmellsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::ProjectAnalysisEngine;
+
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+
+        let limit = params.limit.unwrap_or(50) as usize;
+        let include_entities = params.include_entities.unwrap_or(false);
+
+        match engine.detect_file_smells(limit) {
+            Ok(file_smells) => {
+                let entity_smells = if include_entities {
+                    engine.detect_entity_smells(limit).unwrap_or_default()
+                } else {
+                    vec![]
+                };
+
+                let response = serde_json::json!({
+                    "ok": true,
+                    "data": {
+                        "file_smells": file_smells,
+                        "entity_smells": entity_smells
+                    }
+                });
+
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Code smell detection failed: {}",
+                e
+            ))])),
+        }
+    }
+
     #[tool(description = "Generate heuristic refactor suggestions based on project analysis")]
     async fn project_refactor_suggestions(
         &self,
         Parameters(params): Parameters<ProjectRefactorSuggestionsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::project_analysis::{ProjectAnalysisEngine, refactor::RefactorSuggestionsRequest};
+        use crate::project_analysis::{
+            refactor::RefactorSuggestionsRequest, ProjectAnalysisEngine,
+        };
 
-        let engine = ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = RefactorSuggestionsRequest {
             limit: params.limit,
             loc_threshold: params.loc_threshold,
@@ -2098,6 +2832,35 @@ impl SynCoreMCPServer {
             }
             Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
                 "Refactor suggestions failed: {}",
+                e
+            ))])),
+        }
+    }
+
+    #[tool(
+        description = "Clean up indexed data for excluded directories (target/, node_modules/, etc.)"
+    )]
+    async fn project_cleanup_excluded(
+        &self,
+        Parameters(params): Parameters<ProjectCleanupExcludedRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::project_analysis::{cleanup::CleanupExcludedRequest, ProjectAnalysisEngine};
+
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = CleanupExcludedRequest {
+            dry_run: params.dry_run,
+            excluded_dirs: params.excluded_dirs,
+        };
+
+        match engine.cleanup_excluded(request).await {
+            Ok(response) => {
+                let json = serde_json::to_string_pretty(&response)
+                    .unwrap_or_else(|_| "Failed to serialize response".to_string());
+                Ok(CallToolResult::success(vec![Content::text(json)]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Cleanup failed: {}",
                 e
             ))])),
         }

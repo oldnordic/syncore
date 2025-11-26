@@ -117,13 +117,18 @@ pub fn mark_file_deleted(db: &Connection, file_path: &str) -> Result<()> {
 
 /// Remove file state from database entirely
 pub fn remove_file_state(db: &Connection, file_path: &str) -> Result<()> {
-    db.execute("DELETE FROM file_index_state WHERE file_path = ?", [file_path])?;
+    db.execute(
+        "DELETE FROM file_index_state WHERE file_path = ?",
+        [file_path],
+    )?;
     Ok(())
 }
 
 /// Classify a single file's change status
 pub fn classify_file(db: &Connection, file_path: &Path) -> Result<FileChangeStatus> {
-    let path_str = file_path.to_str().ok_or_else(|| anyhow!("Invalid file path"))?;
+    let path_str = file_path
+        .to_str()
+        .ok_or_else(|| anyhow!("Invalid file path"))?;
 
     // Check if file exists on disk
     if !file_path.exists() {
@@ -152,10 +157,7 @@ pub fn classify_file(db: &Connection, file_path: &Path) -> Result<FileChangeStat
 }
 
 /// Classify multiple files for incremental indexing
-pub fn classify_files(
-    db: &Connection,
-    file_paths: &[String],
-) -> Result<IncrementalClassification> {
+pub fn classify_files(db: &Connection, file_paths: &[String]) -> Result<IncrementalClassification> {
     let mut result = IncrementalClassification::default();
 
     // Build set of files we're checking
@@ -164,7 +166,7 @@ pub fn classify_files(
     // Get all stored file states
     let mut stored_files: HashMap<String, FileIndexState> = HashMap::new();
     let mut stmt = db.prepare(
-        "SELECT file_path, sha256, mtime, last_indexed_at, status FROM file_index_state"
+        "SELECT file_path, sha256, mtime, last_indexed_at, status FROM file_index_state",
     )?;
     let rows = stmt.query_map([], |row| {
         Ok(FileIndexState {

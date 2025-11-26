@@ -10,7 +10,9 @@ pub mod cognitive;
 pub mod cognitive_db;
 pub mod common;
 pub mod config;
+pub mod databases;  // Canonical database modules (Neo4j, etc.)
 pub mod db;
+pub mod dlr;
 pub mod document_indexer;
 pub mod global_store;
 pub mod graph;
@@ -19,11 +21,13 @@ pub mod graph_rebuilder;
 pub mod http_stream_server;
 pub mod intellitask;
 pub mod intellitask_persistence;
+pub mod llm;
 pub mod logger;
 pub mod macro_tools;
 pub mod mcp;
 pub mod mcp_server;
 pub mod mcp_stdio;
+pub mod mcp_tools;
 pub mod memory;
 pub mod memory_service;
 pub mod message_bus;
@@ -31,12 +35,17 @@ pub mod meta_cognition;
 pub mod metrics;
 pub mod ollama;
 pub mod parser;
+pub mod path_resolver; // APEX v1.7 Phase 5: Central path resolution
+pub mod polyglot;
 pub mod portfolio;
 pub mod project_analysis;
+pub mod project_reasoning;
 pub mod protocol;
 pub mod raggraph;
+pub mod refrag;  // APEX 1.8: REFRAG selective expansion layer
 pub mod router;
 pub mod runtime;
+pub mod rust_tools;
 pub mod schema_migration;
 pub mod sequential;
 pub mod storage;
@@ -50,3 +59,9 @@ pub use mcp_server::run_mcp_stdio_server;
 pub use mcp_stdio::run_stdio_server;
 pub use tasks::{add_task, link_tasks, next_task, update_task};
 pub use vector::{insert_text, search};
+
+// Re-export configuration types
+pub use config::{
+    Config, EmbeddingsConfig, HotspotWeights, HttpConfig, IndexingConfig, LlmConfig, Neo4jConfig,
+    PathsConfig, ProjectAnalysisConfig, SyncoreConfig, VectorSearchConfig,
+};

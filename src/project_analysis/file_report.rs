@@ -1,10 +1,10 @@
 //! Project File Report Tool
-//! 
+//!
 //! Provides detailed analysis of a single source file including entities,
 //! relationships, imports, and complexity metrics.
 
 use crate::project_analysis::{
-    PAEResponse, EntityInfo, RelationshipInfo, ProjectAnalysisEngine, FileMetrics,
+    EntityInfo, FileMetrics, PAEResponse, ProjectAnalysisEngine, RelationshipInfo,
 };
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -45,11 +45,12 @@ pub struct UseInfo {
     pub relation_type: String,
 }
 
-
-
 impl ProjectAnalysisEngine {
     /// Generate a comprehensive report for a single file
-    pub async fn file_report(&self, request: FileReportRequest) -> Result<PAEResponse<FileReportData>> {
+    pub async fn file_report(
+        &self,
+        request: FileReportRequest,
+    ) -> Result<PAEResponse<FileReportData>> {
         match self.generate_file_report(&request.file_path).await {
             Ok(data) => Ok(PAEResponse::success(data)),
             Err(e) => Ok(PAEResponse::error(e.to_string())),

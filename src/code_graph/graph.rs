@@ -108,12 +108,11 @@ impl CodeGraph {
                 .map_err(|e| anyhow!("Failed to lock database connection: {}", e))?;
 
             // Check database file path via pragma_database_list
-            let db_file: String = conn_lock
-                .query_row(
-                    "SELECT file FROM pragma_database_list() WHERE name='main'",
-                    [],
-                    |row| row.get(0),
-                )?;
+            let db_file: String = conn_lock.query_row(
+                "SELECT file FROM pragma_database_list() WHERE name='main'",
+                [],
+                |row| row.get(0),
+            )?;
 
             if db_file.is_empty() || db_file == "" {
                 return Err(anyhow!(
@@ -258,10 +257,22 @@ impl CodeGraph {
             )?;
         }
 
-        // PHASE 4: Add file_index_state table for incremental indexing
-        let has_file_index_state: bool = db
-            .prepare("SELECT 1 FROM file_index_state LIMIT 1")
+        // APEX v1.7 Phase 3: Add body_snippet column for function body indexing
+        let has_body_snippet: bool = db
+            .prepare("SELECT body_snippet FROM code_entities LIMIT 1")
             .is_ok();
+
+        if !has_body_snippet {
+            db.execute_batch(
+                r#"
+                ALTER TABLE code_entities ADD COLUMN body_snippet TEXT;
+                "#,
+            )?;
+        }
+
+        // PHASE 4: Add file_index_state table for incremental indexing
+        let has_file_index_state: bool =
+            db.prepare("SELECT 1 FROM file_index_state LIMIT 1").is_ok();
 
         if !has_file_index_state {
             db.execute_batch(
@@ -276,6 +287,29 @@ impl CodeGraph {
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_file_index_state_path ON file_index_state(file_path);
+                "#,
+            )?;
+        }
+
+        // Add code_macro_expansions table for Rust macro tracking
+        let has_macro_expansions: bool =
+            db.prepare("SELECT 1 FROM code_macro_expansions LIMIT 1").is_ok();
+
+        if !has_macro_expansions {
+            db.execute_batch(
+                r#"
+                CREATE TABLE IF NOT EXISTS code_macro_expansions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT NOT NULL,
+                    macro_name TEXT NOT NULL,
+                    span_start INTEGER NOT NULL,
+                    span_end INTEGER NOT NULL,
+                    original_code TEXT,
+                    expanded_code TEXT,
+                    expansion_type TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_macro_expansions_file ON code_macro_expansions(file_path);
                 "#,
             )?;
         }
@@ -352,7 +386,7 @@ impl CodeGraph {
              WHERE created_at IS NULL
                 OR last_modified_at IS NULL
                 OR change_count IS NULL
-                OR author_count IS NULL"
+                OR author_count IS NULL",
         )?;
 
         let entities_to_enrich: Vec<(i64, String)> = stmt
@@ -390,28 +424,19 @@ impl CodeGraph {
                 ],
             )?;
 
-            // Update Neo4j if available (TASK C: restrict to :SynCore)
+            // Update Neo4j if available - use canonical update function
             if let Some(ref neo4j) = self.neo4j {
-                let query = r#"
-                    MATCH (n:SynCore {id: $id})
-                    SET n.created_at = $created_at,
-                        n.last_modified_at = $last_modified_at,
-                        n.change_count = $change_count,
-                        n.author_count = $author_count
-                "#;
+                use crate::databases::neo4j::update_git_metadata;
 
-                neo4j
-                    .execute_query(
-                        query,
-                        vec![
-                            ("id", serde_json::json!(entity_id)),
-                            ("created_at", serde_json::json!(temporal.created_at)),
-                            ("last_modified_at", serde_json::json!(temporal.last_modified_at)),
-                            ("change_count", serde_json::json!(temporal.change_count)),
-                            ("author_count", serde_json::json!(temporal.author_count)),
-                        ],
-                    )
-                    .await?;
+                update_git_metadata(
+                    neo4j,
+                    entity_id,
+                    Some(temporal.created_at.to_string()),
+                    Some(temporal.last_modified_at.to_string()),
+                    Some(temporal.change_count as i64),
+                    Some(temporal.author_count as i64),
+                )
+                .await?;
             }
 
             enriched_count += 1;
@@ -474,7 +499,8 @@ impl CodeGraph {
             .lock()
             .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
 
-        for (i, (entity_id, entity_type, name, signature, docstring)) in entities.iter().enumerate() {
+        for (i, (entity_id, entity_type, name, signature, docstring)) in entities.iter().enumerate()
+        {
             // Progress logging every 1000 entities
             if i > 0 && i % 1000 == 0 {
                 eprintln!("[SynCore] HNSW rebuild progress: {}/{}", i, count);
@@ -491,7 +517,9 @@ impl CodeGraph {
             let text = parts.join(" ");
 
             // Insert WITHOUT saving snapshot (critical for performance!)
-            if let Err(e) = vector_store.insert_text_no_snapshot(*entity_id, None, &text, "code_entity") {
+            if let Err(e) =
+                vector_store.insert_text_no_snapshot(*entity_id, None, &text, "code_entity")
+            {
                 eprintln!(
                     "[SynCore] Warning: Failed to insert entity {} into HNSW: {}",
                     entity_id, e

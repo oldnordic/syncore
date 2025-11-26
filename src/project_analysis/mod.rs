@@ -1,20 +1,33 @@
 //! Project Analysis Engine (PAE)
-//! 
+//!
 //! Provides LLM-free, deterministic, human-readable codebase intelligence
 //! on top of existing infrastructure (SQLite, Neo4j, HNSW).
 
+pub mod architecture_overview;
+pub mod cleanup;
+pub mod code_smells;
+pub mod complexity_dashboard;
+pub mod cycles;
+pub mod dead_code;
+pub mod deps;
+pub mod deps_unified;
+pub mod diagnostics;
+pub mod diagnostics_severity;
 pub mod file_report;
 pub mod file_report_core;
 pub mod file_report_summary;
-pub mod deps;
 pub mod hotspots;
-pub mod cycles;
-pub mod dead_code;
-pub mod unused_imports;
+pub mod improvement_roadmap;
+pub mod metrics;
+pub mod python_backend_ingestion;
 pub mod refactor;
+pub mod refactor_action_plan;
 pub mod refactor_hotspots;
 pub mod refactor_patterns;
-pub mod metrics;
+pub mod risk_score;
+pub mod rust_backend_ingestion;
+pub mod rust_macro_expander;
+pub mod unused_imports;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -182,14 +195,31 @@ impl ProjectAnalysisEngine {
     pub fn neo4j(&self) -> Option<&std::sync::Arc<crate::graph::Neo4jClient>> {
         self.neo4j.as_ref()
     }
+
+    /// Get database manager
+    pub fn db_manager(&self) -> &std::sync::Arc<crate::db::DbManager> {
+        &self.db_manager
+    }
 }
 
 // Re-export all the submodules for easier access
-pub use file_report::*;
-pub use deps::*;
-pub use hotspots::*;
+pub use architecture_overview::*;
+pub use cleanup::*;
+pub use complexity_dashboard::*;
 pub use cycles::*;
 pub use dead_code::*;
-pub use unused_imports::*;
-pub use refactor::*;
+pub use deps::*;
+pub use deps_unified::*;
+pub use diagnostics::*;
+pub use diagnostics_severity::*;
+pub use file_report::*;
+pub use hotspots::*;
+pub use improvement_roadmap::*;
 pub use metrics::*;
+pub use python_backend_ingestion::*;
+pub use refactor::*;
+pub use refactor_action_plan::*;
+pub use risk_score::*;
+pub use rust_backend_ingestion::*;
+pub use rust_macro_expander::*;
+pub use unused_imports::*;

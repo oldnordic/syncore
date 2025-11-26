@@ -1,10 +1,8 @@
 //! Project Cycles Detection Tool
-//! 
+//!
 //! Detects circular dependencies between files and modules.
 
-use crate::project_analysis::{
-    PAEResponse, CycleInfo, ProjectAnalysisEngine,
-};
+use crate::project_analysis::{CycleInfo, PAEResponse, ProjectAnalysisEngine};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -25,7 +23,10 @@ pub struct CyclesData {
 impl ProjectAnalysisEngine {
     /// Detect circular dependencies in the project
     pub async fn cycles(&self, request: CyclesRequest) -> Result<PAEResponse<CyclesData>> {
-        match self.detect_cycles(request.max_cycles, request.max_depth).await {
+        match self
+            .detect_cycles(request.max_cycles, request.max_depth)
+            .await
+        {
             Ok(data) => Ok(PAEResponse::success(data)),
             Err(e) => Ok(PAEResponse::error(e.to_string())),
         }
@@ -152,7 +153,8 @@ impl ProjectAnalysisEngine {
                     }
                 } else if recursion_stack.contains(neighbor) {
                     // Found a cycle
-                    let cycle_start_index = new_path.iter().position(|p| p == neighbor).unwrap_or(0);
+                    let cycle_start_index =
+                        new_path.iter().position(|p| p == neighbor).unwrap_or(0);
                     let cycle_files = new_path[cycle_start_index..].to_vec();
                     let cycle_relations = if relation_types.len() >= cycle_files.len() {
                         relation_types[cycle_start_index..cycle_files.len()].to_vec()

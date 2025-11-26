@@ -1,10 +1,8 @@
 //! Project Module Map Tool
-//! 
+//!
 //! Provides module-level dependency mapping and analysis.
 
-use crate::project_analysis::{
-    PAEResponse, ModuleInfo, ModuleEdge, ProjectAnalysisEngine,
-};
+use crate::project_analysis::{ModuleEdge, ModuleInfo, PAEResponse, ProjectAnalysisEngine};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,8 +23,14 @@ pub struct ModuleMapData {
 
 impl ProjectAnalysisEngine {
     /// Generate a module-level map of the project
-    pub async fn module_map(&self, request: ModuleMapRequest) -> Result<PAEResponse<ModuleMapData>> {
-        match self.generate_module_map(request.root, request.max_modules).await {
+    pub async fn module_map(
+        &self,
+        request: ModuleMapRequest,
+    ) -> Result<PAEResponse<ModuleMapData>> {
+        match self
+            .generate_module_map(request.root, request.max_modules)
+            .await
+        {
             Ok(data) => Ok(PAEResponse::success(data)),
             Err(e) => Ok(PAEResponse::error(e.to_string())),
         }
@@ -128,10 +132,8 @@ impl ProjectAnalysisEngine {
         }
 
         // Create a set of file paths for fast lookup
-        let module_files: std::collections::HashSet<&str> = modules
-            .iter()
-            .map(|m| m.file_path.as_str())
-            .collect();
+        let module_files: std::collections::HashSet<&str> =
+            modules.iter().map(|m| m.file_path.as_str()).collect();
 
         // Build placeholders for IN clause
         let placeholders = (0..modules.len())

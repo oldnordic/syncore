@@ -105,40 +105,41 @@ impl SequentialStep {
             step.reasoning
         );
         {
-            let mut store = self.state.vector_store.lock().unwrap();
+            let mut store = self.state.general_store.lock().unwrap();
             store.insert_text(step_id, step.task_id, &description, "thought_step")?;
         }
 
-        // Neo4j integration: MERGE Step node and FOR_TASK relationship
+        // Neo4j integration: Use canonical portfolio_graph module
         if let Some(neo4j) = &self.state.neo4j {
+            use crate::databases::portfolio_graph::{
+                upsert_step, create_for_task_relationship,
+                upsert_task, StepProperties, TaskProperties
+            };
+
             let neo4j = neo4j.clone();
             let step_id_val = step_id;
             let step_num = step.step_number;
             let task_id_opt = step.task_id;
-            let ns = neo4j.namespace().to_string();
 
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async move {
-                    // MERGE the Step node with namespace for identity isolation
-                    let _ = neo4j.execute_query(
-                        "MERGE (s:Step {id: $id, namespace: $ns}) SET s.step_number = $step_number",
-                        vec![
-                            ("id", serde_json::json!(step_id_val)),
-                            ("ns", serde_json::json!(ns.clone())),
-                            ("step_number", serde_json::json!(step_num))
-                        ]
-                    ).await;
+                    // Create Step node
+                    let _ = upsert_step(&neo4j, StepProperties {
+                        id: step_id_val,
+                        step_number: step_num as i64,
+                        metadata: None,
+                    }).await;
 
-                    // MERGE FOR_TASK relationship if task_id exists
+                    // Create FOR_TASK relationship if task_id exists
                     if let Some(task_id) = task_id_opt {
-                        let _ = neo4j.execute_query(
-                            "MERGE (s:Step {id: $step_id, namespace: $ns}) MERGE (t:Task {id: $task_id, namespace: $ns}) MERGE (s)-[:FOR_TASK]->(t)",
-                            vec![
-                                ("step_id", serde_json::json!(step_id_val)),
-                                ("ns", serde_json::json!(ns.clone())),
-                                ("task_id", serde_json::json!(task_id))
-                            ]
-                        ).await;
+                        // Ensure Task node exists
+                        let _ = upsert_task(&neo4j, TaskProperties {
+                            id: task_id,
+                            metadata: None,
+                        }).await;
+
+                        // Create relationship
+                        let _ = create_for_task_relationship(&neo4j, step_id_val, task_id).await;
                     }
                 })
             });
@@ -199,7 +200,7 @@ impl SequentialStep {
     /// Search steps by semantic content
     pub fn search_steps(&self, query: &str) -> Result<Vec<ThoughtStep>> {
         let results = {
-            let store = self.state.vector_store.lock().unwrap();
+            let store = self.state.general_store.lock().unwrap();
             store.search(query, 10, SearchScope::Global)?
         };
 

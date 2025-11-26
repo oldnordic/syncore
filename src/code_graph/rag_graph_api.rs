@@ -124,8 +124,16 @@ impl RagGraphAPI {
         top_k: Option<u32>,
     ) -> Result<RagGraphQueryResponse> {
         // Default to Global scope for backward compatibility
-        self.query_with_scope(query, namespace, mode_hint, top_k, QueryScope::Global, None, None)
-            .await
+        self.query_with_scope(
+            query,
+            namespace,
+            mode_hint,
+            top_k,
+            QueryScope::Global,
+            None,
+            None,
+        )
+        .await
     }
 
     /// Execute a RAGGraph query with explicit scope control
@@ -167,21 +175,17 @@ impl RagGraphAPI {
 
         // Step 2: Perform vector search (fetch more results for post-filtering)
         let fetch_multiplier = match scope {
-            QueryScope::Global => 2,      // No filtering needed
-            QueryScope::Workspace => 3,   // Light filtering
-            QueryScope::Project => 4,     // Moderate filtering
-            QueryScope::Local => 5,       // Heavy filtering
-            QueryScope::Auto => 2,        // Default to Global behavior
+            QueryScope::Global => 2,    // No filtering needed
+            QueryScope::Workspace => 3, // Light filtering
+            QueryScope::Project => 4,   // Moderate filtering
+            QueryScope::Local => 5,     // Heavy filtering
+            QueryScope::Auto => 2,      // Default to Global behavior
         };
         let vector_matches = self.code_graph.search_code(query, k * fetch_multiplier)?;
 
         // Step 3: Apply scope filtering
-        let filtered_matches = self.apply_scope_filter(
-            vector_matches,
-            scope,
-            project_label,
-            local_root,
-        );
+        let filtered_matches =
+            self.apply_scope_filter(vector_matches, scope, project_label, local_root);
 
         // Step 4: Perform graph expansion for each filtered match
         let mut ranked_entities = Vec::new();
@@ -202,10 +206,13 @@ impl RagGraphAPI {
             );
 
             // Step 5: Apply fusion based on selected mode (PHASE 5: now includes temporal)
-            let combined_score = match selected_mode {
-                FusionMode::Simple => {
-                    self.apply_simple_fusion(vector_score, graph_score, temporal_score, &mut debug_info)?
-                }
+            let base_score = match selected_mode {
+                FusionMode::Simple => self.apply_simple_fusion(
+                    vector_score,
+                    graph_score,
+                    temporal_score,
+                    &mut debug_info,
+                )?,
                 FusionMode::Attention => {
                     self.apply_attention_fusion(vector_score, graph_score, query, &mut debug_info)?
                 }
@@ -213,6 +220,12 @@ impl RagGraphAPI {
                     self.apply_reasoning_fusion(vector_score, graph_score, &mut debug_info)?
                 }
             };
+
+            // STEP C + APEX v1.7 Phase 4: Apply entity type + body boost
+            let entity_kind = vmatch.entity.entity_type.as_str();
+            let has_body = vmatch.entity.body_snippet.is_some();
+            let combined_score =
+                super::entity_boost::apply_combined_boost(base_score, entity_kind, has_body);
 
             ranked_entities.push(RankedEntity {
                 entity: vmatch.entity.clone(),
@@ -380,7 +393,10 @@ impl RagGraphAPI {
         // Add debug info
         debug_info.insert("vector_score".to_string(), serde_json::json!(vector_score));
         debug_info.insert("graph_score".to_string(), serde_json::json!(graph_score));
-        debug_info.insert("temporal_score".to_string(), serde_json::json!(temporal_score));
+        debug_info.insert(
+            "temporal_score".to_string(),
+            serde_json::json!(temporal_score),
+        );
         debug_info.insert("alpha".to_string(), serde_json::json!(0.65));
         debug_info.insert("beta".to_string(), serde_json::json!(0.25));
         debug_info.insert("tau".to_string(), serde_json::json!(0.10));

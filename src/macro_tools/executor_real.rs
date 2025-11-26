@@ -209,7 +209,7 @@ impl RealExecutor {
                 }
 
                 // Insert into vector store (spawn_blocking to avoid blocking async runtime)
-                let vector_store = Arc::clone(&self.state.vector_store);
+                let vector_store = Arc::clone(&self.state.general_store);
                 let text_owned = text.to_string();
 
                 let vector_id = tokio::task::spawn_blocking(move || {
@@ -247,7 +247,7 @@ impl RealExecutor {
 
                 // Search vector store (spawn_blocking to avoid blocking async runtime)
                 use crate::vector::SearchScope;
-                let vector_store = Arc::clone(&self.state.vector_store);
+                let vector_store = Arc::clone(&self.state.general_store);
                 let query_owned = query.to_string();
 
                 let results = tokio::task::spawn_blocking(move || {
@@ -571,7 +571,10 @@ impl RealExecutor {
                     Ok(v) => v,
                     Err(e) => return Ok(e),
                 };
-                let persist = params.get("persist").and_then(|v| v.as_bool()).unwrap_or(false);
+                let persist = params
+                    .get("persist")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
 
                 if dry_run {
                     let result = self.wrap_success(
@@ -614,7 +617,7 @@ impl RealExecutor {
                     let code_graph_conn = self.state.db_manager.code_graph_conn();
                     let mut code_graph = match CodeGraph::with_connection(
                         code_graph_conn,
-                        Arc::clone(&self.state.vector_store),
+                        Arc::clone(&self.state.general_store),
                     ) {
                         Ok(cg) => cg,
                         Err(e) => {
@@ -728,7 +731,7 @@ impl RealExecutor {
                 let code_graph_conn = self.state.db_manager.code_graph_conn();
                 let mut code_graph = match CodeGraph::with_connection(
                     code_graph_conn,
-                    Arc::clone(&self.state.vector_store),
+                    Arc::clone(&self.state.general_store),
                 ) {
                     Ok(cg) => cg,
                     Err(e) => {
@@ -812,7 +815,7 @@ impl RealExecutor {
                 let code_graph_conn = self.state.db_manager.code_graph_conn();
                 let mut code_graph = match CodeGraph::with_connection(
                     code_graph_conn,
-                    Arc::clone(&self.state.vector_store),
+                    Arc::clone(&self.state.general_store),
                 ) {
                     Ok(cg) => cg,
                     Err(e) => {
@@ -875,7 +878,7 @@ impl RealExecutor {
 
                 // Use vector search for semantic code search (spawn_blocking to avoid blocking async runtime)
                 use crate::vector::SearchScope;
-                let vector_store = Arc::clone(&self.state.vector_store);
+                let vector_store = Arc::clone(&self.state.general_store);
                 let query_owned = query.to_string();
 
                 let results = tokio::task::spawn_blocking(move || {
@@ -964,7 +967,7 @@ impl RealExecutor {
 
                 // Use VectorStore to search documents (spawn_blocking to avoid blocking async runtime)
                 use crate::vector::SearchScope;
-                let vector_store = Arc::clone(&self.state.vector_store);
+                let vector_store = Arc::clone(&self.state.general_store);
                 let query_owned = query.to_string();
 
                 let results = tokio::task::spawn_blocking(move || {
@@ -1162,6 +1165,160 @@ impl RealExecutor {
                         &format!("Neo4j relationship creation failed: {}", e),
                     )),
                 }
+            }
+
+            "raggraph_query" => {
+                use crate::mcp_tools::graph_suite::{GraphSuite, GraphSuiteArgs};
+
+                let suite_args = GraphSuiteArgs {
+                    command: "rag_query".to_string(),
+                    cypher: None,
+                    params: None,
+                    from_id: None,
+                    to_id: None,
+                    rel_type: None,
+                    from_label: None,
+                    to_label: None,
+                    query_text: params
+                        .get("query_text")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    seed_nodes: None,
+                };
+
+                let suite = GraphSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
+            }
+
+            "raggraph_multihop" => {
+                use crate::mcp_tools::graph_suite::{GraphSuite, GraphSuiteArgs};
+
+                let suite_args = GraphSuiteArgs {
+                    command: "rag_multihop".to_string(),
+                    cypher: None,
+                    params: None,
+                    from_id: None,
+                    to_id: None,
+                    rel_type: None,
+                    from_label: None,
+                    to_label: None,
+                    query_text: None,
+                    seed_nodes: params
+                        .get("seed_nodes")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| arr.iter().filter_map(|n| n.as_i64()).collect()),
+                };
+
+                let suite = GraphSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
+            }
+
+            // ================================================================
+            // CODE GRAPH TOOLS - DEPRECATED: Routes through code_suite
+            // ================================================================
+            "code_graph_sync_neo4j" => {
+                use crate::mcp_tools::code_suite::{CodeSuite, CodeSuiteArgs};
+
+                let suite_args = CodeSuiteArgs {
+                    command: "sync_neo4j".to_string(),
+                    file_path: None,
+                    query: None,
+                    pattern: None,
+                    limit: params
+                        .get("limit")
+                        .and_then(|v| v.as_u64())
+                        .map(|l| l as usize),
+                    directory: None,
+                    context_lines: None,
+                    function_name: None,
+                    namespace: params
+                        .get("namespace")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    mode_hint: None,
+                    top_k: None,
+                    scope: None,
+                    project_label: None,
+                    local_root: None,
+                    only_missing: None,
+                };
+
+                let suite = CodeSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
+            }
+
+            "code_graph_enrich_temporal" => {
+                use crate::mcp_tools::code_suite::{CodeSuite, CodeSuiteArgs};
+
+                let suite_args = CodeSuiteArgs {
+                    command: "enrich_temporal".to_string(),
+                    file_path: None,
+                    query: None,
+                    pattern: None,
+                    limit: params
+                        .get("limit")
+                        .and_then(|v| v.as_u64())
+                        .map(|l| l as usize),
+                    directory: None,
+                    context_lines: None,
+                    function_name: None,
+                    namespace: None,
+                    mode_hint: None,
+                    top_k: None,
+                    scope: None,
+                    project_label: None,
+                    local_root: None,
+                    only_missing: params.get("only_missing").and_then(|v| v.as_bool()),
+                };
+
+                let suite = CodeSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
+            }
+
+            "code_graph_fusion_query" => {
+                use crate::mcp_tools::code_suite::{CodeSuite, CodeSuiteArgs};
+
+                let suite_args = CodeSuiteArgs {
+                    command: "fusion_query".to_string(),
+                    file_path: None,
+                    query: params
+                        .get("query")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    pattern: None,
+                    limit: None,
+                    directory: None,
+                    context_lines: None,
+                    function_name: None,
+                    namespace: params
+                        .get("namespace")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    mode_hint: params
+                        .get("mode_hint")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    top_k: params
+                        .get("top_k")
+                        .and_then(|v| v.as_u64())
+                        .map(|k| k as usize),
+                    scope: params
+                        .get("scope")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    project_label: params
+                        .get("project_label")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    local_root: params
+                        .get("local_root")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    only_missing: None,
+                };
+
+                let suite = CodeSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
             }
 
             // ================================================================
@@ -1946,7 +2103,7 @@ impl RealExecutor {
                 // Create sequential reasoning engine
                 let reasoning = SequentialCore::new(
                     Arc::clone(&self.state.tasks),
-                    Arc::clone(&self.state.vector_store),
+                    Arc::clone(&self.state.general_store),
                     Arc::clone(&self.state.memory),
                     llm,
                     self.state.logger.clone(),
@@ -1995,169 +2152,137 @@ impl RealExecutor {
             }
 
             // ================================================================
-            // APPLICATION TOOLS (Phase 6.10)
+            // APPLICATION TOOLS - DEPRECATED: Routes through mapping_suite
             // ================================================================
             "application_record" => {
-                // Parse required parameters
-                let file_path = match Self::param_str("application_record", params, "file_path") {
-                    Ok(v) => v,
-                    Err(e) => return Ok(e),
-                };
-                let change_type = match Self::param_str("application_record", params, "change_type")
-                {
-                    Ok(v) => v,
-                    Err(e) => return Ok(e),
-                };
-                let line_start = match params.get("line_start").and_then(|v| v.as_i64()) {
-                    Some(v) => v as i32,
-                    None => {
-                        return Ok(Self::wrap_error_static(
-                            "application_record",
-                            "Missing 'line_start' parameter",
-                        ))
-                    }
-                };
-                let line_end = match params.get("line_end").and_then(|v| v.as_i64()) {
-                    Some(v) => v as i32,
-                    None => {
-                        return Ok(Self::wrap_error_static(
-                            "application_record",
-                            "Missing 'line_end' parameter",
-                        ))
-                    }
-                };
-                let description = match Self::param_str("application_record", params, "description")
-                {
-                    Ok(v) => v,
-                    Err(e) => return Ok(e),
-                };
+                use crate::mcp_tools::mapping_suite::{MappingSuite, MappingSuiteArgs};
 
-                let old_content = params.get("old_content").and_then(|o| o.as_str());
-                let new_content = params.get("new_content").and_then(|n| n.as_str());
-                let task_id = params.get("task_id").and_then(|t| t.as_i64());
-
-                if dry_run {
-                    let result = self.wrap_success(
-                        "application_record",
-                        json!({
-                            "dry_run": true,
-                            "message": "[DRY RUN] Would record code change",
-                            "file_path": file_path
-                        }),
-                    );
-                    return Ok(result);
-                }
-
-                // Record change using ApplicationTool
-                use crate::portfolio::application_tool::{ApplicationTool, CodeChange};
-                let app_tool = ApplicationTool::new((*self.state).clone());
-
-                let change = CodeChange {
-                    file_path: file_path.to_string(),
-                    change_type: change_type.to_string(),
-                    old_content: old_content.map(|s| s.to_string()),
-                    new_content: new_content.map(|s| s.to_string()),
-                    line_start,
-                    line_end,
-                    description: description.to_string(),
-                    task_id,
+                let suite_args = MappingSuiteArgs {
+                    command: "app_record".to_string(),
+                    path: None,
+                    kind: None,
+                    language: None,
+                    imports: None,
+                    exports: None,
+                    dependencies: None,
+                    query: None,
+                    file_path: params
+                        .get("file_path")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    change_type: params
+                        .get("change_type")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    old_content: params
+                        .get("old_content")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    new_content: params
+                        .get("new_content")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    line_start: params
+                        .get("line_start")
+                        .and_then(|v| v.as_i64())
+                        .map(|i| i as i32),
+                    line_end: params
+                        .get("line_end")
+                        .and_then(|v| v.as_i64())
+                        .map(|i| i as i32),
+                    description: params
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    task_id: params.get("task_id").and_then(|v| v.as_i64()),
                 };
 
-                let change_id = app_tool
-                    .record_change(&change)
-                    .map_err(|e| anyhow::anyhow!("Failed to record change: {}", e))?;
-
-                Ok(self.wrap_success(
-                    "application_record",
-                    json!({
-                        "success": true,
-                        "change_id": change_id,
-                        "file_path": file_path,
-                        "message": "Code change recorded successfully"
-                    }),
-                ))
+                let suite = MappingSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
             }
 
             "application_get" => {
-                let task_id = match params.get("task_id").and_then(|v| v.as_i64()) {
-                    Some(v) => v,
-                    None => {
-                        return Ok(Self::wrap_error_static(
-                            "intellitask_get",
-                            "Missing 'task_id' parameter",
-                        ))
-                    }
+                use crate::mcp_tools::mapping_suite::{MappingSuite, MappingSuiteArgs};
+
+                let suite_args = MappingSuiteArgs {
+                    command: "app_get".to_string(),
+                    path: None,
+                    kind: None,
+                    language: None,
+                    imports: None,
+                    exports: None,
+                    dependencies: None,
+                    query: None,
+                    file_path: None,
+                    change_type: None,
+                    old_content: None,
+                    new_content: None,
+                    line_start: None,
+                    line_end: None,
+                    description: None,
+                    task_id: params.get("task_id").and_then(|v| v.as_i64()),
                 };
 
-                if dry_run {
-                    let result = self.wrap_success(
-                        "application_get",
-                        json!({
-                            "dry_run": true,
-                            "message": format!("[DRY RUN] Would get changes for task: {}", task_id),
-                            "task_id": task_id,
-                            "changes": [],
-                            "count": 0
-                        }),
-                    );
-                    return Ok(result);
-                }
-
-                // Get changes using ApplicationTool
-                use crate::portfolio::application_tool::ApplicationTool;
-                let app_tool = ApplicationTool::new((*self.state).clone());
-
-                let changes = app_tool
-                    .get_changes_for_task(task_id)
-                    .map_err(|e| anyhow::anyhow!("Failed to get changes: {}", e))?;
-
-                Ok(self.wrap_success(
-                    "application_get",
-                    json!({
-                        "task_id": task_id,
-                        "changes": changes,
-                        "count": changes.len()
-                    }),
-                ))
+                let suite = MappingSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
             }
 
             "application_history" => {
-                // PARAMETER VALIDATION - MUST BE FIRST
-                let file_path = params
-                    .get("file_path")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("Missing 'file_path' parameter"))?;
+                use crate::mcp_tools::mapping_suite::{MappingSuite, MappingSuiteArgs};
 
-                if dry_run {
-                    let result = self.wrap_success(
-                        "application_history",
-                        json!({
-                            "dry_run": true,
-                            "message": format!("[DRY RUN] Would get history for: {}", file_path),
-                            "file_path": file_path,
-                            "history": [],
-                            "count": 0
-                        }),
-                    );
-                    return Ok(result);
-                }
+                let suite_args = MappingSuiteArgs {
+                    command: "app_history".to_string(),
+                    path: None,
+                    kind: None,
+                    language: None,
+                    imports: None,
+                    exports: None,
+                    dependencies: None,
+                    query: None,
+                    file_path: params
+                        .get("file_path")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    change_type: None,
+                    old_content: None,
+                    new_content: None,
+                    line_start: None,
+                    line_end: None,
+                    description: None,
+                    task_id: None,
+                };
 
-                // Get file history using ApplicationTool
-                use crate::portfolio::application_tool::ApplicationTool;
-                let app_tool = ApplicationTool::new((*self.state).clone());
+                let suite = MappingSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
+            }
 
-                let history = app_tool
-                    .get_file_history(file_path)
-                    .map_err(|e| anyhow::anyhow!("Failed to get history: {}", e))?;
+            "application_search" => {
+                use crate::mcp_tools::mapping_suite::{MappingSuite, MappingSuiteArgs};
 
-                Ok(self.wrap_success(
-                    "application_history",
-                    json!({
-                        "file_path": file_path,
-                        "history": history,
-                        "count": history.len()
-                    }),
-                ))
+                let suite_args = MappingSuiteArgs {
+                    command: "app_search".to_string(),
+                    path: None,
+                    kind: None,
+                    language: None,
+                    imports: None,
+                    exports: None,
+                    dependencies: None,
+                    query: params
+                        .get("query")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    file_path: None,
+                    change_type: None,
+                    old_content: None,
+                    new_content: None,
+                    line_start: None,
+                    line_end: None,
+                    description: None,
+                    task_id: None,
+                };
+
+                let suite = MappingSuite::new((*self.state).clone());
+                Ok(self.route_through_suite(suite.execute(suite_args)))
             }
 
             // ================================================================
@@ -2378,6 +2503,27 @@ impl RealExecutor {
             "logs_tail" => json!({"logs": []}),
 
             _ => json!({"error": format!("Unknown tool: {}", tool_name)}),
+        }
+    }
+
+    /// Route deprecated tool through suite implementation
+    /// Converts SuiteResult to MCP envelope format
+    fn route_through_suite(&self, suite_result: crate::mcp_tools::SuiteResult) -> Value {
+        if suite_result.success {
+            json!({
+                "ok": true,
+                "data": suite_result.data
+            })
+        } else {
+            json!({
+                "ok": false,
+                "error": {
+                    "type": "ExecutionError",
+                    "message": suite_result.error.unwrap_or_else(|| "Unknown error".to_string()),
+                    "tool": suite_result.command,
+                    "executor": "real"
+                }
+            })
         }
     }
 }

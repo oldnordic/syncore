@@ -1,12 +1,14 @@
 # SynCore
 
-**MCP server for AI-assisted development** with persistent memory, vector search, code intelligence, and Neo4j graph integration.
+**MCP server for AI-native development** - Built in 2 weeks, solo, with $15 AI assistance budget.
 
-Built in Rust. Designed for Claude Code and other MCP clients.
+Unified interface for memory, vectors, code analysis, and knowledge graphs. **65+ tools** accessible via single MCP connection.
+
+Built in Rust. Production-tested with Claude Code.
 
 ## What This Actually Does
 
-SynCore is an MCP (Model Context Protocol) server exposing **62 tools** for:
+SynCore is an MCP (Model Context Protocol) server exposing **65 tools** for:
 - **Persistent Memory** - Key-value storage (SQLite + Sled cache)
 - **Vector Search** - Semantic search with HNSW indexing + brute-force fallback
 - **Code Intelligence** - Tree-sitter parsing for Rust, JavaScript, Python, JSON, TOML, Bash
@@ -37,7 +39,7 @@ SynCore is an MCP (Model Context Protocol) server exposing **62 tools** for:
 - Multi-hop diffusion with PageRank
 - Temporal metadata enrichment (git history + mtime)
 
-**Project Analysis Engine (NEW - PHASE 6):**
+**Project Analysis Engine (PHASE 6):**
 - `project_file_report` - Detailed file analysis (entities, relationships, metrics)
 - `project_hotspots` - Find complexity hotspots (fan-in/out, LOC, entity count)
 - `project_dead_code` - Detect unused entities
@@ -45,6 +47,12 @@ SynCore is an MCP (Model Context Protocol) server exposing **62 tools** for:
 - `project_unused_imports` - Find unused imports
 - `project_module_map` - Module dependency map
 - `project_refactor_suggestions` - Heuristic refactoring suggestions
+
+**Meta-Tools (Aggregate PAE Data):**
+- `project_architecture_overview` - Project-wide summary: entity counts, dependency stats, complexity metrics
+- `project_complexity_dashboard` - Top hotspots, worst cycles, complexity rankings
+- `project_improvement_roadmap` - Prioritized improvements with effort/impact matrix
+- `project_refactor_action_plan` - Actionable refactor plan (high-risk hotspots, dead code, cycle breaks)
 
 **Incremental Indexing (NEW - PHASE 5):**
 - SHA256 + mtime change detection
@@ -111,58 +119,40 @@ Add to `~/.config/claude/mcp_settings.json`:
 | `NEO4J_PASS` | (required for graph) | Neo4j password |
 | `RUST_LOG` | `info` | Log level |
 
-## All 62 Tools
+## All Tools (42 in memory_suite + 23 standalone)
 
-### Memory (2 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `memory_store` | Store key-value pair | Low |
-| `memory_query` | Retrieve value by key | Low |
+### Memory Suite (42 commands via `memory_suite`)
 
-### Vector Search (2 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
+**Basic Memory (5 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
+| `store` | Store key-value pair with metadata | Low |
+| `query` | Retrieve value by key | Low |
+| `delete` | Delete memory entry | Low |
+| `list_keys` | List all memory keys | Low |
+| `memory_stats` | Get count and namespace statistics | Low |
+
+**Semantic Search (8 commands - APEX 1.9-M):**
+| Command | Description | Cost |
+|---------|-------------|------|
+| `search_semantic` | Vector-based semantic search | Medium |
+| `search_hybrid` | Combined semantic + keyword search | Medium |
+| `query_by_tags` | Filter memories by tags | Low |
+| `query_by_importance` | Filter by importance threshold | Low |
+| `query_recent` | Get N most recent memories | Low |
+| `query_since` | Get memories since timestamp | Low |
+| `consolidate_similar` | Find and merge similar memories | High |
+| `get_related_memories` | Get related memories (semantic + graph) | Medium |
+
+**Vector Operations (2 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
 | `vector_insert` | Add text with embeddings | Medium |
 | `vector_search` | Semantic similarity search | Medium |
 
-### Code Intelligence (5 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `code_index` | Index a source file | High |
-| `code_search` | Semantic code search | Medium |
-| `code_index_directory` | Batch index directory (incremental) | Very High |
-| `parser_analyze` | Tree-sitter AST extraction, `persist=true` writes to DB/HNSW/Neo4j | Medium |
-| `parser_search` | Ripgrep pattern search | Medium |
-
-### Documents (2 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `document_index` | Index documents from directory | Very High |
-| `document_search` | Semantic document search | Medium |
-
-### Graph Database (3 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `graph_query` | Execute Cypher read query | High |
-| `graph_insert` | Execute Cypher write query | High |
-| `graph_relate` | Create relationship between nodes | High |
-
-### Code Graph (4 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `code_graph_fusion_query` | Tri-mode (simple/attention/reasoning) search | High |
-| `code_graph_sync_neo4j` | Sync SQLite entities to Neo4j | Very High |
-| `code_graph_enrich_temporal` | Add git history + mtime metadata | Very High |
-| `raggraph_multihop` | Multi-hop graph diffusion from seed nodes | High |
-
-### RAG (1 tool)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `raggraph_query` | RAG query with multi-hop graph reasoning | High |
-
-### Task Management (11 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
+**Task Management (15 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
 | `task_create` | Create a task | Low |
 | `intellitask_list` | List all tasks | Low |
 | `intellitask_get` | Get task by ID | Low |
@@ -178,9 +168,17 @@ Add to `~/.config/claude/mcp_settings.json`:
 | `intellitask_prioritize` | **Requires Ollama** - AI task prioritization | High |
 | `intellitask_next` | **Requires Ollama** - AI next task suggestion | High |
 
-### Agent Coordination (8 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
+**Sequential Reasoning (4 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
+| `sequential_record` | Record thought step in reasoning chain | Low |
+| `sequential_get` | Get thought steps for task | Low |
+| `sequential_search` | Search thought steps semantically | Medium |
+| `sequential_cycle` | **Requires Ollama** - Run reasoning cycle | Very High |
+
+**Agent Coordination (8 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
 | `agent_send` | Send message to agent via message bus | Low |
 | `agent_recv` | Receive pending messages | Low |
 | `agent_poll` | Wait for next message (blocking) | Low |
@@ -190,46 +188,64 @@ Add to `~/.config/claude/mcp_settings.json`:
 | `agent_task` | Send structured task envelope | Low |
 | `agent_result` | Submit completed task result | Low |
 
-### Application Mapping (4 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `mapping_record` | Record file node with imports/exports/deps | Low |
-| `mapping_get` | Get file node | Low |
-| `mapping_search` | Semantic file search | Medium |
-| `mapping_deps` | Get transitive dependencies | Medium |
+### Standalone MCP Tools
 
-### Sequential Reasoning (4 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `sequential_record` | Record thought step in reasoning chain | Low |
-| `sequential_get` | Get thought steps for task | Low |
-| `sequential_search` | Search thought steps semantically | Medium |
-| `sequential_cycle` | **Requires Ollama** - Run reasoning cycle | Very High |
+**Code Suite (11 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
+| `index` | Index a source file | High |
+| `search` | Semantic code search | Medium |
+| `index_directory` | Batch index directory (incremental) | Very High |
+| `parse` | Tree-sitter AST extraction | Medium |
+| `grep` | Ripgrep pattern search | Medium |
+| `explain` | Explain function with metrics | Medium |
+| `doc_index` | Index documents from directory | Very High |
+| `doc_search` | Semantic document search | Medium |
+| `fusion_query` | Tri-mode RAG query (simple/attention/reasoning) | High |
+| `enrich_temporal` | Add git history + mtime metadata | Very High |
+| `sync_neo4j` | Sync SQLite entities to Neo4j | Very High |
 
-### Application Change Tracking (4 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `application_record` | Record code change | Low |
-| `application_get` | Get changes for task | Low |
-| `application_history` | Get file change history | Low |
-| `application_search` | Search changes semantically | Medium |
+**Graph Suite (5 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
+| `query` | Execute Cypher read query | High |
+| `insert` | Execute Cypher write query | High |
+| `relate` | Create relationship between nodes | High |
+| `rag_query` | RAG query with multi-hop graph reasoning | High |
+| `rag_multihop` | Multi-hop graph diffusion from seed nodes | High |
 
-### System (2 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
+**Mapping Suite (8 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
+| `record` | Record file node with imports/exports/deps | Low |
+| `get` | Get file node | Low |
+| `search` | Semantic file search | Medium |
+| `deps` | Get transitive dependencies | Medium |
+| `app_record` | Record code change | Low |
+| `app_get` | Get changes for task | Low |
+| `app_history` | Get file change history | Low |
+| `app_search` | Search changes semantically | Medium |
+
+**Debug Suite (10 commands):**
+| Command | Description | Cost |
+|---------|-------------|------|
 | `logs_tail` | Get recent log entries | Low |
-| `tool_metadata_list` | List tool metadata (only shows 14 core tools) | Low |
+| `tool_metadata_list` | List tool metadata | Low |
+| `project_file_report` | Detailed file analysis | Medium |
+| `project_hotspots` | Find complexity hotspots | Medium |
+| `project_dead_code` | Identify unused entities | Medium |
+| `project_cycles` | Detect circular dependencies | Medium |
+| `project_unused_imports` | Find unused imports | Medium |
+| `project_module_map` | Module dependency map | Medium |
+| `project_refactor_suggestions` | Refactoring suggestions | Medium |
+| `project_code_smells` | Detect code smells | Medium |
 
-### Project Analysis (7 tools)
-| Tool | Description | Cost |
-|------|-------------|------|
-| `project_file_report` | Detailed analysis of a single file (entities, relationships, imports, metrics) | Medium |
-| `project_hotspots` | Find code complexity hotspots by fan-in, fan-out, LOC, entity count | Medium |
-| `project_dead_code` | Identify potentially unused entities (no incoming references) | Medium |
-| `project_cycles` | Detect circular dependencies between files | Medium |
-| `project_unused_imports` | Find imports that aren't used | Medium |
-| `project_module_map` | Generate module-level dependency map | Medium |
-| `project_refactor_suggestions` | Generate heuristic-based refactoring suggestions | Medium |
+**REFRAG Suite (3 commands - APEX 1.8):**
+| Command | Description | Cost |
+|---------|-------------|------|
+| `query` | Selective expansion with token budget | High |
+| `configure` | Update expansion policy | Low |
+| `help` | Show REFRAG usage | Low |
 
 ## Performance
 

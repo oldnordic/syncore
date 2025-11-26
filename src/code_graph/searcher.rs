@@ -32,9 +32,18 @@ impl CodeGraph {
             // FIX 3: Log failures instead of silently ignoring them
             match self.get_entity_by_vector_id(&db, hit.id) {
                 Ok(entity) => {
+                    // APEX v1.7: Apply combined entity type + body boost
+                    let has_body = entity.body_snippet.is_some();
+                    let entity_kind = entity.entity_type.as_str();
+                    let boosted_score = super::entity_boost::apply_combined_boost(
+                        hit.score,
+                        entity_kind,
+                        has_body,
+                    );
+
                     matches.push(CodeMatch {
                         entity,
-                        score: hit.score,
+                        score: boosted_score,
                         match_type: MatchType::Semantic,
                     });
                 }
@@ -71,7 +80,7 @@ impl CodeGraph {
     /// Get entity by ID
     fn get_entity_by_id(&self, db: &Connection, entity_id: i64) -> Result<CodeEntity> {
         let entity = db.query_row(
-        "SELECT file_path, entity_type, name, signature, line_start, line_end, docstring, language
+        "SELECT file_path, entity_type, name, signature, line_start, line_end, docstring, language, body_snippet
          FROM code_entities WHERE id = ?",
         [entity_id],
         |row| {
@@ -85,6 +94,7 @@ impl CodeGraph {
                 line_end: row.get::<_, i64>(5)? as usize,
                 docstring: row.get(6)?,
                 language: row.get(7)?,
+                body_snippet: row.get(8)?,  // APEX v1.7 Phase 3: Load body_snippet from DB
                 created_at: None,
                 last_modified_at: None,
                 change_count: None,

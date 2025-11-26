@@ -94,3 +94,25 @@ Thumbs.db
 perf.data
 perf.data.old
 flamegraph.svg
+
+# Internal documentation (not for public repo)
+CLAUDE.md
+CLAUDE_*.md
+*_REPORT.md
+*_AUDIT.md
+*_STATUS.md
+*_DECISION.md
+*_BUGS.md
+*_FIX*.md
+AGENTS.md
+PAE_*.md
+APEX_*.md
+NEO4J_*.md
+
+# AI development artifacts
+.taskmaster/
+ai-dev-tasks/
+
+# Backup databases
+*.db.backup
+syncore.db_cache/

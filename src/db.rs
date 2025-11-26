@@ -63,6 +63,39 @@ pub fn ensure_schema(db_path: &str) -> anyhow::Result<()> {
         }
     }
 
+    // Check if memory_tags table exists for semantic memory migration
+    let mut stmt =
+        db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory_tags'")?;
+    let has_memory_tags = stmt.exists([])?;
+
+    if !has_memory_tags {
+        // Run the v3 semantic memory migration
+        let migration_path = "migrations/03_semantic_memory.sql";
+        if Path::new(migration_path).exists() {
+            run_migration(&db, migration_path)?;
+        } else {
+            // Fallback: create semantic memory schema inline
+            db.execute_batch(include_str!("../migrations/03_semantic_memory.sql"))?;
+        }
+    }
+
+    // Check if namespace isolation fix has been applied (v4 migration)
+    let mut stmt = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_memory_k_namespace'"
+    )?;
+    let has_namespace_index = stmt.exists([])?;
+
+    if !has_namespace_index {
+        // Run the v4 namespace isolation fix migration
+        let migration_path = "migrations/04_namespace_isolation_fix.sql";
+        if Path::new(migration_path).exists() {
+            run_migration(&db, migration_path)?;
+        } else {
+            // Fallback: apply namespace fix inline
+            db.execute_batch(include_str!("../migrations/04_namespace_isolation_fix.sql"))?;
+        }
+    }
+
     Ok(())
 }
 

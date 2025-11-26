@@ -158,53 +158,27 @@ pub fn fetch_recent_episodes_sql(
 /// * `neo4j` - Neo4j client
 /// * `episode` - Episode to store
 pub async fn store_episode_graph(neo4j: &Neo4jClient, episode: &ReasoningEpisode) -> Result<()> {
-    // Create Episode node
-    let cypher = format!(
-        "CREATE (e:ReasoningEpisode {{
-            id: $id,
-            timestamp: $timestamp,
-            user_query: $query,
-            selected_mode: $mode,
-            outcome: $outcome,
-            notes: $notes,
-            namespace: '{}'
-        }})",
-        neo4j.namespace()
-    );
+    use crate::databases::cognition_graph::{
+        upsert_reasoning_episode, create_uses_relationship, ReasoningEpisodeProperties,
+    };
 
-    neo4j
-        .execute_query(
-            &cypher,
-            vec![
-                ("id", serde_json::json!(episode.id)),
-                ("timestamp", serde_json::json!(episode.timestamp)),
-                ("query", serde_json::json!(episode.user_query)),
-                ("mode", serde_json::json!(episode.selected_mode)),
-                ("outcome", serde_json::json!(episode.outcome)),
-                ("notes", serde_json::json!(episode.notes)),
-            ],
-        )
-        .await?;
+    // Create Episode node
+    upsert_reasoning_episode(
+        neo4j,
+        ReasoningEpisodeProperties {
+            id: episode.id,
+            timestamp: episode.timestamp,
+            user_query: episode.user_query.clone(),
+            selected_mode: episode.selected_mode.clone(),
+            outcome: episode.outcome.clone(),
+            notes: episode.notes.clone(),
+        },
+    )
+    .await?;
 
     // Link to entities
     for entity_id in &episode.important_entities {
-        let link_cypher = format!(
-            "MATCH (e:ReasoningEpisode {{id: $episode_id, namespace: '{}'}})
-             MERGE (ent:CodeEntity {{id: $entity_id, namespace: '{}'}})
-             MERGE (e)-[:USES]->(ent)",
-            neo4j.namespace(),
-            neo4j.namespace()
-        );
-
-        neo4j
-            .execute_query(
-                &link_cypher,
-                vec![
-                    ("episode_id", serde_json::json!(episode.id)),
-                    ("entity_id", serde_json::json!(entity_id)),
-                ],
-            )
-            .await?;
+        create_uses_relationship(neo4j, episode.id, entity_id).await?;
     }
 
     Ok(())
@@ -223,35 +197,9 @@ pub async fn fetch_related_episodes_graph(
     entity_ids: &[String],
     limit: usize,
 ) -> Result<Vec<ReasoningEpisodeId>> {
-    if entity_ids.is_empty() {
-        return Ok(Vec::new());
-    }
+    use crate::databases::cognition_graph::fetch_related_episodes;
 
-    let cypher = format!(
-        "MATCH (e:ReasoningEpisode {{namespace: '{}'}})-[:USES]->(ent:CodeEntity)
-         WHERE ent.id IN $entity_ids
-         WITH DISTINCT e
-         RETURN e.id as id
-         ORDER BY e.timestamp DESC
-         LIMIT $limit",
-        neo4j.namespace()
-    );
-
-    let results = neo4j
-        .execute_query(
-            &cypher,
-            vec![
-                ("entity_ids", serde_json::json!(entity_ids)),
-                ("limit", serde_json::json!(limit)),
-            ],
-        )
-        .await?;
-
-    let episode_ids = results
-        .iter()
-        .filter_map(|row| row.get("id").and_then(|v| v.as_i64()))
-        .collect();
-
+    let episode_ids = fetch_related_episodes(neo4j, entity_ids, limit).await?;
     Ok(episode_ids)
 }
 

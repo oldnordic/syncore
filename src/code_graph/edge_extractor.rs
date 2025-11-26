@@ -85,6 +85,10 @@ fn extract_type_names(source_code: &str, root_node: Node) -> HashMap<String, ()>
 }
 
 /// Extract function calls (Calls edges)
+///
+/// Handles both:
+/// - Instance method calls: `obj.method()`
+/// - Static method calls: `Type::method()` (e.g., `FusionAttention::new()`)
 fn extract_calls(
     edges: &mut Vec<ExtractedEdge>,
     source_code: &str,
@@ -108,17 +112,44 @@ fn extract_calls(
                 if let Some(function_node) = node.child_by_field_name("function") {
                     let callee_text = &src[function_node.byte_range()];
 
-                    // Extract simple identifier (remove method/field access)
-                    let callee = callee_text.split('.').last().unwrap_or(callee_text);
-                    let callee = callee.trim();
+                    // Check for static method call: Type::method()
+                    if callee_text.contains("::") {
+                        // Parse "Type::method" or "module::Type::method"
+                        let parts: Vec<&str> = callee_text.split("::").collect();
+                        if parts.len() >= 2 {
+                            let method_name = parts.last().unwrap().trim();
+                            // Get the type name (last non-method part)
+                            let type_name = parts[parts.len() - 2].trim();
 
-                    // Only create edge if callee is a known function
-                    if function_names.contains_key(callee) {
-                        edges.push(ExtractedEdge {
-                            src_entity_name: caller.clone(),
-                            dst_entity_name: callee.to_string(),
-                            edge_type: EdgeType::Calls,
-                        });
+                            // Create CALLS edge: caller -> Type::method
+                            // Use "Type::method" format for dst to enable lookup
+                            edges.push(ExtractedEdge {
+                                src_entity_name: caller.clone(),
+                                dst_entity_name: format!("{}::{}", type_name, method_name),
+                                edge_type: EdgeType::Calls,
+                            });
+
+                            // Also create UsesType edge: caller -> Type
+                            // This ensures types used in static calls are not flagged as dead
+                            edges.push(ExtractedEdge {
+                                src_entity_name: caller.clone(),
+                                dst_entity_name: type_name.to_string(),
+                                edge_type: EdgeType::UsesType,
+                            });
+                        }
+                    } else {
+                        // Instance method call: obj.method() or simple fn()
+                        let callee = callee_text.split('.').last().unwrap_or(callee_text);
+                        let callee = callee.trim();
+
+                        // Only create edge if callee is a known function
+                        if function_names.contains_key(callee) {
+                            edges.push(ExtractedEdge {
+                                src_entity_name: caller.clone(),
+                                dst_entity_name: callee.to_string(),
+                                edge_type: EdgeType::Calls,
+                            });
+                        }
                     }
                 }
             }
@@ -501,7 +532,9 @@ mod tests {
         "#;
 
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(unsafe { tree_sitter_rust::language() }).unwrap();
+        parser
+            .set_language(unsafe { tree_sitter_rust::language() })
+            .unwrap();
         let tree = parser.parse(code, None).unwrap();
 
         let names = extract_function_names(code, tree.root_node());
@@ -519,7 +552,9 @@ mod tests {
         "#;
 
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(unsafe { tree_sitter_rust::language() }).unwrap();
+        parser
+            .set_language(unsafe { tree_sitter_rust::language() })
+            .unwrap();
         let tree = parser.parse(code, None).unwrap();
 
         let function_names = extract_function_names(code, tree.root_node());

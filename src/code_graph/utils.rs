@@ -24,5 +24,11 @@ pub(super) fn format_entity_for_embedding(entity: &CodeEntity) -> String {
         parts.push(doc.clone());
     }
 
+    // APEX v1.7 Phase 3: Include body_snippet in embedding text
+    // This allows semantic search to match against function implementation details
+    if let Some(body) = &entity.body_snippet {
+        parts.push(body.clone());
+    }
+
     parts.join(" ")
 }

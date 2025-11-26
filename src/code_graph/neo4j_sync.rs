@@ -285,6 +285,7 @@ fn fetch_entities_from_sqlite(
             line_end: line_end as usize,
             docstring,
             language,
+            body_snippet: None,
             created_at,
             last_modified_at,
             change_count,

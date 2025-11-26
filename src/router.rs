@@ -6,6 +6,8 @@ use crate::message_bus::MessageBus;
 use crate::protocol::{SynCoreMsg, SynCoreTool};
 use crate::storage::{create_read_pool, FaissPool, FaissQueue, ReadPool, WriteQueue};
 use crate::tasks::Tasks;
+use crate::vector::domain::EmbeddingDomain;
+use crate::vector::dual_service::DualEmbeddingService;
 use crate::vector::{SearchScope, VectorStore};
 use anyhow::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,7 +19,10 @@ pub struct SynCoreState {
     pub db_manager: Arc<crate::db::DbManager>,
     pub memory: Arc<Memory>,
     pub tasks: Arc<Tasks>,
-    pub vector_store: Arc<Mutex<VectorStore>>,
+    /// CODE domain vector store (code entities with code-optimized embeddings)
+    pub code_store: Arc<Mutex<VectorStore>>,
+    /// GENERAL domain vector store (documents, tasks, notes with general-purpose embeddings)
+    pub general_store: Arc<Mutex<VectorStore>>,
     pub logger: Arc<dyn CogLogger>,
     pub message_bus: Option<Arc<MessageBus>>,
     pub write_queue: Option<Arc<WriteQueue>>,
@@ -25,16 +30,90 @@ pub struct SynCoreState {
     pub faiss_queue: Option<Arc<FaissQueue>>,
     pub faiss_pool: Option<Arc<FaissPool>>,
     pub neo4j: Option<Arc<Neo4jClient>>,
+    /// IntelliTask AI-powered task management (requires LLM backend)
+    pub intellitask: Option<Arc<crate::intellitask::IntelliTask>>,
     /// HNSW index warmup status - true when index is ready for fast search
     pub hnsw_ready: Arc<AtomicBool>,
 }
 
 impl SynCoreState {
-    /// Create SynCoreState with DbManager (preferred constructor for production).
+    /// Create SynCoreState with dual VectorStores (preferred constructor for production).
+    ///
+    /// This constructor initializes separate CODE and GENERAL domain vector stores
+    /// for domain-aware embedding routing.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let code_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
+    /// let code_store = Arc::new(Mutex::new(VectorStore::new(code_embeddings)));
+    ///
+    /// let general_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
+    /// let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
+    ///
+    /// let state = SynCoreState::with_dual_stores(code_store, general_store)?;
+    /// ```
+    pub fn with_dual_stores(
+        code_store: Arc<Mutex<VectorStore>>,
+        general_store: Arc<Mutex<VectorStore>>,
+    ) -> Result<Self> {
+        // Get database paths from centralized helpers
+        let main_db_path = db_paths::main_db_path();
+        let code_graph_db_path = db_paths::code_graph_db_path();
+
+        // Initialize DbManager with long-lived connections
+        let db_manager = Arc::new(crate::db::DbManager::new(
+            &main_db_path,
+            &code_graph_db_path,
+        )?);
+
+        // Create DualEmbeddingService from pre-existing stores
+        let embeddings = Arc::new(DualEmbeddingService::from_stores(
+            Arc::clone(&code_store),
+            Arc::clone(&general_store),
+        ));
+
+        // Create Memory using DbManager's main connection with embeddings
+        let main_cache_path = format!("{}_cache", main_db_path);
+        let memory = Memory::with_embeddings(
+            db_manager.main_conn(),
+            &main_cache_path,
+            embeddings,
+        )?;
+
+        // Create Tasks using DbManager's main connection
+        let tasks = Tasks::with_connection(db_manager.main_conn())?;
+
+        let logger = Arc::new(MarkdownLogger::new("./logs"));
+
+        Ok(Self {
+            db_manager,
+            memory: Arc::new(memory),
+            tasks: Arc::new(tasks),
+            code_store,
+            general_store,
+            logger,
+            message_bus: None,
+            write_queue: None,
+            read_pool: None,
+            faiss_queue: None,
+            faiss_pool: None,
+            neo4j: None,
+            intellitask: None,
+            hnsw_ready: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
+    /// Create SynCoreState with DbManager (legacy single-store constructor).
     ///
     /// This constructor initializes DbManager with long-lived connections and wires
     /// all SQLite-backed components to use those connections. This eliminates the
     /// "short-lived WAL connection" persistence bug.
+    ///
+    /// # Deprecation Note
+    ///
+    /// This method is deprecated in favor of `with_dual_stores()` for domain-aware routing.
+    /// For backward compatibility, the single store is used for both CODE and GENERAL domains.
     ///
     /// # Example
     ///
@@ -43,6 +122,7 @@ impl SynCoreState {
     /// let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
     /// let state = SynCoreState::with_db_manager(vector_store)?;
     /// ```
+    #[deprecated(note = "Use with_dual_stores() for domain-aware routing")]
     pub fn with_db_manager(vector_store: Arc<Mutex<VectorStore>>) -> Result<Self> {
         // Get database paths from centralized helpers
         let main_db_path = db_paths::main_db_path();
@@ -63,11 +143,16 @@ impl SynCoreState {
 
         let logger = Arc::new(MarkdownLogger::new("./logs"));
 
+        // For backward compatibility, use the same store for both domains
+        let code_store = Arc::clone(&vector_store);
+        let general_store = Arc::clone(&vector_store);
+
         Ok(Self {
             db_manager,
             memory: Arc::new(memory),
             tasks: Arc::new(tasks),
-            vector_store,
+            code_store,
+            general_store,
             logger,
             message_bus: None,
             write_queue: None,
@@ -75,15 +160,21 @@ impl SynCoreState {
             faiss_queue: None,
             faiss_pool: None,
             neo4j: None,
+            intellitask: None, // Initialized separately via set_intellitask()
             hnsw_ready: Arc::new(AtomicBool::new(false)),
         })
     }
 
-    /// Legacy constructor - accepts pre-created components (deprecated, use with_db_manager instead).
+    /// Legacy constructor - accepts pre-created components (deprecated).
     ///
     /// This method is kept for backward compatibility with existing code that hasn't
     /// been refactored to use DbManager yet. Components created this way may open
     /// their own short-lived connections, which can cause persistence issues with WAL mode.
+    ///
+    /// # Deprecation Note
+    ///
+    /// Use `with_dual_stores()` for domain-aware routing.
+    #[deprecated(note = "Use with_dual_stores() for domain-aware routing")]
     pub fn new(memory: Memory, tasks: Tasks, vector_store: Arc<Mutex<VectorStore>>) -> Self {
         // For legacy compatibility, create a DbManager but don't use it for these components
         // since they already have their own connections
@@ -95,11 +186,17 @@ impl SynCoreState {
         );
 
         let logger = Arc::new(MarkdownLogger::new("./logs"));
+
+        // For backward compatibility, use the same store for both domains
+        let code_store = Arc::clone(&vector_store);
+        let general_store = Arc::clone(&vector_store);
+
         Self {
             db_manager,
             memory: Arc::new(memory),
             tasks: Arc::new(tasks),
-            vector_store,
+            code_store,
+            general_store,
             logger,
             message_bus: None,
             write_queue: None,
@@ -107,6 +204,7 @@ impl SynCoreState {
             faiss_queue: None,
             faiss_pool: None,
             neo4j: None,
+            intellitask: None, // Initialized separately via set_intellitask()
             hnsw_ready: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -121,6 +219,43 @@ impl SynCoreState {
     pub fn with_neo4j(mut self, client: Arc<Neo4jClient>) -> Self {
         self.neo4j = Some(client);
         self
+    }
+
+    /// Add IntelliTask AI-powered task management (builder pattern)
+    ///
+    /// IntelliTask requires a language model backend to function.
+    /// Pass an initialized IntelliTask instance from llm::factory.
+    pub fn with_intellitask(mut self, intellitask: Arc<crate::intellitask::IntelliTask>) -> Self {
+        self.intellitask = Some(intellitask);
+        self
+    }
+
+    /// Get VectorStore for specific domain
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let store = state.store_for_domain(EmbeddingDomain::Code);
+    /// store.lock().unwrap().insert_text(id, None, text, "code_entity")?;
+    /// ```
+    pub fn store_for_domain(&self, domain: EmbeddingDomain) -> Arc<Mutex<VectorStore>> {
+        match domain {
+            EmbeddingDomain::Code => Arc::clone(&self.code_store),
+            EmbeddingDomain::General => Arc::clone(&self.general_store),
+        }
+    }
+
+    /// Get VectorStore for namespace (maps namespace to domain)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let store = state.store_for_namespace("code_entity");  // Returns CODE store
+    /// let store = state.store_for_namespace("documents");    // Returns GENERAL store
+    /// ```
+    pub fn store_for_namespace(&self, namespace: &str) -> Arc<Mutex<VectorStore>> {
+        let domain = EmbeddingDomain::from_namespace(namespace);
+        self.store_for_domain(domain)
     }
 
     /// Add write queue and read pool for deadlock-free SQLite (builder pattern)
@@ -166,13 +301,21 @@ impl SynCoreState {
         let tasks = crate::tasks::Tasks::with_connection(db_manager.main_conn())
             .expect("Failed to create Tasks for test");
 
+        // Create separate stores for CODE and GENERAL domains (test mode)
+        let code_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
+            crate::vector::RealEmbeddings::new(384).unwrap(),
+        ))));
+        let general_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
+            crate::vector::RealEmbeddings::new(384).unwrap(),
+        ))));
+        let vector_store = Arc::clone(&general_store);
+
         Self {
             db_manager,
             memory: Arc::new(memory),
             tasks: Arc::new(tasks),
-            vector_store: Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
-                crate::vector::RealEmbeddings::new(384).unwrap(),
-            )))),
+            code_store,
+            general_store,
             logger: Arc::new(MarkdownLogger::new("./logs")),
             message_bus: None,
             write_queue: None,
@@ -180,6 +323,7 @@ impl SynCoreState {
             faiss_queue: Some(FaissQueue::new(128)),
             faiss_pool: Some(FaissPool::new(path, 8)),
             neo4j: None,
+            intellitask: None, // Test context - LLM not required
             hnsw_ready: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -234,15 +378,31 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
         SynCoreTool::VectorInsert => {
             let (id, task_id, text, kind): (i64, Option<i64>, String, String) =
                 rmp_serde::from_slice(&msg.args)?;
-            let mut store = state.vector_store.lock().unwrap();
-            store.insert_text(id, task_id, &text, &kind)?;
+
+            // Domain-aware routing: map namespace (kind) to correct VectorStore (APEX 1.7)
+            let store = state.store_for_namespace(&kind);
+            let mut store_lock = store.lock().unwrap();
+            store_lock.insert_text(id, task_id, &text, &kind)?;
+
             let response = serde_json::json!({"success": true, "id": id, "task_id": task_id});
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
         SynCoreTool::VectorSearch => {
             let (query, k, scope): (String, usize, SearchScope) = rmp_serde::from_slice(&msg.args)?;
-            let store = state.vector_store.lock().unwrap();
-            let results = store.search(&query, k, scope)?;
+
+            // Domain-aware routing: select correct VectorStore based on SearchScope (APEX 1.7)
+            let store = match &scope {
+                SearchScope::Domain(domain) | SearchScope::DomainTask(domain, _) => {
+                    state.store_for_domain(*domain)
+                }
+                // Global and Task scopes default to GENERAL store for backward compatibility
+                SearchScope::Global | SearchScope::Task(_) => {
+                    Arc::clone(&state.general_store)
+                }
+            };
+
+            let store_lock = store.lock().unwrap();
+            let results = store_lock.search(&query, k, scope)?;
             let response = serde_json::json!({"results": results});
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
@@ -276,7 +436,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
             let max_cycles: Option<usize> = rmp_serde::from_slice(&msg.args)?;
             let sequential_core = crate::sequential::SequentialCore::new(
                 state.tasks.clone(),
-                state.vector_store.clone(),
+                state.general_store.clone(),  // GENERAL domain: sequential reasoning
                 state.memory.clone(),
                 Arc::new(Mutex::new(crate::sequential::DemoLanguageModel::new())),
                 state.logger.clone(),
@@ -350,7 +510,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
 
             // Create indexer with state's vector store using unified path
             let db_path = db_paths::code_graph_db_path();
-            let mut indexer = DirectoryIndexer::new(&db_path, state.vector_store.clone())?;
+            let mut indexer = DirectoryIndexer::new(&db_path, state.code_store.clone())?;  // CODE domain: code indexing
 
             // Index directory
             let response = indexer.index_directory(&request)?;
@@ -369,6 +529,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     #[test]
+    #[allow(deprecated)]
     fn test_memory_store() -> Result<()> {
         let temp_db = NamedTempFile::new()?;
         let db_path = temp_db.path().to_str().unwrap();
@@ -390,6 +551,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_memory_query() -> Result<()> {
         let temp_db = NamedTempFile::new()?;
         let db_path = temp_db.path().to_str().unwrap();
@@ -413,6 +575,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_unknown_tool() -> Result<()> {
         let temp_db = NamedTempFile::new()?;
         let db_path = temp_db.path().to_str().unwrap();

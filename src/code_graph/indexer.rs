@@ -5,6 +5,7 @@ use rusqlite::Connection;
 use std::path::Path;
 use std::time::SystemTime;
 
+use super::body_extractor::{extract_body_snippet, should_extract_body}; // APEX v1.7 Phase 3
 use super::graph::CodeGraph;
 use super::incremental::{
     compute_file_sha256, get_file_mtime, get_stored_file_state, update_file_state,
@@ -85,6 +86,11 @@ impl CodeGraph {
         // PHASE 3: Extract temporal metadata once for the entire file
         let temporal = extract_temporal_metadata(file_path.to_str().unwrap_or(""))?;
 
+        // SMEL: Process macro expansions for Rust files
+        if code_structure.language == "rust" {
+            self.store_macro_expansions(file_path, &file_path_str)?;
+        }
+
         let mut entities_indexed = 0;
 
         // Extract and store entities
@@ -107,6 +113,15 @@ impl CodeGraph {
         let mut entity_ids = Vec::new();
         let mut edges = Vec::new();
         for func in &code_structure.functions {
+            // APEX v1.7 Phase 3: Extract function body snippet
+            let body_snippet = extract_body_snippet(
+                file_path,
+                func.line_number,
+                func.end_line,
+            )
+            .ok()
+            .flatten();
+
             let entity = CodeEntity {
                 id: None,
                 file_path: code_structure.file_path.clone(),
@@ -117,6 +132,7 @@ impl CodeGraph {
                 line_end: func.end_line,
                 docstring: func.docstring.clone(),
                 language: code_structure.language.clone(),
+                body_snippet,
                 created_at: Some(temporal.created_at),
                 last_modified_at: Some(temporal.last_modified_at),
                 change_count: Some(temporal.change_count),
@@ -140,6 +156,7 @@ impl CodeGraph {
                 line_end: class.line_number,
                 docstring: None,
                 language: code_structure.language.clone(),
+                body_snippet: None, // Classes don't get body snippets
                 created_at: Some(temporal.created_at),
                 last_modified_at: Some(temporal.last_modified_at),
                 change_count: Some(temporal.change_count),
@@ -152,6 +169,15 @@ impl CodeGraph {
 
             // Store methods
             for method in &class.methods {
+                // APEX v1.7 Phase 3: Extract method body snippet
+                let body_snippet = extract_body_snippet(
+                    file_path,
+                    method.line_number,
+                    method.end_line,
+                )
+                .ok()
+                .flatten();
+
                 let method_entity = CodeEntity {
                     id: None,
                     file_path: code_structure.file_path.clone(),
@@ -159,13 +185,14 @@ impl CodeGraph {
                     name: format!("{}.{}", class.name, method.name),
                     signature: Some(format_function_signature(method)),
                     line_start: method.line_number,
-                    line_end: method.line_number,
+                    line_end: method.end_line,
                     docstring: None,
                     language: code_structure.language.clone(),
-                created_at: Some(temporal.created_at),
-                last_modified_at: Some(temporal.last_modified_at),
-                change_count: Some(temporal.change_count),
-                author_count: Some(temporal.author_count),
+                    body_snippet,
+                    created_at: Some(temporal.created_at),
+                    last_modified_at: Some(temporal.last_modified_at),
+                    change_count: Some(temporal.change_count),
+                    author_count: Some(temporal.author_count),
                 };
 
                 let method_id = self.store_entity_internal(&tx, &method_entity)?;
@@ -191,6 +218,7 @@ impl CodeGraph {
                 line_end: import.line_number,
                 docstring: None,
                 language: code_structure.language.clone(),
+                body_snippet: None,
                 created_at: Some(temporal.created_at),
                 last_modified_at: Some(temporal.last_modified_at),
                 change_count: Some(temporal.change_count),
@@ -225,10 +253,11 @@ impl CodeGraph {
                         line_end: 0,
                         docstring: None,
                         language: code_structure.language.clone(),
-                created_at: Some(temporal.created_at),
-                last_modified_at: Some(temporal.last_modified_at),
-                change_count: Some(temporal.change_count),
-                author_count: Some(temporal.author_count),
+                        body_snippet: None,
+                        created_at: Some(temporal.created_at),
+                        last_modified_at: Some(temporal.last_modified_at),
+                        change_count: Some(temporal.change_count),
+                        author_count: Some(temporal.author_count),
                     };
                     let trait_id = self.store_entity_internal(&tx, &trait_entity)?;
                     entity_ids.push((trait_id, trait_entity));
@@ -245,14 +274,15 @@ impl CodeGraph {
                         entity_type: EntityType::Function, // Use Function for now (no Constant type)
                         name: const_name.clone(),
                         signature: Some("const".to_string()), // Mark as const via signature
-                        line_start: 0, // TODO: extract actual line number
+                        line_start: 0,                        // TODO: extract actual line number
                         line_end: 0,
                         docstring: None,
                         language: code_structure.language.clone(),
-                created_at: Some(temporal.created_at),
-                last_modified_at: Some(temporal.last_modified_at),
-                change_count: Some(temporal.change_count),
-                author_count: Some(temporal.author_count),
+                        body_snippet: None,
+                        created_at: Some(temporal.created_at),
+                        last_modified_at: Some(temporal.last_modified_at),
+                        change_count: Some(temporal.change_count),
+                        author_count: Some(temporal.author_count),
                     };
                     let const_id = self.store_entity_internal(&tx, &const_entity)?;
                     entity_ids.push((const_id, const_entity));
@@ -260,9 +290,10 @@ impl CodeGraph {
                 }
 
                 // PHASE 2: Extract edges using edge_extractor module
-                if let Ok(extracted_edges) =
-                    super::edge_extractor::extract_edges_from_rust_ast(&source_code, tree.root_node())
-                {
+                if let Ok(extracted_edges) = super::edge_extractor::extract_edges_from_rust_ast(
+                    &source_code,
+                    tree.root_node(),
+                ) {
                     // Build name -> entity_id mapping
                     let mut name_to_id: std::collections::HashMap<String, i64> =
                         std::collections::HashMap::new();
@@ -382,8 +413,8 @@ impl CodeGraph {
         let insert_result = db.execute(
             "INSERT INTO code_entities
              (file_path, entity_type, name, signature, line_start, line_end, docstring, language, indexed_at,
-              created_at, last_modified_at, change_count, author_count)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              body_snippet, created_at, last_modified_at, change_count, author_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             rusqlite::params![
                 &entity.file_path,
                 entity.entity_type.as_str(),
@@ -394,6 +425,7 @@ impl CodeGraph {
                 &entity.docstring,
                 &entity.language,
                 chrono::Utc::now().timestamp(),
+                &entity.body_snippet,
                 &entity.created_at,
                 &entity.last_modified_at,
                 &entity.change_count,
@@ -509,6 +541,90 @@ impl CodeGraph {
 
         Ok(())
     }
+
+    /// Store macro expansions for Rust files
+    fn store_macro_expansions(&self, file_path: &Path, file_path_str: &str) -> Result<()> {
+        // Create a RustLanguageParser for macro expansion
+        let rust_parser = super::parsers::rust_parser::RustLanguageParser::new()?;
+        let macro_expansions = rust_parser.parse_macro_expansions(file_path)?;
+
+        // Read source code to extract original macro invocations
+        let source_code = std::fs::read_to_string(file_path)?;
+
+        // Store macro expansions directly in database
+        let mut macro_db = self
+            .db
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock database for macro expansions: {}", e))?;
+
+        let tx = (*macro_db).transaction()?;
+
+        // Clear existing macro expansions for this file
+        tx.execute(
+            "DELETE FROM code_macro_expansions WHERE file_path = ?",
+            [file_path_str],
+        )?;
+
+        // Insert new macro expansions
+        let mut stmt = tx.prepare(
+            r#"
+            INSERT INTO code_macro_expansions (
+                file_path, macro_name, span_start, span_end, 
+                original_code, expanded_code, expansion_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            "#,
+        )?;
+
+        let mut inserted = 0;
+        for expansion in &macro_expansions.expansions {
+            // Extract original code from source using span
+            let original_code = source_code
+                .get(expansion.span_start..expansion.span_end)
+                .unwrap_or(&expansion.macro_name)
+                .to_string();
+
+            // Determine expansion type based on macro name
+            let expansion_type = if expansion.macro_name == "vec!" {
+                "vec".to_string()
+            } else if expansion.macro_name == "format!" {
+                "format".to_string()
+            } else if expansion.macro_name.contains("info")
+                || expansion.macro_name.contains("warn")
+                || expansion.macro_name.contains("error")
+                || expansion.macro_name.contains("debug")
+                || expansion.macro_name.contains("trace")
+            {
+                "log".to_string()
+            } else if expansion.macro_name == "assert!" {
+                "assert".to_string()
+            } else {
+                "declarative".to_string()
+            };
+
+            stmt.execute((
+                file_path_str,
+                &expansion.macro_name,
+                expansion.span_start as i64,
+                expansion.span_end as i64,
+                original_code,
+                &expansion.expanded_code,
+                &expansion_type,
+            ))?;
+            inserted += 1;
+        }
+
+        drop(stmt);
+        tx.commit()?;
+
+        if inserted > 0 {
+            println!(
+                "[INFO] Stored {} macro expansions for {}",
+                inserted, file_path_str
+            );
+        }
+
+        Ok(())
+    }
 }
 
 /// Extract trait definition names from Rust AST
@@ -549,8 +665,11 @@ fn extract_const_definitions(source_code: &str, root_node: tree_sitter::Node) ->
 }
 
 /// Helper: Recursively visit all nodes in AST (for trait extraction)
-fn visit_nodes_for_traits<F>(cursor: &mut tree_sitter::TreeCursor, source_code: &str, visitor: &mut F)
-where
+fn visit_nodes_for_traits<F>(
+    cursor: &mut tree_sitter::TreeCursor,
+    source_code: &str,
+    visitor: &mut F,
+) where
     F: FnMut(tree_sitter::Node, &str),
 {
     loop {

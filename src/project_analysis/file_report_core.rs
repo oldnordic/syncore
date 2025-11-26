@@ -1,5 +1,5 @@
 //! Project File Report Core
-//! 
+//!
 //! Core SQL queries and data extraction for file analysis.
 
 use crate::project_analysis::{
@@ -209,11 +209,7 @@ impl ProjectAnalysisEngine {
         }
 
         // Simple heuristic: use last entity's line_end as rough LOC estimate
-        let max_line = entities
-            .iter()
-            .map(|e| e.line_end)
-            .max()
-            .unwrap_or(0);
+        let max_line = entities.iter().map(|e| e.line_end).max().unwrap_or(0);
 
         Some(max_line as u32)
     }

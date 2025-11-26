@@ -1,10 +1,8 @@
 //! Project Hotspots Analysis Tool
-//! 
+//!
 //! Identifies code hotspots based on fan-in, fan-out, LOC, and entity count.
 
-use crate::project_analysis::{
-    PAEResponse, HotspotInfo, ProjectAnalysisEngine,
-};
+use crate::project_analysis::{HotspotInfo, PAEResponse, ProjectAnalysisEngine};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
@@ -58,8 +56,9 @@ impl ProjectAnalysisEngine {
         min_entity_count: Option<u32>,
         min_loc: Option<u32>,
     ) -> Result<Vec<HotspotInfo>> {
+        // STEP A: Exclude build artifacts from hotspot analysis
         let mut query = r#"
-            SELECT 
+            SELECT
                 file_path,
                 COUNT(DISTINCT ce.id) as entity_count,
                 COUNT(DISTINCT CASE WHEN ce_in.dst_entity_id IS NOT NULL THEN ce_in.dst_entity_id END) as fan_in,
@@ -68,6 +67,14 @@ impl ProjectAnalysisEngine {
             FROM code_entities ce
             LEFT JOIN code_edges ce_in ON ce.id = ce_in.dst_entity_id
             LEFT JOIN code_edges ce_out ON ce.id = ce_out.src_entity_id
+            WHERE file_path NOT LIKE '%/target/%'
+              AND file_path NOT LIKE '%/node_modules/%'
+              AND file_path NOT LIKE '%/.git/%'
+              AND file_path NOT LIKE '%/__pycache__/%'
+              AND file_path NOT LIKE '%/vendor/%'
+              AND file_path NOT LIKE '%/.venv/%'
+              AND file_path NOT LIKE '%/dist/%'
+              AND file_path NOT LIKE '%/build/%'
         "#.to_string();
 
         let mut where_clauses = Vec::new();
@@ -98,12 +105,12 @@ impl ProjectAnalysisEngine {
             param_idx += 1;
         }
 
+        query.push_str(" GROUP BY file_path");
+
         if !where_clauses.is_empty() {
-            query.push_str(" WHERE ");
+            query.push_str(" HAVING ");
             query.push_str(&where_clauses.join(" AND "));
         }
-
-        query.push_str(" GROUP BY file_path");
 
         // Calculate hotspot score and order by it
         query.push_str(&format!(
@@ -127,7 +134,8 @@ impl ProjectAnalysisEngine {
 
             // Calculate hotspot score (weighted combination)
             let loc = max_line.unwrap_or(0) as f32;
-            let score = fan_in as f32 * 0.4 + fan_out as f32 * 0.3 + entity_count as f32 * 0.2 + loc * 0.1;
+            let score =
+                fan_in as f32 * 0.4 + fan_out as f32 * 0.3 + entity_count as f32 * 0.2 + loc * 0.1;
 
             Ok(HotspotInfo {
                 file_path,

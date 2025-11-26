@@ -967,16 +967,16 @@ impl RipgrepSearcher {
                 let file_path = parts[0];
                 if let Ok(line_number) = parts[1].parse::<usize>() {
                     let content = parts[2];
-                    if content.contains(pattern) {
-                        matches.push(RipgrepMatch {
-                            file_path: file_path.to_string(),
-                            line_number,
-                            line_content: content.to_string(),
-                            match_text: pattern.to_string(),
-                            context_before: Vec::new(),
-                            context_after: Vec::new(),
-                        });
-                    }
+                    // Ripgrep already filtered by the regex pattern, so all matches are valid
+                    // Don't re-filter with substring match (pattern could be regex like "fn.*")
+                    matches.push(RipgrepMatch {
+                        file_path: file_path.to_string(),
+                        line_number,
+                        line_content: content.to_string(),
+                        match_text: pattern.to_string(),
+                        context_before: Vec::new(),
+                        context_after: Vec::new(),
+                    });
                 }
             }
         }
