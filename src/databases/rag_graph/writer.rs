@@ -56,7 +56,7 @@ pub async fn create_relationship(
     rel_type: RelationType,
     weight: Option<f32>,
 ) -> Result<()> {
-    let query = if let Some(w) = weight {
+    let query = if let Some(_w) = weight {
         format!(
             r#"
             MATCH (a {{id: $src_id, namespace: $ns}})

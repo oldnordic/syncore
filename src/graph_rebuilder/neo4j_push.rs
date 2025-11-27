@@ -88,7 +88,7 @@ impl BatchEdgePusher {
         }
 
         // Build edge data as JSON array for UNWIND
-        let edge_data: Vec<serde_json::Value> = edges
+        let _edge_data: Vec<serde_json::Value> = edges
             .iter()
             .map(|(src_id, dst_id, edge_type)| {
                 serde_json::json!({

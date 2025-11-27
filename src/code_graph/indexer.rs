@@ -384,7 +384,7 @@ impl CodeGraph {
         if let Some(neo4j) = neo4j_opt {
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 // Create oneshot channel for completion signal
-                let (tx, rx) = tokio::sync::oneshot::channel();
+                let (tx, _rx) = tokio::sync::oneshot::channel();
 
                 let neo4j_clone = neo4j.clone();
                 let entities_clone = entity_ids.clone();
@@ -517,7 +517,6 @@ impl CodeGraph {
     }
 
     /// Create embedding for an entity (internal, requires db connection from caller)
-
     fn create_entity_embedding(
         &self,
         db: &Connection,
@@ -560,7 +559,6 @@ impl CodeGraph {
     }
 
     /// Store edge (relationship) between entities
-
     fn store_edge_internal<C: std::ops::Deref<Target = rusqlite::Connection>>(
         &self,
         db: &C,

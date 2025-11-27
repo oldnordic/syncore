@@ -36,8 +36,8 @@ impl ProjectAnalysisEngine {
     pub async fn build_problem_map(&self) -> Result<ProblemMapSummary> {
         // Get hotspots, dead code, unused imports, and diagnostics
         let hotspots_data = self.get_hotspots().await?;
-        let dead_code_data = self.get_dead_code().await?;
-        let unused_imports_data = self.get_unused_imports().await?;
+        let _dead_code_data = self.get_dead_code().await?;
+        let _unused_imports_data = self.get_unused_imports().await?;
         let diagnostics = self.get_all_diagnostics().await?;
 
         // Identify critical hotspots
