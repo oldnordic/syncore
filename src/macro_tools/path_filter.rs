@@ -85,7 +85,7 @@ pub fn should_index_path_with_excludes(path: &str, excluded_dirs: &[String]) -> 
 
     let normalized = path.trim_start_matches("./");
     let components: Vec<&str> = normalized
-        .split(|c| c == '/' || c == '\\')
+        .split(['/', '\\'])
         .filter(|s| !s.is_empty())
         .collect();
 
@@ -112,7 +112,7 @@ fn should_index_path_with_defaults(path: &str) -> bool {
 
     let normalized = path.trim_start_matches("./");
     let components: Vec<&str> = normalized
-        .split(|c| c == '/' || c == '\\')
+        .split(['/', '\\'])
         .filter(|s| !s.is_empty())
         .collect();
 

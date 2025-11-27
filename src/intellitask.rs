@@ -522,9 +522,9 @@ impl IntelliTask {
         // Check if wrapped in markdown code block
         if trimmed.starts_with("```json") || trimmed.starts_with("```") {
             // Find the first { or [ (start of JSON)
-            if let Some(json_start) = trimmed.find(|c| c == '{' || c == '[') {
+            if let Some(json_start) = trimmed.find(['{', '[']) {
                 // Find the last } or ] (end of JSON)
-                if let Some(json_end) = trimmed.rfind(|c| c == '}' || c == ']') {
+                if let Some(json_end) = trimmed.rfind(['}', ']']) {
                     // Extract just the JSON part
                     return trimmed[json_start..=json_end].to_string();
                 }

@@ -491,7 +491,7 @@ impl SyncoreConfig {
 
         let normalized = path.trim_start_matches("./");
         let components: Vec<&str> = normalized
-            .split(|c| c == '/' || c == '\\')
+            .split(['/', '\\'])
             .filter(|s| !s.is_empty())
             .collect();
 
