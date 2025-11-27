@@ -315,7 +315,7 @@ impl SynCoreState {
         let general_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
             crate::vector::StubEmbeddings::new(384).unwrap(),
         ))));
-        let vector_store = Arc::clone(&general_store);
+        let _vector_store = Arc::clone(&general_store);
 
         Self {
             db_manager,

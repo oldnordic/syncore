@@ -159,7 +159,7 @@ impl DebugSuite {
     fn cmd_llm_health(&self) -> SuiteResult {
         // Check if IntelliTask is available
         match &self.state.intellitask {
-            Some(intellitask) => {
+            Some(_intellitask) => {
                 // Try to get the LLM backend from IntelliTask
                 // Note: We need to add a health check method to IntelliTask
                 // For now, just check that IntelliTask was initialized
@@ -432,7 +432,7 @@ impl DebugSuite {
         }
     }
 
-    fn cmd_project_cleanup_excluded(&self, args: DebugSuiteArgs) -> SuiteResult {
+    fn cmd_project_cleanup_excluded(&self, _args: DebugSuiteArgs) -> SuiteResult {
         use crate::project_analysis::{cleanup::CleanupExcludedRequest, ProjectAnalysisEngine};
 
         let engine =

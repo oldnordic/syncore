@@ -70,7 +70,7 @@ impl ProjectAnalysisEngine {
         "#.to_string();
 
         let mut params = Vec::new();
-        let mut param_idx = 1;
+        let param_idx = 1;
 
         if let Some(root_path) = root {
             query.push_str(&format!(" WHERE ce.file_path LIKE ?{}", param_idx));
@@ -130,7 +130,7 @@ impl ProjectAnalysisEngine {
         }
 
         // Create a set of file paths for fast lookup
-        let module_files: std::collections::HashSet<&str> =
+        let _module_files: std::collections::HashSet<&str> =
             modules.iter().map(|m| m.file_path.as_str()).collect();
 
         // Build placeholders for IN clause

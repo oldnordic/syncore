@@ -37,7 +37,7 @@ impl SemanticExtractor {
     }
 
     /// Extract all semantic edges from Rust source code
-    pub fn extract_edges(&mut self, source: &str, file_path: &str) -> Result<Vec<SemanticEdge>> {
+    pub fn extract_edges(&mut self, source: &str, _file_path: &str) -> Result<Vec<SemanticEdge>> {
         let tree = self
             .parser
             .parse(source, None)

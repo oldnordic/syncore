@@ -364,7 +364,7 @@ impl Memory {
             |r| Ok((r.get(0)?, r.get(1)?))
         ).optional()?;
 
-        let entry_id = if let Some((id, existing_created_at)) = existing {
+        let entry_id = if let Some((id, _existing_created_at)) = existing {
             // UPDATE existing entry
             db.execute(
                 "UPDATE memory SET v=?1, ts=?2, summary=?3, namespace=?4, importance=?5, last_accessed=?6
@@ -857,7 +857,7 @@ impl Memory {
     }
 
     /// Link memories (Neo4j relationships) - stub for now
-    pub fn link_memories(&self, from_key: &str, to_key: &str, relationship: &str) -> Result<()> {
+    pub fn link_memories(&self, from_key: &str, to_key: &str, _relationship: &str) -> Result<()> {
         // TODO: Implement Neo4j integration when available
         // For now, just verify both keys exist
         let _ = self.query(from_key)?
@@ -942,7 +942,7 @@ impl Memory {
         &self,
         emb_id1: i64,
         emb_id2: i64,
-        store: &VectorStore,
+        _store: &VectorStore,
     ) -> Result<f32> {
         // Simplified similarity calculation
         // In production, use proper cosine similarity from vector store
