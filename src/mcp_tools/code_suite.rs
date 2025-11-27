@@ -415,7 +415,7 @@ impl CodeSuite {
         let scope = args
             .scope
             .as_ref()
-            .map(|s| QueryScope::from_str(s))
+            .map(|s| QueryScope::parse(s))
             .unwrap_or(QueryScope::Global);
 
         // Check if we have Neo4j available

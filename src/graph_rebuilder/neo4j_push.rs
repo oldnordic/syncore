@@ -161,7 +161,7 @@ impl BatchEdgePusher {
         }
 
         // Convert string relationship type to canonical RelationType
-        let relation_type = RelationType::from_str(rel_type)
+        let relation_type = RelationType::try_parse(rel_type)
             .ok_or_else(|| anyhow::anyhow!("Unknown relationship type: {}", rel_type))?;
 
         // Convert to canonical format: Vec<(src_id, dst_id, RelationType)>

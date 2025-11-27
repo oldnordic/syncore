@@ -129,7 +129,7 @@ impl CodeGraphUpdateService {
                 Ok(CodeEntity {
                     id: row.get(0)?,
                     file_path: row.get(1)?,
-                    entity_type: EntityType::from_str(&row.get::<_, String>(2)?)
+                    entity_type: EntityType::try_parse(&row.get::<_, String>(2)?)
                         .unwrap_or(EntityType::Function),
                     name: row.get(3)?,
                     signature: row.get(4)?,

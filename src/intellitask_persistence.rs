@@ -30,7 +30,7 @@ impl TaskStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Result<Self> {
+    pub fn try_parse(s: &str) -> Result<Self> {
         match s {
             "pending" => Ok(TaskStatus::Pending),
             "in-progress" => Ok(TaskStatus::InProgress),
@@ -600,7 +600,7 @@ impl IntelliTaskPersistence {
                     task_id: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
                     title: row.get(2)?,
                     description: row.get(3)?,
-                    status: TaskStatus::from_str(&row.get::<_, String>(4)?)
+                    status: TaskStatus::try_parse(&row.get::<_, String>(4)?)
                         .unwrap_or(TaskStatus::Pending),
                     complexity: serde_json::from_str(
                         &row.get::<_, Option<String>>(5)?
@@ -848,14 +848,14 @@ mod tests {
         assert_eq!(TaskStatus::Done.as_str(), "done");
 
         assert_eq!(
-            TaskStatus::from_str("pending").unwrap(),
+            TaskStatus::try_parse("pending").unwrap(),
             TaskStatus::Pending
         );
         assert_eq!(
-            TaskStatus::from_str("in-progress").unwrap(),
+            TaskStatus::try_parse("in-progress").unwrap(),
             TaskStatus::InProgress
         );
-        assert!(TaskStatus::from_str("invalid").is_err());
+        assert!(TaskStatus::try_parse("invalid").is_err());
     }
 
     #[test]

@@ -52,7 +52,7 @@ impl RelationType {
     }
 
     /// Parse from string (for database queries)
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn try_parse(s: &str) -> Option<Self> {
         match s {
             "SIMILAR_TO" => Some(RelationType::SimilarTo),
             "PART_OF" => Some(RelationType::PartOf),
@@ -91,10 +91,10 @@ mod tests {
     fn test_relation_type_roundtrip() {
         assert_eq!(RelationType::SimilarTo.as_str(), "SIMILAR_TO");
         assert_eq!(
-            RelationType::from_str("SIMILAR_TO"),
+            RelationType::try_parse("SIMILAR_TO"),
             Some(RelationType::SimilarTo)
         );
-        assert_eq!(RelationType::from_str("UNKNOWN"), None);
+        assert_eq!(RelationType::try_parse("UNKNOWN"), None);
     }
 
     #[test]

@@ -17,7 +17,7 @@ pub enum LlmBackend {
 
 impl LlmBackend {
     /// Parse backend from string
-    pub fn from_str(s: &str) -> Result<Self> {
+    pub fn try_parse(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "ollama" => Ok(Self::Ollama),
             "test" => Ok(Self::Test),
@@ -86,7 +86,7 @@ impl LlmConfig {
 
         // Environment variables override config file
         let backend_str = std::env::var("LLM_BACKEND").unwrap_or(default_backend);
-        let backend = LlmBackend::from_str(&backend_str).unwrap_or(LlmBackend::Ollama);
+        let backend = LlmBackend::try_parse(&backend_str).unwrap_or(LlmBackend::Ollama);
 
         Self {
             backend,
@@ -169,10 +169,10 @@ mod tests {
 
     #[test]
     fn test_backend_from_str() {
-        assert_eq!(LlmBackend::from_str("ollama").unwrap(), LlmBackend::Ollama);
-        assert_eq!(LlmBackend::from_str("Ollama").unwrap(), LlmBackend::Ollama);
-        assert_eq!(LlmBackend::from_str("TEST").unwrap(), LlmBackend::Test);
-        assert!(LlmBackend::from_str("invalid").is_err());
+        assert_eq!(LlmBackend::try_parse("ollama").unwrap(), LlmBackend::Ollama);
+        assert_eq!(LlmBackend::try_parse("Ollama").unwrap(), LlmBackend::Ollama);
+        assert_eq!(LlmBackend::try_parse("TEST").unwrap(), LlmBackend::Test);
+        assert!(LlmBackend::try_parse("invalid").is_err());
     }
 
     #[test]

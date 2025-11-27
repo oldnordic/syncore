@@ -34,7 +34,7 @@ impl NodeLabel {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn try_parse(s: &str) -> Option<Self> {
         match s {
             "File" | "file" => Some(Self::File),
             "Function" | "function" => Some(Self::Function),
@@ -90,7 +90,7 @@ impl RelationType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn try_parse(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
             "DECLARES" => Some(Self::Declares),
             "CALLS" => Some(Self::Calls),
@@ -220,20 +220,20 @@ mod tests {
 
     #[test]
     fn test_node_label_roundtrip() {
-        assert_eq!(NodeLabel::from_str("Function"), Some(NodeLabel::Function));
+        assert_eq!(NodeLabel::try_parse("Function"), Some(NodeLabel::Function));
         assert_eq!(NodeLabel::Function.as_str(), "Function");
 
-        assert_eq!(NodeLabel::from_str("function"), Some(NodeLabel::Function));
-        assert_eq!(NodeLabel::from_str("invalid"), None);
+        assert_eq!(NodeLabel::try_parse("function"), Some(NodeLabel::Function));
+        assert_eq!(NodeLabel::try_parse("invalid"), None);
     }
 
     #[test]
     fn test_relation_type_roundtrip() {
-        assert_eq!(RelationType::from_str("CALLS"), Some(RelationType::Calls));
+        assert_eq!(RelationType::try_parse("CALLS"), Some(RelationType::Calls));
         assert_eq!(RelationType::Calls.as_str(), "CALLS");
 
-        assert_eq!(RelationType::from_str("calls"), Some(RelationType::Calls));
-        assert_eq!(RelationType::from_str("invalid"), None);
+        assert_eq!(RelationType::try_parse("calls"), Some(RelationType::Calls));
+        assert_eq!(RelationType::try_parse("invalid"), None);
     }
 
     #[test]

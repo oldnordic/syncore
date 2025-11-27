@@ -162,7 +162,7 @@ impl GraphSuite {
         };
 
         // Parse relationship type string to canonical RelationType
-        let rel_type = match RelationType::from_str(&rel_type_str) {
+        let rel_type = match RelationType::try_parse(&rel_type_str) {
             Some(rt) => rt,
             None => {
                 return SuiteResult::err(

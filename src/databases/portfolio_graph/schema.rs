@@ -56,7 +56,7 @@ impl RelationType {
     }
 
     /// Parse from string (for database queries)
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn try_parse(s: &str) -> Option<Self> {
         match s {
             "FOR_TASK" => Some(RelationType::ForTask),
             "APPLIES_TO" => Some(RelationType::AppliesTo),
@@ -115,14 +115,14 @@ mod tests {
     fn test_relation_type_roundtrip() {
         assert_eq!(RelationType::ForTask.as_str(), "FOR_TASK");
         assert_eq!(
-            RelationType::from_str("FOR_TASK"),
+            RelationType::try_parse("FOR_TASK"),
             Some(RelationType::ForTask)
         );
         assert_eq!(
-            RelationType::from_str("APPLIES_TO"),
+            RelationType::try_parse("APPLIES_TO"),
             Some(RelationType::AppliesTo)
         );
-        assert_eq!(RelationType::from_str("UNKNOWN"), None);
+        assert_eq!(RelationType::try_parse("UNKNOWN"), None);
     }
 
     #[test]

@@ -96,7 +96,7 @@ pub async fn get_neighbors(
             let rel_type = record
                 .get("rel_type")
                 .and_then(|v| v.as_str())
-                .and_then(RelationType::from_str);
+                .and_then(RelationType::try_parse);
 
             Some(NeighborResult {
                 id,

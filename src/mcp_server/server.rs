@@ -1726,7 +1726,7 @@ impl SynCoreMCPServer {
         let scope = params
             .scope
             .as_ref()
-            .map(|s| QueryScope::from_str(s))
+            .map(|s| QueryScope::parse(s))
             .unwrap_or(QueryScope::Global);
 
         eprintln!(

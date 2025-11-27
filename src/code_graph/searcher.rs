@@ -86,7 +86,7 @@ impl CodeGraph {
             Ok(CodeEntity {
                 id: Some(entity_id),
                 file_path: row.get(0)?,
-                entity_type: EntityType::from_str(&row.get::<_, String>(1)?).unwrap(),
+                entity_type: EntityType::try_parse(&row.get::<_, String>(1)?).unwrap(),
                 name: row.get(2)?,
                 signature: row.get(3)?,
                 line_start: row.get::<_, i64>(4)? as usize,

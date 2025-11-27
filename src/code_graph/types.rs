@@ -18,7 +18,7 @@ pub enum QueryScope {
 
 impl QueryScope {
     /// Parse scope from string (for MCP tool interface)
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "local" => QueryScope::Local,
             "project" => QueryScope::Project,
@@ -119,7 +119,7 @@ impl EntityType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn try_parse(s: &str) -> Option<Self> {
         match s {
             "function" => Some(EntityType::Function),
             "class" => Some(EntityType::Class),
