@@ -196,7 +196,7 @@ impl LspBridge {
     // ========================================================================
 
     /// Create disabled bridge
-    fn disabled() -> Self {
+    pub fn disabled() -> Self {
         let (_tx, rx) = mpsc::channel(1);
         Self {
             status: LspStatus::Disabled,

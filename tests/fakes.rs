@@ -36,6 +36,10 @@ impl Embeddings for FakeEmbeddings {
     fn dim(&self) -> usize {
         self.dim
     }
+
+    fn model_name(&self) -> &str {
+        "fake-embeddings-test"
+    }
 }
 
 /// Fake vector store using in-memory HashMap (no SQLite, no FAISS)

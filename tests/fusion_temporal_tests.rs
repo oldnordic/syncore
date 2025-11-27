@@ -132,7 +132,7 @@ fn test_fusion_clamps_score() -> Result<()> {
     );
 
     // Test lower clamp (negative scores should be clamped to 0.0)
-    let result_low = fusion.combine(0.0, 0.0, 0.0);
+    let result_low = fusion.combine(0.0, 0.0, 0.0, 0.0);
     assert!(result_low >= 0.0, "Score should never be negative");
     assert!(
         result_low < 0.01,

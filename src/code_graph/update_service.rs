@@ -33,6 +33,8 @@ pub struct CodeGraphUpdateService {
     graph: Arc<Mutex<CodeGraph>>,
     delta_engine: CodeGraphDeltaEngine,
     root: PathBuf,
+    /// APEX 2.15: Reindex mutex to serialize DELETE+INSERT operations
+    reindex_mutex: Arc<std::sync::Mutex<()>>,
 }
 
 // ============================================================================
@@ -41,7 +43,7 @@ pub struct CodeGraphUpdateService {
 
 impl CodeGraphUpdateService {
     /// Create a new update service
-    pub fn new(root: PathBuf, graph: CodeGraph) -> Result<Self> {
+    pub fn new(root: PathBuf, graph: CodeGraph, reindex_mutex: Arc<std::sync::Mutex<()>>) -> Result<Self> {
         // APEX 2.6-CG-GRAPH-DELTA: Wrap graph in Arc<Mutex<>> and initialize delta engine
         let graph_arc = Arc::new(Mutex::new(graph));
         let delta_engine = CodeGraphDeltaEngine::new(graph_arc.clone());
@@ -50,6 +52,7 @@ impl CodeGraphUpdateService {
             graph: graph_arc,
             delta_engine,
             root,
+            reindex_mutex,
         })
     }
 
@@ -75,6 +78,8 @@ impl CodeGraphUpdateService {
                     Ok(1)
                 } else {
                     // Fallback: full file reindex (no delta available)
+                    // APEX 2.15: Acquire reindex mutex to prevent UNIQUE constraint collisions
+                    let _reindex_lock = self.reindex_mutex.lock().expect("reindex mutex poisoned");
                     let mut graph = self.graph.lock().map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
                     let count = graph.index_file(file_path)?;
                     Ok(count as u64)
@@ -87,6 +92,8 @@ impl CodeGraphUpdateService {
             }
             FsEventKind::Renamed(ref new_path) => {
                 // For rename: delete old path, index new path
+                // APEX 2.15: Acquire reindex mutex to prevent UNIQUE constraint collisions
+                let _reindex_lock = self.reindex_mutex.lock().expect("reindex mutex poisoned");
                 self.delete_entities_for_file(file_path)?;
                 let mut graph = self.graph.lock().map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
                 let count = graph.index_file(new_path)?;

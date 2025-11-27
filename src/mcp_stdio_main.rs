@@ -9,6 +9,13 @@ use syncore::mcp_server::run_mcp_stdio_server;
 use syncore::router::SynCoreState;
 use syncore::tools_cli::log_registered_tools;
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
+// APEX 2.12 - Live indexing subsystems
+use syncore::fs_watcher::start_fs_watcher;
+use syncore::parser_service::ParserService;
+use syncore::code_graph::update_service::CodeGraphUpdateService;
+use syncore::live_indexer::{LiveIndexer, LiveIndexerConfig};
+use syncore::embedding_refresh::{EmbeddingRefreshDaemon, EmbeddingRefreshConfig};
+use syncore::lsp_bridge::LspBridge;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -75,6 +82,16 @@ async fn main() -> Result<()> {
     let code_index_path = db_paths::code_vector_index_path();
     eprintln!("[syncore] CODE vector index path: {}", code_index_path);
     code_store.set_index_path(code_index_path);
+
+    // BUGFIX #3: Load snapshot from disk to restore embeddings state
+    // Without this, search_code() operates on empty vector store → poisoned locks
+    if let Err(e) = code_store.load_snapshot() {
+        eprintln!("[syncore] Warning: Failed to load CODE vector snapshot: {}", e);
+        eprintln!("[syncore] Will start with empty CODE vector store (bootstrap will rebuild)");
+    } else {
+        eprintln!("[syncore] Successfully loaded CODE vector snapshot ({} vectors)", code_store.len());
+    }
+
     let code_store = std::sync::Arc::new(std::sync::Mutex::new(code_store));
 
     // Create GENERAL domain store with all-MiniLM embeddings (for general text)
@@ -84,6 +101,15 @@ async fn main() -> Result<()> {
     let general_index_path = db_paths::general_vector_index_path();
     eprintln!("[syncore] GENERAL vector index path: {}", general_index_path);
     general_store.set_index_path(general_index_path);
+
+    // BUGFIX #3: Load snapshot from disk to restore embeddings state
+    if let Err(e) = general_store.load_snapshot() {
+        eprintln!("[syncore] Warning: Failed to load GENERAL vector snapshot: {}", e);
+        eprintln!("[syncore] Will start with empty GENERAL vector store");
+    } else {
+        eprintln!("[syncore] Successfully loaded GENERAL vector snapshot ({} vectors)", general_store.len());
+    }
+
     let general_store = std::sync::Arc::new(std::sync::Mutex::new(general_store));
 
     // Initialize state with dual stores
@@ -142,6 +168,90 @@ async fn main() -> Result<()> {
 
     eprintln!("State initialized...");
 
+    // =====================================================================
+    // APEX 2.12 - LIVE INDEXING PIPELINE INITIALIZATION
+    // =====================================================================
+    // Wire subsystems: FsWatcher → ParserService → DeltaEngine →
+    //                  UpdateService → HNSW → LiveIndexer → EmbeddingRefreshDaemon
+
+    eprintln!("[SynCore] Initializing live indexing pipeline...");
+
+    // Get project root (current working directory for file watching)
+    let project_root = std::env::current_dir()?;
+
+    // APEX 2.15: Run bootstrap check BEFORE starting subsystems
+    syncore::bootstrap::run_startup_bootstrap_for_tests(&config).await?;
+    eprintln!("[SynCore] Bootstrap check complete");
+
+    // Step 1: Create CodeGraph for UpdateService (matches test order)
+    let code_graph_db_path = &config.paths.code_graph_db;
+    let code_graph = syncore::code_graph::CodeGraph::new(
+        code_graph_db_path,
+        state.code_store.clone(),
+    )?;
+    eprintln!("[SynCore] CodeGraph created at {:?}", code_graph_db_path);
+
+    // Step 2: Create CodeGraphUpdateService (wraps CodeGraph + DeltaEngine)
+    // APEX 2.15: Pass reindex mutex to serialize DELETE+INSERT operations
+    let update_service = CodeGraphUpdateService::new(
+        project_root.clone(),
+        code_graph,
+        state.reindex_mutex.clone()
+    )?;
+    eprintln!("[SynCore] CodeGraphUpdateService created (DeltaEngine initialized)");
+
+    // Step 3: Create ParserService (Rust only for now)
+    let language = unsafe { tree_sitter_rust::language() };
+    let parser = ParserService::new(language, project_root.clone())?;
+    eprintln!("[SynCore] ParserService created (Rust language)");
+
+    // Step 4: Create LspBridge (disabled for now - no LSP server)
+    let lsp_bridge = LspBridge::disabled();
+    eprintln!("[SynCore] LspBridge disabled (no LSP server)");
+
+    // Step 5: Start FsWatcher for LiveIndexer
+    let watcher_handle = start_fs_watcher(project_root.clone())?;
+    let fs_rx = watcher_handle.rx;
+    eprintln!("[SynCore] FsWatcher started for LiveIndexer");
+
+    // Step 6: Create and start LiveIndexer
+    let indexer_config = LiveIndexerConfig {
+        debounce_ms: 100,
+        max_queue: 100,
+        index_threads: 1,
+    };
+
+    let indexer = LiveIndexer::new(
+        fs_rx,
+        parser,
+        update_service,
+        state.code_store.clone(),
+        lsp_bridge,
+        indexer_config,
+    )?;
+
+    let indexer_handle = indexer
+        .start()
+        .await?;
+    eprintln!("[SynCore] LiveIndexer started (background task spawned)");
+
+    // Step 7: Start EmbeddingRefreshDaemon (dual-domain: CODE + GENERAL)
+    let refresh_config = EmbeddingRefreshConfig::default();
+    let (daemon, _daemon_tx) = EmbeddingRefreshDaemon::spawn(
+        state.code_store.clone(),
+        state.general_store.clone(),
+        refresh_config,
+    )?;
+    eprintln!("[SynCore] EmbeddingRefreshDaemon spawned (dual-domain: CODE + GENERAL)");
+
+    // Step 8: Store handles to keep subsystems alive
+    // Handles are kept in scope until program exits for graceful shutdown
+    // Note: watcher_handle already moved (via fs_rx extraction), just keep other handles
+    let _live_indexing_handles = (indexer_handle, daemon, _daemon_tx);
+
+    eprintln!("[SynCore] ✓ Live indexing pipeline fully wired and operational");
+    // =====================================================================
+
     // SNAPSHOT-FIRST STARTUP: Try loading snapshot before rebuild
     // This allows O(1) warmup (~20-50ms) vs O(n) rebuild (minutes)
     {
@@ -168,9 +278,7 @@ async fn main() -> Result<()> {
                 let vs_for_snapshot = vector_store_for_warmup.clone();
                 tokio::task::spawn_blocking(move || {
                     if let Ok(mut vs) = vs_for_snapshot.lock() {
-                        // Set index path based on db_path
-                        vs.set_index_path("syncore_vectors".to_string());
-
+                        // Index path already set by main thread - don't override!
                         // Try to load snapshot - this will mark Hot if successful
                         if vs.load_snapshot().is_ok() && vs.warmup_controller().is_hot() {
                             return true;

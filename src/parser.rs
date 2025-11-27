@@ -935,6 +935,7 @@ impl RipgrepSearcher {
     ) -> Result<Vec<RipgrepMatch>> {
         let output = Command::new("rg")
             .arg("--line-number")
+            .arg("--with-filename")  // BUGFIX: Force file path in output (works for files AND directories)
             .arg(pattern)
             .arg(directory)
             .output()?;

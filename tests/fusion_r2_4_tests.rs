@@ -26,7 +26,7 @@ async fn get_neo4j_client() -> Result<Neo4jClient> {
 fn test_simple_fusion_linear_weights() {
     use syncore::code_graph::fusion_simple::FusionSimple;
 
-    let fusion = FusionSimple::new(0.6, 0.3, 0.1); // alpha = 0.6
+    let fusion = FusionSimple::new(0.6, 0.3, 0.1, 0.0); // alpha = 0.6
 
     // Known scores: vector=0.8, graph=0.4, temporal=0.0
     let vector_score = 0.8;

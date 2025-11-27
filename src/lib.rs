@@ -1,5 +1,6 @@
 pub mod autonomy;
 pub mod backup;
+pub mod bootstrap;  // APEX 2.15: Cold/warm start bootstrap logic
 pub mod circuit_breaker;
 pub mod cli;
 pub mod code_directory_indexer;
@@ -14,6 +15,7 @@ pub mod databases;  // Canonical database modules (Neo4j, etc.)
 pub mod db;
 pub mod dlr;
 pub mod document_indexer;
+pub mod embedding_refresh;  // APEX 2.9: Embedding refresh daemon
 pub mod fs_watcher;  // APEX 2.2-FW: Filesystem watcher
 pub mod global_store;
 pub mod graph;
@@ -22,6 +24,7 @@ pub mod graph_rebuilder;
 pub mod http_stream_server;
 pub mod intellitask;
 pub mod intellitask_persistence;
+pub mod live_indexer;  // APEX 2.7-LIVE-INDEXER: Real-time continuous indexing
 pub mod llm;
 pub mod logger;
 pub mod lsp_bridge;  // APEX 2.5-LSP: External LSP bridge

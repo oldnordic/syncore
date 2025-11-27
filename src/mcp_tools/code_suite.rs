@@ -211,7 +211,24 @@ impl CodeSuite {
 
                 match glob(&full_pattern) {
                     Ok(paths) => {
+                        // APEX 2.15: Acquire reindex mutex to serialize DELETE+INSERT operations
+                        // This prevents UNIQUE constraint collisions with concurrent LiveIndexer updates
+                        let _lock = self.state.reindex_mutex.lock().expect("reindex mutex poisoned");
+
+                        // BUGFIX: Load config to get excluded directories (same as bootstrap.rs)
+                        // Use default config if load fails (will use default_excluded_dirs)
+                        let config = crate::config::SyncoreConfig::default();
+
                         for entry in paths.flatten() {
+                            // BUGFIX: Skip excluded directories (target/, node_modules/, etc.)
+                            let entry_str = entry.to_string_lossy();
+                            let should_skip = config.indexing.excluded_dirs.iter()
+                                .any(|excluded| entry_str.contains(excluded));
+
+                            if should_skip {
+                                continue; // Skip this file
+                            }
+
                             match code_graph.index_file(&entry) {
                                 Ok(count) => {
                                     indexed_count += 1;
@@ -220,6 +237,7 @@ impl CodeSuite {
                                 Err(e) => errors.push(format!("{}: {}", entry.display(), e)),
                             }
                         }
+                        // Mutex automatically released when _lock goes out of scope
 
                         SuiteResult::ok(
                             "index_directory",

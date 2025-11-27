@@ -566,4 +566,60 @@ impl CodeGraph {
 
         Ok(deleted)
     }
+
+    /// Extract graph structural features for an entity (for GraphBERT/GRAPH embeddings)
+    ///
+    /// Queries the code_edges table to compute:
+    /// - degree_in: Count of incoming edges (entities referencing this one)
+    /// - degree_out: Count of outgoing edges (entities this one references)
+    /// - edge_types: Distribution of edge types (CALLS, DEFINES, IMPORTS, USES)
+    ///
+    /// # Arguments
+    /// * `entity_id` - The entity ID to extract features for
+    ///
+    /// # Returns
+    /// GraphFeatures struct with degree counts and edge type distribution
+    pub fn extract_graph_features(&self, entity_id: i64) -> Result<super::graph_embeddings::GraphFeatures> {
+        let db = self
+            .db
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock db: {}", e))?;
+
+        // Query incoming edges (degree_in)
+        let degree_in: u32 = db.query_row(
+            "SELECT COUNT(*) FROM code_edges WHERE dst_entity_id = ?",
+            [entity_id],
+            |row| row.get::<_, i64>(0),
+        )? as u32;
+
+        // Query outgoing edges (degree_out)
+        let degree_out: u32 = db.query_row(
+            "SELECT COUNT(*) FROM code_edges WHERE src_entity_id = ?",
+            [entity_id],
+            |row| row.get::<_, i64>(0),
+        )? as u32;
+
+        // Query edge type distribution for outgoing edges
+        let mut edge_types = std::collections::HashMap::new();
+        let mut stmt = db.prepare(
+            "SELECT edge_type, COUNT(*) as count FROM code_edges
+             WHERE src_entity_id = ?
+             GROUP BY edge_type",
+        )?;
+
+        let rows = stmt.query_map([entity_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u32))
+        })?;
+
+        for result in rows {
+            let (edge_type, count) = result?;
+            edge_types.insert(edge_type, count);
+        }
+
+        Ok(super::graph_embeddings::GraphFeatures {
+            degree_in,
+            degree_out,
+            edge_types,
+        })
+    }
 }

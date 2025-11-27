@@ -67,8 +67,8 @@ pub struct RagGraphQueryResponse {
     pub debug_info: HashMap<String, serde_json::Value>,
 }
 
-/// Ranked entity with combined score (PHASE 5: includes temporal)
-#[derive(Debug, Serialize, Deserialize)]
+/// Ranked entity with combined score (PHASE 5: includes temporal + GraphBERT)
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RankedEntity {
     /// Code entity details
     pub entity: CodeEntity,
@@ -80,13 +80,15 @@ pub struct RankedEntity {
     pub graph_score: f32,
     /// Temporal score (PHASE 5: recency + churn)
     pub temporal_score: f32,
+    /// Graph embedding score (GRAPH domain: GraphBERT or SimpleFeatureCombiner)
+    pub graph_embedding_score: f32,
 }
 
 /// High-level RAGGraph API
 pub struct RagGraphAPI {
-    code_graph: CodeGraph,
-    neo4j: Neo4jClient,
-    router: FusionRouter,
+    pub(crate) code_graph: CodeGraph,
+    pub(crate) neo4j: Neo4jClient,
+    pub(crate) router: FusionRouter,
 }
 
 impl RagGraphAPI {
@@ -205,12 +207,24 @@ impl RagGraphAPI {
                 vmatch.entity.author_count.unwrap_or(1),
             );
 
-            // Step 5: Apply fusion based on selected mode (PHASE 5: now includes temporal)
+            // GraphBERT: Compute graph embedding score (GRAPH domain)
+            // Extract graph features and compute heuristic score
+            let graph_embedding_score = if entity_id > 0 {
+                match self.code_graph.extract_graph_features(entity_id) {
+                    Ok(features) => super::fusion_simple::compute_graph_embedding_score(&features),
+                    Err(_) => 0.0, // Fallback to 0.0 if feature extraction fails
+                }
+            } else {
+                0.0 // Entity not in database yet
+            };
+
+            // Step 5: Apply fusion based on selected mode (PHASE 5: now includes GraphBERT)
             let base_score = match selected_mode {
                 FusionMode::Simple => self.apply_simple_fusion(
                     vector_score,
                     graph_score,
                     temporal_score,
+                    graph_embedding_score,
                     &mut debug_info,
                 )?,
                 FusionMode::Attention => {
@@ -233,6 +247,7 @@ impl RagGraphAPI {
                 vector_score,
                 graph_score,
                 temporal_score,
+                graph_embedding_score,
             });
         }
 
@@ -378,17 +393,18 @@ impl RagGraphAPI {
         Ok(graph_score)
     }
 
-    /// Apply simple linear fusion
+    /// Apply simple linear fusion (PHASE 5: 4-component with GraphBERT)
     fn apply_simple_fusion(
         &self,
         vector_score: f32,
         graph_score: f32,
         temporal_score: f32,
+        graph_embedding_score: f32,
         debug_info: &mut HashMap<String, serde_json::Value>,
     ) -> Result<f32> {
-        // PHASE 5: Use default 3-component weights (α=0.65, β=0.25, τ=0.10)
+        // PHASE 5: Use default 4-component weights (α=0.5, β=0.2, τ=0.1, γ=0.2)
         let fusion = FusionSimple::default();
-        let result = fusion.combine(vector_score, graph_score, temporal_score);
+        let result = fusion.combine(vector_score, graph_score, temporal_score, graph_embedding_score);
 
         // Add debug info
         debug_info.insert("vector_score".to_string(), serde_json::json!(vector_score));
@@ -397,9 +413,14 @@ impl RagGraphAPI {
             "temporal_score".to_string(),
             serde_json::json!(temporal_score),
         );
-        debug_info.insert("alpha".to_string(), serde_json::json!(0.65));
-        debug_info.insert("beta".to_string(), serde_json::json!(0.25));
-        debug_info.insert("tau".to_string(), serde_json::json!(0.10));
+        debug_info.insert(
+            "graph_embedding_score".to_string(),
+            serde_json::json!(graph_embedding_score),
+        );
+        debug_info.insert("alpha".to_string(), serde_json::json!(0.5));
+        debug_info.insert("beta".to_string(), serde_json::json!(0.2));
+        debug_info.insert("tau".to_string(), serde_json::json!(0.1));
+        debug_info.insert("gamma".to_string(), serde_json::json!(0.2));
 
         Ok(result)
     }

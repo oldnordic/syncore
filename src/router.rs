@@ -34,6 +34,10 @@ pub struct SynCoreState {
     pub intellitask: Option<Arc<crate::intellitask::IntelliTask>>,
     /// HNSW index warmup status - true when index is ready for fast search
     pub hnsw_ready: Arc<AtomicBool>,
+    /// APEX 2.15: Reindex mutex to serialize DELETE+INSERT operations
+    /// Prevents UNIQUE constraint collisions between manual reindex and LiveIndexer
+    /// Uses std::sync::Mutex for compatibility with sync code (blocking)
+    pub reindex_mutex: Arc<std::sync::Mutex<()>>,
 }
 
 impl SynCoreState {
@@ -101,6 +105,7 @@ impl SynCoreState {
             neo4j: None,
             intellitask: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
+            reindex_mutex: Arc::new(std::sync::Mutex::new(())),
         })
     }
 
@@ -162,6 +167,7 @@ impl SynCoreState {
             neo4j: None,
             intellitask: None, // Initialized separately via set_intellitask()
             hnsw_ready: Arc::new(AtomicBool::new(false)),
+            reindex_mutex: Arc::new(std::sync::Mutex::new(())),
         })
     }
 
@@ -206,6 +212,7 @@ impl SynCoreState {
             neo4j: None,
             intellitask: None, // Initialized separately via set_intellitask()
             hnsw_ready: Arc::new(AtomicBool::new(false)),
+            reindex_mutex: Arc::new(std::sync::Mutex::new(())),
         }
     }
 
@@ -325,6 +332,7 @@ impl SynCoreState {
             neo4j: None,
             intellitask: None, // Test context - LLM not required
             hnsw_ready: Arc::new(AtomicBool::new(false)),
+            reindex_mutex: Arc::new(std::sync::Mutex::new(())),
         }
     }
 }

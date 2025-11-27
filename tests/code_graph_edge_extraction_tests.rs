@@ -533,8 +533,8 @@ async fn test_backward_compatibility_r2_to_r5() -> Result<()> {
     code_graph.index_file_with_neo4j(temp_file.path(), None)?;
 
     // R2.4: Fusion still works
-    let fusion = FusionSimple::new(0.6, 0.3, 0.1);
-    let score = fusion.combine(0.8, 0.4, 0.0);
+    let fusion = FusionSimple::new(0.6, 0.3, 0.1, 0.0);
+    let score = fusion.combine(0.8, 0.4, 0.0, 0.0);
     assert!((score - 0.64).abs() < 0.001);
 
     // R3.1: Intent classification still works

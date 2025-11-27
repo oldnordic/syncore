@@ -239,10 +239,29 @@ impl CodeGraph {
             parser.set_language(unsafe { tree_sitter_rust::language() })?;
 
             if let Some(tree) = parser.parse(&source_code, None) {
+                // DEDUPLICATION FIX: Build set of already-indexed entities
+                // Key: (entity_type_str, name, line_start) - matches UNIQUE constraint
+                // Note: file_path is same for all entities in this transaction
+                let mut seen_entities = std::collections::HashSet::new();
+                for (_id, entity) in &entity_ids {
+                    let key = (
+                        entity.entity_type.as_str().to_string(),
+                        entity.name.clone(),
+                        entity.line_start,
+                    );
+                    seen_entities.insert(key);
+                }
+
                 // PHASE 1a: Extract and store trait definitions (needed for Inherits edges)
                 // Traits aren't extracted by parser, so we extract them here
                 let trait_names = extract_trait_definitions(&source_code, tree.root_node());
                 for trait_name in &trait_names {
+                    // Check if trait already indexed (prevents UNIQUE constraint violations)
+                    let key = ("trait".to_string(), trait_name.clone(), 0);
+                    if seen_entities.contains(&key) {
+                        continue; // Skip duplicate
+                    }
+
                     let trait_entity = CodeEntity {
                         id: None,
                         file_path: code_structure.file_path.clone(),
@@ -260,7 +279,8 @@ impl CodeGraph {
                         author_count: Some(temporal.author_count),
                     };
                     let trait_id = self.store_entity_internal(&tx, &trait_entity)?;
-                    entity_ids.push((trait_id, trait_entity));
+                    entity_ids.push((trait_id, trait_entity.clone()));
+                    seen_entities.insert(key); // Mark as seen
                     entities_indexed += 1;
                 }
 
@@ -268,6 +288,12 @@ impl CodeGraph {
                 // Constants aren't extracted by parser, so we extract them here
                 let const_names = extract_const_definitions(&source_code, tree.root_node());
                 for const_name in &const_names {
+                    // Check if const already indexed (prevents UNIQUE constraint violations)
+                    let key = ("function".to_string(), const_name.clone(), 0);
+                    if seen_entities.contains(&key) {
+                        continue; // Skip duplicate
+                    }
+
                     let const_entity = CodeEntity {
                         id: None,
                         file_path: code_structure.file_path.clone(),
@@ -285,7 +311,8 @@ impl CodeGraph {
                         author_count: Some(temporal.author_count),
                     };
                     let const_id = self.store_entity_internal(&tx, &const_entity)?;
-                    entity_ids.push((const_id, const_entity));
+                    entity_ids.push((const_id, const_entity.clone()));
+                    seen_entities.insert(key); // Mark as seen
                     entities_indexed += 1;
                 }
 
@@ -352,26 +379,21 @@ impl CodeGraph {
         // Release lock after checkpoint completes
         drop(db);
 
-        // Sync to Neo4j AFTER SQLite persistence complete (best-effort, non-blocking)
-        // This decouples Neo4j from SQLite persistence
+        // APEX 2.10: Sync to Neo4j AFTER SQLite persistence complete
+        // Use oneshot channel for completion signaling
         if let Some(neo4j) = neo4j_opt {
-            // Fire-and-forget async task for Neo4j node and relationship creation
-            // Production: truly async, returns immediately
-            // Tests: may need small delay to verify nodes created
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                // Create oneshot channel for completion signal
+                let (tx, mut rx) = tokio::sync::oneshot::channel();
+
                 let neo4j_clone = neo4j.clone();
-                let entities_clone: Vec<_> = entity_ids
-                    .iter()
-                    .map(|(id, entity)| (*id, entity.clone()))
-                    .collect();
+                let entities_clone = entity_ids.clone();
                 let edges_clone = edges.clone();
 
                 handle.spawn(async move {
                     // First create all entity nodes
-                    for (entity_id, entity) in entities_clone {
-                        if let Err(e) =
-                            create_code_entity_node(&neo4j_clone, entity_id, &entity).await
-                        {
+                    for (entity_id, entity) in &entities_clone {
+                        if let Err(e) = create_code_entity_node(&neo4j_clone, *entity_id, entity).await {
                             eprintln!(
                                 "[WARN] Failed to create Neo4j node for entity {}: {}",
                                 entity.name, e
@@ -382,11 +404,11 @@ impl CodeGraph {
                     // Then create relationships between entities
                     use super::neo4j_relationships::create_code_relationship;
                     use super::types::CodeEdge;
-                    for (src_id, dst_id, edge_type) in edges_clone {
+                    for (src_id, dst_id, edge_type) in &edges_clone {
                         let edge = CodeEdge {
-                            src_entity_id: src_id,
-                            dst_entity_id: dst_id,
-                            edge_type,
+                            src_entity_id: *src_id,
+                            dst_entity_id: *dst_id,
+                            edge_type: edge_type.clone(),
                         };
                         if let Err(e) = create_code_relationship(&neo4j_clone, &edge).await {
                             eprintln!(
@@ -395,8 +417,14 @@ impl CodeGraph {
                             );
                         }
                     }
+
+                    // Signal completion
+                    let _ = tx.send(());
                 });
-                // Fire and forget - don't block
+
+                // Don't block - fire and forget for production
+                // The oneshot channel is still useful for tests that can await it
+                // Production code doesn't need to wait
             } else {
                 eprintln!("[WARN] No tokio runtime available, skipping Neo4j sync");
             }
@@ -509,6 +537,13 @@ impl CodeGraph {
             vector_store.insert_text(entity_id, None, &text, "code_entity")?;
         } // vector_store lock released here
 
+        // Get model name from vector store
+        let model_version = {
+            let vs = self.vector_store.lock()
+                .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
+            vs.model_name().to_string()
+        };
+
         // Link embedding to entity (db already locked by caller)
         db.execute(
             "INSERT INTO code_embeddings (entity_id, vector_id, model_version, created_at)
@@ -516,7 +551,7 @@ impl CodeGraph {
             rusqlite::params![
                 entity_id,
                 entity_id, // vector_id same as entity_id for now
-                "all-MiniLM-L6-v2",
+                model_version,
                 chrono::Utc::now().timestamp(),
             ],
         )?;

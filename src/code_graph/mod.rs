@@ -20,6 +20,8 @@ pub mod fusion_reasoning;
 pub mod fusion_router;
 pub mod fusion_simple;
 mod graph;
+pub mod graph_bert; // APEX 1.9-G: Graph-BERT model implementation
+pub mod graph_embeddings; // APEX 1.9-G: GRAPH embedding service
 pub mod incremental; // PHASE 5: Incremental indexing support
 pub mod index_application; // Multilanguage index application
 mod indexer;
@@ -32,6 +34,7 @@ pub mod parsers; // Language-specific parser implementations
 pub mod rag_graph_api;
 mod searcher;
 pub mod semantic_extractor; // PHASE 1: Semantic edge extraction
+pub mod streaming; // APEX 2.8: Streaming fusion query results
 pub mod temporal_extractor; // PHASE 3: Temporal metadata extraction
 mod types;
 pub mod update_service; // APEX 2.3-CG: Incremental code graph updates

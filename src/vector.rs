@@ -16,12 +16,14 @@ use crate::vector::hnsw::{HnswConfig, HnswVectorIndex};
 pub trait Embeddings: Send + Sync {
     fn embed(&self, text: &str) -> Result<Vec<f32>>;
     fn dim(&self) -> usize;
+    fn model_name(&self) -> &str;
 }
 
 /// Production-grade embeddings using HuggingFace models via fastembed
 pub struct HuggingFaceEmbeddings {
     model: TextEmbedding,
     dim: usize,
+    model_name: String,
 }
 
 impl HuggingFaceEmbeddings {
@@ -35,6 +37,7 @@ impl HuggingFaceEmbeddings {
         Ok(Self {
             model,
             dim: 384, // all-MiniLM-L6-v2 embedding dimension
+            model_name: "all-MiniLM-L6-v2".to_string(),
         })
     }
 
@@ -48,22 +51,27 @@ impl HuggingFaceEmbeddings {
         Ok(Self {
             model,
             dim: 384, // BGE-small-en-v1.5 embedding dimension
+            model_name: "BGE-small-en-v1.5".to_string(),
         })
     }
 
     /// Create with specific model
     pub fn with_model(model_name: EmbeddingModel) -> Result<Self> {
-        let dim = match model_name {
-            EmbeddingModel::AllMiniLML6V2 => 384,
-            EmbeddingModel::BGESmallENV15 => 384,
-            EmbeddingModel::BGEBaseENV15 => 768,
-            _ => 384, // Default dimension for most models
+        let (dim, model_name_str) = match model_name {
+            EmbeddingModel::AllMiniLML6V2 => (384, "all-MiniLM-L6-v2"),
+            EmbeddingModel::BGESmallENV15 => (384, "BGE-small-en-v1.5"),
+            EmbeddingModel::BGEBaseENV15 => (768, "BGE-base-en-v1.5"),
+            _ => (384, "unknown-model"), // Default dimension for most models
         };
 
         let model =
             TextEmbedding::try_new(InitOptions::new(model_name).with_show_download_progress(true))?;
 
-        Ok(Self { model, dim })
+        Ok(Self {
+            model,
+            dim,
+            model_name: model_name_str.to_string(),
+        })
     }
 }
 
@@ -75,6 +83,10 @@ impl Embeddings for HuggingFaceEmbeddings {
 
     fn dim(&self) -> usize {
         self.dim
+    }
+
+    fn model_name(&self) -> &str {
+        &self.model_name
     }
 }
 
@@ -288,6 +300,10 @@ impl Embeddings for RealEmbeddings {
     fn dim(&self) -> usize {
         self.dim
     }
+
+    fn model_name(&self) -> &str {
+        &self.model_name
+    }
 }
 
 /// Fast embedding for test mode - ultra-lightweight hash-based projection
@@ -350,6 +366,10 @@ impl Embeddings for StubEmbeddings {
 
     fn dim(&self) -> usize {
         self.dim
+    }
+
+    fn model_name(&self) -> &str {
+        "stub-embeddings"
     }
 }
 
@@ -615,6 +635,11 @@ impl VectorStore {
     /// Get shared reference to warmup controller for external coordination
     pub fn warmup_controller_arc(&self) -> Arc<warmup::WarmupController> {
         self.warmup_controller.clone()
+    }
+
+    /// Get the model name from the underlying embeddings
+    pub fn model_name(&self) -> &str {
+        self.embeddings.model_name()
     }
 
     /// Flush pending vectors into HNSW index (called after warmup)
@@ -1740,3 +1765,36 @@ pub use traits::VectorIndex;
 
 // Re-export warmup types for public API
 pub use warmup::{HnswWarmupState, WarmupController};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_huggingface_model_name() {
+        let embeddings = HuggingFaceEmbeddings::new().unwrap();
+        assert_eq!(embeddings.model_name(), "all-MiniLM-L6-v2");
+
+        let embeddings_bge = HuggingFaceEmbeddings::new_bge().unwrap();
+        assert_eq!(embeddings_bge.model_name(), "BGE-small-en-v1.5");
+    }
+
+    #[test]
+    fn test_real_embeddings_model_name() {
+        let embeddings = RealEmbeddings::new(384).unwrap();
+        assert_eq!(embeddings.model_name(), "semantic-word-vectors");
+    }
+
+    #[test]
+    fn test_stub_embeddings_model_name() {
+        let embeddings = StubEmbeddings::new(384).unwrap();
+        assert_eq!(embeddings.model_name(), "stub-embeddings");
+    }
+
+    #[test]
+    fn test_vector_store_model_name() {
+        let embeddings = Box::new(HuggingFaceEmbeddings::new_bge().unwrap());
+        let store = VectorStore::new(embeddings);
+        assert_eq!(store.model_name(), "BGE-small-en-v1.5");
+    }
+}

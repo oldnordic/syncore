@@ -402,8 +402,8 @@ async fn test_backwards_compatibility() -> Result<()> {
     use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 
     // R2.4: Fusion still works
-    let fusion = FusionSimple::new(0.6, 0.3, 0.1);
-    let score = fusion.combine(0.8, 0.4, 0.0);
+    let fusion = FusionSimple::new(0.6, 0.3, 0.1, 0.0);
+    let score = fusion.combine(0.8, 0.4, 0.0, 0.0);
     assert!((score - 0.64).abs() < 0.001);
 
     // R3.1: Intent classification still works

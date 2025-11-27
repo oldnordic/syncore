@@ -226,8 +226,8 @@ async fn test_rag_graph_backwards_compatibility() -> Result<()> {
     assert!(result2.is_ok(), "R2.3 backward compatibility broken");
 
     // Test R2.4: Fusion modes still work
-    let fusion = FusionSimple::new(0.6, 0.3, 0.1);
-    let score = fusion.combine(0.8, 0.4, 0.0);
+    let fusion = FusionSimple::new(0.6, 0.3, 0.1, 0.0);
+    let score = fusion.combine(0.8, 0.4, 0.0, 0.0);
     assert!(
         (score - 0.64).abs() < 0.001,
         "R2.4 backward compatibility broken"

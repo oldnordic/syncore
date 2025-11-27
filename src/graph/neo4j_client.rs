@@ -170,7 +170,27 @@ impl Neo4jClient {
                         }
                         serde_json::Value::Object(obj)
                     }
-                    _ => serde_json::Value::Null, // For Node, Relationship, etc.
+                    BoltType::Node(node) => {
+                        // Extract Node properties as JSON object
+                        let mut obj = serde_json::Map::new();
+                        for (k, v) in node.properties.value.iter() {
+                            if let Ok(json_val) = self.bolt_to_json(v) {
+                                obj.insert(k.value.clone(), json_val);
+                            }
+                        }
+                        serde_json::Value::Object(obj)
+                    }
+                    BoltType::Relation(rel) => {
+                        // Extract Relationship properties as JSON object
+                        let mut obj = serde_json::Map::new();
+                        for (k, v) in rel.properties.value.iter() {
+                            if let Ok(json_val) = self.bolt_to_json(v) {
+                                obj.insert(k.value.clone(), json_val);
+                            }
+                        }
+                        serde_json::Value::Object(obj)
+                    }
+                    _ => serde_json::Value::Null, // For other types (Path, Duration, etc.)
                 };
                 Ok(json_value)
             }
@@ -200,6 +220,26 @@ impl Neo4jClient {
             BoltType::Map(map) => {
                 let mut obj = serde_json::Map::new();
                 for (k, v) in map.value.iter() {
+                    if let Ok(json_val) = self.bolt_to_json(v) {
+                        obj.insert(k.value.clone(), json_val);
+                    }
+                }
+                serde_json::Value::Object(obj)
+            }
+            BoltType::Node(node) => {
+                // Extract Node properties as JSON object
+                let mut obj = serde_json::Map::new();
+                for (k, v) in node.properties.value.iter() {
+                    if let Ok(json_val) = self.bolt_to_json(v) {
+                        obj.insert(k.value.clone(), json_val);
+                    }
+                }
+                serde_json::Value::Object(obj)
+            }
+            BoltType::Relation(rel) => {
+                // Extract Relationship properties as JSON object
+                let mut obj = serde_json::Map::new();
+                for (k, v) in rel.properties.value.iter() {
                     if let Ok(json_val) = self.bolt_to_json(v) {
                         obj.insert(k.value.clone(), json_val);
                     }
