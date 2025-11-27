@@ -231,7 +231,7 @@ pub async fn delete_file_entities(client: &Neo4jClient, file_path: &str) -> Resu
         .await?;
 
     let deleted = results
-        .get(0)
+        .first()
         .and_then(|r| r.get("deleted"))
         .and_then(|v| v.as_i64())
         .unwrap_or(0);

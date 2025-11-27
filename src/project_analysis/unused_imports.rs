@@ -106,7 +106,6 @@ impl ProjectAnalysisEngine {
 
         query.push_str(&format!(" AND ce.file_path NOT LIKE ?{}", param_idx));
         params.push("%_test.rs".to_string());
-        param_idx += 1;
 
         query.push_str(" ORDER BY ce.file_path, ce.line_start");
 

@@ -79,7 +79,7 @@ pub async fn get_entity_by_id(client: &Neo4jClient, id: i64) -> Result<Option<En
         )
         .await?;
 
-    Ok(results.get(0).and_then(EntityResult::from_neo4j_value))
+    Ok(results.first().and_then(EntityResult::from_neo4j_value))
 }
 
 /// Get all entities in a file
@@ -391,7 +391,7 @@ async fn count_total_nodes(client: &Neo4jClient) -> Result<i64> {
         .await?;
 
     Ok(results
-        .get(0)
+        .first()
         .and_then(|r| r.get("count"))
         .and_then(|v| v.as_i64())
         .unwrap_or(0))
@@ -412,7 +412,7 @@ async fn count_total_edges(client: &Neo4jClient) -> Result<i64> {
         .await?;
 
     Ok(results
-        .get(0)
+        .first()
         .and_then(|r| r.get("count"))
         .and_then(|v| v.as_i64())
         .unwrap_or(0))
@@ -461,7 +461,7 @@ async fn count_orphan_nodes(client: &Neo4jClient) -> Result<i64> {
         .await?;
 
     Ok(results
-        .get(0)
+        .first()
         .and_then(|r| r.get("count"))
         .and_then(|v| v.as_i64())
         .unwrap_or(0))

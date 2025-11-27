@@ -75,7 +75,6 @@ impl ProjectAnalysisEngine {
         if let Some(root_path) = root {
             query.push_str(&format!(" WHERE ce.file_path LIKE ?{}", param_idx));
             params.push(format!("{}%", root_path));
-            param_idx += 1;
         }
 
         query.push_str(" GROUP BY ce.file_path ORDER BY entity_count DESC");

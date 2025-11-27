@@ -102,7 +102,6 @@ impl ProjectAnalysisEngine {
         if let Some(min_lines) = min_loc {
             where_clauses.push(format!("max_line >= ?{}", param_idx));
             params.push(min_lines as i64);
-            param_idx += 1;
         }
 
         query.push_str(" GROUP BY file_path");

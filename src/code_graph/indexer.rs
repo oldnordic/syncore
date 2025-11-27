@@ -236,7 +236,7 @@ impl CodeGraph {
             // Re-parse file to extract edges from AST
             let source_code = std::fs::read_to_string(file_path)?;
             let mut parser = tree_sitter::Parser::new();
-            parser.set_language(unsafe { tree_sitter_rust::language() })?;
+            parser.set_language(tree_sitter_rust::language())?;
 
             if let Some(tree) = parser.parse(&source_code, None) {
                 // DEDUPLICATION FIX: Build set of already-indexed entities

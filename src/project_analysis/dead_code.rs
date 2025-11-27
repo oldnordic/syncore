@@ -87,7 +87,6 @@ impl ProjectAnalysisEngine {
 
         query.push_str(&format!(" AND ce.file_path NOT LIKE ?{}", param_idx));
         params.push("%_test.rs".to_string());
-        param_idx += 1;
 
         // Exclude public entities if requested
         if exclude_public {

@@ -138,7 +138,7 @@ pub async fn count_reasoning_episodes(client: &Neo4jClient) -> Result<i64> {
         .await?;
 
     let count = results
-        .get(0)
+        .first()
         .and_then(|r| r.get("count"))
         .and_then(|v| v.as_i64())
         .unwrap_or(0);
