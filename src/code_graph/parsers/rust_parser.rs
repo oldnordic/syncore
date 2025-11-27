@@ -160,7 +160,7 @@ impl RustLanguageParser {
 
 impl LanguageParser for RustLanguageParser {
     fn supports(&self, file_path: &Path) -> bool {
-        file_path.extension().map_or(false, |ext| ext == "rs")
+        file_path.extension().is_some_and(|ext| ext == "rs")
     }
 
     fn parse_entities(&self, file_path: &Path) -> Result<Vec<CodeEntity>> {

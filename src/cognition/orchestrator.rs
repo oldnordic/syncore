@@ -158,7 +158,7 @@ pub fn format_enriched_context_for_llm(enriched: &EnrichedContext) -> String {
     if let Some(ref results) = enriched.raggraph_results {
         prompt.push_str("\n=== RAGGraph Results ===\n");
         prompt.push_str(results);
-        prompt.push_str("\n");
+        prompt.push('\n');
     }
 
     prompt.push_str("=== END CONTEXT ===\n\n");

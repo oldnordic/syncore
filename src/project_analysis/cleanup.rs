@@ -338,7 +338,7 @@ impl ProjectAnalysisEngine {
         query.push_str(&conditions.join(" OR "));
         query.push_str(") OR dst_entity_id IN (SELECT id FROM code_entities WHERE ");
         query.push_str(&conditions.join(" OR "));
-        query.push_str(")");
+        query.push(')');
 
         let mut stmt = conn.prepare(&query)?;
         let all_patterns: Vec<&str> = like_patterns

@@ -226,7 +226,7 @@ fn build_graph_traversal_plan(
 
     // Default: code_graph_fusion_query
     let mode_hint = if matches!(
-        pattern.and_then(|p| Some(&p.graph_usage)),
+        pattern.map(|p| &p.graph_usage),
         Some(PatternGraphUsage::Heavy)
     ) {
         "reasoning"

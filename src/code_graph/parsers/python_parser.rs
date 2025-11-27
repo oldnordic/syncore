@@ -145,7 +145,7 @@ impl PythonLanguageParser {
 
 impl LanguageParser for PythonLanguageParser {
     fn supports(&self, file_path: &Path) -> bool {
-        file_path.extension().map_or(false, |ext| ext == "py")
+        file_path.extension().is_some_and(|ext| ext == "py")
     }
 
     fn parse_entities(&self, file_path: &Path) -> Result<Vec<CodeEntity>> {
