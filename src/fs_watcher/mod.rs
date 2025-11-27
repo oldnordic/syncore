@@ -3,7 +3,7 @@
 //! Minimal, deterministic filewatcher using notify crate with inotify backend.
 //! Provides debounced file change events via Tokio mpsc channel.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use notify::{recommended_watcher, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::mpsc as std_mpsc;

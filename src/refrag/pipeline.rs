@@ -14,7 +14,7 @@
 
 use super::{
     ChunkCompressionLayer, ChunkMetadata, ExpandStage, HybridPromptBuilder, PerceiveSelector,
-    RefragConfig, SelectionPolicy,
+    RefragConfig,
 };
 use crate::router::SynCoreState;
 use crate::vector::SearchScope;

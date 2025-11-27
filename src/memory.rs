@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 
 // NEW: Import DualEmbeddingService and Neo4j for semantic capabilities
 use crate::vector::dual_service::DualEmbeddingService;
-use crate::vector::domain::{EmbeddingService};
 use crate::vector::{SearchScope, VectorStore};
 
 /// Memory configuration

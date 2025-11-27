@@ -8,7 +8,7 @@
 //! APEX 2.6 adds delta-based selective reindexing: only entities whose spans intersect
 //! with changed_ranges are reindexed, not the entire file.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 

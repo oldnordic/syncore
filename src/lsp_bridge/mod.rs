@@ -14,7 +14,7 @@ pub use diagnostics::LspDiagnosticEvent;
 pub use jsonrpc::{frame_jsonrpc_message, parse_jsonrpc_message, parse_publish_diagnostics};
 
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};

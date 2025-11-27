@@ -4,9 +4,8 @@
 //! All database paths are ABSOLUTE and deterministic, regardless of process CWD.
 
 use once_cell::sync::Lazy;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use crate::path_resolver::PathResolver; // APEX v1.7 Phase 6
 
 /// Cached binary directory (where syncore executable is located)
 static BINARY_DIR: Lazy<PathBuf> = Lazy::new(find_binary_dir);

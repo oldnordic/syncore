@@ -30,7 +30,6 @@
 //! // let strategy: Box<dyn GraphEmbeddingStrategy> = Box::new(GraphBertModel::new());
 //! ```
 
-use anyhow::Result;
 use std::collections::HashMap;
 
 // ============================================================================

@@ -19,7 +19,6 @@
 //! - This file provides the API contract for that future integration
 
 use anyhow::Result;
-use std::collections::HashMap;
 
 use super::graph_embeddings::{GraphEmbeddingStrategy, GraphFeatures};
 
