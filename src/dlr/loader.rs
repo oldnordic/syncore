@@ -63,7 +63,7 @@ impl PluginLoader {
 
         plugin.status = PluginStatus::Loading;
 
-        let mut child = Command::new(&plugin.path)
+        let child = Command::new(&plugin.path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

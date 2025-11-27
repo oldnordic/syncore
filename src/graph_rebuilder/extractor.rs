@@ -45,7 +45,7 @@ pub struct RelationshipExtractor {
 impl RelationshipExtractor {
     /// Create a new RelationshipExtractor
     pub fn new() -> Result<Self> {
-        let mut parser = tree_sitter::Parser::new();
+        let parser = tree_sitter::Parser::new();
         // Language is set per-file in extract_from_source
         Ok(Self { parser })
     }

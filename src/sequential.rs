@@ -355,7 +355,7 @@ impl SequentialCore {
             }
             ActionType::SearchCode { query, path } => {
                 use std::process::Command;
-                let output = Command::new("rg").args(&["--json", query, path]).output()?;
+                let output = Command::new("rg").args(["--json", query, path]).output()?;
 
                 if output.status.success() {
                     let results = String::from_utf8_lossy(&output.stdout);

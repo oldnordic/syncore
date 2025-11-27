@@ -116,7 +116,7 @@ impl DbManager {
         // Configure WAL mode (must be done BEFORE any writes)
         // Skip WAL for in-memory databases (they don't support it)
         if db_path != ":memory:" {
-            db.pragma_update(None, "journal_mode", &"WAL")
+            db.pragma_update(None, "journal_mode", "WAL")
                 .context("Failed to set journal_mode=WAL")?;
 
             // Verify WAL mode was set successfully
@@ -130,13 +130,13 @@ impl DbManager {
         }
 
         // Configure other pragmas
-        db.pragma_update(None, "synchronous", &"NORMAL")
+        db.pragma_update(None, "synchronous", "NORMAL")
             .context("Failed to set synchronous=NORMAL")?;
 
-        db.pragma_update(None, "cache_size", &1000)
+        db.pragma_update(None, "cache_size", 1000)
             .context("Failed to set cache_size")?;
 
-        db.pragma_update(None, "foreign_keys", &"ON")
+        db.pragma_update(None, "foreign_keys", "ON")
             .context("Failed to enable foreign keys")?;
 
         // Run schema migrations (critical: schema must match code expectations)

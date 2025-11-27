@@ -384,7 +384,7 @@ impl CodeGraph {
         if let Some(neo4j) = neo4j_opt {
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 // Create oneshot channel for completion signal
-                let (tx, mut rx) = tokio::sync::oneshot::channel();
+                let (tx, rx) = tokio::sync::oneshot::channel();
 
                 let neo4j_clone = neo4j.clone();
                 let entities_clone = entity_ids.clone();

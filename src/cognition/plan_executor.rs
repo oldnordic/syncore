@@ -253,7 +253,7 @@ fn execute_parser_search(args: &serde_json::Value, _state: &SynCoreState) -> Res
 
     // Use ripgrep via std::process
     use std::process::Command;
-    let output = Command::new("rg").args(&["--count", pattern, "."]).output();
+    let output = Command::new("rg").args(["--count", pattern, "."]).output();
 
     match output {
         Ok(out) if out.status.success() => {

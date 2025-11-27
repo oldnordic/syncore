@@ -39,7 +39,7 @@ impl DlrManager {
 
         self.loader.load_plugin(plugin)?;
 
-        if let Some(mut child) = self.loader.remove_plugin_child(plugin_name) {
+        if let Some(child) = self.loader.remove_plugin_child(plugin_name) {
             let mut ipc_client = IpcClient::new(child)?;
 
             let init_response = ipc_client.init_plugin(&plugin.name, &plugin.version)?;
@@ -76,7 +76,7 @@ impl DlrManager {
             .get_plugin_mut(plugin_name)
             .ok_or_else(|| DlrError::PluginNotFound(plugin_name.to_string()))?;
 
-        if let Some(mut child) = self.loader.plugins.remove(plugin_name) {
+        if let Some(child) = self.loader.plugins.remove(plugin_name) {
             let mut ipc_client = IpcClient::new(child)?;
             let _ = ipc_client.shutdown_plugin();
             let mut child = ipc_client.into_child();
@@ -106,7 +106,7 @@ impl DlrManager {
             )));
         }
 
-        if let Some(mut child) = self.loader.plugins.remove(plugin_name) {
+        if let Some(child) = self.loader.plugins.remove(plugin_name) {
             let mut ipc_client = IpcClient::new(child)?;
 
             let response = ipc_client.execute_task(task, params)?;

@@ -468,7 +468,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
 
             use std::process::Command;
             let output = Command::new("rg")
-                .args(&[
+                .args([
                     "--json",
                     "-C",
                     &context_lines.to_string(),

@@ -121,7 +121,7 @@ impl HnswVectorIndex {
 
         // Use HnswIo to load
         use hnsw_rs::hnswio::HnswIo;
-        let mut hnswio = HnswIo::new(dir, basename);
+        let hnswio = HnswIo::new(dir, basename);
         let loaded_temp = hnswio
             .load_hnsw_with_dist::<f32, DistL2>(DistL2 {})
             .map_err(|e| anyhow!("HNSW deserialization failed: {:?}", e))?;

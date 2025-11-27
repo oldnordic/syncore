@@ -9,10 +9,10 @@ pub use manager::DbManager;
 
 pub fn open_db_with_wal(path: &str) -> rusqlite::Result<Connection> {
     let db = Connection::open(path)?;
-    db.pragma_update(None, "journal_mode", &"WAL")?;
-    db.pragma_update(None, "synchronous", &"NORMAL")?;
-    db.pragma_update(None, "cache_size", &1000)?;
-    db.pragma_update(None, "foreign_keys", &"ON")?;
+    db.pragma_update(None, "journal_mode", "WAL")?;
+    db.pragma_update(None, "synchronous", "NORMAL")?;
+    db.pragma_update(None, "cache_size", 1000)?;
+    db.pragma_update(None, "foreign_keys", "ON")?;
 
     // Auto-migrate schema to current version
     // Migration failure is critical - database would be in inconsistent state

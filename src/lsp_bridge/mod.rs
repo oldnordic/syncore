@@ -303,7 +303,7 @@ impl LspBridge {
                         let _ = lines.next_line().await;
 
                         // Read JSON content
-                        let mut buffer = vec![0u8; content_len];
+                        let buffer = vec![0u8; content_len];
                         // Need to read exact bytes - simplified approach
                         // In production, use proper byte reading
                         if let Ok(Some(json_line)) = lines.next_line().await {
