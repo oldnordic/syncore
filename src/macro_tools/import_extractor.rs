@@ -51,14 +51,14 @@ pub fn extract_rust_imports(code: &str) -> Vec<RustImport> {
         }
 
         // Handle use statements (including pub use)
-        let (is_pub, use_line) = if trimmed.starts_with("pub use ") {
-            (true, &trimmed[8..])
-        } else if trimmed.starts_with("pub(crate) use ") {
-            (true, &trimmed[15..])
-        } else if trimmed.starts_with("pub(super) use ") {
-            (true, &trimmed[15..])
-        } else if trimmed.starts_with("use ") {
-            (false, &trimmed[4..])
+        let (is_pub, use_line) = if let Some(line) = trimmed.strip_prefix("pub use ") {
+            (true, line)
+        } else if let Some(line) = trimmed.strip_prefix("pub(crate) use ") {
+            (true, line)
+        } else if let Some(line) = trimmed.strip_prefix("pub(super) use ") {
+            (true, line)
+        } else if let Some(line) = trimmed.strip_prefix("use ") {
+            (false, line)
         } else {
             continue;
         };
@@ -290,9 +290,8 @@ pub fn resolve_import_to_file(
     let relative_current = current.strip_prefix(root).ok()?;
     let current_dir = relative_current.parent()?;
 
-    if import_path.starts_with("crate::") {
+    if let Some(module_path) = import_path.strip_prefix("crate::") {
         // crate::memory::MemoryStore -> src/memory.rs or src/memory/mod.rs
-        let module_path = &import_path[7..]; // Strip "crate::"
         let parts: Vec<&str> = module_path.split("::").collect();
 
         // First part is the module name
@@ -311,10 +310,9 @@ pub fn resolve_import_to_file(
             return Some(p);
         }
         None
-    } else if import_path.starts_with("super::") {
+    } else if let Some(module_path) = import_path.strip_prefix("super::") {
         // super::sibling in src/module/submodule.rs -> src/module/sibling.rs
         // For a file like submodule.rs, super:: refers to siblings in the same directory
-        let module_path = &import_path[7..]; // Strip "super::"
         let parts: Vec<&str> = module_path.split("::").collect();
 
         if parts.is_empty() {
@@ -331,9 +329,8 @@ pub fn resolve_import_to_file(
             return Some(p);
         }
         None
-    } else if import_path.starts_with("self::") {
+    } else if let Some(module_path) = import_path.strip_prefix("self::") {
         // self::child -> current_dir/child.rs
-        let module_path = &import_path[6..]; // Strip "self::"
         let parts: Vec<&str> = module_path.split("::").collect();
 
         if parts.is_empty() {

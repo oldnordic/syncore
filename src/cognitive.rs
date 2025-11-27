@@ -118,10 +118,10 @@ impl CognitiveEnhancer {
             }
 
             // Check for inconsistent emotional tone
-            if reflect_lower.contains("error") || reflect_lower.contains("failed") {
-                if observe_lower.contains("success") {
-                    return Some(" (note: reflection negative despite success)".to_string());
-                }
+            if (reflect_lower.contains("error") || reflect_lower.contains("failed"))
+                && observe_lower.contains("success")
+            {
+                return Some(" (note: reflection negative despite success)".to_string());
             }
         }
 

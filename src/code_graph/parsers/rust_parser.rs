@@ -137,19 +137,17 @@ impl RustLanguageParser {
                 if line.contains(&format!("{}(", entity_name)) {
                     // Find calling function by looking backwards for function definition
                     for calling_entity in entities {
-                        if calling_entity.entity_type == EntityType::Function
-                            || calling_entity.entity_type == EntityType::Method
+                        if (calling_entity.entity_type == EntityType::Function
+                            || calling_entity.entity_type == EntityType::Method)
+                            && (line_num + 1 >= calling_entity.line_start
+                                && line_num + 1 <= calling_entity.line_end)
                         {
-                            if line_num + 1 >= calling_entity.line_start
-                                && line_num + 1 <= calling_entity.line_end
-                            {
-                                edges.push(CodeEdge {
-                                    src_entity_id: name_to_id[&calling_entity.name.clone()],
-                                    dst_entity_id: entity_id,
-                                    edge_type: EdgeType::Calls,
-                                });
-                                break;
-                            }
+                            edges.push(CodeEdge {
+                                src_entity_id: name_to_id[&calling_entity.name.clone()],
+                                dst_entity_id: entity_id,
+                                edge_type: EdgeType::Calls,
+                            });
+                            break;
                         }
                     }
                 }

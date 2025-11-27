@@ -102,10 +102,10 @@ pub fn has_cycle(edges: Vec<UnifiedEdge>) -> bool {
 
     for edge in &edges {
         let node = edge.from_id;
-        if !visited.contains(&node) {
-            if has_cycle_util(node, &adj, &mut visited, &mut recursion_stack) {
-                return true;
-            }
+        if !visited.contains(&node)
+            && has_cycle_util(node, &adj, &mut visited, &mut recursion_stack)
+        {
+            return true;
         }
     }
 

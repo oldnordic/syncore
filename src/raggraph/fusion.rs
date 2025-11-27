@@ -63,10 +63,10 @@ pub fn fuse_knowledge(
 
     for &node_id in graph_neighbors {
         // Skip if already included from vector results
-        if !weighted_nodes.iter().any(|(id, _)| *id == node_id) {
-            if embeddings.contains_key(&node_id) {
-                weighted_nodes.push((node_id, graph_weight));
-            }
+        if !weighted_nodes.iter().any(|(id, _)| *id == node_id)
+            && embeddings.contains_key(&node_id)
+        {
+            weighted_nodes.push((node_id, graph_weight));
         }
     }
 

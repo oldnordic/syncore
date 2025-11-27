@@ -118,10 +118,9 @@ impl PythonBackendIngestion {
                 if path
                     .file_name()
                     .map_or(false, |name| name != "target" && name != "node_modules")
+                    && self.has_python_files(&path)?
                 {
-                    if self.has_python_files(&path)? {
-                        return Ok(true);
-                    }
+                    return Ok(true);
                 }
             }
         }

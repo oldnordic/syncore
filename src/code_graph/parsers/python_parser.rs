@@ -16,12 +16,11 @@ fn strip_python_docstring(docstring: Option<String>) -> Option<String> {
     docstring.map(|s| {
         let s = s.trim();
         // Handle """ or ''' style docstrings
-        if (s.starts_with("\"\"\"") && s.ends_with("\"\"\""))
-            || (s.starts_with("'''") && s.ends_with("'''"))
+        if ((s.starts_with("\"\"\"") && s.ends_with("\"\"\""))
+            || (s.starts_with("'''") && s.ends_with("'''")))
+            && s.len() >= 6
         {
-            if s.len() >= 6 {
-                return s[3..s.len() - 3].trim().to_string();
-            }
+            return s[3..s.len() - 3].trim().to_string();
         }
         // Handle single-line # comments
         if let Some(stripped) = s.strip_prefix('#') {
@@ -123,19 +122,17 @@ impl PythonLanguageParser {
                 if line.contains(&format!("{}(", entity_name)) {
                     // Find calling function by looking backwards for function definition
                     for calling_entity in entities {
-                        if calling_entity.entity_type == EntityType::Function
-                            || calling_entity.entity_type == EntityType::Method
+                        if (calling_entity.entity_type == EntityType::Function
+                            || calling_entity.entity_type == EntityType::Method)
+                            && (line_num + 1 >= calling_entity.line_start
+                                && line_num + 1 <= calling_entity.line_end)
                         {
-                            if line_num + 1 >= calling_entity.line_start
-                                && line_num + 1 <= calling_entity.line_end
-                            {
-                                edges.push(CodeEdge {
-                                    src_entity_id: name_to_id[&calling_entity.name.clone()],
-                                    dst_entity_id: entity_id,
-                                    edge_type: EdgeType::Calls,
-                                });
-                                break;
-                            }
+                            edges.push(CodeEdge {
+                                src_entity_id: name_to_id[&calling_entity.name.clone()],
+                                dst_entity_id: entity_id,
+                                edge_type: EdgeType::Calls,
+                            });
+                            break;
                         }
                     }
                 }
