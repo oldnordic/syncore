@@ -72,7 +72,7 @@ impl RustBackendIngestion {
                     status: RustIngestionStatus::ToolUnavailable,
                 })
             }
-            Err(e) => {
+            Err(_e) => {
                 // cargo command not found
                 Ok(RustIngestionSummary {
                     total_diagnostics: 0,
@@ -93,7 +93,7 @@ impl RustBackendIngestion {
 
         // Check if cargo clippy ran (it may return non-zero exit code but still produce output)
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
+        let _stderr = String::from_utf8_lossy(&output.stderr);
 
         // Parse JSON output line by line
         let mut diagnostic_inputs = Vec::new();

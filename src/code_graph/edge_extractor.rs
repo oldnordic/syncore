@@ -139,7 +139,7 @@ fn extract_calls(
                         }
                     } else {
                         // Instance method call: obj.method() or simple fn()
-                        let callee = callee_text.split('.').last().unwrap_or(callee_text);
+                        let callee = callee_text.split('.').next_back().unwrap_or(callee_text);
                         let callee = callee.trim();
 
                         // Only create edge if callee is a known function

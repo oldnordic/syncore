@@ -6,7 +6,7 @@
 use crate::code_graph::CodeGraph;
 use crate::parser_service::ParseDelta;
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tree_sitter::Range;
 
@@ -49,14 +49,14 @@ impl CodeGraphDeltaEngine {
     /// - >0 ranges = selective reindex of those ranges only
     pub fn compute_ast_delta(
         &self,
-        file_path: &PathBuf,
+        file_path: &Path,
         parse_delta: &ParseDelta,
     ) -> Result<AstDelta> {
         // Rule G: Parser errors → Reindex whole file (safe fallback)
         // Represented by empty changed_ranges = full reindex
         if parse_delta.had_errors {
             return Ok(AstDelta {
-                file_path: file_path.clone(),
+                file_path: file_path.to_path_buf(),
                 changed_ranges: vec![],  // Empty = full reindex
                 deleted: false,
                 renamed: None,
@@ -66,7 +66,7 @@ impl CodeGraphDeltaEngine {
         // Empty changed_ranges means full file reindex (Created event, or no incremental parse data)
         // Non-empty changed_ranges means selective reindex
         Ok(AstDelta {
-            file_path: file_path.clone(),
+            file_path: file_path.to_path_buf(),
             changed_ranges: parse_delta.changed_ranges.clone(),
             deleted: false,
             renamed: None,

@@ -115,14 +115,14 @@ impl CodeGraph {
                 |row| row.get(0),
             )?;
 
-            if db_file.is_empty() || db_file == "" {
+            if db_file.is_empty() {
                 return Err(anyhow!(
                     "CodeGraph detected :memory: database connection. \
                      Use persistent file path instead to prevent data loss."
                 ));
             }
 
-            Self::ensure_code_graph_schema(&*conn_lock)?;
+            Self::ensure_code_graph_schema(&conn_lock)?;
         }
 
         Ok(Self {
