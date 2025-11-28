@@ -93,7 +93,7 @@ fn remove_comments(code: &str) -> String {
             match chars.peek() {
                 Some('/') => {
                     // Line comment - skip to end of line
-                    while let Some(c) = chars.next() {
+                    for c in chars.by_ref() {
                         if c == '\n' {
                             result.push('\n');
                             break;

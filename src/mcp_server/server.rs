@@ -1569,7 +1569,7 @@ impl SynCoreMCPServer {
 
                 // Validate real backend before executing query
                 if let Err(e) = validate_real_backend(
-                    config.backend_mode.clone(),
+                    config.backend_mode,
                     Some(&**neo4j),
                     Some(&vector_index),
                     dimension,
@@ -1818,7 +1818,7 @@ impl SynCoreMCPServer {
             // STEP 1: Sync entities FIRST (required for edges to reference)
             let entity_summary = match neo4j_sync::sync_entities_to_neo4j(
                 &code_graph_conn,
-                &**neo4j,
+                neo4j,
                 params.namespace.as_deref(),
                 params.limit,
             )

@@ -77,7 +77,7 @@ impl ProjectAnalysisEngine {
             let (from_file, to_file, edge_type) = row?;
             graph
                 .entry(from_file.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((to_file, edge_type));
         }
 

@@ -217,7 +217,7 @@ impl MessageBus {
             for cap in &capabilities {
                 index
                     .entry(cap.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(name.clone());
             }
         }
