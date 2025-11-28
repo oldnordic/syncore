@@ -160,7 +160,7 @@ impl ProjectAnalysisEngine {
         for diagnostic in diagnostics {
             let file_diagnostics = diagnostics_by_file
                 .entry(diagnostic.file_path.clone())
-                .or_insert_with(HashMap::new);
+                .or_default();
 
             let severity = crate::project_analysis::diagnostics_severity::normalize_severity(
                 &diagnostic.severity,

@@ -1660,7 +1660,7 @@ impl SynCoreMCPServer {
 
                 // Validate real backend before executing multihop reasoning
                 if let Err(e) = validate_real_backend(
-                    config.backend_mode.clone(),
+                    config.backend_mode,
                     Some(&**neo4j),
                     Some(&vector_index),
                     dimension,

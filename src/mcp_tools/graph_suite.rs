@@ -224,7 +224,7 @@ impl GraphSuite {
                 let validation_result = tokio::task::block_in_place(|| {
                     tokio::runtime::Handle::current().block_on(async {
                         validate_real_backend(
-                            config.backend_mode.clone(),
+                            config.backend_mode,
                             Some(&**neo4j),
                             Some(&vector_index),
                             dimension,
@@ -299,7 +299,7 @@ impl GraphSuite {
                 let validation_result = tokio::task::block_in_place(|| {
                     tokio::runtime::Handle::current().block_on(async {
                         validate_real_backend(
-                            config.backend_mode.clone(),
+                            config.backend_mode,
                             Some(&**neo4j),
                             Some(&vector_index),
                             dimension,
