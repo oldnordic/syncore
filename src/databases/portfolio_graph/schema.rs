@@ -10,7 +10,10 @@
 use crate::graph::Neo4jClient;
 
 /// Portfolio Graph project label (for double-label pattern)
-pub const PORTFOLIO_PROJECT_LABEL: &str = "SynCore";
+pub const PORTFOLIO_PROJECT_LABEL: &str = "PortfolioGraph";
+
+/// Graph domain identifier for portfolio nodes
+pub const GRAPH_DOMAIN: &str = "portfolio";
 
 /// Portfolio node types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,7 +100,7 @@ pub struct TaskProperties {
 
 /// Get namespace from Neo4j client (for consistent namespace isolation)
 pub fn portfolio_namespace(client: &Neo4jClient) -> String {
-    client.namespace().to_string()
+    format!("portfolio_{}", client.namespace())
 }
 
 #[cfg(test)]
@@ -127,6 +130,6 @@ mod tests {
 
     #[test]
     fn test_project_label() {
-        assert_eq!(PORTFOLIO_PROJECT_LABEL, "SynCore");
+        assert_eq!(PORTFOLIO_PROJECT_LABEL, "PortfolioGraph");
     }
 }

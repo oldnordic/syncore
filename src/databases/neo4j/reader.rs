@@ -11,7 +11,7 @@
 
 use anyhow::Result;
 use crate::graph::Neo4jClient;
-use super::schema::{NodeLabel, project_namespace};
+use super::schema::{NodeLabel, GRAPH_DOMAIN, project_namespace};
 use serde_json::Value;
 
 /// Entity result from Neo4j query
@@ -54,7 +54,7 @@ impl EntityResult {
 /// Get entity by ID
 pub async fn get_entity_by_id(client: &Neo4jClient, id: i64) -> Result<Option<EntityResult>> {
     let query = r#"
-        MATCH (e {id: $id, namespace: $ns})
+        MATCH (e {id: $id, namespace: $ns, graph_domain: $graph_domain})
         RETURN e.id as id,
                e.name as name,
                labels(e)[0] as label,
@@ -75,6 +75,7 @@ pub async fn get_entity_by_id(client: &Neo4jClient, id: i64) -> Result<Option<En
             vec![
                 ("id", serde_json::json!(id)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -85,7 +86,7 @@ pub async fn get_entity_by_id(client: &Neo4jClient, id: i64) -> Result<Option<En
 /// Get all entities in a file
 pub async fn get_file_entities(client: &Neo4jClient, file_path: &str) -> Result<Vec<EntityResult>> {
     let query = r#"
-        MATCH (e {namespace: $ns})
+        MATCH (e {namespace: $ns, graph_domain: $graph_domain})
         WHERE e.path = $path
         RETURN e.id as id,
                e.name as name,
@@ -108,6 +109,7 @@ pub async fn get_file_entities(client: &Neo4jClient, file_path: &str) -> Result<
             vec![
                 ("path", serde_json::json!(file_path)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -121,8 +123,9 @@ pub async fn get_file_entities(client: &Neo4jClient, file_path: &str) -> Result<
 /// Get functions called by a function
 pub async fn get_function_callees(client: &Neo4jClient, function_id: i64) -> Result<Vec<EntityResult>> {
     let query = r#"
-        MATCH (f {id: $id, namespace: $ns})-[:CALLS]->(callee)
+        MATCH (f {id: $id, namespace: $ns, graph_domain: $graph_domain})-[:CALLS]->(callee)
         WHERE callee.namespace = $ns
+          AND callee.graph_domain = $graph_domain
         RETURN callee.id as id,
                callee.name as name,
                labels(callee)[0] as label,
@@ -143,6 +146,7 @@ pub async fn get_function_callees(client: &Neo4jClient, function_id: i64) -> Res
             vec![
                 ("id", serde_json::json!(function_id)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -156,8 +160,9 @@ pub async fn get_function_callees(client: &Neo4jClient, function_id: i64) -> Res
 /// Get functions that call a function
 pub async fn get_function_callers(client: &Neo4jClient, function_id: i64) -> Result<Vec<EntityResult>> {
     let query = r#"
-        MATCH (caller)-[:CALLS]->(f {id: $id, namespace: $ns})
+        MATCH (caller)-[:CALLS]->(f {id: $id, namespace: $ns, graph_domain: $graph_domain})
         WHERE caller.namespace = $ns
+          AND caller.graph_domain = $graph_domain
         RETURN caller.id as id,
                caller.name as name,
                labels(caller)[0] as label,
@@ -178,6 +183,7 @@ pub async fn get_function_callers(client: &Neo4jClient, function_id: i64) -> Res
             vec![
                 ("id", serde_json::json!(function_id)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -191,7 +197,7 @@ pub async fn get_function_callers(client: &Neo4jClient, function_id: i64) -> Res
 /// Get entities by name (exact match)
 pub async fn find_entities_by_name(client: &Neo4jClient, name: &str) -> Result<Vec<EntityResult>> {
     let query = r#"
-        MATCH (e {name: $name, namespace: $ns})
+        MATCH (e {name: $name, namespace: $ns, graph_domain: $graph_domain})
         RETURN e.id as id,
                e.name as name,
                labels(e)[0] as label,
@@ -212,6 +218,7 @@ pub async fn find_entities_by_name(client: &Neo4jClient, name: &str) -> Result<V
             vec![
                 ("name", serde_json::json!(name)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -226,7 +233,7 @@ pub async fn find_entities_by_name(client: &Neo4jClient, name: &str) -> Result<V
 pub async fn get_entities_by_type(client: &Neo4jClient, label: NodeLabel) -> Result<Vec<EntityResult>> {
     let query = format!(
         r#"
-        MATCH (e:{} {{namespace: $ns}})
+        MATCH (e:{} {{namespace: $ns, graph_domain: $graph_domain}})
         RETURN e.id as id,
                e.name as name,
                labels(e)[0] as label,
@@ -247,7 +254,10 @@ pub async fn get_entities_by_type(client: &Neo4jClient, label: NodeLabel) -> Res
     let results = client
         .execute_query(
             &query,
-            vec![("ns", serde_json::json!(project_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 
@@ -260,7 +270,7 @@ pub async fn get_entities_by_type(client: &Neo4jClient, label: NodeLabel) -> Res
 /// Count entities by type
 pub async fn count_entities_by_type(client: &Neo4jClient) -> Result<Vec<(String, i64)>> {
     let query = r#"
-        MATCH (e {namespace: $ns})
+        MATCH (e {namespace: $ns, graph_domain: $graph_domain})
         WITH labels(e)[0] as label, count(e) as count
         RETURN label, count
         ORDER BY count DESC
@@ -269,7 +279,10 @@ pub async fn count_entities_by_type(client: &Neo4jClient) -> Result<Vec<(String,
     let results = client
         .execute_query(
             query,
-            vec![("ns", serde_json::json!(project_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 
@@ -286,8 +299,9 @@ pub async fn count_entities_by_type(client: &Neo4jClient) -> Result<Vec<(String,
 /// Get neighbors (any relationship) of an entity
 pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<EntityResult>> {
     let query = r#"
-        MATCH (e {id: $id, namespace: $ns})--(neighbor)
+        MATCH (e {id: $id, namespace: $ns, graph_domain: $graph_domain})--(neighbor)
         WHERE neighbor.namespace = $ns
+          AND neighbor.graph_domain = $graph_domain
         RETURN DISTINCT neighbor.id as id,
                         neighbor.name as name,
                         labels(neighbor)[0] as label,
@@ -308,6 +322,7 @@ pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<E
             vec![
                 ("id", serde_json::json!(entity_id)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -321,7 +336,7 @@ pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<E
 /// Find orphan entities (no relationships)
 pub async fn find_orphan_entities(client: &Neo4jClient) -> Result<Vec<EntityResult>> {
     let query = r#"
-        MATCH (e {namespace: $ns})
+        MATCH (e {namespace: $ns, graph_domain: $graph_domain})
         WHERE NOT EXISTS { (e)--() }
         RETURN e.id as id,
                e.name as name,
@@ -341,7 +356,10 @@ pub async fn find_orphan_entities(client: &Neo4jClient) -> Result<Vec<EntityResu
     let results = client
         .execute_query(
             query,
-            vec![("ns", serde_json::json!(project_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 
@@ -379,14 +397,17 @@ pub struct GraphStats {
 
 async fn count_total_nodes(client: &Neo4jClient) -> Result<i64> {
     let query = r#"
-        MATCH (n {namespace: $ns})
+        MATCH (n {namespace: $ns, graph_domain: $graph_domain})
         RETURN count(n) as count
     "#;
 
     let results = client
         .execute_query(
             query,
-            vec![("ns", serde_json::json!(project_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 
@@ -400,14 +421,17 @@ async fn count_total_nodes(client: &Neo4jClient) -> Result<i64> {
 async fn count_total_edges(client: &Neo4jClient) -> Result<i64> {
     // Use directed pattern to avoid counting each edge twice
     let query = r#"
-        MATCH (a {namespace: $ns})-[r]->(b {namespace: $ns})
+        MATCH (a {namespace: $ns, graph_domain: $graph_domain})-[r]->(b {namespace: $ns, graph_domain: $graph_domain})
         RETURN count(r) as count
     "#;
 
     let results = client
         .execute_query(
             query,
-            vec![("ns", serde_json::json!(project_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 
@@ -420,7 +444,7 @@ async fn count_total_edges(client: &Neo4jClient) -> Result<i64> {
 
 async fn count_edges_by_type(client: &Neo4jClient) -> Result<Vec<(String, i64)>> {
     let query = r#"
-        MATCH (a {namespace: $ns})-[r]->(b {namespace: $ns})
+        MATCH (a {namespace: $ns, graph_domain: $graph_domain})-[r]->(b {namespace: $ns, graph_domain: $graph_domain})
         WITH type(r) as rel_type, count(r) as count
         RETURN rel_type, count
         ORDER BY count DESC
@@ -429,7 +453,10 @@ async fn count_edges_by_type(client: &Neo4jClient) -> Result<Vec<(String, i64)>>
     let results = client
         .execute_query(
             query,
-            vec![("ns", serde_json::json!(project_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 
@@ -448,7 +475,7 @@ async fn count_edges_by_type(client: &Neo4jClient) -> Result<Vec<(String, i64)>>
 
 async fn count_orphan_nodes(client: &Neo4jClient) -> Result<i64> {
     let query = r#"
-        MATCH (n {namespace: $ns})
+        MATCH (n {namespace: $ns, graph_domain: $graph_domain})
         WHERE NOT EXISTS { (n)--() }
         RETURN count(n) as count
     "#;
@@ -456,7 +483,10 @@ async fn count_orphan_nodes(client: &Neo4jClient) -> Result<i64> {
     let results = client
         .execute_query(
             query,
-            vec![("ns", serde_json::json!(project_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 

@@ -2,12 +2,12 @@
 //!
 //! This module provides type-safe Neo4j operations for cognitive reasoning episodes:
 //! - ReasoningEpisode: Cognitive reasoning sessions with outcomes
-//! - CodeEntity: Reference nodes linking episodes to code (lightweight, ID-only)
+//! - CodeReference: Reference nodes linking episodes to code (lightweight, ID-only)
 //!
 //! Separate from code entity, RAG, and portfolio schemas for clear domain boundaries.
 //!
 //! Architecture:
-//! - schema.rs: Defines :ReasoningEpisode, :CodeEntity nodes and USES relationships
+//! - schema.rs: Defines :ReasoningEpisode, :CodeReference nodes and USES relationships
 //! - writer.rs: All write operations for cognition entities
 //! - reader.rs: All read operations for cognition entities
 //!
@@ -19,7 +19,7 @@
 //! 5. All writes use MERGE (idempotent)
 //! 6. All queries parameterized
 //! 7. All operations namespace-aware
-//! 8. All entities use double label pattern: `:ReasoningEpisode:SynCore`
+//! 8. All entities use double label pattern: `:ReasoningEpisode:CognitionGraph`
 
 pub mod schema;
 pub mod writer;
@@ -57,6 +57,6 @@ mod tests {
         let _label: NodeLabel = NodeLabel::ReasoningEpisode;
         let _rel: RelationType = RelationType::Uses;
         let _label_str: &str = COGNITION_PROJECT_LABEL;
-        assert_eq!(_label_str, "SynCore");
+        assert_eq!(_label_str, "CognitionGraph");
     }
 }

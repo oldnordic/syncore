@@ -16,7 +16,7 @@
 //! 5. All writes use MERGE (idempotent)
 //! 6. All queries parameterized (no SQL injection)
 //! 7. All operations namespace-aware
-//! 8. All entities use double label pattern: `:Function:SynCore`
+//! 8. All entities use double label pattern: `:Function:CodeGraph`
 
 pub mod schema;
 pub mod writer;
@@ -68,6 +68,6 @@ mod tests {
         let _label: NodeLabel = NodeLabel::Function;
         let _rel: RelationType = RelationType::Calls;
         let _label_str: &str = PROJECT_LABEL;
-        assert_eq!(_label_str, "SynCore");
+        assert_eq!(_label_str, "CodeGraph");
     }
 }

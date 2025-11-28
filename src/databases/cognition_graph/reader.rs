@@ -24,7 +24,7 @@ pub async fn get_reasoning_episode_by_id(
 ) -> Result<Option<ReasoningEpisodeResult>> {
     let query = format!(
         r#"
-        MATCH (e:{}:{} {{id: $id, namespace: $ns}})
+        MATCH (e:{}:{} {{id: $id, namespace: $ns, graph_domain: $graph_domain}})
         RETURN e.id as id, e.timestamp as timestamp, e.user_query as user_query,
                e.selected_mode as selected_mode, e.outcome as outcome, e.notes as notes
         "#,
@@ -38,6 +38,7 @@ pub async fn get_reasoning_episode_by_id(
             vec![
                 ("id", serde_json::json!(episode_id)),
                 ("ns", serde_json::json!(cognition_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -87,7 +88,7 @@ pub async fn fetch_related_episodes(
 
     let query = format!(
         r#"
-        MATCH (e:{}:{} {{namespace: $ns}})-[:{}]->(ent:{})
+        MATCH (e:{}:{} {{namespace: $ns, graph_domain: $graph_domain}})-[:{}]->(ent:{} {{namespace: $ns, graph_domain: $graph_domain}})
         WHERE ent.id IN $entity_ids
         WITH DISTINCT e
         RETURN e.id as id
@@ -97,7 +98,7 @@ pub async fn fetch_related_episodes(
         NodeLabel::ReasoningEpisode.as_str(),
         COGNITION_PROJECT_LABEL,
         RelationType::Uses.as_str(),
-        NodeLabel::CodeEntity.as_str()
+        NodeLabel::CodeReference.as_str()
     );
 
     let results = client
@@ -107,6 +108,7 @@ pub async fn fetch_related_episodes(
                 ("entity_ids", serde_json::json!(entity_ids)),
                 ("limit", serde_json::json!(limit)),
                 ("ns", serde_json::json!(cognition_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -123,7 +125,7 @@ pub async fn fetch_related_episodes(
 pub async fn count_reasoning_episodes(client: &Neo4jClient) -> Result<i64> {
     let query = format!(
         r#"
-        MATCH (e:{}:{} {{namespace: $ns}})
+        MATCH (e:{}:{} {{namespace: $ns, graph_domain: $graph_domain}})
         RETURN count(e) as count
         "#,
         NodeLabel::ReasoningEpisode.as_str(),
@@ -133,7 +135,10 @@ pub async fn count_reasoning_episodes(client: &Neo4jClient) -> Result<i64> {
     let results = client
         .execute_query(
             &query,
-            vec![("ns", serde_json::json!(cognition_namespace(client)))],
+            vec![
+                ("ns", serde_json::json!(cognition_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+            ],
         )
         .await?;
 

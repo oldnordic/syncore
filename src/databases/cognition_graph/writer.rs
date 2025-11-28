@@ -21,7 +21,9 @@ pub async fn upsert_reasoning_episode(
             e.user_query = $user_query,
             e.selected_mode = $selected_mode,
             e.outcome = $outcome,
-            e.notes = $notes
+            e.notes = $notes,
+            e.graph_domain = $graph_domain,
+            e.project = $project_label
         "#,
         NodeLabel::ReasoningEpisode.as_str(),
         COGNITION_PROJECT_LABEL
@@ -38,6 +40,8 @@ pub async fn upsert_reasoning_episode(
                 ("selected_mode", serde_json::json!(props.selected_mode)),
                 ("outcome", serde_json::json!(props.outcome)),
                 ("notes", serde_json::json!(props.notes)),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(COGNITION_PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -45,10 +49,10 @@ pub async fn upsert_reasoning_episode(
     Ok(())
 }
 
-/// Create USES relationship between ReasoningEpisode and CodeEntity
+/// Create USES relationship between ReasoningEpisode and CodeReference
 ///
 /// Links a reasoning episode to a code entity it references.
-/// Creates CodeEntity node if it doesn't exist (lightweight reference node).
+/// Creates CodeReference node if it doesn't exist (lightweight reference node).
 pub async fn create_uses_relationship(
     client: &Neo4jClient,
     episode_id: i64,
@@ -56,13 +60,15 @@ pub async fn create_uses_relationship(
 ) -> Result<()> {
     let query = format!(
         r#"
-        MATCH (e:{}:{} {{id: $episode_id, namespace: $ns}})
+        MATCH (e:{}:{} {{id: $episode_id, namespace: $ns, graph_domain: $graph_domain}})
         MERGE (ent:{}:{} {{id: $entity_id, namespace: $ns}})
+        SET ent.graph_domain = $graph_domain,
+            ent.project = $project_label
         MERGE (e)-[:{}]->(ent)
         "#,
         NodeLabel::ReasoningEpisode.as_str(),
         COGNITION_PROJECT_LABEL,
-        NodeLabel::CodeEntity.as_str(),
+        NodeLabel::CodeReference.as_str(),
         COGNITION_PROJECT_LABEL,
         RelationType::Uses.as_str()
     );
@@ -74,6 +80,8 @@ pub async fn create_uses_relationship(
                 ("episode_id", serde_json::json!(episode_id)),
                 ("entity_id", serde_json::json!(entity_id)),
                 ("ns", serde_json::json!(cognition_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(COGNITION_PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -85,7 +93,7 @@ pub async fn create_uses_relationship(
 pub async fn delete_reasoning_episode(client: &Neo4jClient, episode_id: i64) -> Result<()> {
     let query = format!(
         r#"
-        MATCH (e:{}:{} {{id: $id, namespace: $ns}})
+        MATCH (e:{}:{} {{id: $id, namespace: $ns, graph_domain: $graph_domain}})
         DETACH DELETE e
         "#,
         NodeLabel::ReasoningEpisode.as_str(),
@@ -98,6 +106,7 @@ pub async fn delete_reasoning_episode(client: &Neo4jClient, episode_id: i64) -> 
             vec![
                 ("id", serde_json::json!(episode_id)),
                 ("ns", serde_json::json!(cognition_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;

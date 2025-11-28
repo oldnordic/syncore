@@ -7,14 +7,14 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NodeLabel {
     ReasoningEpisode,  // Cognitive reasoning session
-    CodeEntity,        // Reference to code entity (lightweight, ID-only)
+    CodeReference,     // Reference to code entity (lightweight, ID-only)
 }
 
 impl NodeLabel {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::ReasoningEpisode => "ReasoningEpisode",
-            Self::CodeEntity => "CodeEntity",
+            Self::CodeReference => "CodeReference",
         }
     }
 }
@@ -22,7 +22,7 @@ impl NodeLabel {
 /// Relationship Types for cognition graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RelationType {
-    Uses,  // ReasoningEpisode USES CodeEntity
+    Uses,  // ReasoningEpisode USES CodeReference
 }
 
 impl RelationType {
@@ -45,9 +45,12 @@ pub struct ReasoningEpisodeProperties {
 }
 
 /// Project label for double-labeling pattern
-pub const COGNITION_PROJECT_LABEL: &str = "SynCore";
+pub const COGNITION_PROJECT_LABEL: &str = "CognitionGraph";
 
-/// Get namespace from client (defaults to syncore_default)
+/// Graph domain identifier stored on cognition nodes
+pub const GRAPH_DOMAIN: &str = "cognition";
+
+/// Get namespace from client with domain-specific prefix.
 pub fn cognition_namespace(client: &crate::graph::Neo4jClient) -> String {
-    client.namespace().to_string()
+    format!("cognition_{}", client.namespace())
 }

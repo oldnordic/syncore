@@ -11,7 +11,7 @@
 
 use anyhow::Result;
 use crate::graph::Neo4jClient;
-use super::schema::{NodeLabel, NodeProperties, RelationType, PROJECT_LABEL, project_namespace};
+use super::schema::{NodeLabel, NodeProperties, RelationType, PROJECT_LABEL, GRAPH_DOMAIN, project_namespace};
 
 /// Create or update a code entity node
 ///
@@ -41,7 +41,9 @@ pub async fn upsert_entity(
             e.created_at = $created_at,
             e.last_modified_at = $last_modified_at,
             e.change_count = $change_count,
-            e.author_count = $author_count
+            e.author_count = $author_count,
+            e.graph_domain = $graph_domain,
+            e.project = $project_label
         "#,
         label.as_str(),
         PROJECT_LABEL
@@ -68,6 +70,8 @@ pub async fn upsert_entity(
                 ("last_modified_at", serde_json::json!(props.last_modified_at)),
                 ("change_count", serde_json::json!(props.change_count)),
                 ("author_count", serde_json::json!(props.author_count)),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -87,8 +91,8 @@ pub async fn create_relationship(
 ) -> Result<()> {
     let query = format!(
         r#"
-        MATCH (a {{id: $src_id, namespace: $ns}})
-        MATCH (b {{id: $dst_id, namespace: $ns}})
+        MATCH (a {{id: $src_id, namespace: $ns, graph_domain: $graph_domain}})
+        MATCH (b {{id: $dst_id, namespace: $ns, graph_domain: $graph_domain}})
         MERGE (a)-[:{}]->(b)
         "#,
         rel_type.as_str()
@@ -101,6 +105,7 @@ pub async fn create_relationship(
                 ("src_id", serde_json::json!(src_id)),
                 ("dst_id", serde_json::json!(dst_id)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -122,7 +127,7 @@ pub async fn update_git_metadata(
     author_count: Option<i64>,
 ) -> Result<()> {
     let query = r#"
-        MATCH (e {id: $id, namespace: $ns})
+        MATCH (e {id: $id, namespace: $ns, graph_domain: $graph_domain})
         SET e.created_at = $created_at,
             e.last_modified_at = $last_modified_at,
             e.change_count = $change_count,
@@ -135,6 +140,7 @@ pub async fn update_git_metadata(
             vec![
                 ("id", serde_json::json!(id)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
                 ("created_at", serde_json::json!(created_at)),
                 ("last_modified_at", serde_json::json!(last_modified_at)),
                 ("change_count", serde_json::json!(change_count)),
@@ -192,7 +198,7 @@ pub async fn batch_create_relationships(
 /// Also deletes all relationships connected to this entity.
 pub async fn delete_entity(client: &Neo4jClient, id: i64) -> Result<()> {
     let query = r#"
-        MATCH (e {id: $id, namespace: $ns})
+        MATCH (e {id: $id, namespace: $ns, graph_domain: $graph_domain})
         DETACH DELETE e
     "#;
 
@@ -202,6 +208,7 @@ pub async fn delete_entity(client: &Neo4jClient, id: i64) -> Result<()> {
             vec![
                 ("id", serde_json::json!(id)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -214,7 +221,7 @@ pub async fn delete_entity(client: &Neo4jClient, id: i64) -> Result<()> {
 /// Useful for re-indexing a single file.
 pub async fn delete_file_entities(client: &Neo4jClient, file_path: &str) -> Result<usize> {
     let query = r#"
-        MATCH (e {namespace: $ns})
+        MATCH (e {namespace: $ns, graph_domain: $graph_domain})
         WHERE e.path = $path
         DETACH DELETE e
         RETURN count(e) as deleted
@@ -226,6 +233,7 @@ pub async fn delete_file_entities(client: &Neo4jClient, file_path: &str) -> Resu
             vec![
                 ("path", serde_json::json!(file_path)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -248,6 +256,8 @@ pub async fn upsert_file_by_path(client: &Neo4jClient, file_path: &str) -> Resul
     let query = format!(
         r#"
         MERGE (f:{}:{} {{path: $path, namespace: $ns}})
+        SET f.graph_domain = $graph_domain,
+            f.project = $project_label
         "#,
         NodeLabel::File.as_str(),
         PROJECT_LABEL
@@ -259,6 +269,8 @@ pub async fn upsert_file_by_path(client: &Neo4jClient, file_path: &str) -> Resul
             vec![
                 ("path", serde_json::json!(file_path)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -279,7 +291,11 @@ pub async fn create_file_dependency(
     let query = format!(
         r#"
         MERGE (a:{}:{} {{path: $from, namespace: $ns}})
+        SET a.graph_domain = $graph_domain,
+            a.project = $project_label
         MERGE (b:{}:{} {{path: $to, namespace: $ns}})
+        SET b.graph_domain = $graph_domain,
+            b.project = $project_label
         MERGE (a)-[:{}]->(b)
         "#,
         NodeLabel::File.as_str(),
@@ -296,6 +312,8 @@ pub async fn create_file_dependency(
                 ("from", serde_json::json!(from_path)),
                 ("to", serde_json::json!(to_path)),
                 ("ns", serde_json::json!(project_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -320,6 +338,6 @@ mod tests {
     #[test]
     fn test_project_label_is_set() {
         // Project label for double-label pattern
-        assert_eq!(PROJECT_LABEL, "SynCore");
+        assert_eq!(PROJECT_LABEL, "CodeGraph");
     }
 }

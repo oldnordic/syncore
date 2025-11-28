@@ -72,6 +72,6 @@ mod tests {
         let _label: NodeLabel = NodeLabel::Patch;
         let _rel: RelationType = RelationType::ForTask;
         let _label_str: &str = PORTFOLIO_PROJECT_LABEL;
-        assert_eq!(_label_str, "SynCore");
+        assert_eq!(_label_str, "PortfolioGraph");
     }
 }

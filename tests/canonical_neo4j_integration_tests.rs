@@ -4,7 +4,7 @@
 //! Tests verify:
 //! 1. Write operations work (upsert, batch, delete)
 //! 2. Read operations work (get, find, count)
-//! 3. Namespace isolation (only "syncore" namespace)
+//! 3. Namespace isolation (code-prefixed namespace)
 //! 4. Schema validation (only canonical labels/rels)
 //! 5. Idempotency (call twice, same result)
 
@@ -47,8 +47,9 @@ async fn test_namespace_matches_client() -> Result<()> {
     let ns = project_namespace(&client);
     assert!(!ns.is_empty(), "Namespace should not be empty");
 
-    // Verify it matches what Neo4jClient reports
-    assert_eq!(ns, client.namespace());
+    // Verify namespace is derived from client namespace with `code_` prefix
+    let expected = format!("code_{}", client.namespace());
+    assert_eq!(ns, expected);
 
     Ok(())
 }

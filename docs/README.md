@@ -8,6 +8,7 @@ This directory contains comprehensive documentation for the SynCore MCP server.
 - **[API_MANIFEST.md](./API_MANIFEST.md)** - Complete catalog of all 65 MCP tools, 5 unified suites, usage examples, and LangGraph/LangChain equivalence mapping
 - **[DEPRECATION_POLICY.md](./DEPRECATION_POLICY.md)** - Deprecation timeline, migration guide, and backward compatibility guarantees
 - **[APEX_V1.4_COMPLETION_SUMMARY.md](./APEX_V1.4_COMPLETION_SUMMARY.md)** - Implementation details for APEX v1.4 tool suite migration
+- **[2025-11-APEX-2-16-domain-isolation.cypher](./migrations/2025-11-APEX-2-16-domain-isolation.cypher)** - Cypher migration that retags Neo4j data with `graph_domain`, domain-specific project labels, and prefixed namespaces. Run via `cypher-shell -f` (after taking the Phase 0 dump), then verify the summary queries at the bottom to ensure each domain reports the expected counts.
 
 ## Quick Links
 

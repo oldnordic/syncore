@@ -204,15 +204,18 @@ impl NodeProperties {
 /// Uses the namespace configured in Neo4jClient (from GRAPH_NAMESPACE env var).
 /// This ensures consistency with existing code that uses client.namespace().
 ///
-/// Default: "syncore_default" (if GRAPH_NAMESPACE not set)
-pub fn project_namespace(client: &crate::graph::Neo4jClient) -> &str {
-    client.namespace()
+/// Default namespace is prefixed with `code_` for isolation.
+pub fn project_namespace(client: &crate::graph::Neo4jClient) -> String {
+    format!("code_{}", client.namespace())
 }
 
 /// Project label applied to all entities
 ///
-/// This is the second label in the double-label pattern: `:Function:SynCore`
-pub const PROJECT_LABEL: &str = "SynCore";
+/// This is the second label in the double-label pattern: `:Function:CodeGraph`
+pub const PROJECT_LABEL: &str = "CodeGraph";
+
+/// Graph domain identifier stored on each node for cross-domain filtering.
+pub const GRAPH_DOMAIN: &str = "code";
 
 #[cfg(test)]
 mod tests {
@@ -238,6 +241,7 @@ mod tests {
 
     #[test]
     fn test_project_label_is_fixed() {
-        assert_eq!(PROJECT_LABEL, "SynCore");
+        assert_eq!(PROJECT_LABEL, "CodeGraph");
+        assert_eq!(GRAPH_DOMAIN, "code");
     }
 }

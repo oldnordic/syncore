@@ -7,7 +7,7 @@ use anyhow::Result;
 use crate::graph::Neo4jClient;
 use super::schema::{
     NodeLabel, PatchProperties, StepProperties, TaskProperties,
-    RelationType, PORTFOLIO_PROJECT_LABEL, portfolio_namespace
+    RelationType, PORTFOLIO_PROJECT_LABEL, GRAPH_DOMAIN, portfolio_namespace
 };
 
 /// Create or update a Patch node
@@ -18,7 +18,9 @@ pub async fn upsert_patch(
     let query = format!(
         r#"
         MERGE (p:{}:{} {{id: $id, namespace: $ns}})
-        SET p.metadata = $metadata
+        SET p.metadata = $metadata,
+            p.graph_domain = $graph_domain,
+            p.project = $project_label
         "#,
         NodeLabel::Patch.as_str(),
         PORTFOLIO_PROJECT_LABEL
@@ -31,6 +33,8 @@ pub async fn upsert_patch(
                 ("id", serde_json::json!(props.id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
                 ("metadata", serde_json::json!(props.metadata)),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(PORTFOLIO_PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -47,7 +51,9 @@ pub async fn upsert_step(
         r#"
         MERGE (s:{}:{} {{id: $id, namespace: $ns}})
         SET s.step_number = $step_number,
-            s.metadata = $metadata
+            s.metadata = $metadata,
+            s.graph_domain = $graph_domain,
+            s.project = $project_label
         "#,
         NodeLabel::Step.as_str(),
         PORTFOLIO_PROJECT_LABEL
@@ -61,6 +67,8 @@ pub async fn upsert_step(
                 ("ns", serde_json::json!(portfolio_namespace(client))),
                 ("step_number", serde_json::json!(props.step_number)),
                 ("metadata", serde_json::json!(props.metadata)),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(PORTFOLIO_PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -76,7 +84,9 @@ pub async fn upsert_task(
     let query = format!(
         r#"
         MERGE (t:{}:{} {{id: $id, namespace: $ns}})
-        SET t.metadata = $metadata
+        SET t.metadata = $metadata,
+            t.graph_domain = $graph_domain,
+            t.project = $project_label
         "#,
         NodeLabel::Task.as_str(),
         PORTFOLIO_PROJECT_LABEL
@@ -89,6 +99,8 @@ pub async fn upsert_task(
                 ("id", serde_json::json!(props.id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
                 ("metadata", serde_json::json!(props.metadata)),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(PORTFOLIO_PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -104,10 +116,12 @@ pub async fn create_for_task_relationship(
 ) -> Result<()> {
     let query = format!(
         r#"
-        MATCH (src {{id: $src_id, namespace: $ns}})
-        MATCH (t:Task {{id: $task_id, namespace: $ns}})
+        MATCH (src {{id: $src_id, namespace: $ns, graph_domain: $graph_domain}})
+        MATCH (t:{}:{} {{id: $task_id, namespace: $ns, graph_domain: $graph_domain}})
         MERGE (src)-[:{}]->(t)
         "#,
+        NodeLabel::Task.as_str(),
+        PORTFOLIO_PROJECT_LABEL,
         RelationType::ForTask.as_str()
     );
 
@@ -118,6 +132,7 @@ pub async fn create_for_task_relationship(
                 ("src_id", serde_json::json!(src_id)),
                 ("task_id", serde_json::json!(task_id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -130,15 +145,20 @@ pub async fn create_for_task_relationship(
 /// Note: File nodes use path as the global key (not namespace-filtered)
 pub async fn create_applies_to_relationship(
     client: &Neo4jClient,
-    patch_id: i64,
+   patch_id: i64,
     file_path: &str,
 ) -> Result<()> {
     let query = format!(
         r#"
-        MERGE (p:Patch {{id: $patch_id, namespace: $ns}})
-        MERGE (f:File {{path: $path}})
+        MATCH (p:{}:{} {{id: $patch_id, namespace: $ns, graph_domain: $graph_domain}})
+        MERGE (f:File:{} {{path: $path, namespace: $ns}})
+        SET f.graph_domain = $graph_domain,
+            f.project = $project_label
         MERGE (p)-[:{}]->(f)
         "#,
+        NodeLabel::Patch.as_str(),
+        PORTFOLIO_PROJECT_LABEL,
+        PORTFOLIO_PROJECT_LABEL,
         RelationType::AppliesTo.as_str()
     );
 
@@ -149,6 +169,8 @@ pub async fn create_applies_to_relationship(
                 ("patch_id", serde_json::json!(patch_id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
                 ("path", serde_json::json!(file_path)),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+                ("project_label", serde_json::json!(PORTFOLIO_PROJECT_LABEL)),
             ],
         )
         .await?;
@@ -164,10 +186,12 @@ pub async fn create_follows_relationship(
 ) -> Result<()> {
     let query = format!(
         r#"
-        MATCH (prev:Step {{id: $prev_id, namespace: $ns}})
-        MATCH (next:Step {{id: $next_id, namespace: $ns}})
+        MATCH (prev:Step:{} {{id: $prev_id, namespace: $ns, graph_domain: $graph_domain}})
+        MATCH (next:Step:{} {{id: $next_id, namespace: $ns, graph_domain: $graph_domain}})
         MERGE (prev)-[:{}]->(next)
         "#,
+        PORTFOLIO_PROJECT_LABEL,
+        PORTFOLIO_PROJECT_LABEL,
         RelationType::Follows.as_str()
     );
 
@@ -178,6 +202,7 @@ pub async fn create_follows_relationship(
                 ("prev_id", serde_json::json!(prev_step_id)),
                 ("next_id", serde_json::json!(next_step_id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -188,7 +213,7 @@ pub async fn create_follows_relationship(
 /// Delete a patch node
 pub async fn delete_patch(client: &Neo4jClient, id: i64) -> Result<()> {
     let query = r#"
-        MATCH (p:Patch {id: $id, namespace: $ns})
+        MATCH (p:Patch {id: $id, namespace: $ns, graph_domain: $graph_domain})
         DETACH DELETE p
     "#;
 
@@ -198,6 +223,7 @@ pub async fn delete_patch(client: &Neo4jClient, id: i64) -> Result<()> {
             vec![
                 ("id", serde_json::json!(id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -208,7 +234,7 @@ pub async fn delete_patch(client: &Neo4jClient, id: i64) -> Result<()> {
 /// Delete a step node
 pub async fn delete_step(client: &Neo4jClient, id: i64) -> Result<()> {
     let query = r#"
-        MATCH (s:Step {id: $id, namespace: $ns})
+        MATCH (s:Step {id: $id, namespace: $ns, graph_domain: $graph_domain})
         DETACH DELETE s
     "#;
 
@@ -218,6 +244,7 @@ pub async fn delete_step(client: &Neo4jClient, id: i64) -> Result<()> {
             vec![
                 ("id", serde_json::json!(id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -228,7 +255,7 @@ pub async fn delete_step(client: &Neo4jClient, id: i64) -> Result<()> {
 /// Delete a task node
 pub async fn delete_task(client: &Neo4jClient, id: i64) -> Result<()> {
     let query = r#"
-        MATCH (t:Task {id: $id, namespace: $ns})
+        MATCH (t:Task {id: $id, namespace: $ns, graph_domain: $graph_domain})
         DETACH DELETE t
     "#;
 
@@ -238,6 +265,7 @@ pub async fn delete_task(client: &Neo4jClient, id: i64) -> Result<()> {
             vec![
                 ("id", serde_json::json!(id)),
                 ("ns", serde_json::json!(portfolio_namespace(client))),
+                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
             ],
         )
         .await?;
@@ -260,6 +288,6 @@ mod tests {
 
     #[test]
     fn test_project_label_is_set() {
-        assert_eq!(PORTFOLIO_PROJECT_LABEL, "SynCore");
+        assert_eq!(PORTFOLIO_PROJECT_LABEL, "PortfolioGraph");
     }
 }
