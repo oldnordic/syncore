@@ -228,15 +228,12 @@ impl SemanticExtractor {
 
         for i in 0..node.child_count() {
             let child = node.child(i)?;
-            match child.kind() {
-                "type_identifier" => {
-                    if trait_name.is_none() {
-                        trait_name = self.get_node_text(child, source);
-                    } else {
-                        type_name = self.get_node_text(child, source);
-                    }
+            if child.kind() == "type_identifier" {
+                if trait_name.is_none() {
+                    trait_name = self.get_node_text(child, source);
+                } else {
+                    type_name = self.get_node_text(child, source);
                 }
-                _ => {}
             }
         }
 

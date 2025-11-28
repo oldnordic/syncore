@@ -13,6 +13,7 @@ use super::parsers::{python_parser::PythonLanguageParser, rust_parser::RustLangu
 /// Index application that manages multiple language parsers
 pub struct IndexApplication {
     code_graph: CodeGraph,
+    #[allow(dead_code)]
     rust_parser: RustLanguageParser,
     python_parser: PythonLanguageParser,
 }

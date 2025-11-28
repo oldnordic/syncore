@@ -32,6 +32,7 @@ pub struct CodeGraphUpdateEvent {
 pub struct CodeGraphUpdateService {
     graph: Arc<Mutex<CodeGraph>>,
     delta_engine: CodeGraphDeltaEngine,
+    #[allow(dead_code)]
     root: PathBuf,
     /// APEX 2.15: Reindex mutex to serialize DELETE+INSERT operations
     reindex_mutex: Arc<std::sync::Mutex<()>>,

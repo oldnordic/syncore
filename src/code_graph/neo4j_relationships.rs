@@ -46,6 +46,7 @@ fn edge_type_to_relation_type(edge_type: &EdgeType) -> RelationType {
 }
 
 // Deprecated: Use edge_type_to_relation_type() instead
+#[allow(dead_code)]
 fn edge_type_to_neo4j_type(edge_type: &EdgeType) -> &str {
     match edge_type {
         EdgeType::Calls => "CALLS",

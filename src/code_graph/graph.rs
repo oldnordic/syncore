@@ -8,6 +8,9 @@ use rusqlite::Connection;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+/// Type alias for entity query rows from code_embeddings join
+type EntityQueryRow = (i64, String, String, Option<String>, Option<String>);
+
 /// Main code graph structure for indexing and searching code
 pub struct CodeGraph {
     pub(super) db: Arc<Mutex<Connection>>,
@@ -466,7 +469,7 @@ impl CodeGraph {
     /// Returns the number of vectors loaded into HNSW.
     pub fn rebuild_hnsw_from_entities(&self) -> Result<usize> {
         // Query entities - collect fully before releasing db lock
-        let entities: Vec<(i64, String, String, Option<String>, Option<String>)> = {
+        let entities: Vec<EntityQueryRow> = {
             let db = self
                 .db
                 .lock()
