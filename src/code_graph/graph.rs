@@ -5,7 +5,7 @@ use crate::parser::Parser;
 use crate::vector::VectorStore;
 use anyhow::{anyhow, Result};
 use rusqlite::Connection;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 /// Main code graph structure for indexing and searching code
@@ -549,7 +549,7 @@ impl CodeGraph {
     ///
     /// This is used by the delta engine when a file is deleted or renamed.
     /// Cascading deletes will remove associated edges automatically.
-    pub fn delete_entities_by_path(&self, file_path: &PathBuf) -> Result<usize> {
+    pub fn delete_entities_by_path(&self, file_path: &Path) -> Result<usize> {
         let path_str = file_path
             .to_str()
             .ok_or_else(|| anyhow!("Invalid UTF-8 in file path"))?;

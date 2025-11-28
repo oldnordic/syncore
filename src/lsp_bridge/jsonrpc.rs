@@ -4,7 +4,7 @@
 
 use super::LspDiagnosticEvent;
 use anyhow::{Context, Result};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // Message Framing
@@ -106,7 +106,7 @@ pub fn parse_publish_diagnostics(json: &str) -> Result<Vec<LspDiagnosticEvent>> 
 
 /// Parse a single diagnostic object
 fn parse_diagnostic(
-    path: &PathBuf,
+    path: &Path,
     diag: &serde_json::Value,
 ) -> Result<Option<LspDiagnosticEvent>> {
     // Extract range
@@ -153,7 +153,7 @@ fn parse_diagnostic(
     });
 
     Ok(Some(LspDiagnosticEvent {
-        path: path.clone(),
+        path: path.to_path_buf(),
         message,
         range: (start_line, start_char, end_line, end_char),
         severity,

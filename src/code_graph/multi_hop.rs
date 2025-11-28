@@ -34,6 +34,12 @@ pub struct MultiHopResult {
     pub nodes: Vec<MultiHopNode>,
 }
 
+impl Default for MultiHopResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MultiHopResult {
     /// Create empty result
     pub fn new() -> Self {

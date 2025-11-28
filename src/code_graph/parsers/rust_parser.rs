@@ -140,7 +140,7 @@ impl RustLanguageParser {
                         if (calling_entity.entity_type == EntityType::Function
                             || calling_entity.entity_type == EntityType::Method)
                             && (line_num + 1 >= calling_entity.line_start
-                                && line_num + 1 <= calling_entity.line_end)
+                                && line_num < calling_entity.line_end)
                         {
                             edges.push(CodeEdge {
                                 src_entity_id: name_to_id[&calling_entity.name.clone()],
