@@ -36,7 +36,7 @@ pub fn extract_rust_imports(code: &str) -> Vec<RustImport> {
     let code = remove_comments(code);
 
     // Normalize multi-line statements by joining lines and splitting on semicolons
-    let normalized = code.replace('\n', " ").replace('\r', " ");
+    let normalized = code.replace(['\n', '\r'], " ");
 
     // Split into statements
     for stmt in normalized.split(';') {
@@ -306,10 +306,7 @@ pub fn resolve_import_to_file(
         ];
 
         // Return first possible path (we don't check if file exists here)
-        for p in possible_paths {
-            return Some(p);
-        }
-        None
+        possible_paths.into_iter().next()
     } else if let Some(module_path) = import_path.strip_prefix("super::") {
         // super::sibling in src/module/submodule.rs -> src/module/sibling.rs
         // For a file like submodule.rs, super:: refers to siblings in the same directory
@@ -325,10 +322,7 @@ pub fn resolve_import_to_file(
             format!("{}/{}/mod.rs", current_dir.display(), module_name),
         ];
 
-        for p in possible_paths {
-            return Some(p);
-        }
-        None
+        possible_paths.into_iter().next()
     } else if let Some(module_path) = import_path.strip_prefix("self::") {
         // self::child -> current_dir/child.rs
         let parts: Vec<&str> = module_path.split("::").collect();

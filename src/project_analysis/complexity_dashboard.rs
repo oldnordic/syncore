@@ -369,7 +369,7 @@ impl ProjectAnalysisEngine {
             } else {
                 0.0
             },
-            unused_import_ratio: if files.len() > 0 {
+            unused_import_ratio: if !files.is_empty() {
                 unused_count as f32 / files.len() as f32
             } else {
                 0.0

@@ -144,7 +144,7 @@ pub async fn handle_code_graph_query(params: Value) -> Result<Value> {
     if include_semantic {
         if let Some(function) = params["function"].as_str() {
             // Need to embed first if not already done
-            if store.get_all_functions()?.len() > 0 {
+            if !store.get_all_functions()?.is_empty() {
                 let _ = store.embed_functions();
             }
             let similar = store.search_similar_functions(function, semantic_limit)?;

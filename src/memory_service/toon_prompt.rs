@@ -41,7 +41,7 @@ impl ToonPromptBuilder {
                 if !node.next.is_empty() {
                     prompt.push_str(&format!("  Next: {:?}\n", node.next));
                 }
-                prompt.push_str("\n");
+                prompt.push('\n');
             }
         }
 

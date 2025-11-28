@@ -5,7 +5,7 @@ use crate::parser::Parser;
 use crate::vector::VectorStore;
 use anyhow::{anyhow, Result};
 use rusqlite::Connection;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 /// Main code graph structure for indexing and searching code
