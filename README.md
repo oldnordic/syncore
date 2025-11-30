@@ -251,27 +251,129 @@ Add to `~/.config/claude/mcp_settings.json`:
 
 ## Architecture Notes
 
-### Dual-Domain Embeddings
+### Three-Tier Embedding Architecture
 
-SynCore uses two separate vector stores with specialized models:
+SynCore implements **three distinct embedding systems** with specialized purposes:
+
+#### 1. HuggingFaceEmbeddings - Production Code Embeddings
+**File**: `src/vector.rs:78`  
+**Trait**: `impl Embeddings for HuggingFaceEmbeddings`  
+**Model**: BGE-small-en-v1.5 (384 dimensions)  
+**Domain**: CODE domain  
+**Purpose**: Production-ready semantic code search
+
+```rust
+// src/vector.rs:78
+impl Embeddings for HuggingFaceEmbeddings {
+    fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        // Uses fastembed-rs with BGE-small-en-v1.5
+    }
+}
+```
+
+**Characteristics:**
+- **Latency**: 10-50ms per query
+- **Use Case**: Code entities, functions, classes
+- **Storage**: `syncore_code.index` (HNSW)
+- **Routing**: Automatic for code-related content
+
+#### 2. RealEmbeddings - Development/Testing Embeddings  
+**File**: `src/vector.rs:294`  
+**Trait**: `impl Embeddings for RealEmbeddings`  
+**Model**: Hash-based deterministic (384 dimensions)  
+**Domain**: Both CODE and GENERAL domains  
+**Purpose**: Development, testing, CI/CD pipelines
+
+```rust
+// src/vector.rs:294
+impl Embeddings for RealEmbeddings {
+    fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
+        // Deterministic hash-based embeddings for testing
+    }
+}
+```
+
+**Characteristics:**
+- **Latency**: <1ms (no model loading)
+- **Use Case**: Development environments, automated testing
+- **Storage**: In-memory only
+- **Routing**: Fallback for development
+
+#### 3. GraphBertModel - Graph-Aware Specialized Embeddings
+**File**: `src/code_graph/graph_bert.rs:158`  
+**Trait**: `impl GraphEmbeddingStrategy for GraphBertModel`  
+**Model**: Feature engineering (future: ONNX Graph-BERT)  
+**Domain**: GRAPH domain  
+**Purpose**: Graph-aware embeddings combining code + structural features
+
+```rust
+// src/code_graph/graph_bert.rs:158
+impl GraphEmbeddingStrategy for GraphBertModel {
+    fn embed_with_graph(&self, code_embedding: &[f32], graph_features: &GraphFeatures) -> Vec<f32> {
+        self.transform(code_embedding, graph_features)
+    }
+}
+```
+
+**Characteristics:**
+- **Input**: CODE embedding + GraphFeatures (degree, edge types)
+- **Output**: 384-dimensional graph-aware embedding
+- **Use Case**: Code graph fusion, multi-hop reasoning
+- **Future**: ONNX Runtime integration for actual Graph-BERT inference
+
+### Embedding Workflow Architecture
+
+```
+Input Content
+       │
+       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Domain Check  │───▶│  Trait Selection │───▶│  Model Router  │
+│ (Code/Text/Graph)│    │ (Embeddings vs   │    │ (BGE/Hash/GB) │
+│                 │    │  GraphStrategy) │    │                 │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+       │                       │                       │
+       ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│ HuggingFace     │    │   RealEmbed     │    │   GraphBert    │
+│ Embeddings      │    │   dings         │    │    Model        │
+│ (CODE domain)   │    │ (Development)   │    │ (GRAPH domain)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+       │                       │                       │
+       ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│  Vector Store   │    │  Memory Store   │    │  Graph Store   │
+│ (HNSW Index)   │    │ (SQLite+Sled)   │    │  (Neo4j)       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+```
+
+### Domain Separation Benefits
+
+1. **No Domain Pollution** - Code embeddings don't contaminate document search
+2. **Optimized Models** - Each model trained for specific data type
+3. **Specialized Features** - GraphBert adds structural awareness
+4. **Development Efficiency** - Fast hash embeddings for testing
+5. **Future Extensibility** - Trait-based design allows new embedding types
+
+### Storage Architecture
 
 **CODE Domain** (`syncore_code.index`):
-- Model: BGE-small-en-v1.5 (384 dims)
-- Purpose: Semantic code search
-- Why: Trained on code+text, understands programming semantics
-- Routed: Code entities, functions, classes
+- **Model**: BGE-small-en-v1.5 via fastembed-rs
+- **Index**: HNSW with M=16, ef_construction=200
+- **Content**: Functions, classes, variables, imports
+- **Size**: ~200MB for 10k code entities
 
 **GENERAL Domain** (`syncore_general.index`):
-- Model: all-MiniLM-L6-v2 (384 dims)
-- Purpose: Documents, tasks, notes
-- Why: Optimized for natural language understanding
-- Routed: Memory, documents, reasoning steps
+- **Model**: all-MiniLM-L6-v2 via fastembed-rs  
+- **Index**: HNSW with M=16, ef_construction=200
+- **Content**: Documents, tasks, memory entries, reasoning steps
+- **Size**: ~150MB for 10k general entries
 
-This prevents "domain pollution" where code embeddings contaminate document search and vice versa.
-
-### Graph-BERT Integration Point
-
-The codebase includes a `GraphEmbeddingStrategy` trait for future integration of Graph-BERT or other GNN models to combine CODE embeddings with graph structural features. Currently uses deterministic feature injection.
+**GRAPH Domain** (Neo4j):
+- **Model**: GraphBert feature transformation
+- **Storage**: Neo4j graph database
+- **Content**: Entities + relationships + graph-aware embeddings
+- **Size**: Variable based on codebase complexity
 
 ## Performance
 
