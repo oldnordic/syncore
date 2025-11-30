@@ -293,6 +293,7 @@ fn build_symbolic_plan(plan: &mut Plan, query: &str) {
 
 /// Limit plan size to 3-8 steps
 fn limit_plan_size(plan: &mut Plan) {
+    const MIN_STEPS: usize = 1;
     const MAX_STEPS: usize = 8;
 
     if plan.steps.is_empty() {

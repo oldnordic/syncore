@@ -25,7 +25,7 @@ async fn test_fs_event_triggers_incremental_parse() {
     // Create parser service
     let language = unsafe { tree_sitter_rust::language() };
     let mut parser_service =
-        ParserService::new(language).expect("Failed to create parser");
+        ParserService::new(language, root.clone()).expect("Failed to create parser");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -99,7 +99,7 @@ async fn test_ignore_non_rust_files() {
     // Parser only for Rust
     let language = unsafe { tree_sitter_rust::language() };
     let mut parser_service =
-        ParserService::new(language).expect("Failed to create parser");
+        ParserService::new(language, root.clone()).expect("Failed to create parser");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 

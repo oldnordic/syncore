@@ -248,7 +248,7 @@ impl SynCoreState {
     pub fn store_for_domain(&self, domain: EmbeddingDomain) -> Arc<Mutex<VectorStore>> {
         match domain {
             EmbeddingDomain::Code => Arc::clone(&self.code_store),
-            EmbeddingDomain::General | EmbeddingDomain::Graph => Arc::clone(&self.general_store),
+            EmbeddingDomain::General => Arc::clone(&self.general_store),
         }
     }
 

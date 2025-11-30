@@ -37,7 +37,7 @@ async fn test_update_service_inserts_entities_for_new_file() {
         .expect("Failed to create CodeGraph");
 
     // Create update service
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Simulate FsEventKind::Created + ParseDelta with had_errors = false
@@ -104,7 +104,7 @@ async fn test_update_service_updates_entities_on_modify() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index initial content
@@ -188,7 +188,7 @@ async fn test_update_service_removes_entities_on_delete() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index the file first
@@ -264,7 +264,7 @@ async fn test_update_service_handles_rename_as_remove_and_insert() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index at old path
@@ -357,7 +357,7 @@ async fn test_update_service_ignores_unsupported_extensions() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Try to index unsupported file

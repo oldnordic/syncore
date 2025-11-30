@@ -193,18 +193,16 @@ async fn main() -> Result<()> {
 
     // Step 2: Create CodeGraphUpdateService (wraps CodeGraph + DeltaEngine)
     // APEX 2.15: Pass reindex mutex to serialize DELETE+INSERT operations
-    // APEX 2.16 Phase 3: Pass Neo4j client for graph database synchronization
     let update_service = CodeGraphUpdateService::new(
         project_root.clone(),
         code_graph,
-        state.reindex_mutex.clone(),
-        state.neo4j.clone(),
+        state.reindex_mutex.clone()
     )?;
     eprintln!("[SynCore] CodeGraphUpdateService created (DeltaEngine initialized)");
 
     // Step 3: Create ParserService (Rust only for now)
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, project_root.clone())?;
     eprintln!("[SynCore] ParserService created (Rust language)");
 
     // Step 4: Create LspBridge (disabled for now - no LSP server)

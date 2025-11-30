@@ -33,10 +33,6 @@ pub enum EmbeddingDomain {
     /// GENERAL domain - documents, tasks, notes, reasoning steps
     /// Namespaces: "documents", "plan", "sequential_cycle", etc.
     General,
-
-    /// GRAPH domain - code graph nodes, relationships, and metadata
-    /// Namespaces: "graph_entity", "graph_node", "code_graph"
-    Graph,
 }
 
 impl EmbeddingDomain {
@@ -54,8 +50,6 @@ impl EmbeddingDomain {
     /// ```
     pub fn from_namespace(namespace: &str) -> Self {
         match namespace {
-            // GRAPH-specific namespaces
-            "graph_entity" | "graph_node" | "code_graph" => Self::Graph,
             // CODE domain namespaces
             "code_entity" | "rust_code" | "python_code" | "javascript_code" => Self::Code,
             // GENERAL domain (default for all others)
@@ -68,7 +62,6 @@ impl EmbeddingDomain {
         match self {
             Self::Code => "syncore_code.index",
             Self::General => "syncore_general.index",
-            Self::Graph => "syncore_graph.index",
         }
     }
 
@@ -78,7 +71,6 @@ impl EmbeddingDomain {
             // Start with all-MiniLM-L6-v2 for both, can upgrade CODE to GraphCodeBERT later
             Self::Code => "all-MiniLM-L6-v2",
             Self::General => "all-MiniLM-L6-v2",
-            Self::Graph => "all-MiniLM-L6-v2",
         }
     }
 }
@@ -88,7 +80,6 @@ impl fmt::Display for EmbeddingDomain {
         match self {
             Self::Code => write!(f, "code"),
             Self::General => write!(f, "general"),
-            Self::Graph => write!(f, "graph"),
         }
     }
 }
@@ -138,17 +129,6 @@ impl EmbeddingConfig {
         match domain {
             EmbeddingDomain::Code => Self::for_code(),
             EmbeddingDomain::General => Self::for_general(),
-            EmbeddingDomain::Graph => Self::for_graph(),
-        }
-    }
-
-    /// Create default config for GRAPH domain
-    pub fn for_graph() -> Self {
-        Self {
-            domain: EmbeddingDomain::Graph,
-            model_name: "all-MiniLM-L6-v2".to_string(),
-            index_path: "syncore_graph.index".to_string(),
-            dimension: 384,
         }
     }
 
@@ -429,7 +409,7 @@ mod tests {
 
             vec[0] = match domain {
                 EmbeddingDomain::Code => 1.0,
-                EmbeddingDomain::General | EmbeddingDomain::Graph => 0.5,
+                EmbeddingDomain::General => 0.5,
             };
 
             // Add text-specific variation
@@ -441,15 +421,15 @@ mod tests {
 
         fn dimension(&self, domain: EmbeddingDomain) -> usize {
             match domain {
-            EmbeddingDomain::Code => self.code_config.dimension,
-            EmbeddingDomain::General | EmbeddingDomain::Graph => self.general_config.dimension,
+                EmbeddingDomain::Code => self.code_config.dimension,
+                EmbeddingDomain::General => self.general_config.dimension,
             }
         }
 
         fn config(&self, domain: EmbeddingDomain) -> &EmbeddingConfig {
             match domain {
-            EmbeddingDomain::Code => &self.code_config,
-            EmbeddingDomain::General | EmbeddingDomain::Graph => &self.general_config,
+                EmbeddingDomain::Code => &self.code_config,
+                EmbeddingDomain::General => &self.general_config,
             }
         }
     }

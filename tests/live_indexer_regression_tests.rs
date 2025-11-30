@@ -34,10 +34,10 @@ async fn test_indexer_never_calls_full_reindex_unnecessarily() -> Result<()> {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
     // APEX 2.15: Pass reindex mutex to UpdateService
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex, None)?;
+    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, root.clone())?;
 
     let lsp_bridge = LspBridge::disabled();
 
@@ -132,10 +132,10 @@ async fn test_indexer_never_blocks_main_thread() -> Result<()> {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
     // APEX 2.15: Pass reindex mutex to UpdateService
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex, None)?;
+    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, root.clone())?;
 
     let lsp_bridge = LspBridge::disabled();
 
@@ -208,10 +208,10 @@ async fn test_indexer_never_interferes_with_fusion_query() -> Result<()> {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
     // APEX 2.15: Pass reindex mutex to UpdateService
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex, None)?;
+    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, root.clone())?;
 
     let lsp_bridge = LspBridge::disabled();
 

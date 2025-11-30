@@ -39,7 +39,7 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
 
     // APEX 2.15: Pass reindex mutex to UpdateService
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex, None)
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index both files
@@ -158,7 +158,7 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
 
     // APEX 2.15: Pass reindex mutex to UpdateService
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex, None)
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index both files

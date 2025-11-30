@@ -31,6 +31,8 @@ struct ParsedFileState {
 /// Parser service for incremental parsing
 pub struct ParserService {
     parser: Parser,
+    language: Language,
+    root: PathBuf,
     file_states: HashMap<PathBuf, ParsedFileState>,
 }
 
@@ -39,8 +41,8 @@ pub struct ParserService {
 // ============================================================================
 
 impl ParserService {
-    /// Create new parser service for given language
-    pub fn new(language: Language) -> Result<Self> {
+    /// Create new parser service for given language and root directory
+    pub fn new(language: Language, root: PathBuf) -> Result<Self> {
         let mut parser = Parser::new();
         parser
             .set_language(language)
@@ -48,6 +50,8 @@ impl ParserService {
 
         Ok(Self {
             parser,
+            language,
+            root,
             file_states: HashMap::new(),
         })
     }

@@ -20,7 +20,7 @@ fn test_incremental_parse_detects_small_edit() {
 
     // Create parser for Rust
     let language = unsafe { tree_sitter_rust::language() };
-    let mut service = ParserService::new(language).expect("Failed to create service");
+    let mut service = ParserService::new(language, root.clone()).expect("Failed to create service");
 
     // Initial Rust code
     let initial_code = r#"
@@ -93,7 +93,7 @@ fn test_incremental_parse_handles_new_file() {
     let root = temp_dir.path().to_path_buf();
 
     let language = unsafe { tree_sitter_rust::language() };
-    let mut service = ParserService::new(language).expect("Failed to create service");
+    let mut service = ParserService::new(language, root.clone()).expect("Failed to create service");
 
     let test_file = root.join("new.rs");
     std::fs::write(&test_file, "fn main() {}").expect("Failed to write file");
@@ -122,7 +122,7 @@ fn test_incremental_parse_handles_delete() {
     let root = temp_dir.path().to_path_buf();
 
     let language = unsafe { tree_sitter_rust::language() };
-    let mut service = ParserService::new(language).expect("Failed to create service");
+    let mut service = ParserService::new(language, root.clone()).expect("Failed to create service");
 
     // Create and parse file
     let test_file = root.join("deleteme.rs");
@@ -178,7 +178,7 @@ fn test_incremental_parse_error_flag() {
     let root = temp_dir.path().to_path_buf();
 
     let language = unsafe { tree_sitter_rust::language() };
-    let mut service = ParserService::new(language).expect("Failed to create service");
+    let mut service = ParserService::new(language, root.clone()).expect("Failed to create service");
 
     // Valid code first
     let test_file = root.join("error.rs");
@@ -224,7 +224,7 @@ fn test_parse_delta_for_rename() {
     let root = temp_dir.path().to_path_buf();
 
     let language = unsafe { tree_sitter_rust::language() };
-    let mut service = ParserService::new(language).expect("Failed to create service");
+    let mut service = ParserService::new(language, root.clone()).expect("Failed to create service");
 
     // Create file
     let old_path = root.join("old_name.rs");

@@ -42,7 +42,6 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
-        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 
@@ -117,7 +116,6 @@ async fn test_vector_insert_should_handle_missing_text() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
-        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 
@@ -184,7 +182,6 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
-        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 
@@ -256,7 +253,6 @@ async fn test_vector_insert_should_store_in_vector_store() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
-        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 

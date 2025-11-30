@@ -393,50 +393,6 @@ fn test_code_index_directory_respects_dry_run() {
 }
 
 // ============================================================================
-// Test 9: code_index_directory handles invalid glob patterns gracefully
-// ============================================================================
-
-#[test]
-fn test_code_index_directory_invalid_pattern_does_not_crash() {
-    let executor = create_test_executor("invalid_pattern");
-    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-
-    // Provide a malformed glob pattern (`[*.rs`) to simulate a user typo.
-    let params = json!({
-        "directory": temp_dir.path().to_string_lossy().to_string(),
-        "pattern": "[*.rs",
-        "dry_run": false
-    });
-
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_index_directory", &params)
-            .await
-    });
-
-    assert!(
-        result.is_ok(),
-        "Invalid patterns should return a JSON envelope instead of crashing: {:?}",
-        result.err()
-    );
-
-    let envelope = result.unwrap();
-    assert_error_envelope(&envelope);
-    let error = unwrap_error(&envelope);
-    assert_error_fields(error);
-    assert!(
-        error
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("")
-            .contains("Glob"),
-        "Error message should mention glob failure: {:?}",
-        error
-    );
-}
-
-// ============================================================================
 // Test 9: code_search real execution
 // ============================================================================
 

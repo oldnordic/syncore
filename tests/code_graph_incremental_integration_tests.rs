@@ -42,10 +42,10 @@ fn init_pipeline(root: PathBuf) -> anyhow::Result<Pipeline> {
 
     // Initialize ParserService for Rust language
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, root.clone())?;
 
     // Initialize CodeGraphUpdateService
-    let updater = CodeGraphUpdateService::new(root.clone(), graph, Arc::new(std::sync::Mutex::new(())), None)?;
+    let updater = CodeGraphUpdateService::new(root.clone(), graph)?;
 
     Ok(Pipeline {
         root,

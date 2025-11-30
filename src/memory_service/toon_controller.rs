@@ -14,6 +14,7 @@ pub struct ToonController {
     memory: Arc<Mutex<MemoryService>>,
     prompt_builder: ToonPromptBuilder,
     decoder: ToonDecoder,
+    max_context_tokens: usize,
     pointer_store: HashMap<String, MemoryEntry>,
 }
 
@@ -34,6 +35,7 @@ impl ToonController {
             memory,
             prompt_builder: ToonPromptBuilder::new(max_context_tokens),
             decoder: ToonDecoder::new(),
+            max_context_tokens,
             pointer_store: HashMap::new(),
         }
     }

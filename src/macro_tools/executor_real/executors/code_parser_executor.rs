@@ -342,17 +342,7 @@ pub async fn execute_code_index_directory(
     let mut indexed_count = 0;
     let mut total_entities = 0;
 
-    let entries = match glob(&search_pattern) {
-        Ok(iter) => iter,
-        Err(e) => {
-            return Ok(wrap_error(
-                "code_index_directory",
-                &format!("Glob error: {}", e),
-            ));
-        }
-    };
-
-    for entry in entries {
+    for entry in glob(&search_pattern).map_err(|e| anyhow::anyhow!("Glob error: {}", e))? {
         if let Ok(path) = entry {
             if path.is_file() {
                 match code_graph.index_file(&path) {

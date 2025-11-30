@@ -32,10 +32,10 @@ async fn test_full_pipeline_file_create_modify_delete() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)?;
+    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph)?;
 
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, root.clone())?;
 
     let lsp_bridge = LspBridge::disabled();
 
@@ -105,10 +105,10 @@ async fn test_pipeline_triggers_hnsw_reembedding() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)?;
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)?;
 
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, root.clone())?;
 
     let lsp_bridge = LspBridge::disabled();
 
@@ -177,10 +177,10 @@ async fn test_pipeline_produces_lsp_notifications() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())), None)?;
+    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph)?;
 
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language)?;
+    let parser = ParserService::new(language, root.clone())?;
 
     // Use disabled LSP bridge (real LSP would require rust-analyzer running)
     let lsp_bridge = LspBridge::disabled();

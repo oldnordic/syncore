@@ -91,6 +91,11 @@ impl LtmAdapter {
         serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string())
     }
 
+    /// Deserialize tags from JSON string
+    fn deserialize_tags(json: &str) -> Vec<String> {
+        serde_json::from_str(json).unwrap_or_else(|_| vec![])
+    }
+
     /// Serialize embedding to binary blob
     fn serialize_embedding(embedding: &[f32]) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(embedding.len() * 4);
@@ -98,6 +103,16 @@ impl LtmAdapter {
             bytes.extend_from_slice(&val.to_le_bytes());
         }
         bytes
+    }
+
+    /// Deserialize embedding from binary blob
+    fn deserialize_embedding(bytes: &[u8]) -> Vec<f32> {
+        let mut embedding = Vec::with_capacity(bytes.len() / 4);
+        for chunk in bytes.chunks_exact(4) {
+            let val = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            embedding.push(val);
+        }
+        embedding
     }
 }
 
