@@ -487,17 +487,6 @@ impl QueryCache {
         }
     }
 
-    fn get(&mut self, key: u64) -> Option<Vec<Hit>> {
-        if let Some(hits) = self.cache.get(&key) {
-            // Update access order (move to end)
-            self.access_order.retain(|&k| k != key);
-            self.access_order.push(key);
-            Some(hits.clone())
-        } else {
-            None
-        }
-    }
-
     /// Peek at cache without updating access order (read-only)
     fn peek(&self, key: u64) -> Option<Vec<Hit>> {
         self.cache.get(&key).cloned()

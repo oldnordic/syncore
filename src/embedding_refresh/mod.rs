@@ -198,7 +198,7 @@ impl EmbeddingRefreshDaemon {
         // Select appropriate store
         let store = match domain {
             EmbeddingDomain::Code => code_store,
-            EmbeddingDomain::General => general_store,
+            EmbeddingDomain::General | EmbeddingDomain::Graph => general_store,
         };
 
         // Insert or update embedding

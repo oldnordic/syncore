@@ -150,17 +150,18 @@ fn test_code_and_general_domains_unchanged() {
     // Ensure CODE and GENERAL domains are NOT affected by Graph-BERT
     //
     // This test should PASS immediately (APEX 2.0-E behavior preserved)
-    use syncore::vector::domain::{EmbeddingDomain, EmbeddingConfig};
+    use syncore::vector::domain::EmbeddingConfig;
 
     let code_config = EmbeddingConfig::for_code();
     let general_config = EmbeddingConfig::for_general();
 
-    // APEX 2.0-E: Both use BGE-M3 (1024 dims)
-    assert_eq!(code_config.model_name, "bge-m3");
-    assert_eq!(code_config.dimension, 1024);
+    // CODE domain now uses BGE-small-en-v1.5 (384 dims)
+    assert_eq!(code_config.model_name, "BGE-small-en-v1.5");
+    assert_eq!(code_config.dimension, 384);
 
-    assert_eq!(general_config.model_name, "bge-m3");
-    assert_eq!(general_config.dimension, 1024);
+    // GENERAL domain uses all-MiniLM-L6-v2 (384 dims)
+    assert_eq!(general_config.model_name, "all-MiniLM-L6-v2");
+    assert_eq!(general_config.dimension, 384);
 
     // GRAPH domain unchanged: all-MiniLM-L6-v2 (384 dims)
     let graph_config = EmbeddingConfig::for_graph();

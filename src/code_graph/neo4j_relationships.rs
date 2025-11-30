@@ -44,35 +44,3 @@ fn edge_type_to_relation_type(edge_type: &EdgeType) -> RelationType {
         EdgeType::ModuleChild => RelationType::ModuleChild,
     }
 }
-
-// Deprecated: Use edge_type_to_relation_type() instead
-#[allow(dead_code)]
-fn edge_type_to_neo4j_type(edge_type: &EdgeType) -> &str {
-    match edge_type {
-        EdgeType::Calls => "CALLS",
-        EdgeType::Imports => "IMPORTS",
-        EdgeType::Inherits => "INHERITS",
-        EdgeType::References => "REFERENCES",
-        EdgeType::Uses => "USES",
-        EdgeType::Contains => "CONTAINS",
-        EdgeType::UsesField => "USES_FIELD",
-        EdgeType::Implements => "IMPLEMENTS",
-        EdgeType::UsesType => "USES_TYPE",
-        EdgeType::ModuleChild => "MODULE_CHILD",
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_edge_type_to_neo4j_type() {
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Calls), "CALLS");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Imports), "IMPORTS");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Inherits), "INHERITS");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::References), "REFERENCES");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Uses), "USES");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Contains), "CONTAINS");
-    }
-}

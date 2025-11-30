@@ -6,7 +6,7 @@ use crate::portfolio::code_graph_extractor::{
 };
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Connection};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Query parameters for cross-linked graph queries
@@ -38,7 +38,6 @@ pub struct SemanticNeighbor {
 /// Persistent store for code graphs with multi-backend support
 pub struct CodeGraphStore {
     conn: Connection,
-    vectors_dir: PathBuf,
     namespace: String,
     event_count: AtomicUsize,
     embeddings: Vec<(i64, String, Vec<f32>)>, // (id, name, embedding)
@@ -46,7 +45,7 @@ pub struct CodeGraphStore {
 
 impl CodeGraphStore {
     /// Create store with custom paths (for test isolation)
-    pub fn new_with_paths(db_path: &Path, vectors_dir: &Path) -> Result<Self> {
+    pub fn new_with_paths(db_path: &Path) -> Result<Self> {
         let namespace = std::env::var("GRAPH_NAMESPACE").unwrap_or_else(|_| "default".to_string());
 
         let conn = Connection::open(db_path)?;
@@ -54,7 +53,6 @@ impl CodeGraphStore {
 
         Ok(CodeGraphStore {
             conn,
-            vectors_dir: vectors_dir.to_path_buf(),
             namespace,
             event_count: AtomicUsize::new(0),
             embeddings: Vec::new(),

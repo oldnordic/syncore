@@ -31,7 +31,6 @@ use std::collections::{HashMap};
 pub struct MemoryService {
     ram_cache: RamCache,
     ltm: Option<LtmAdapter>,
-    dimension: usize,
     capacity: usize,
 }
 
@@ -45,7 +44,6 @@ impl MemoryService {
         Self {
             ram_cache: RamCache::new(dimension, capacity),
             ltm: None,
-            dimension,
             capacity,
         }
     }
@@ -66,7 +64,6 @@ impl MemoryService {
         Ok(Self {
             ram_cache: RamCache::new(dimension, capacity),
             ltm: Some(ltm),
-            dimension,
             capacity,
         })
     }

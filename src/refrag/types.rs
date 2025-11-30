@@ -18,7 +18,8 @@ impl From<crate::vector::domain::EmbeddingDomain> for Domain {
     fn from(domain: crate::vector::domain::EmbeddingDomain) -> Self {
         match domain {
             crate::vector::domain::EmbeddingDomain::Code => Domain::Code,
-            crate::vector::domain::EmbeddingDomain::General => Domain::General,
+            crate::vector::domain::EmbeddingDomain::General
+            | crate::vector::domain::EmbeddingDomain::Graph => Domain::General,
         }
     }
 }

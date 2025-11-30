@@ -12,7 +12,6 @@ use std::sync::Arc;
 /// RAG query engine combining vector search and graph reasoning
 pub struct RagQuery {
     transformer: HopGraphTransformer,
-    config: RagGraphConfig,
     storage: Option<Arc<dyn StorageAdapter>>,
 }
 
@@ -22,7 +21,6 @@ impl RagQuery {
         let transformer = HopGraphTransformer::new(config.clone());
         Self {
             transformer,
-            config,
             storage: None,
         }
     }
@@ -31,7 +29,6 @@ impl RagQuery {
         let transformer = HopGraphTransformer::with_storage(config.clone(), storage.clone());
         Self {
             transformer,
-            config,
             storage: Some(storage),
         }
     }

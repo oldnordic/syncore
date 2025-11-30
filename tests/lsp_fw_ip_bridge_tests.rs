@@ -34,7 +34,7 @@ async fn test_fs_event_did_open_sent_for_new_file() {
 
     // Create parser service
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language, root.clone()).expect("Failed to create parser");
+    let parser = ParserService::new(language).expect("Failed to create parser");
 
     // Create Rust file
     let test_file = root.join("new.rs");
@@ -83,7 +83,7 @@ async fn test_fs_event_did_change_sent_for_modify() {
         .expect("Failed to start bridge");
 
     let language = unsafe { tree_sitter_rust::language() };
-    let mut parser = ParserService::new(language, root.clone()).expect("Failed to create parser");
+    let mut parser = ParserService::new(language).expect("Failed to create parser");
 
     // Create and open file
     let test_file = root.join("modify.rs");
@@ -142,7 +142,7 @@ async fn test_fs_event_delete_does_not_panic() {
     assert_eq!(bridge.status(), LspStatus::Disabled);
 
     let language = unsafe { tree_sitter_rust::language() };
-    let parser = ParserService::new(language, root.clone()).expect("Failed to create parser");
+    let parser = ParserService::new(language).expect("Failed to create parser");
 
     let deleted_file = root.join("deleted.rs");
 

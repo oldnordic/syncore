@@ -72,6 +72,7 @@ fn sync_function() -> i32 {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 
@@ -149,6 +150,7 @@ async fn test_parser_search_code_should_handle_missing_pattern() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 
@@ -212,6 +214,7 @@ async fn test_parser_search_code_should_handle_nonexistent_path() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 
@@ -298,6 +301,7 @@ async fn test_parser_search_code_should_support_file_patterns() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 
@@ -426,6 +430,7 @@ fn cleanup_function() {
         faiss_pool: None,
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
+        reindex_mutex: Arc::new(Mutex::new(())),
         intellitask: None,
     };
 

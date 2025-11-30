@@ -425,10 +425,9 @@ mod tests {
     fn test_refactoring_priority_calculation() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let vectors_dir = temp_dir.path().join("vectors");
 
         let store =
-            CodeGraphStore::new_with_paths(&db_path, &vectors_dir).expect("Should create store");
+            CodeGraphStore::new_with_paths(&db_path).expect("Should create store");
         let engine = RefactoringSuggestionEngine::new(&store);
 
         // Test low priority
@@ -452,10 +451,9 @@ mod tests {
     fn test_effort_estimation() {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let vectors_dir = temp_dir.path().join("vectors");
 
         let store =
-            CodeGraphStore::new_with_paths(&db_path, &vectors_dir).expect("Should create store");
+            CodeGraphStore::new_with_paths(&db_path).expect("Should create store");
         let engine = RefactoringSuggestionEngine::new(&store);
 
         let effort = engine.estimate_effort(25, 2);

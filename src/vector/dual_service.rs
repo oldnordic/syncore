@@ -102,7 +102,7 @@ impl DualEmbeddingService {
     pub fn store_for_domain(&self, domain: EmbeddingDomain) -> Arc<Mutex<VectorStore>> {
         match domain {
             EmbeddingDomain::Code => self.code_store(),
-            EmbeddingDomain::General => self.general_store(),
+            EmbeddingDomain::General | EmbeddingDomain::Graph => self.general_store(),
         }
     }
 }
@@ -114,7 +114,7 @@ impl EmbeddingService for DualEmbeddingService {
         // GENERAL domain: all-MiniLM-L6-v2 (general text)
         let embeddings: Box<dyn Embeddings> = match domain {
             EmbeddingDomain::Code => Box::new(HuggingFaceEmbeddings::new_bge()?),
-            EmbeddingDomain::General => Box::new(HuggingFaceEmbeddings::new()?),
+            EmbeddingDomain::General | EmbeddingDomain::Graph => Box::new(HuggingFaceEmbeddings::new()?),
         };
         embeddings.embed(text)
     }
@@ -122,14 +122,14 @@ impl EmbeddingService for DualEmbeddingService {
     fn dimension(&self, domain: EmbeddingDomain) -> usize {
         match domain {
             EmbeddingDomain::Code => self.code_config.dimension,
-            EmbeddingDomain::General => self.general_config.dimension,
+            EmbeddingDomain::General | EmbeddingDomain::Graph => self.general_config.dimension,
         }
     }
 
     fn config(&self, domain: EmbeddingDomain) -> &EmbeddingConfig {
         match domain {
             EmbeddingDomain::Code => &self.code_config,
-            EmbeddingDomain::General => &self.general_config,
+            EmbeddingDomain::General | EmbeddingDomain::Graph => &self.general_config,
         }
     }
 }

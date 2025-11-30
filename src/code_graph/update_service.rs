@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::code_graph::delta::CodeGraphDeltaEngine;
 use crate::code_graph::{CodeEntity, CodeGraph, EntityType};
+use crate::graph::neo4j_client::Neo4jClient;
 use crate::fs_watcher::{FsEvent, FsEventKind};
 use crate::parser_service::ParseDelta;
 
@@ -32,10 +33,11 @@ pub struct CodeGraphUpdateEvent {
 pub struct CodeGraphUpdateService {
     graph: Arc<Mutex<CodeGraph>>,
     delta_engine: CodeGraphDeltaEngine,
-    #[allow(dead_code)]
     root: PathBuf,
     /// APEX 2.15: Reindex mutex to serialize DELETE+INSERT operations
     reindex_mutex: Arc<std::sync::Mutex<()>>,
+    /// Optional Neo4j client for external graph synchronization
+    neo4j: Option<Arc<Neo4jClient>>,
 }
 
 // ============================================================================
@@ -44,7 +46,12 @@ pub struct CodeGraphUpdateService {
 
 impl CodeGraphUpdateService {
     /// Create a new update service
-    pub fn new(root: PathBuf, graph: CodeGraph, reindex_mutex: Arc<std::sync::Mutex<()>>) -> Result<Self> {
+    pub fn new(
+        root: PathBuf,
+        graph: CodeGraph,
+        reindex_mutex: Arc<std::sync::Mutex<()>>,
+        neo4j: Option<Arc<Neo4jClient>>,
+    ) -> Result<Self> {
         // APEX 2.6-CG-GRAPH-DELTA: Wrap graph in Arc<Mutex<>> and initialize delta engine
         let graph_arc = Arc::new(Mutex::new(graph));
         let delta_engine = CodeGraphDeltaEngine::new(graph_arc.clone());
@@ -54,6 +61,7 @@ impl CodeGraphUpdateService {
             delta_engine,
             root,
             reindex_mutex,
+            neo4j,
         })
     }
 
@@ -178,7 +186,33 @@ impl CodeGraphUpdateService {
             .lock()
             .map_err(|e| anyhow::anyhow!("Failed to lock db: {}", e))?;
 
-        let deleted = db.execute("DELETE FROM code_entities WHERE file_path = ?", [path_str])?;
+        // 1) Delete from local SQLite store
+        let deleted = db.execute(
+            "DELETE FROM code_entities WHERE file_path = ?",
+            [path_str],
+        )?;
+
+        // 2) Best-effort delete from Neo4j, if client is available
+        if let Some(ref neo4j_client) = self.neo4j {
+            use crate::databases::neo4j::writer::delete_file_entities;
+
+            // delete_file_entities is async; this method is sync.
+            // Run the async Neo4j delete in a blocking context without failing the whole operation.
+            let neo4j_result = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    delete_file_entities(neo4j_client, path_str).await
+                })
+            });
+
+            if let Err(e) = neo4j_result {
+                eprintln!(
+                    "[SynCore][WARN] Neo4j delete_file_entities failed for {}: {}",
+                    path_str, e
+                );
+                // Do not propagate this error: local DB is already consistent.
+                // Neo4j can be repaired by a full resync if needed.
+            }
+        }
 
         Ok(deleted as u64)
     }

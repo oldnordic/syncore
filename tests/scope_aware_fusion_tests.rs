@@ -29,20 +29,20 @@ async fn get_neo4j_client() -> Result<Neo4jClient> {
 #[test]
 fn test_query_scope_from_str_parsing() {
     // Test all valid scope strings parse correctly
-    assert_eq!(QueryScope::from_str("global"), QueryScope::Global);
-    assert_eq!(QueryScope::from_str("Global"), QueryScope::Global);
-    assert_eq!(QueryScope::from_str("GLOBAL"), QueryScope::Global);
+    assert_eq!(QueryScope::parse("global"), QueryScope::Global);
+    assert_eq!(QueryScope::parse("Global"), QueryScope::Global);
+    assert_eq!(QueryScope::parse("GLOBAL"), QueryScope::Global);
 
-    assert_eq!(QueryScope::from_str("project"), QueryScope::Project);
-    assert_eq!(QueryScope::from_str("Project"), QueryScope::Project);
+    assert_eq!(QueryScope::parse("project"), QueryScope::Project);
+    assert_eq!(QueryScope::parse("Project"), QueryScope::Project);
 
-    assert_eq!(QueryScope::from_str("workspace"), QueryScope::Workspace);
-    assert_eq!(QueryScope::from_str("local"), QueryScope::Local);
-    assert_eq!(QueryScope::from_str("auto"), QueryScope::Auto);
+    assert_eq!(QueryScope::parse("workspace"), QueryScope::Workspace);
+    assert_eq!(QueryScope::parse("local"), QueryScope::Local);
+    assert_eq!(QueryScope::parse("auto"), QueryScope::Auto);
 
     // Unknown values should default to Project
-    assert_eq!(QueryScope::from_str("invalid"), QueryScope::Project);
-    assert_eq!(QueryScope::from_str(""), QueryScope::Project);
+    assert_eq!(QueryScope::parse("invalid"), QueryScope::Project);
+    assert_eq!(QueryScope::parse(""), QueryScope::Project);
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn test_query_scope_as_str_round_trip() {
 
     for scope in scopes {
         let str_repr = scope.as_str();
-        let parsed = QueryScope::from_str(str_repr);
+        let parsed = QueryScope::parse(str_repr);
         assert_eq!(scope, parsed, "Round-trip failed for {:?}", scope);
     }
 }

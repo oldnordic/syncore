@@ -12,7 +12,7 @@ fn test_fusion_only_vector() -> Result<()> {
     // When vector is 1.0, graph and temporal are 0.0
     // Expected: 0.65*1.0 + 0.25*0.0 + 0.10*0.0 = 0.65
     let fusion = FusionSimple::default();
-    let result = fusion.combine(1.0, 0.0, 0.0);
+    let result = fusion.combine(1.0, 0.0, 0.0, 0.0);
 
     assert!(
         (result - 0.65).abs() < 0.001,
@@ -26,7 +26,7 @@ fn test_fusion_only_graph() -> Result<()> {
     // When graph is 1.0, vector and temporal are 0.0
     // Expected: 0.65*0.0 + 0.25*1.0 + 0.10*0.0 = 0.25
     let fusion = FusionSimple::default();
-    let result = fusion.combine(0.0, 1.0, 0.0);
+    let result = fusion.combine(0.0, 1.0, 0.0, 0.0);
 
     assert!(
         (result - 0.25).abs() < 0.001,
@@ -98,7 +98,7 @@ fn test_fusion_end_to_end_rag_query() -> Result<()> {
     let graph = 0.5;
     let temporal = 0.7;
 
-    let combined = fusion.combine(vector, graph, temporal);
+    let combined = fusion.combine(vector, graph, temporal, 0.0);
 
     // Expected: 0.65*0.9 + 0.25*0.5 + 0.10*0.7 = 0.585 + 0.125 + 0.07 = 0.78
     let expected = 0.78;
@@ -124,7 +124,7 @@ fn test_fusion_clamps_score() -> Result<()> {
     let fusion = FusionSimple::default();
 
     // Test upper clamp (scores > 1.0 should be clamped to 1.0)
-    let result_high = fusion.combine(1.2, 1.5, 1.8);
+    let result_high = fusion.combine(1.2, 1.5, 1.8, 0.0);
     assert!(result_high <= 1.0, "Score should be clamped to 1.0");
     assert!(
         result_high >= 0.95,

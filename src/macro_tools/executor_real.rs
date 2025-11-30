@@ -12,7 +12,6 @@
 //! - Runtime executor selection with async macro handlers
 
 use crate::macro_tools::planner::ExecutionRecorder;
-use crate::mcp::types::ErrorType;
 use crate::router::SynCoreState;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
@@ -60,32 +59,6 @@ impl RealExecutor {
     #[cfg(test)]
     pub fn get_state(&self) -> Arc<SynCoreState> {
         Arc::clone(&self.state)
-    }
-
-    /// Centralized parameter extraction helper for Value params
-    /// Returns Ok(value) or Err(error_envelope) for MissingParameter
-    fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
-        match params.get(key).and_then(|v| v.as_str()) {
-            Some(v) if !v.is_empty() => Ok(v),
-            _ => Err(Self::wrap_error_static(
-                tool,
-                &format!("Missing '{}' parameter", key),
-            )),
-        }
-    }
-
-    /// Static error wrapper (used before self is available)
-    fn wrap_error_static(tool: &str, msg: &str) -> Value {
-        let error_type = ErrorType::from_message(msg);
-        json!({
-            "ok": false,
-            "error": {
-                "type": error_type.to_string(),
-                "message": msg,
-                "tool": tool,
-                "executor": "real"
-            }
-        })
     }
 
     /// Execute a real tool call (synchronous wrapper for async tools)

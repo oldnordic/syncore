@@ -8,13 +8,11 @@ use std::path::Path;
 
 use super::graph::CodeGraph;
 use super::language_parser::LanguageParser;
-use super::parsers::{python_parser::PythonLanguageParser, rust_parser::RustLanguageParser};
+use super::parsers::python_parser::PythonLanguageParser;
 
 /// Index application that manages multiple language parsers
 pub struct IndexApplication {
     code_graph: CodeGraph,
-    #[allow(dead_code)]
-    rust_parser: RustLanguageParser,
     python_parser: PythonLanguageParser,
 }
 
@@ -32,12 +30,10 @@ impl IndexApplication {
         vector_store: std::sync::Arc<std::sync::Mutex<crate::vector::VectorStore>>,
     ) -> Result<Self> {
         let code_graph = CodeGraph::new(db_path, vector_store)?;
-        let rust_parser = RustLanguageParser::new()?;
         let python_parser = PythonLanguageParser::new()?;
 
         Ok(Self {
             code_graph,
-            rust_parser,
             python_parser,
         })
     }

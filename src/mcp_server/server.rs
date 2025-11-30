@@ -6,13 +6,19 @@ use anyhow::Result;
 use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::{
-        CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
+        CallToolResult, Content, Implementation, InitializeRequestParam, InitializeResult,
+        ProtocolVersion, ServerCapabilities, ServerInfo,
     },
     schemars, tool, tool_handler, tool_router,
+    service::{RequestContext, RoleServer},
     transport::stdio,
     ErrorData as McpError, ServerHandler, ServiceExt,
 };
-use std::sync::{Arc, Mutex};
+use std::future::Future;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::time::SystemTime;
 
 // Request type definitions
@@ -24,6 +30,7 @@ pub struct SynCoreMCPServer {
     state: Arc<SynCoreState>,
     tool_router: ToolRouter<Self>,
     pub executor: Arc<dyn ExecutionRecorder + Send + Sync>,
+    initializing: Arc<AtomicBool>,
 }
 
 #[tool_router]
@@ -40,6 +47,7 @@ impl SynCoreMCPServer {
             state,
             tool_router: Self::tool_router(),
             executor,
+            initializing: Arc::new(AtomicBool::new(true)),
         }
     }
 
@@ -63,6 +71,13 @@ impl SynCoreMCPServer {
         params: serde_json::Value,
     ) -> Result<CallToolResult, McpError> {
         use crate::macro_tools::executor_real::RealExecutor;
+
+        if self.initializing.load(Ordering::SeqCst) {
+            return Err(McpError::internal_error(
+                format!("Executor '{}' invoked during initialization", tool_name),
+                None,
+            ));
+        }
 
         // Create a new RealExecutor instance to call execute_real_tool_async
         // (The self.executor is trait object, we need concrete type)
@@ -2255,6 +2270,20 @@ impl SynCoreMCPServer {
 
 #[tool_handler]
 impl ServerHandler for SynCoreMCPServer {
+    fn initialize(
+        &self,
+        request: InitializeRequestParam,
+        context: RequestContext<RoleServer>,
+    ) -> impl Future<Output = Result<InitializeResult, McpError>> + Send + '_ {
+        if context.peer.peer_info().is_none() {
+            context.peer.set_peer_info(request);
+        }
+
+        self.initializing.store(false, Ordering::SeqCst);
+        let info = self.get_info();
+        std::future::ready(Ok(info))
+    }
+
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2024_11_05,

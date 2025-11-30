@@ -76,71 +76,7 @@ fn entity_type_to_node_label(entity_type: &EntityType) -> NodeLabel {
     }
 }
 
-// Deprecated: Use entity_type_to_node_label() instead
-fn entity_type_to_label(entity_type: &EntityType) -> &str {
-    match entity_type {
-        EntityType::Function => "Function",
-        EntityType::Class => "Class",
-        EntityType::Method => "Method",
-        EntityType::Import => "Import",
-        EntityType::Struct => "Struct",
-        EntityType::Enum => "Enum",
-        EntityType::Trait => "Trait",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_entity_type_to_label() {
-        assert_eq!(entity_type_to_label(&EntityType::Function), "Function");
-        assert_eq!(entity_type_to_label(&EntityType::Class), "Class");
-        assert_eq!(entity_type_to_label(&EntityType::Method), "Method");
-        assert_eq!(entity_type_to_label(&EntityType::Import), "Import");
-        assert_eq!(entity_type_to_label(&EntityType::Struct), "Struct");
-        assert_eq!(entity_type_to_label(&EntityType::Enum), "Enum");
-        assert_eq!(entity_type_to_label(&EntityType::Trait), "Trait");
-    }
-
-    // TASK C: Verify that :SynCore label is included in MERGE query
-    #[test]
-    fn test_merge_query_includes_syncore_label() {
-        let entity = CodeEntity {
-            id: Some(123),
-            file_path: "/test/path.rs".to_string(),
-            entity_type: EntityType::Function,
-            name: "test_func".to_string(),
-            signature: Some("fn test_func()".to_string()),
-            line_start: 1,
-            line_end: 10,
-            docstring: None,
-            language: "rust".to_string(),
-            body_snippet: None, // APEX v1.7 Phase 3
-            created_at: Some(1234567890),
-            last_modified_at: Some(1234567890),
-            change_count: Some(5),
-            author_count: Some(1),
-        };
-
-        let label = entity_type_to_label(&entity.entity_type);
-        let cypher = format!(
-            r#"
-            MERGE (e:{}:SynCore {{id: $id, namespace: $ns}})
-            SET e.file_path = $file_path
-            "#,
-            label
-        );
-
-        // Verify query includes both type label and :SynCore label
-        assert!(
-            cypher.contains(":Function:SynCore"),
-            "Query should include both :Function and :SynCore labels"
-        );
-        assert!(
-            cypher.contains("MERGE (e:Function:SynCore"),
-            "Query should use correct label syntax"
-        );
-    }
 }

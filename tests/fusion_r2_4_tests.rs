@@ -34,7 +34,7 @@ fn test_simple_fusion_linear_weights() {
     let temporal_score = 0.0;
 
     // Expected: 0.6*0.8 + 0.3*0.4 + 0.1*0.0 = 0.48 + 0.12 + 0.0 = 0.60
-    let result = fusion.combine(vector_score, graph_score, temporal_score);
+    let result = fusion.combine(vector_score, graph_score, temporal_score, 0.0);
 
     assert!(
         (result - 0.60).abs() < 0.001,

@@ -8,7 +8,7 @@ use crate::portfolio::code_graph_store::CodeGraphStore;
 use anyhow::{anyhow, Result};
 use rusqlite;
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use walkdir::WalkDir;
 
 /// Index a directory of Rust files into the code graph
@@ -20,18 +20,14 @@ pub async fn handle_code_graph_index(params: Value) -> Result<Value> {
     let db_path = params["db_path"]
         .as_str()
         .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
-    let vectors_dir = params["vectors_dir"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'vectors_dir' parameter"))?;
     let namespace = params["namespace"].as_str().unwrap_or("default");
 
     // Set namespace environment variable
     std::env::set_var("GRAPH_NAMESPACE", namespace);
 
     let db_path = PathBuf::from(db_path);
-    let vectors_dir = PathBuf::from(vectors_dir);
 
-    let mut store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)?;
+    let mut store = CodeGraphStore::new_with_paths(&db_path)?;
     let extractor = CodeGraphExtractor::new();
 
     let mut files_indexed = 0u64;
@@ -95,12 +91,8 @@ pub async fn handle_code_graph_query(params: Value) -> Result<Value> {
     std::env::set_var("GRAPH_NAMESPACE", namespace);
 
     let db_path = PathBuf::from(db_path);
-    let vectors_dir = params["vectors_dir"]
-        .as_str()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| db_path.parent().unwrap_or(Path::new(".")).join("vectors"));
 
-    let mut store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)?;
+    let mut store = CodeGraphStore::new_with_paths(&db_path)?;
 
     let include_imports = params["include_imports"].as_bool().unwrap_or(false);
     let include_calls = params["include_calls"].as_bool().unwrap_or(false);
@@ -180,12 +172,8 @@ pub async fn handle_code_graph_explain(params: Value) -> Result<Value> {
     std::env::set_var("GRAPH_NAMESPACE", namespace);
 
     let db_path = PathBuf::from(db_path);
-    let vectors_dir = params["vectors_dir"]
-        .as_str()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| db_path.parent().unwrap_or(Path::new(".")).join("vectors"));
 
-    let mut store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)?;
+    let mut store = CodeGraphStore::new_with_paths(&db_path)?;
 
     // Get callers and callees
     let callers = store.get_callers(function_name)?;
@@ -220,12 +208,8 @@ pub async fn handle_code_graph_impact(params: Value) -> Result<Value> {
     std::env::set_var("GRAPH_NAMESPACE", namespace);
 
     let db_path = PathBuf::from(db_path);
-    let vectors_dir = params["vectors_dir"]
-        .as_str()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| db_path.parent().unwrap_or(Path::new(".")).join("vectors"));
 
-    let mut store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)?;
+    let mut store = CodeGraphStore::new_with_paths(&db_path)?;
 
     // Get direct callers (affected by change)
     let mut affected_functions = store.get_callers(function_name)?;
@@ -340,12 +324,8 @@ pub async fn handle_code_graph_refactor_check(params: Value) -> Result<Value> {
     std::env::set_var("GRAPH_NAMESPACE", namespace);
 
     let db_path = PathBuf::from(db_path);
-    let vectors_dir = params["vectors_dir"]
-        .as_str()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| db_path.parent().unwrap_or(Path::new(".")).join("vectors"));
 
-    let store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)?;
+    let store = CodeGraphStore::new_with_paths(&db_path)?;
     let engine = RefactoringSuggestionEngine::new(&store);
 
     let result = engine.check_all(max_function_lines, similarity_threshold)?;
@@ -374,12 +354,8 @@ pub async fn handle_code_graph_refactor_symbol(params: Value) -> Result<Value> {
     std::env::set_var("GRAPH_NAMESPACE", namespace);
 
     let db_path = PathBuf::from(db_path);
-    let vectors_dir = params["vectors_dir"]
-        .as_str()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| db_path.parent().unwrap_or(Path::new(".")).join("vectors"));
 
-    let store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir)?;
+    let store = CodeGraphStore::new_with_paths(&db_path)?;
     let engine = RefactoringSuggestionEngine::new(&store);
 
     // Currently only supports function refactoring
