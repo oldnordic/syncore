@@ -16,9 +16,17 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@1.80.0
+      uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: "1.91.0"
         components: rustfmt, clippy
+        
+    - name: Verify toolchain version
+      run: |
+        rustc --version
+        cargo --version
+        echo "Cargo.lock hash:"
+        sha256sum Cargo.lock || echo "No Cargo.lock found"
         
     - name: Cache cargo registry
       uses: actions/cache@v4
@@ -34,8 +42,15 @@ jobs:
     - name: Check code formatting
       run: cargo fmt --all -- --check || true
       
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -W warnings
+    - name: Clear cargo caches if needed
+      run: |
+        if [ -d "target" ]; then
+          echo "Clearing target directory to ensure clean build"
+          rm -rf target
+        fi
+        
+    - name: Run clippy (warnings allowed)
+      run: cargo clippy --all-targets --all-features -- -W clippy::all
       
     - name: Run tests
       run: cargo test --all -- -j $(nproc)
