@@ -94,6 +94,7 @@ syncore_code_graph.db
 *.bak
 *.orig
 *.lock
+/temp_workspace/
 
 # OS generated
 .DS_Store
