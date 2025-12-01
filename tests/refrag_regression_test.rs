@@ -176,7 +176,7 @@ fn test_regression_hnsw_index_unchanged() -> Result<()> {
 
     // THEN HNSW should still be functional (or not ready, but not broken)
     // Just verify the flag is accessible
-    assert!(hnsw_ready || !hnsw_ready, "HNSW flag should be accessible");
+    assert!(hnsw_ready, "HNSW flag should be accessible");
 
     Ok(())
 }

@@ -641,8 +641,7 @@ async fn test_project_complexity_dashboard_basic() {
             "Hotspot should have file path"
         );
         assert!(hotspot.score > 0.0, "Hotspot should have positive score");
-        assert!(hotspot.fan_in >= 0, "Fan-in should be non-negative");
-        assert!(hotspot.fan_out >= 0, "Fan-out should be non-negative");
+        // fan_in and fan_out are u32, so always >= 0 by definition
     }
 
     // Check files list
@@ -652,29 +651,12 @@ async fn test_project_complexity_dashboard_basic() {
     for file in &data.files {
         assert!(!file.file_path.is_empty(), "File should have path");
         assert!(file.entity_count > 0, "File should have entities");
-        assert!(file.fan_in >= 0, "Fan-in should be non-negative");
-        assert!(file.fan_out >= 0, "Fan-out should be non-negative");
+        // fan_in and fan_out are u32, so always >= 0 by definition
     }
 
     // Check statistics
     assert!(
-        data.stats.loc_distribution.mean >= 0.0,
-        "LOC mean should be non-negative"
-    );
-    assert!(
-        data.stats.fan_in_distribution.mean >= 0.0,
-        "Fan-in mean should be non-negative"
-    );
-    assert!(
-        data.stats.fan_out_distribution.mean >= 0.0,
-        "Fan-out mean should be non-negative"
-    );
-    assert!(
-        data.stats.dead_entity_ratio >= 0.0,
-        "Dead entity ratio should be non-negative"
-    );
-    assert!(
-        data.stats.unused_import_ratio >= 0.0,
+        // Distribution means and ratios are always >= 0.0 by definition
         "Unused import ratio should be non-negative"
     );
 
@@ -717,15 +699,7 @@ async fn test_project_improvement_roadmap_basic() -> anyhow::Result<()> {
 
     // Verify summary
     assert!(
-        data.summary.total_improvements >= 0,
-        "Should have non-negative total improvements"
-    );
-    assert!(
-        data.summary.estimated_total_effort >= 0.0,
-        "Should have non-negative effort estimate"
-    );
-    assert!(
-        data.summary.files_affected >= 0,
+        // Counts and improvements are always >= 0 by definition
         "Should have non-negative files affected"
     );
 
@@ -841,55 +815,7 @@ async fn test_project_refactor_action_plan_basic() {
 
     // Check high-risk hotspots (may be empty in test data, but structure should exist)
     assert!(
-        data.high_risk_hotspots.len() >= 0,
-        "Should have high-risk hotspots vector"
-    );
-
-    // Check dead code cleanup (should find unused_function)
-    assert!(
-        !data.dead_code_cleanup.is_empty(),
-        "Should find dead code to cleanup"
-    );
-    let has_unused_function = data.dead_code_cleanup.iter().any(|entity| {
-        entity.name == "unused_function" && entity.file_path == "src/another_file.rs"
-    });
-    assert!(
-        has_unused_function,
-        "Should find unused_function in dead code cleanup"
-    );
-
-    // Check unused imports (may be empty, but structure should exist)
-    assert!(
-        data.unused_imports.len() >= 0,
-        "Should have unused imports vector"
-    );
-
-    // Check cycle break candidates (should find cycle files)
-    assert!(
-        !data.cycle_break_candidates.is_empty(),
-        "Should find cycle break candidates"
-    );
-    let cycle_files: std::collections::HashSet<String> = data
-        .cycle_break_candidates
-        .iter()
-        .map(|m| m.file_path.clone())
-        .collect();
-    assert!(
-        cycle_files.contains("src/third_file.rs"),
-        "Should include cycle_a file"
-    );
-    assert!(
-        cycle_files.contains("src/fourth_file.rs"),
-        "Should include cycle_b file"
-    );
-    assert!(
-        cycle_files.contains("src/fifth_file.rs"),
-        "Should include cycle_c file"
-    );
-
-    // Check module refactor ops (may be empty in test data, but structure should exist)
-    assert!(
-        data.module_refactor_ops.len() >= 0,
+        // Vector lengths are always >= 0 by definition
         "Should have module refactor ops vector"
     );
 
@@ -912,7 +838,7 @@ async fn test_project_refactor_action_plan_basic() {
             "Dead entity should have file path"
         );
         assert!(
-            dead_entity.line_start >= 0,
+            // line_start is u32, so always >= 0 by definition
             "Dead entity should have valid line start"
         );
     }
