@@ -36,7 +36,7 @@ fn test_toon_controller_max_context_tokens() {
     // Test ToonController with max_context_tokens
     let max_tokens = 1000;
     let graph = ToonGraph::new();
-    let memory = Arc::new(Mutex::new(MemoryService::new(128, 10)));
+    let memory = Arc::new(Mutex::new(MemoryService::new(128, 10));
     let controller = ToonController::new(graph, memory, max_tokens);
 
     assert_eq!(
