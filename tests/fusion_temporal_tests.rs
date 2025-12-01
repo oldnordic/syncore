@@ -14,10 +14,7 @@ fn test_fusion_only_vector() -> Result<()> {
     let fusion = FusionSimple::default();
     let result = fusion.combine(1.0, 0.0, 0.0, 0.0);
 
-    assert!(
-        (result - 0.65).abs() < 0.001,
-        "Pure vector score should be 0.65"
-    );
+    assert!((result - 0.65).abs() < 0.001, "Pure vector score should be 0.65");
     Ok(())
 }
 
@@ -28,20 +25,14 @@ fn test_fusion_only_graph() -> Result<()> {
     let fusion = FusionSimple::default();
     let result = fusion.combine(0.0, 1.0, 0.0, 0.0);
 
-    assert!(
-        (result - 0.25).abs() < 0.001,
-        "Pure graph score should be 0.25"
-    );
+    assert!((result - 0.25).abs() < 0.001, "Pure graph score should be 0.25");
     Ok(())
 }
 
 #[test]
 fn test_fusion_temporal_recency_increases_score() -> Result<()> {
     // Test that recent files get higher scores than old files
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
 
     // Recent file (modified today)
     let recent_score = compute_temporal_score(now, 10, 1);
@@ -54,14 +45,8 @@ fn test_fusion_temporal_recency_increases_score() -> Result<()> {
         recent_score > old_score,
         "Recent file should have higher temporal score than old file"
     );
-    assert!(
-        recent_score > 0.5,
-        "Recent file should have temporal score > 0.5"
-    );
-    assert!(
-        old_score < 0.3,
-        "2-year-old file should have temporal score < 0.3"
-    );
+    assert!(recent_score > 0.5, "Recent file should have temporal score > 0.5");
+    assert!(old_score < 0.3, "2-year-old file should have temporal score < 0.3");
 
     Ok(())
 }
@@ -69,10 +54,7 @@ fn test_fusion_temporal_recency_increases_score() -> Result<()> {
 #[test]
 fn test_fusion_temporal_churn_increases_score() -> Result<()> {
     // Test that high-churn files get higher scores than low-churn files
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
 
     // High churn: 50 commits
     let high_churn = compute_temporal_score(now, 50, 1);
@@ -110,10 +92,7 @@ fn test_fusion_end_to_end_rag_query() -> Result<()> {
     );
 
     // Verify all components contribute
-    assert!(
-        combined > vector * 0.65,
-        "Temporal and graph should boost score"
-    );
+    assert!(combined > vector * 0.65, "Temporal and graph should boost score");
 
     Ok(())
 }
@@ -126,28 +105,19 @@ fn test_fusion_clamps_score() -> Result<()> {
     // Test upper clamp (scores > 1.0 should be clamped to 1.0)
     let result_high = fusion.combine(1.2, 1.5, 1.8, 2.0);
     assert!(result_high <= 1.0, "Score should be clamped to 1.0");
-    assert!(
-        result_high >= 0.95,
-        "Clamping should preserve near-1.0 values"
-    );
+    assert!(result_high >= 0.95, "Clamping should preserve near-1.0 values");
 
     // Test lower clamp (negative scores should be clamped to 0.0)
     let result_low = fusion.combine(0.0, 0.0, 0.0, 0.0);
     assert!(result_low >= 0.0, "Score should never be negative");
-    assert!(
-        result_low < 0.01,
-        "All-zero inputs should give near-zero score"
-    );
+    assert!(result_low < 0.01, "All-zero inputs should give near-zero score");
 
     Ok(())
 }
 
 #[test]
 fn test_temporal_score_boundary_conditions() -> Result<()> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
 
     // Test 1: Brand new file (created now, 1 commit)
     let new_file = compute_temporal_score(now, 1, 1);
@@ -156,18 +126,12 @@ fn test_temporal_score_boundary_conditions() -> Result<()> {
     // Test 2: Ancient file (5 years old, 1 commit)
     let ancient = now - (5 * 365 * 24 * 3600);
     let ancient_file = compute_temporal_score(ancient, 1, 1);
-    assert!(
-        ancient_file < 0.3,
-        "Ancient file should have low temporal score"
-    );
+    assert!(ancient_file < 0.3, "Ancient file should have low temporal score");
 
     // Test 3: Active old file (2 years old, 100 commits)
     let two_years = now - (2 * 365 * 24 * 3600);
     let active_old = compute_temporal_score(two_years, 100, 5);
-    assert!(
-        active_old > 0.3,
-        "Active old file should maintain decent score due to churn"
-    );
+    assert!(active_old > 0.3, "Active old file should maintain decent score due to churn");
 
     Ok(())
 }

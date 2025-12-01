@@ -195,10 +195,8 @@ pub async fn build_reasoning_continuity(
 
     // Generate summary
     if !continuity.episodes.is_empty() {
-        continuity.summary = Some(format!(
-            "Found {} relevant past reasoning episodes",
-            continuity.episodes.len()
-        ));
+        continuity.summary =
+            Some(format!("Found {} relevant past reasoning episodes", continuity.episodes.len()));
     }
 
     Ok(continuity)
@@ -222,9 +220,8 @@ pub async fn persist_current_episode(
     neo4j: Option<&Neo4jClient>,
 ) -> Result<()> {
     // Generate episode ID (timestamp-based for uniqueness)
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs() as i64;
+    let timestamp =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
 
     let episode_id = timestamp;
 
@@ -245,10 +242,7 @@ pub async fn persist_current_episode(
         id: episode_id,
         timestamp,
         user_query: enriched.query.clone(),
-        selected_mode: enriched
-            .selected_mode
-            .clone()
-            .unwrap_or_else(|| "unknown".to_string()),
+        selected_mode: enriched.selected_mode.clone().unwrap_or_else(|| "unknown".to_string()),
         important_entities,
         tool_calls: tool_calls.to_vec(),
         outcome: outcome.to_string(),

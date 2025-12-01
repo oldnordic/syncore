@@ -160,10 +160,7 @@ mod tests {
         let general_ptr = Arc::as_ptr(&service.general_store());
 
         // Stores must be different instances
-        assert_ne!(
-            code_ptr, general_ptr,
-            "CODE and GENERAL stores must be separate"
-        );
+        assert_ne!(code_ptr, general_ptr, "CODE and GENERAL stores must be separate");
     }
 
     #[test]
@@ -193,30 +190,20 @@ mod tests {
     fn test_dual_service_embed_code_domain() {
         let service = DualEmbeddingService::new().unwrap();
 
-        let embedding = service
-            .embed("fn main() {}", EmbeddingDomain::Code)
-            .unwrap();
+        let embedding = service.embed("fn main() {}", EmbeddingDomain::Code).unwrap();
 
         assert_eq!(embedding.len(), 384);
-        assert!(
-            embedding.iter().any(|&x| x != 0.0),
-            "Embedding should not be all zeros"
-        );
+        assert!(embedding.iter().any(|&x| x != 0.0), "Embedding should not be all zeros");
     }
 
     #[test]
     fn test_dual_service_embed_general_domain() {
         let service = DualEmbeddingService::new().unwrap();
 
-        let embedding = service
-            .embed("This is a document", EmbeddingDomain::General)
-            .unwrap();
+        let embedding = service.embed("This is a document", EmbeddingDomain::General).unwrap();
 
         assert_eq!(embedding.len(), 384);
-        assert!(
-            embedding.iter().any(|&x| x != 0.0),
-            "Embedding should not be all zeros"
-        );
+        assert!(embedding.iter().any(|&x| x != 0.0), "Embedding should not be all zeros");
     }
 
     #[test]
@@ -229,10 +216,7 @@ mod tests {
         let code_ptr = Arc::as_ptr(&code_store);
         let general_ptr = Arc::as_ptr(&general_store);
 
-        assert_ne!(
-            code_ptr, general_ptr,
-            "Domain routing must return different stores"
-        );
+        assert_ne!(code_ptr, general_ptr, "Domain routing must return different stores");
     }
 
     #[test]
@@ -246,14 +230,8 @@ mod tests {
         let service =
             DualEmbeddingService::with_configs(code_cfg.clone(), general_cfg.clone()).unwrap();
 
-        assert_eq!(
-            service.config(EmbeddingDomain::Code).index_path,
-            "custom_code.index"
-        );
-        assert_eq!(
-            service.config(EmbeddingDomain::General).index_path,
-            "custom_general.index"
-        );
+        assert_eq!(service.config(EmbeddingDomain::Code).index_path, "custom_code.index");
+        assert_eq!(service.config(EmbeddingDomain::General).index_path, "custom_general.index");
     }
 
     #[test]

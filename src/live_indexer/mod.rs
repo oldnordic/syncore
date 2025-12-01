@@ -82,9 +82,8 @@ impl LiveIndexer {
     /// Start the live indexer background task
     pub async fn start(&self) -> Result<JoinHandle<()>> {
         let mut components_lock = self.components.lock().unwrap();
-        let components = components_lock
-            .take()
-            .ok_or_else(|| anyhow::anyhow!("LiveIndexer already started"))?;
+        let components =
+            components_lock.take().ok_or_else(|| anyhow::anyhow!("LiveIndexer already started"))?;
 
         let mut shutdown_rx_lock = self.shutdown_rx.lock().unwrap();
         let shutdown_rx = shutdown_rx_lock

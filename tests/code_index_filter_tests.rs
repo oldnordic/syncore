@@ -51,9 +51,7 @@ fn test_should_index_path_excludes_target_root() {
 /// Test: should_index_path returns false for absolute paths with target/
 #[test]
 fn test_should_index_path_excludes_absolute_target_path() {
-    assert!(!should_index_path(
-        "/home/user/project/target/debug/build/foo.rs"
-    ));
+    assert!(!should_index_path("/home/user/project/target/debug/build/foo.rs"));
 }
 
 /// Test: should_index_path returns false for Node.js artifacts
@@ -64,9 +62,7 @@ fn test_should_index_path_excludes_node_modules() {
 
 #[test]
 fn test_should_index_path_excludes_nested_node_modules() {
-    assert!(!should_index_path(
-        "packages/app/node_modules/react/index.js"
-    ));
+    assert!(!should_index_path("packages/app/node_modules/react/index.js"));
 }
 
 /// Test: should_index_path returns false for version control
@@ -88,9 +84,7 @@ fn test_should_index_path_excludes_pycache() {
 
 #[test]
 fn test_should_index_path_excludes_venv() {
-    assert!(!should_index_path(
-        ".venv/lib/python3.11/site-packages/module.py"
-    ));
+    assert!(!should_index_path(".venv/lib/python3.11/site-packages/module.py"));
 }
 
 #[test]
@@ -173,9 +167,7 @@ fn test_should_index_path_excludes_java_target() {
 /// Test: C/C++ build artifacts
 #[test]
 fn test_should_index_path_excludes_cmake_build() {
-    assert!(!should_index_path(
-        "cmake-build-debug/CMakeFiles/main.cpp.o"
-    ));
+    assert!(!should_index_path("cmake-build-debug/CMakeFiles/main.cpp.o"));
 }
 
 /// Test: Coverage and test output

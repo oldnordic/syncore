@@ -37,22 +37,13 @@ fn test_stub_executes_code_semantic_search_steps_in_order() {
     assert_eq!(steps.len(), 3, "Should execute 3 steps");
 
     assert_eq!(steps[0].tool_name, "mapping_search");
-    assert_eq!(
-        steps[0].params["query"],
-        "find async message bus implementation"
-    );
+    assert_eq!(steps[0].params["query"], "find async message bus implementation");
 
     assert_eq!(steps[1].tool_name, "code_search");
-    assert_eq!(
-        steps[1].params["query"],
-        "find async message bus implementation"
-    );
+    assert_eq!(steps[1].params["query"], "find async message bus implementation");
 
     assert_eq!(steps[2].tool_name, "vector_search");
-    assert_eq!(
-        steps[2].params["query"],
-        "find async message bus implementation"
-    );
+    assert_eq!(steps[2].params["query"], "find async message bus implementation");
     assert_eq!(steps[2].params["limit"], 5);
 }
 
@@ -205,10 +196,7 @@ fn test_stub_detects_missing_fields() {
     assert!(result.is_err(), "Should detect missing query field");
 
     let error_msg = result.unwrap_err().to_string();
-    assert!(
-        error_msg.contains("query"),
-        "Error should mention missing field"
-    );
+    assert!(error_msg.contains("query"), "Error should mention missing field");
 }
 
 // ============================================================================
@@ -394,8 +382,5 @@ fn test_stub_performs_no_real_io() {
     assert!(!stub.performed_neo4j_io(), "Should not perform Neo4j I/O");
     assert!(!stub.performed_vector_io(), "Should not perform vector I/O");
     assert!(!stub.performed_file_io(), "Should not perform file I/O");
-    assert!(
-        !stub.performed_network_io(),
-        "Should not perform network I/O"
-    );
+    assert!(!stub.performed_network_io(), "Should not perform network I/O");
 }

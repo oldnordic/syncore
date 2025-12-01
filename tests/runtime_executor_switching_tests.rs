@@ -12,12 +12,10 @@ use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
 /// Helper to create test state
+#[allow(deprecated)]
 fn create_test_state() -> Arc<SynCoreState> {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_executor_switch_{}", timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");

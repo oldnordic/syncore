@@ -182,9 +182,7 @@ impl ProjectAnalysisEngine {
         let unused_imports_data = self.get_unused_imports_analysis(limit).await?;
         let refactor_suggestions = self.get_refactor_suggestions(limit).await?;
         let cycles_data = self.get_cycles_analysis(limit).await?;
-        let hotspots_data = self
-            .get_hotspots_analysis(hotspot_loc_threshold, limit)
-            .await?;
+        let hotspots_data = self.get_hotspots_analysis(hotspot_loc_threshold, limit).await?;
 
         // Convert to improvement items
         let mut improvements = Vec::new();
@@ -363,11 +361,7 @@ impl ProjectAnalysisEngine {
         // Process cycles
         for (i, cycle) in cycles_data.cycles.iter().enumerate() {
             // Calculate risk score for the first file in the cycle
-            let first_file = cycle
-                .files
-                .first()
-                .unwrap_or(&"unknown".to_string())
-                .clone();
+            let first_file = cycle.files.first().unwrap_or(&"unknown".to_string()).clone();
 
             let hotspot_score = hotspots_data
                 .iter()
@@ -488,11 +482,9 @@ impl ProjectAnalysisEngine {
         improvements.sort_by(|a, b| {
             let ratio_a = a.impact as f32 / a.effort as f32;
             let ratio_b = b.impact as f32 / b.effort as f32;
-            b.priority.cmp(&a.priority).then_with(|| {
-                ratio_b
-                    .partial_cmp(&ratio_a)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+            b.priority
+                .cmp(&a.priority)
+                .then_with(|| ratio_b.partial_cmp(&ratio_a).unwrap_or(std::cmp::Ordering::Equal))
         });
 
         // Create category breakdown
@@ -563,12 +555,8 @@ impl ProjectAnalysisEngine {
         let mut affected_files = std::collections::HashSet::new();
 
         for improvement in &improvements {
-            *by_priority
-                .entry(format!("{:?}", improvement.priority))
-                .or_insert(0) += 1;
-            *by_type
-                .entry(format!("{:?}", improvement.improvement_type))
-                .or_insert(0) += 1;
+            *by_priority.entry(format!("{:?}", improvement.priority)).or_insert(0) += 1;
+            *by_type.entry(format!("{:?}", improvement.improvement_type)).or_insert(0) += 1;
             total_effort += improvement.effort as f32 * 0.5; // Assume 0.5 hours per effort point
             affected_files.insert(&improvement.file_path);
         }
@@ -576,9 +564,7 @@ impl ProjectAnalysisEngine {
         // Get total Clippy warning count
         let clippy_warning_count = {
             let diagnostics = DiagnosticsManager::new(Arc::clone(self.db_manager()));
-            diagnostics
-                .count_diagnostics_for_tool("clippy")
-                .unwrap_or(0) as u32
+            diagnostics.count_diagnostics_for_tool("clippy").unwrap_or(0) as u32
         };
 
         let summary = RoadmapSummary {
@@ -652,7 +638,9 @@ impl ProjectAnalysisEngine {
 
         match self.cycles(request).await {
             Ok(response) if response.ok && response.data.is_some() => Ok(response.data.unwrap()),
-            _ => Ok(CyclesData { cycles: Vec::new() }),
+            _ => Ok(CyclesData {
+                cycles: Vec::new(),
+            }),
         }
     }
 

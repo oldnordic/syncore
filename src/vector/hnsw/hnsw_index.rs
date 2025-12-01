@@ -223,11 +223,7 @@ impl VectorIndex for HnswVectorIndex {
         let current_dim = **self.dimension.load();
         if let Some(expected_dim) = current_dim {
             if dim != expected_dim {
-                return Err(anyhow!(
-                    "Dimension mismatch: expected {}, got {}",
-                    expected_dim,
-                    dim
-                ));
+                return Err(anyhow!("Dimension mismatch: expected {}, got {}", expected_dim, dim));
             }
         } else {
             // Initialize HNSW on first insertion
@@ -268,9 +264,7 @@ impl VectorIndex for HnswVectorIndex {
             return Ok(Vec::new());
         }
 
-        let hnsw = (**hnsw_arc)
-            .as_ref()
-            .ok_or_else(|| anyhow!("HNSW not initialized"))?;
+        let hnsw = (**hnsw_arc).as_ref().ok_or_else(|| anyhow!("HNSW not initialized"))?;
 
         // Lazily infer dimension from query if not set
         let dim_arc = self.dimension.load();

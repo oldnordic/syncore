@@ -23,10 +23,7 @@ fn callee() {
     let edges = extractor.extract_edges(source, "test.rs")?;
 
     // Should find 1 call edge: caller -> callee
-    let call_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == EdgeType::Calls)
-        .collect();
+    let call_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == EdgeType::Calls).collect();
 
     assert_eq!(call_edges.len(), 1, "Should find exactly 1 call edge");
     assert_eq!(call_edges[0].source_name, "caller");
@@ -53,10 +50,7 @@ fn baz() {}
 
     let edges = extractor.extract_edges(source, "test.rs")?;
 
-    let call_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == EdgeType::Calls)
-        .collect();
+    let call_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == EdgeType::Calls).collect();
 
     // main() calls foo(), bar(), baz()
     assert_eq!(call_edges.len(), 3, "Should find 3 call edges");
@@ -87,10 +81,7 @@ impl MyTrait for MyType {
 
     let edges = extractor.extract_edges(source, "test.rs")?;
 
-    let impl_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == EdgeType::Implements)
-        .collect();
+    let impl_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == EdgeType::Implements).collect();
 
     assert_eq!(impl_edges.len(), 1, "Should find 1 implements edge");
     assert_eq!(impl_edges[0].source_name, "MyType");
@@ -117,16 +108,10 @@ fn process(p: Point) {
 
     let edges = extractor.extract_edges(source, "test.rs")?;
 
-    let field_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == EdgeType::UsesField)
-        .collect();
+    let field_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == EdgeType::UsesField).collect();
 
     // Should find 2 field accesses: p.x, p.y
-    assert!(
-        field_edges.len() >= 2,
-        "Should find at least 2 field access edges"
-    );
+    assert!(field_edges.len() >= 2, "Should find at least 2 field access edges");
 
     let fields: Vec<_> = field_edges.iter().map(|e| e.target_name.as_str()).collect();
     assert!(fields.contains(&"x"));
@@ -149,16 +134,10 @@ fn process(x: MyType) -> Option<MyType> {
 
     let edges = extractor.extract_edges(source, "test.rs")?;
 
-    let type_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == EdgeType::UsesType)
-        .collect();
+    let type_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == EdgeType::UsesType).collect();
 
     // Function 'process' uses MyType and Option
-    assert!(
-        type_edges.len() >= 1,
-        "Should find at least 1 type usage edge"
-    );
+    assert!(type_edges.len() >= 1, "Should find at least 1 type usage edge");
 
     let types: Vec<_> = type_edges.iter().map(|e| e.target_name.as_str()).collect();
     assert!(

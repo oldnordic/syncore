@@ -32,7 +32,9 @@ impl McpServer {
 
         let relationship_tools = CodeRelationshipTools::new(&db_path).await?;
 
-        Ok(Self { relationship_tools })
+        Ok(Self {
+            relationship_tools,
+        })
     }
 
     /// Subscribe to events from the server
@@ -45,22 +47,16 @@ impl McpServer {
 
     /// Index a source file for code relationships
     pub async fn handle_code_relationship_index(&self, params: Value) -> Result<Value> {
-        self.relationship_tools
-            .handle_code_relationship_index(params)
-            .await
+        self.relationship_tools.handle_code_relationship_index(params).await
     }
 
     /// Query code relationships (imports, calls, implementors)
     pub async fn handle_code_relationship_query(&self, params: Value) -> Result<Value> {
-        self.relationship_tools
-            .handle_code_relationship_query(params)
-            .await
+        self.relationship_tools.handle_code_relationship_query(params).await
     }
 
     /// Search for semantically similar functions
     pub async fn handle_code_similarity_search(&self, params: Value) -> Result<Value> {
-        self.relationship_tools
-            .handle_code_similarity_search(params)
-            .await
+        self.relationship_tools.handle_code_similarity_search(params).await
     }
 }

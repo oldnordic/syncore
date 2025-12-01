@@ -34,29 +34,19 @@ fn broken() {
     std::fs::write(&test_file, bad_code).expect("Failed to write test file");
 
     // Start LSP bridge
-    let mut bridge = LspBridge::try_start(root, "rust")
-        .await
-        .expect("Failed to start bridge");
+    let mut bridge = LspBridge::try_start(root, "rust").await.expect("Failed to start bridge");
 
     assert_eq!(bridge.status(), LspStatus::Ready);
 
     // Send didOpen notification
-    bridge
-        .send_did_open(&test_file, bad_code)
-        .await
-        .expect("Failed to send didOpen");
+    bridge.send_did_open(&test_file, bad_code).await.expect("Failed to send didOpen");
 
     // Wait for diagnostic (with timeout)
     let diagnostic_result = timeout(Duration::from_secs(10), bridge.recv_diagnostic()).await;
 
-    assert!(
-        diagnostic_result.is_ok(),
-        "Should receive diagnostic within timeout"
-    );
+    assert!(diagnostic_result.is_ok(), "Should receive diagnostic within timeout");
 
-    let diagnostic = diagnostic_result
-        .unwrap()
-        .expect("Should receive at least one diagnostic");
+    let diagnostic = diagnostic_result.unwrap().expect("Should receive at least one diagnostic");
 
     // Verify diagnostic properties
     assert!(
@@ -65,16 +55,10 @@ fn broken() {
         diagnostic.path
     );
 
-    assert!(
-        !diagnostic.message.is_empty(),
-        "Diagnostic message should not be empty"
-    );
+    assert!(!diagnostic.message.is_empty(), "Diagnostic message should not be empty");
 
     // rust-analyzer typically reports errors as severity 1 (Error)
-    assert!(
-        diagnostic.severity.is_some(),
-        "Diagnostic should have severity"
-    );
+    assert!(diagnostic.severity.is_some(), "Diagnostic should have severity");
 }
 
 // ============================================================================
@@ -110,9 +94,7 @@ fn broken() {
     std::fs::write(&invalid_file, invalid_code).expect("Failed to write invalid file");
 
     // Start LSP bridge
-    let mut bridge = LspBridge::try_start(root, "rust")
-        .await
-        .expect("Failed to start bridge");
+    let mut bridge = LspBridge::try_start(root, "rust").await.expect("Failed to start bridge");
 
     assert_eq!(bridge.status(), LspStatus::Ready);
 
@@ -142,20 +124,13 @@ fn broken() {
     }
 
     // Should have at least one diagnostic for the invalid file
-    assert!(
-        !received_diagnostics.is_empty(),
-        "Should receive diagnostics for invalid file"
-    );
+    assert!(!received_diagnostics.is_empty(), "Should receive diagnostics for invalid file");
 
     // Check that diagnostics are associated with correct path
-    let has_invalid_file_diagnostic = received_diagnostics
-        .iter()
-        .any(|d| d.path.ends_with("invalid.rs"));
+    let has_invalid_file_diagnostic =
+        received_diagnostics.iter().any(|d| d.path.ends_with("invalid.rs"));
 
-    assert!(
-        has_invalid_file_diagnostic,
-        "Should have diagnostic for invalid.rs"
-    );
+    assert!(has_invalid_file_diagnostic, "Should have diagnostic for invalid.rs");
 
     // Optionally: verify no diagnostics for valid file
     // (though rust-analyzer may send empty diagnostics to clear previous errors)

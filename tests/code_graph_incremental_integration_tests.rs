@@ -97,18 +97,12 @@ async fn test_full_fw_ip_cg_pipeline_new_file() -> anyhow::Result<()> {
     // Apply update through pipeline
     let affected = apply_pipeline_update(&mut pipeline.updater, fs_event, delta)?;
 
-    assert!(
-        affected > 0,
-        "Expected at least one graph entity to be affected for new file"
-    );
+    assert!(affected > 0, "Expected at least one graph entity to be affected for new file");
 
     // Query CodeGraph to verify entities exist
     let entities = pipeline.updater.query_entities_by_path(&file_path)?;
 
-    assert!(
-        !entities.is_empty(),
-        "Should have at least one entity for new_file.rs"
-    );
+    assert!(!entities.is_empty(), "Should have at least one entity for new_file.rs");
 
     assert!(
         entities.iter().any(|e| e.name == "new_function"),
@@ -165,10 +159,7 @@ async fn test_full_fw_ip_cg_pipeline_modify_file() -> anyhow::Result<()> {
 
     let affected = apply_pipeline_update(&mut pipeline.updater, modified_event, modified_delta)?;
 
-    assert!(
-        affected > 0,
-        "Expected at least one graph entity to be affected for modified file"
-    );
+    assert!(affected > 0, "Expected at least one graph entity to be affected for modified file");
 
     // Query CodeGraph to verify changes
     let entities_after = pipeline.updater.query_entities_by_path(&file_path)?;
@@ -214,10 +205,7 @@ async fn test_full_fw_ip_cg_pipeline_delete_file() -> anyhow::Result<()> {
 
     // Verify entity exists
     let entities_before = pipeline.updater.query_entities_by_path(&file_path)?;
-    assert!(
-        !entities_before.is_empty(),
-        "Should have entities before delete"
-    );
+    assert!(!entities_before.is_empty(), "Should have entities before delete");
 
     // THEN: delete the file
     fs::remove_file(&file_path)?;
@@ -227,18 +215,12 @@ async fn test_full_fw_ip_cg_pipeline_delete_file() -> anyhow::Result<()> {
     // For delete, ParseDelta is None (file no longer exists to parse)
     let affected = apply_pipeline_update(&mut pipeline.updater, removed_event, None)?;
 
-    assert!(
-        affected >= 0,
-        "Expected apply_update not to panic for deleted file event"
-    );
+    assert!(affected >= 0, "Expected apply_update not to panic for deleted file event");
 
     // Query CodeGraph to assert no entities remain
     let entities_after = pipeline.updater.query_entities_by_path(&file_path)?;
 
-    assert!(
-        entities_after.is_empty(),
-        "Should have no entities after delete"
-    );
+    assert!(entities_after.is_empty(), "Should have no entities after delete");
 
     Ok(())
 }

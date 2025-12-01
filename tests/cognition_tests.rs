@@ -3,11 +3,8 @@ use syncore::cognition::{CogState, CogStep, Task};
 
 #[test]
 fn test_cog_step_creation_and_serialization() {
-    let step = CogStep::new(
-        CogState::Think,
-        "I need to optimize the SIMD path".to_string(),
-        Some(42),
-    );
+    let step =
+        CogStep::new(CogState::Think, "I need to optimize the SIMD path".to_string(), Some(42));
 
     // Test serialization
     let serialized = rmp_serde::to_vec(&step).unwrap();
@@ -43,21 +40,9 @@ fn test_cognitive_state_sequence() {
         "Analyze performance bottleneck".to_string(),
         Some(1),
     ));
-    steps.push(CogStep::new(
-        CogState::Decide,
-        "Implement fused kernel".to_string(),
-        Some(1),
-    ));
-    steps.push(CogStep::new(
-        CogState::Act,
-        "Wrote fused SIMD implementation".to_string(),
-        Some(1),
-    ));
-    steps.push(CogStep::new(
-        CogState::Observe,
-        "Speedup measured: 1.9x".to_string(),
-        Some(1),
-    ));
+    steps.push(CogStep::new(CogState::Decide, "Implement fused kernel".to_string(), Some(1)));
+    steps.push(CogStep::new(CogState::Act, "Wrote fused SIMD implementation".to_string(), Some(1)));
+    steps.push(CogStep::new(CogState::Observe, "Speedup measured: 1.9x".to_string(), Some(1)));
     steps.push(CogStep::new(
         CogState::Reflect,
         "Goal achieved, task complete".to_string(),

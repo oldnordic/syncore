@@ -96,10 +96,7 @@ fn test_graph_bert_strategy_respects_graph_features() {
     features_rich.degree_out = 20;
     let emb_rich = model.embed_with_graph(&code_emb, &features_rich);
 
-    assert_ne!(
-        emb_empty, emb_rich,
-        "Graph features must influence embedding"
-    );
+    assert_ne!(emb_empty, emb_rich, "Graph features must influence embedding");
 }
 
 #[test]
@@ -126,11 +123,7 @@ fn test_graph_embedding_service_uses_graph_bert_when_enabled() {
     let features = GraphFeatures::empty();
 
     let graph_emb = graph_bert.embed_with_graph(&code_emb, &features);
-    assert_eq!(
-        graph_emb.len(),
-        384,
-        "GraphBertModel produces 384-dim embeddings"
-    );
+    assert_eq!(graph_emb.len(), 384, "GraphBertModel produces 384-dim embeddings");
 }
 
 // ============================================================================
@@ -149,11 +142,7 @@ fn test_simple_feature_combiner_still_works() {
     let features = GraphFeatures::empty();
 
     let graph_emb = combiner.embed_with_graph(&code_emb, &features);
-    assert_eq!(
-        graph_emb.len(),
-        384,
-        "SimpleFeatureCombiner must still work"
-    );
+    assert_eq!(graph_emb.len(), 384, "SimpleFeatureCombiner must still work");
 }
 
 #[test]

@@ -21,10 +21,7 @@ use std::sync::Arc;
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
         Some(v) if !v.is_empty() => Ok(v),
-        _ => Err(wrap_error_static(
-            tool,
-            &format!("Missing '{}' parameter", key),
-        )),
+        _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
 
@@ -219,10 +216,8 @@ pub async fn execute_agent_register(
         "glm46" | "glm-46" | "glm4.6" => AgentId::Glm46,
         other => AgentId::Custom(other.to_string()),
     };
-    let caps: Vec<String> = capabilities
-        .iter()
-        .filter_map(|c| c.as_str().map(|s| s.to_string()))
-        .collect();
+    let caps: Vec<String> =
+        capabilities.iter().filter_map(|c| c.as_str().map(|s| s.to_string())).collect();
 
     bus.register_agent_info(agent_id.clone(), id.to_string(), caps);
 
@@ -293,9 +288,8 @@ pub async fn execute_agent_status(
         Ok(v) => v,
         Err(e) => return Ok(e),
     };
-    let status = params
-        .get("status")
-        .ok_or_else(|| anyhow::anyhow!("Missing 'status' parameter"))?;
+    let status =
+        params.get("status").ok_or_else(|| anyhow::anyhow!("Missing 'status' parameter"))?;
 
     if dry_run {
         let result = wrap_success(
@@ -349,9 +343,8 @@ pub async fn execute_agent_task(
         Ok(v) => v,
         Err(e) => return Ok(e),
     };
-    let payload = params
-        .get("payload")
-        .ok_or_else(|| anyhow::anyhow!("Missing 'payload' parameter"))?;
+    let payload =
+        params.get("payload").ok_or_else(|| anyhow::anyhow!("Missing 'payload' parameter"))?;
 
     if dry_run {
         let result = wrap_success(
@@ -426,9 +419,8 @@ pub async fn execute_agent_result(
         Ok(v) => v,
         Err(e) => return Ok(e),
     };
-    let result = params
-        .get("result")
-        .ok_or_else(|| anyhow::anyhow!("Missing 'result' parameter"))?;
+    let result =
+        params.get("result").ok_or_else(|| anyhow::anyhow!("Missing 'result' parameter"))?;
 
     if dry_run {
         let result = wrap_success(

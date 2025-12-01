@@ -35,9 +35,8 @@ async fn test_schema_initializes_without_duplicate_columns() -> Result<()> {
     let db = code_graph.db_for_testing().lock().unwrap();
 
     let mut stmt = db.prepare("PRAGMA table_info(code_entities)")?;
-    let columns: Vec<String> = stmt
-        .query_map([], |row| row.get::<_, String>(1))?
-        .collect::<Result<Vec<_>, _>>()?;
+    let columns: Vec<String> =
+        stmt.query_map([], |row| row.get::<_, String>(1))?.collect::<Result<Vec<_>, _>>()?;
 
     // Count 'summary' columns - should be 0
     let summary_count = columns.iter().filter(|c| c == &"summary").count();
@@ -62,9 +61,8 @@ async fn test_schema_fields_match_expected_columns() -> Result<()> {
     // Query pragma table_info for code_entities
     let db = code_graph.db_for_testing().lock().unwrap();
     let mut stmt = db.prepare("PRAGMA table_info(code_entities)")?;
-    let columns: Vec<String> = stmt
-        .query_map([], |row| row.get::<_, String>(1))?
-        .collect::<Result<Vec<_>, _>>()?;
+    let columns: Vec<String> =
+        stmt.query_map([], |row| row.get::<_, String>(1))?.collect::<Result<Vec<_>, _>>()?;
 
     // Expected columns based on CodeEntity struct
     let expected_columns = vec![
@@ -87,11 +85,7 @@ async fn test_schema_fields_match_expected_columns() -> Result<()> {
 
     // Check all expected columns exist
     for expected in &expected_columns {
-        assert!(
-            columns.contains(&expected.to_string()),
-            "Missing expected column: {}",
-            expected
-        );
+        assert!(columns.contains(&expected.to_string()), "Missing expected column: {}", expected);
     }
 
     // Check no duplicate columns
@@ -121,9 +115,8 @@ async fn test_schema_migration_idempotent() -> Result<()> {
     // Get column count after first initialization
     let db1 = code_graph1.db_for_testing().lock().unwrap();
     let mut stmt1 = db1.prepare("PRAGMA table_info(code_entities)")?;
-    let columns_first: Vec<String> = stmt1
-        .query_map([], |row| row.get::<_, String>(1))?
-        .collect::<Result<Vec<_>, _>>()?;
+    let columns_first: Vec<String> =
+        stmt1.query_map([], |row| row.get::<_, String>(1))?.collect::<Result<Vec<_>, _>>()?;
     drop(stmt1);
     drop(db1);
     drop(code_graph1);
@@ -136,9 +129,8 @@ async fn test_schema_migration_idempotent() -> Result<()> {
     // Get column count after second initialization
     let db2 = code_graph2.db_for_testing().lock().unwrap();
     let mut stmt2 = db2.prepare("PRAGMA table_info(code_entities)")?;
-    let columns_second: Vec<String> = stmt2
-        .query_map([], |row| row.get::<_, String>(1))?
-        .collect::<Result<Vec<_>, _>>()?;
+    let columns_second: Vec<String> =
+        stmt2.query_map([], |row| row.get::<_, String>(1))?.collect::<Result<Vec<_>, _>>()?;
 
     // Verify second run didn't add duplicate columns
     assert_eq!(

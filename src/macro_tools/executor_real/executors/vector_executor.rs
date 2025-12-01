@@ -13,10 +13,7 @@ use std::sync::Arc;
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
         Some(v) if !v.is_empty() => Ok(v),
-        _ => Err(wrap_error_static(
-            tool,
-            &format!("Missing '{}' parameter", key),
-        )),
+        _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
 

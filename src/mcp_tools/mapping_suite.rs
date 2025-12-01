@@ -59,7 +59,9 @@ pub struct MappingSuite {
 
 impl MappingSuite {
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Execute the suite command

@@ -147,11 +147,7 @@ impl<'a> CrossDomainValidator<'a> {
         let mut stmt = conn_lock.prepare("SELECT id, file_path, name FROM code_entities")?;
 
         let entity_rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
         })?;
 
         let mut entity_ids = HashSet::new();
@@ -161,12 +157,8 @@ impl<'a> CrossDomainValidator<'a> {
         }
 
         // Get all vector IDs from vector store
-        let vector_ids: HashSet<i64> = self
-            .vector_store
-            .get_vectors()
-            .iter()
-            .map(|(id, _, _, _)| *id)
-            .collect();
+        let vector_ids: HashSet<i64> =
+            self.vector_store.get_vectors().iter().map(|(id, _, _, _)| *id).collect();
 
         // Find missing entities (vectors without entities)
         for &vector_id in &vector_ids {
@@ -193,9 +185,8 @@ impl<'a> CrossDomainValidator<'a> {
         if let Some(_memory) = self.memory {
             // Check if embedding_id column exists
             let conn = self.db_manager.main_conn();
-            let conn_lock = conn
-                .lock()
-                .map_err(|e| anyhow::anyhow!("Failed to lock main database: {}", e))?;
+            let conn_lock =
+                conn.lock().map_err(|e| anyhow::anyhow!("Failed to lock main database: {}", e))?;
 
             // Check if embedding_id column exists
             let has_embedding_id: bool = conn_lock
@@ -212,9 +203,8 @@ impl<'a> CrossDomainValidator<'a> {
                 let mut stmt =
                     conn_lock.prepare("SELECT id, k FROM memory WHERE embedding_id IS NOT NULL")?;
 
-                let memory_rows = stmt.query_map([], |row| {
-                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-                })?;
+                let memory_rows = stmt
+                    .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?;
 
                 let mut memory_ids = HashSet::new();
                 for row_result in memory_rows {
@@ -223,12 +213,8 @@ impl<'a> CrossDomainValidator<'a> {
                 }
 
                 // Get all vector IDs from vector store
-                let vector_ids: HashSet<i64> = self
-                    .vector_store
-                    .get_vectors()
-                    .iter()
-                    .map(|(id, _, _, _)| *id)
-                    .collect();
+                let vector_ids: HashSet<i64> =
+                    self.vector_store.get_vectors().iter().map(|(id, _, _, _)| *id).collect();
 
                 // Find memory entries without vectors
                 for &memory_id in &memory_ids {
@@ -262,13 +248,14 @@ impl<'a> CrossDomainValidator<'a> {
 
         if let Some(neo4j) = self.neo4j {
             // Get SQLite entity count
-            let conn = self.db_manager.code_graph_conn();
-            let conn_lock = conn
-                .lock()
-                .map_err(|e| anyhow::anyhow!("Failed to lock code_graph database: {}", e))?;
+            let sqlite_count: i64 = {
+                let conn = self.db_manager.code_graph_conn();
+                let conn_lock = conn
+                    .lock()
+                    .map_err(|e| anyhow::anyhow!("Failed to lock code_graph database: {}", e))?;
 
-            let sqlite_count: i64 =
-                conn_lock.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
+                conn_lock.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?
+            };
 
             // Get Neo4j node count
             let neo4j_query = "MATCH (n:CodeEntity) RETURN count(n) as count";
@@ -295,8 +282,14 @@ impl<'a> CrossDomainValidator<'a> {
             }
 
             // Get SQLite edge count
-            let sqlite_edge_count: i64 =
-                conn_lock.query_row("SELECT COUNT(*) FROM code_edges", [], |row| row.get(0))?;
+            let sqlite_edge_count: i64 = {
+                let conn = self.db_manager.code_graph_conn();
+                let conn_lock = conn
+                    .lock()
+                    .map_err(|e| anyhow::anyhow!("Failed to lock code_graph database: {}", e))?;
+
+                conn_lock.query_row("SELECT COUNT(*) FROM code_edges", [], |row| row.get(0))?
+            };
 
             // Get Neo4j relationship count
             let neo4j_rel_query = "MATCH ()-[r:CODE_RELATION]->() RETURN count(r) as count";
@@ -429,11 +422,7 @@ impl<'a> CrossDomainValidator<'a> {
         )?;
 
         let entity_rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, Option<String>>(2)?))
         })?;
 
         for row_result in entity_rows {
@@ -524,11 +513,7 @@ impl<'a> CrossDomainValidator<'a> {
             conn_lock.prepare("SELECT src_entity_id, dst_entity_id, edge_type FROM code_edges")?;
 
         let edge_rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, String>(2)?,
-            ))
+            Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, String>(2)?))
         })?;
 
         for row_result in edge_rows {

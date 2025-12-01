@@ -131,17 +131,10 @@ fn main() {
             .expect("Failed to build test plugin");
 
         if !output.status.success() {
-            panic!(
-                "Failed to build test plugin: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            panic!("Failed to build test plugin: {}", String::from_utf8_lossy(&output.stderr));
         }
 
-        plugin_dir
-            .join("target/release")
-            .join(plugin_name)
-            .to_string_lossy()
-            .to_string()
+        plugin_dir.join("target/release").join(plugin_name).to_string_lossy().to_string()
     }
 
     #[test]
@@ -154,10 +147,7 @@ fn main() {
         manager.load_plugin("test_plugin").unwrap();
 
         let mut params = HashMap::new();
-        params.insert(
-            "directory".to_string(),
-            serde_json::Value::String("/test/dir".to_string()),
-        );
+        params.insert("directory".to_string(), serde_json::Value::String("/test/dir".to_string()));
 
         let result = manager.execute_plugin_task("test_plugin", "index_directory", params);
         assert!(result.is_ok(), "Should execute plugin task successfully");
@@ -235,10 +225,7 @@ fn main() {
         let params = HashMap::new();
 
         let result = manager.execute_plugin_task("nonexistent_plugin", "index_directory", params);
-        assert!(
-            result.is_err(),
-            "Should fail to execute task on nonexistent plugin"
-        );
+        assert!(result.is_err(), "Should fail to execute task on nonexistent plugin");
         assert!(matches!(result.unwrap_err(), DlrError::PluginNotFound(_)));
     }
 
@@ -253,10 +240,7 @@ fn main() {
         let params = HashMap::new();
 
         let result = manager.execute_plugin_task("test_plugin", "index_directory", params);
-        assert!(
-            result.is_err(),
-            "Should fail to execute task on unloaded plugin"
-        );
+        assert!(result.is_err(), "Should fail to execute task on unloaded plugin");
         assert!(matches!(result.unwrap_err(), DlrError::ExecutionFailed(_)));
     }
 
@@ -272,10 +256,7 @@ fn main() {
         let params = HashMap::new();
 
         let result = manager.execute_plugin_task("test_plugin", "error_task", params);
-        assert!(
-            result.is_err(),
-            "Should fail when plugin crashes during execution"
-        );
+        assert!(result.is_err(), "Should fail when plugin crashes during execution");
         assert!(matches!(
             result.unwrap_err(),
             DlrError::IpcFailed(_) | DlrError::ExecutionFailed(_) | DlrError::InvalidResponse(_)
@@ -292,18 +273,12 @@ fn main() {
         manager.load_plugin("test_plugin").unwrap();
 
         let mut params = HashMap::new();
-        params.insert(
-            "directory".to_string(),
-            serde_json::Value::String("/test/dir1".to_string()),
-        );
+        params.insert("directory".to_string(), serde_json::Value::String("/test/dir1".to_string()));
 
         let result1 = manager.execute_plugin_task("test_plugin", "index_directory", params.clone());
         assert!(result1.is_ok(), "First execution should succeed");
 
-        params.insert(
-            "directory".to_string(),
-            serde_json::Value::String("/test/dir2".to_string()),
-        );
+        params.insert("directory".to_string(), serde_json::Value::String("/test/dir2".to_string()));
 
         let result2 = manager.execute_plugin_task("test_plugin", "index_directory", params);
         assert!(result2.is_ok(), "Second execution should succeed");
@@ -314,10 +289,7 @@ fn main() {
         let dir1 = response1.get("result").unwrap().get("directory").unwrap();
         let dir2 = response2.get("result").unwrap().get("directory").unwrap();
 
-        assert_ne!(
-            dir1, dir2,
-            "Different executions should produce different results"
-        );
+        assert_ne!(dir1, dir2, "Different executions should produce different results");
     }
 
     #[test]
@@ -335,10 +307,7 @@ fn main() {
             serde_json::Value::String("/complex/path".to_string()),
         );
         params.insert("recursive".to_string(), serde_json::Value::Bool(true));
-        params.insert(
-            "file_types".to_string(),
-            serde_json::json!(["rs", "toml", "json"]),
-        );
+        params.insert("file_types".to_string(), serde_json::json!(["rs", "toml", "json"]));
         params.insert(
             "options".to_string(),
             serde_json::json!({
@@ -349,10 +318,7 @@ fn main() {
         );
 
         let result = manager.execute_plugin_task("test_plugin", "index_directory", params);
-        assert!(
-            result.is_ok(),
-            "Should execute task with complex parameters successfully"
-        );
+        assert!(result.is_ok(), "Should execute task with complex parameters successfully");
 
         let response = result.unwrap();
         assert!(response.contains_key("result"));
@@ -370,16 +336,12 @@ fn main() {
         manager.load_plugin("test_plugin").unwrap();
 
         let mut params1 = HashMap::new();
-        params1.insert(
-            "directory".to_string(),
-            serde_json::Value::String("/test/dir1".to_string()),
-        );
+        params1
+            .insert("directory".to_string(), serde_json::Value::String("/test/dir1".to_string()));
 
         let mut params2 = HashMap::new();
-        params2.insert(
-            "directory".to_string(),
-            serde_json::Value::String("/test/dir2".to_string()),
-        );
+        params2
+            .insert("directory".to_string(), serde_json::Value::String("/test/dir2".to_string()));
 
         let temp_dir_path1 = temp_dir.path().to_path_buf();
         let handle1 = std::thread::spawn(move || {
@@ -401,9 +363,6 @@ fn main() {
         let result2 = handle2.join().unwrap();
 
         assert!(result1.is_ok(), "First concurrent execution should succeed");
-        assert!(
-            result2.is_ok(),
-            "Second concurrent execution should succeed"
-        );
+        assert!(result2.is_ok(), "Second concurrent execution should succeed");
     }
 }

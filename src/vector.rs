@@ -229,9 +229,7 @@ impl RealEmbeddings {
 
     fn tokenize(&self, text: &str) -> Vec<String> {
         let re = Regex::new(r"\b\w+\b").unwrap();
-        re.find_iter(text)
-            .map(|m| m.as_str().to_lowercase())
-            .collect()
+        re.find_iter(text).map(|m| m.as_str().to_lowercase()).collect()
     }
 
     fn get_word_vector(&self, word: &str) -> Vec<f32> {
@@ -382,7 +380,9 @@ pub struct StubEmbeddings {
 
 impl StubEmbeddings {
     pub fn new(dim: usize) -> Result<Self> {
-        Ok(Self { dim })
+        Ok(Self {
+            dim,
+        })
     }
 }
 
@@ -582,10 +582,7 @@ impl std::fmt::Debug for VectorStore {
             .field("query_cache_size", &self.query_cache.read().cache.len())
             .field("embedding_cache_size", &self.embedding_cache.read().len())
             .field("fast_mode", &self.fast_mode)
-            .field(
-                "hnsw_ready",
-                &self.hnsw_ready.load(std::sync::atomic::Ordering::SeqCst),
-            )
+            .field("hnsw_ready", &self.hnsw_ready.load(std::sync::atomic::Ordering::SeqCst))
             .field("warmup_state", &self.warmup_controller.state())
             .field("pending_vectors", &self.pending_vectors.read().len())
             .field("embeddings", &"Box<dyn Embeddings>")
@@ -647,8 +644,7 @@ impl VectorStore {
     /// This should be called after every successful write operation
     /// that changes the state of the vector store.
     pub fn increment_version(&self) {
-        self.version
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.version.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Check if HNSW index is ready for fast search
@@ -692,10 +688,7 @@ impl VectorStore {
             hnsw.add(pv.id, pv.embedding)?;
         }
 
-        eprintln!(
-            "[SynCore] Flushed {} pending vectors into HNSW index",
-            count
-        );
+        eprintln!("[SynCore] Flushed {} pending vectors into HNSW index", count);
         Ok(count)
     }
 
@@ -740,16 +733,12 @@ impl VectorStore {
 
         // Store in persistent vector list
         let vector_index = self.vectors.len();
-        self.vectors
-            .push((id, task_id, embedding.clone(), text.to_string()));
+        self.vectors.push((id, task_id, embedding.clone(), text.to_string()));
 
         // Phase 7 optimization: Update task_index for O(1) task_id filtering
         if let Some(task_id_val) = task_id {
             let mut task_idx = self.task_index.write();
-            task_idx
-                .entry(task_id_val)
-                .or_insert_with(Vec::new)
-                .push(vector_index);
+            task_idx.entry(task_id_val).or_insert_with(Vec::new).push(vector_index);
         }
 
         // Insert into HNSW index or queue for later
@@ -830,9 +819,7 @@ impl VectorStore {
             } else {
                 drop(cache); // Release read lock before acquiring write lock
                 let emb = self.embeddings.embed(query)?;
-                self.embedding_cache
-                    .write()
-                    .insert(query.to_string(), emb.clone());
+                self.embedding_cache.write().insert(query.to_string(), emb.clone());
                 emb
             }
         };
@@ -924,11 +911,8 @@ impl VectorStore {
                 .collect();
 
             // Sort by similarity descending
-            scored.sort_by(|a, b| {
-                b.score
-                    .partial_cmp(&a.score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+            scored
+                .sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
             scored
         };
 
@@ -1107,10 +1091,7 @@ impl VectorStore {
         if Path::new(&vectors_path).exists() {
             let vectors_bytes = fs::read(&vectors_path)?;
             self.vectors = bincode::deserialize(&vectors_bytes)?;
-            eprintln!(
-                "[SynCore] Loaded {} vectors from snapshot",
-                self.vectors.len()
-            );
+            eprintln!("[SynCore] Loaded {} vectors from snapshot", self.vectors.len());
         } else {
             eprintln!("[SynCore] No vector snapshot found at {}", vectors_path);
             return Ok(());
@@ -1131,12 +1112,8 @@ impl VectorStore {
             if load_result.is_ok() && hnsw.len() > 0 {
                 // HNSW snapshot loaded successfully - mark as Hot
                 self.warmup_controller.mark_hot();
-                self.hnsw_ready
-                    .store(true, std::sync::atomic::Ordering::SeqCst);
-                eprintln!(
-                    "[SynCore] HNSW snapshot loaded ({} vectors) - state=Hot",
-                    hnsw.len()
-                );
+                self.hnsw_ready.store(true, std::sync::atomic::Ordering::SeqCst);
+                eprintln!("[SynCore] HNSW snapshot loaded ({} vectors) - state=Hot", hnsw.len());
                 return Ok(());
             }
 
@@ -1154,12 +1131,8 @@ impl VectorStore {
 
                 hnsw.rebuild_from_vectors(&vectors_for_rebuild)?;
                 self.warmup_controller.mark_hot();
-                self.hnsw_ready
-                    .store(true, std::sync::atomic::Ordering::SeqCst);
-                eprintln!(
-                    "[SynCore] HNSW rebuilt ({} vectors) - state=Hot",
-                    hnsw.len()
-                );
+                self.hnsw_ready.store(true, std::sync::atomic::Ordering::SeqCst);
+                eprintln!("[SynCore] HNSW rebuilt ({} vectors) - state=Hot", hnsw.len());
             }
         }
 
@@ -1220,16 +1193,11 @@ impl VectorStore {
                         "SELECT vector_id FROM code_embeddings WHERE vector_id IN ({})",
                         placeholders
                     ))?
-                    .query_map(rusqlite::params_from_iter(vector_ids.clone()), |row| {
-                        row.get(0)
-                    })?
+                    .query_map(rusqlite::params_from_iter(vector_ids.clone()), |row| row.get(0))?
                     .collect::<Result<_, _>>()?;
 
-                let invalid_ids: Vec<i64> = vector_ids
-                    .iter()
-                    .filter(|vid| !valid_ids.contains(vid))
-                    .cloned()
-                    .collect();
+                let invalid_ids: Vec<i64> =
+                    vector_ids.iter().filter(|vid| !valid_ids.contains(vid)).cloned().collect();
 
                 // If any IDs are invalid, rebuild (clear) the snapshot
                 if !invalid_ids.is_empty() {
@@ -1296,8 +1264,7 @@ impl traits::VectorIndex for VectorStore {
         }
 
         // Store vector with no task_id and empty text
-        self.vectors
-            .push((id, None, embedding.clone(), String::new()));
+        self.vectors.push((id, None, embedding.clone(), String::new()));
 
         // Clear query cache since results may have changed
         {
@@ -1332,9 +1299,7 @@ impl traits::VectorIndex for VectorStore {
 
         // Sort by similarity (descending), then by ID (ascending) for deterministic ordering
         results.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.0.cmp(&b.0))
+            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.cmp(&b.0))
         });
 
         // Take top k
@@ -1578,13 +1543,7 @@ impl USearchStore {
     /// Save index to disk
     pub fn save(&self, path: &str) -> Result<()> {
         let meta_path = format!("{}.meta", path);
-        let data = (
-            &self.vectors,
-            &self.metadata,
-            self.dimensions,
-            self.next_id,
-            &self.options,
-        );
+        let data = (&self.vectors, &self.metadata, self.dimensions, self.next_id, &self.options);
         let meta_bytes = bincode::serialize(&data)?;
         fs::write(meta_path, meta_bytes)?;
 

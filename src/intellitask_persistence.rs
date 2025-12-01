@@ -135,7 +135,9 @@ impl IntelliTaskPersistence {
             Self::ensure_schema(&conn)?;
         }
 
-        Ok(Self { db })
+        Ok(Self {
+            db,
+        })
     }
 
     /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
@@ -221,10 +223,9 @@ impl IntelliTaskPersistence {
     }
 
     fn save_parent_task(&self, db: &Connection, task: &ParentTask, prd_title: &str) -> Result<i64> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         db.execute(
             "INSERT INTO tasks (
@@ -255,10 +256,9 @@ impl IntelliTaskPersistence {
         parent_id: i64,
         prd_title: &str,
     ) -> Result<i64> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         let acceptance_json = serde_json::to_string(&subtask.acceptance_criteria)?;
         let files_json = serde_json::to_string(&subtask.files_to_modify)?;
@@ -378,11 +378,10 @@ impl IntelliTaskPersistence {
     pub fn get_subtask_statistics(&self, parent_id: i64) -> Result<SubtaskStatistics> {
         let db = self.db.lock().unwrap();
 
-        let total: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE parent_id = ?1",
-            [parent_id],
-            |row| row.get(0),
-        )?;
+        let total: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE parent_id = ?1", [parent_id], |row| {
+                row.get(0)
+            })?;
 
         let completed: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE parent_id = ?1 AND status = 'done'",
@@ -430,47 +429,38 @@ impl IntelliTaskPersistence {
 
         let total: i32 = db.query_row("SELECT COUNT(*) FROM tasks", [], |row| row.get(0))?;
 
-        let completed: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = 'done'",
-            [],
-            |row| row.get(0),
-        )?;
+        let completed: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE status = 'done'", [], |row| row.get(0))?;
 
-        let pending: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = 'pending'",
-            [],
-            |row| row.get(0),
-        )?;
+        let pending: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE status = 'pending'", [], |row| {
+                row.get(0)
+            })?;
 
-        let in_progress: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = 'in-progress'",
-            [],
-            |row| row.get(0),
-        )?;
+        let in_progress: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE status = 'in-progress'", [], |row| {
+                row.get(0)
+            })?;
 
-        let blocked: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = 'blocked'",
-            [],
-            |row| row.get(0),
-        )?;
+        let blocked: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE status = 'blocked'", [], |row| {
+                row.get(0)
+            })?;
 
-        let review: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = 'review'",
-            [],
-            |row| row.get(0),
-        )?;
+        let review: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE status = 'review'", [], |row| {
+                row.get(0)
+            })?;
 
-        let deferred: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = 'deferred'",
-            [],
-            |row| row.get(0),
-        )?;
+        let deferred: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE status = 'deferred'", [], |row| {
+                row.get(0)
+            })?;
 
-        let cancelled: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE status = 'cancelled'",
-            [],
-            |row| row.get(0),
-        )?;
+        let cancelled: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE status = 'cancelled'", [], |row| {
+                row.get(0)
+            })?;
 
         let progress_percent = if total > 0 {
             ((completed as f32 / total as f32) * 100.0) as i32
@@ -495,11 +485,10 @@ impl IntelliTaskPersistence {
     pub fn get_prd_statistics(&self, prd_title: &str) -> Result<TaskStatistics> {
         let db = self.db.lock().unwrap();
 
-        let total: i32 = db.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1",
-            [prd_title],
-            |row| row.get(0),
-        )?;
+        let total: i32 =
+            db.query_row("SELECT COUNT(*) FROM tasks WHERE prd_title = ?1", [prd_title], |row| {
+                row.get(0)
+            })?;
 
         let completed: i32 = db.query_row(
             "SELECT COUNT(*) FROM tasks WHERE prd_title = ?1 AND status = 'done'",
@@ -612,13 +601,11 @@ impl IntelliTaskPersistence {
                     prd_title: row.get(8)?,
                     dependencies: vec![], // Will be populated below
                     acceptance_criteria: serde_json::from_str(
-                        &row.get::<_, Option<String>>(9)?
-                            .unwrap_or_else(|| "[]".to_string()),
+                        &row.get::<_, Option<String>>(9)?.unwrap_or_else(|| "[]".to_string()),
                     )
                     .unwrap_or_default(),
                     files_to_modify: serde_json::from_str(
-                        &row.get::<_, Option<String>>(10)?
-                            .unwrap_or_else(|| "[]".to_string()),
+                        &row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "[]".to_string()),
                     )
                     .unwrap_or_default(),
                     created_at: row.get(11)?,
@@ -657,10 +644,9 @@ impl IntelliTaskPersistence {
     /// Update task status
     pub fn update_task_status(&self, id: i64, status: TaskStatus) -> Result<()> {
         let db = self.db.lock().unwrap();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         db.execute(
             "UPDATE tasks SET status = ?1, updated_at = ?2 WHERE id = ?3",
@@ -847,14 +833,8 @@ mod tests {
         assert_eq!(TaskStatus::InProgress.as_str(), "in-progress");
         assert_eq!(TaskStatus::Done.as_str(), "done");
 
-        assert_eq!(
-            TaskStatus::try_parse("pending").unwrap(),
-            TaskStatus::Pending
-        );
-        assert_eq!(
-            TaskStatus::try_parse("in-progress").unwrap(),
-            TaskStatus::InProgress
-        );
+        assert_eq!(TaskStatus::try_parse("pending").unwrap(), TaskStatus::Pending);
+        assert_eq!(TaskStatus::try_parse("in-progress").unwrap(), TaskStatus::InProgress);
         assert!(TaskStatus::try_parse("invalid").is_err());
     }
 
@@ -1253,10 +1233,7 @@ mod tests {
         let tasks = persistence.get_tasks(None)?;
 
         // Mark one task from PRD Two as done
-        let prd2_task = tasks
-            .iter()
-            .find(|t| t.prd_title.as_deref() == Some("PRD Two"))
-            .unwrap();
+        let prd2_task = tasks.iter().find(|t| t.prd_title.as_deref() == Some("PRD Two")).unwrap();
         persistence.update_task_status(prd2_task.id, TaskStatus::Done)?;
 
         // Get stats for PRD Two only

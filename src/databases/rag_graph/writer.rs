@@ -119,10 +119,7 @@ pub async fn delete_embedding(client: &Neo4jClient, id: i64) -> Result<()> {
     client
         .execute_query(
             query,
-            vec![
-                ("id", serde_json::json!(id)),
-                ("ns", serde_json::json!(rag_namespace(client))),
-            ],
+            vec![("id", serde_json::json!(id)), ("ns", serde_json::json!(rag_namespace(client)))],
         )
         .await?;
 

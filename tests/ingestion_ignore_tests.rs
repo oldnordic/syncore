@@ -47,12 +47,7 @@ async fn test_default_ignore_directories() {
             std::fs::write(&full_path, "test").unwrap();
         }
         let result = gic.check_boundaries(&full_path);
-        assert_eq!(
-            result,
-            BoundaryResult::Ignored,
-            "Path {} should be ignored",
-            ignore_path
-        );
+        assert_eq!(result, BoundaryResult::Ignored, "Path {} should be ignored", ignore_path);
     }
 }
 
@@ -61,11 +56,7 @@ async fn test_custom_ignore_directories() {
     let temp_dir = TempDir::new().unwrap();
     let config = IngestionConfig {
         allowed_roots: vec![temp_dir.path().to_path_buf()],
-        ignore_dirs: vec![
-            "custom".to_string(),
-            "build".to_string(),
-            "output".to_string(),
-        ],
+        ignore_dirs: vec!["custom".to_string(), "build".to_string(), "output".to_string()],
         ..Default::default()
     };
     let (gic, _main_rx, _low_prio_rx) = GlobalIngestionCoordinator::with_config(config);
@@ -90,11 +81,7 @@ async fn test_ignore_glob_patterns() {
     let temp_dir = TempDir::new().unwrap();
     let config = IngestionConfig {
         allowed_roots: vec![temp_dir.path().to_path_buf()],
-        ignore_globs: vec![
-            "*.log".to_string(),
-            "*.tmp".to_string(),
-            "test_*.rs".to_string(),
-        ],
+        ignore_globs: vec!["*.log".to_string(), "*.tmp".to_string(), "test_*.rs".to_string()],
         ..Default::default()
     };
     let (gic, _main_rx, _low_prio_rx) = GlobalIngestionCoordinator::with_config(config);
@@ -117,11 +104,7 @@ async fn test_ignore_glob_patterns() {
         } else {
             BoundaryResult::Allowed
         };
-        assert_eq!(
-            result, expected,
-            "File {} should be ignored: {}",
-            file_name, should_ignore
-        );
+        assert_eq!(result, expected, "File {} should be ignored: {}", file_name, should_ignore);
     }
 }
 
@@ -175,12 +158,7 @@ async fn test_nested_ignore_directories() {
     let (gic, _main_rx, _low_prio_rx) = GlobalIngestionCoordinator::with_config(config);
 
     // Test nested ignore directories
-    let nested_ignored = temp_dir
-        .path()
-        .join("target")
-        .join("debug")
-        .join("deps")
-        .join("lib.rlib");
+    let nested_ignored = temp_dir.path().join("target").join("debug").join("deps").join("lib.rlib");
 
     std::fs::create_dir_all(nested_ignored.parent().unwrap()).unwrap();
     std::fs::write(&nested_ignored, "test").unwrap();

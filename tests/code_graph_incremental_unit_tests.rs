@@ -5,7 +5,7 @@
 //!
 //! Expected to fail until implementation exists.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 
@@ -38,7 +38,7 @@ async fn test_update_service_inserts_entities_for_new_file() {
 
     // Create update service
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
+    let mut update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Simulate FsEventKind::Created + ParseDelta with had_errors = false
@@ -56,31 +56,18 @@ async fn test_update_service_inserts_entities_for_new_file() {
     };
 
     // Call apply_update
-    let affected = update_service
-        .apply_update(event)
-        .expect("Failed to apply update");
+    let affected = update_service.apply_update(event).expect("Failed to apply update");
 
     // Assert: at least one entity was created
-    assert!(
-        affected > 0,
-        "Should have created at least one entity, got: {}",
-        affected
-    );
+    assert!(affected > 0, "Should have created at least one entity, got: {}", affected);
 
     // Verify entity exists in graph using existing query APIs
-    let entities = update_service
-        .query_entities_by_path(&test_file)
-        .expect("Failed to query entities");
+    let entities =
+        update_service.query_entities_by_path(&test_file).expect("Failed to query entities");
 
-    assert!(
-        !entities.is_empty(),
-        "Should have at least one entity for the file"
-    );
+    assert!(!entities.is_empty(), "Should have at least one entity for the file");
 
-    assert!(
-        entities.iter().any(|e| e.name == "hello"),
-        "Should have entity for 'hello' function"
-    );
+    assert!(entities.iter().any(|e| e.name == "hello"), "Should have entity for 'hello' function");
 }
 
 // ============================================================================
@@ -104,7 +91,7 @@ async fn test_update_service_updates_entities_on_modify() {
         .expect("Failed to create CodeGraph");
 
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
+    let mut update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index initial content
@@ -117,9 +104,7 @@ async fn test_update_service_updates_entities_on_modify() {
         }),
     };
 
-    update_service
-        .apply_update(create_event)
-        .expect("Failed to apply initial update");
+    update_service.apply_update(create_event).expect("Failed to apply initial update");
 
     // Modify file: change function name and add another function
     let modified_code = "pub fn modified() {}\npub fn another() {}";
@@ -135,31 +120,23 @@ async fn test_update_service_updates_entities_on_modify() {
         }),
     };
 
-    let affected = update_service
-        .apply_update(modify_event)
-        .expect("Failed to apply modify update");
+    let affected =
+        update_service.apply_update(modify_event).expect("Failed to apply modify update");
 
     assert!(affected > 0, "Should have affected entities");
 
     // Verify: old entity removed, new entities present
-    let entities = update_service
-        .query_entities_by_path(&test_file)
-        .expect("Failed to query entities");
+    let entities =
+        update_service.query_entities_by_path(&test_file).expect("Failed to query entities");
 
     assert!(
         !entities.iter().any(|e| e.name == "original"),
         "Old 'original' function should be removed"
     );
 
-    assert!(
-        entities.iter().any(|e| e.name == "modified"),
-        "New 'modified' function should exist"
-    );
+    assert!(entities.iter().any(|e| e.name == "modified"), "New 'modified' function should exist");
 
-    assert!(
-        entities.iter().any(|e| e.name == "another"),
-        "New 'another' function should exist"
-    );
+    assert!(entities.iter().any(|e| e.name == "another"), "New 'another' function should exist");
 }
 
 // ============================================================================
@@ -183,7 +160,7 @@ async fn test_update_service_removes_entities_on_delete() {
         .expect("Failed to create CodeGraph");
 
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
+    let mut update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index the file first
@@ -196,18 +173,12 @@ async fn test_update_service_removes_entities_on_delete() {
         }),
     };
 
-    update_service
-        .apply_update(create_event)
-        .expect("Failed to apply initial update");
+    update_service.apply_update(create_event).expect("Failed to apply initial update");
 
     // Verify entity exists
-    let entities_before = update_service
-        .query_entities_by_path(&test_file)
-        .expect("Failed to query entities");
-    assert!(
-        !entities_before.is_empty(),
-        "Should have entities before delete"
-    );
+    let entities_before =
+        update_service.query_entities_by_path(&test_file).expect("Failed to query entities");
+    assert!(!entities_before.is_empty(), "Should have entities before delete");
 
     // Delete the file
     std::fs::remove_file(&test_file).expect("Failed to delete file");
@@ -218,21 +189,16 @@ async fn test_update_service_removes_entities_on_delete() {
         parse_delta: None,
     };
 
-    let affected = update_service
-        .apply_update(delete_event)
-        .expect("Failed to apply delete update");
+    let affected =
+        update_service.apply_update(delete_event).expect("Failed to apply delete update");
 
     assert!(affected > 0, "Should have affected entities");
 
     // Verify no entities remain for that path
-    let entities_after = update_service
-        .query_entities_by_path(&test_file)
-        .expect("Failed to query entities");
+    let entities_after =
+        update_service.query_entities_by_path(&test_file).expect("Failed to query entities");
 
-    assert!(
-        entities_after.is_empty(),
-        "Should have no entities after delete"
-    );
+    assert!(entities_after.is_empty(), "Should have no entities after delete");
 }
 
 // ============================================================================
@@ -257,7 +223,7 @@ async fn test_update_service_handles_rename_as_remove_and_insert() {
         .expect("Failed to create CodeGraph");
 
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
+    let mut update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index at old path
@@ -270,14 +236,11 @@ async fn test_update_service_handles_rename_as_remove_and_insert() {
         }),
     };
 
-    update_service
-        .apply_update(create_event)
-        .expect("Failed to apply initial update");
+    update_service.apply_update(create_event).expect("Failed to apply initial update");
 
     // Verify entity exists at old path
-    let entities_old = update_service
-        .query_entities_by_path(&old_path)
-        .expect("Failed to query entities");
+    let entities_old =
+        update_service.query_entities_by_path(&old_path).expect("Failed to query entities");
     assert!(!entities_old.is_empty(), "Should have entities at old path");
 
     // Simulate rename: rename file on disk
@@ -293,31 +256,22 @@ async fn test_update_service_handles_rename_as_remove_and_insert() {
         }),
     };
 
-    let affected = update_service
-        .apply_update(rename_event)
-        .expect("Failed to apply rename update");
+    let affected =
+        update_service.apply_update(rename_event).expect("Failed to apply rename update");
 
     assert!(affected > 0, "Should have affected entities");
 
     // Verify: entities under old path removed
-    let entities_old_after = update_service
-        .query_entities_by_path(&old_path)
-        .expect("Failed to query entities");
+    let entities_old_after =
+        update_service.query_entities_by_path(&old_path).expect("Failed to query entities");
 
-    assert!(
-        entities_old_after.is_empty(),
-        "Should have no entities at old path after rename"
-    );
+    assert!(entities_old_after.is_empty(), "Should have no entities at old path after rename");
 
     // Verify: entities under new path inserted
-    let entities_new = update_service
-        .query_entities_by_path(&new_path)
-        .expect("Failed to query entities");
+    let entities_new =
+        update_service.query_entities_by_path(&new_path).expect("Failed to query entities");
 
-    assert!(
-        !entities_new.is_empty(),
-        "Should have entities at new path after rename"
-    );
+    assert!(!entities_new.is_empty(), "Should have entities at new path after rename");
 
     assert!(
         entities_new.iter().any(|e| e.name == "renamed_func"),
@@ -345,7 +299,7 @@ async fn test_update_service_ignores_unsupported_extensions() {
         .expect("Failed to create CodeGraph");
 
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
+    let mut update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Try to index unsupported file
@@ -354,20 +308,15 @@ async fn test_update_service_ignores_unsupported_extensions() {
         parse_delta: None,
     };
 
-    let affected = update_service
-        .apply_update(event)
-        .expect("Should not fail for unsupported file");
+    let affected =
+        update_service.apply_update(event).expect("Should not fail for unsupported file");
 
     // Assert: returns 0 affected entities
     assert_eq!(affected, 0, "Should ignore unsupported file extension");
 
     // Verify: graph unchanged (no entities for .txt file)
-    let entities = update_service
-        .query_entities_by_path(&test_file)
-        .expect("Failed to query entities");
+    let entities =
+        update_service.query_entities_by_path(&test_file).expect("Failed to query entities");
 
-    assert!(
-        entities.is_empty(),
-        "Should have no entities for unsupported file"
-    );
+    assert!(entities.is_empty(), "Should have no entities for unsupported file");
 }

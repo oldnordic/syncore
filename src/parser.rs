@@ -81,7 +81,9 @@ impl Parser {
             languages.insert("bash".to_string(), tree_sitter_bash::language());
         }
 
-        Ok(Parser { languages })
+        Ok(Parser {
+            languages,
+        })
     }
 
     pub fn parse_file(&self, file_path: &Path) -> Result<CodeStructure> {
@@ -876,12 +878,7 @@ pub fn search_with_file_types(
     match output.status.code() {
         Some(0) => { /* matches found, continue */ }
         Some(1) => return Ok(Vec::new()), // no matches found, return empty
-        _ => {
-            return Err(anyhow!(
-                "ripgrep failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ))
-        }
+        _ => return Err(anyhow!("ripgrep failed: {}", String::from_utf8_lossy(&output.stderr))),
     }
 
     // Parse JSON output from ripgrep
@@ -945,10 +942,7 @@ impl RipgrepSearcher {
             Some(0) => { /* matches found, continue */ }
             Some(1) => return Ok(Vec::new()), // no matches found, return empty
             _ => {
-                return Err(anyhow!(
-                    "ripgrep failed: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                ))
+                return Err(anyhow!("ripgrep failed: {}", String::from_utf8_lossy(&output.stderr)))
             }
         }
 
@@ -1022,12 +1016,7 @@ pub fn handle_search_code(args: &[u8]) -> Result<Vec<u8>> {
     } else {
         // Use proper file type filtering with ripgrep
         let file_type_refs: Vec<&str> = file_types.iter().map(|s| s.as_str()).collect();
-        search_with_file_types(
-            &pattern,
-            Path::new(&directory),
-            &file_type_refs,
-            context_lines,
-        )?
+        search_with_file_types(&pattern, Path::new(&directory), &file_type_refs, context_lines)?
     };
 
     let limited_matches = matches.into_iter().take(max_results).collect::<Vec<_>>();
@@ -1116,23 +1105,10 @@ impl TestStruct {
         );
 
         // Verify all function names are captured
-        let func_names: Vec<&str> = structure
-            .functions
-            .iter()
-            .map(|f| f.name.as_str())
-            .collect();
-        assert!(
-            func_names.contains(&"test_function"),
-            "Missing test_function"
-        );
-        assert!(
-            func_names.contains(&"new"),
-            "Missing new method from impl block"
-        );
-        assert!(
-            func_names.contains(&"get_field"),
-            "Missing get_field method from impl block"
-        );
+        let func_names: Vec<&str> = structure.functions.iter().map(|f| f.name.as_str()).collect();
+        assert!(func_names.contains(&"test_function"), "Missing test_function");
+        assert!(func_names.contains(&"new"), "Missing new method from impl block");
+        assert!(func_names.contains(&"get_field"), "Missing get_field method from impl block");
 
         assert_eq!(structure.classes.len(), 1);
         assert_eq!(structure.classes[0].name, "TestStruct");

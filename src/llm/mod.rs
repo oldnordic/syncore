@@ -98,10 +98,8 @@ pub trait LanguageModel: Send + Sync {
     /// Returns true if the backend is reachable and functional.
     /// Default implementation tries a simple completion.
     fn health_check(&self) -> Result<bool> {
-        let test_prompt = Prompt::new(
-            "System: You are a test bot.",
-            "Say 'OK' if you can read this.",
-        );
+        let test_prompt =
+            Prompt::new("System: You are a test bot.", "Say 'OK' if you can read this.");
         self.complete(&test_prompt).map(|_| true)
     }
 

@@ -102,10 +102,7 @@ fn test_pointer_resolution_does_not_mutate_memory() {
         mem_lock.stats().ram_size
     };
 
-    assert_eq!(
-        initial_size, final_size,
-        "Pointer resolution should not mutate memory"
-    );
+    assert_eq!(initial_size, final_size, "Pointer resolution should not mutate memory");
 }
 
 #[test]
@@ -152,11 +149,7 @@ fn test_pointer_store_populated_by_retrieve() {
     // All retrieved entries should be resolvable via pointers
     for id in retrieved_ids {
         let resolved = executor.resolve_pointer(&id);
-        assert!(
-            resolved.is_some(),
-            "Retrieved entry {} should be resolvable",
-            id
-        );
+        assert!(resolved.is_some(), "Retrieved entry {} should be resolvable", id);
     }
 }
 
@@ -210,11 +203,13 @@ fn test_pointer_store_populated_by_foldcontext() {
     let results = executor.execute().unwrap();
 
     // Get folded ID
-    let folded_id = if let Some(result) = results
-        .iter()
-        .find(|r| matches!(r.result, ToonResult::Folded { .. }))
+    let folded_id = if let Some(result) =
+        results.iter().find(|r| matches!(r.result, ToonResult::Folded { .. }))
     {
-        if let ToonResult::Folded { new_id } = &result.result {
+        if let ToonResult::Folded {
+            new_id,
+        } = &result.result
+        {
             new_id.clone()
         } else {
             String::new()
@@ -247,8 +242,5 @@ fn test_loadmemory_requires_pointer_in_store() {
     let result = executor.execute();
 
     // Should fail because pointer not in store
-    assert!(
-        result.is_err(),
-        "LoadMemory should fail for missing pointer"
-    );
+    assert!(result.is_err(), "LoadMemory should fail for missing pointer");
 }

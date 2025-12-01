@@ -122,10 +122,7 @@ fn parse_extern_crate(line: &str) -> Option<RustImport> {
     let rest = line.strip_prefix("extern crate ")?.trim_end_matches(';');
 
     let (path, alias) = if let Some(idx) = rest.find(" as ") {
-        (
-            rest[..idx].trim().to_string(),
-            Some(rest[idx + 4..].trim().to_string()),
-        )
+        (rest[..idx].trim().to_string(), Some(rest[idx + 4..].trim().to_string()))
     } else {
         (rest.trim().to_string(), None)
     };
@@ -300,10 +297,8 @@ pub fn resolve_import_to_file(
         }
 
         let module_name = parts[0];
-        let possible_paths = vec![
-            format!("src/{}.rs", module_name),
-            format!("src/{}/mod.rs", module_name),
-        ];
+        let possible_paths =
+            vec![format!("src/{}.rs", module_name), format!("src/{}/mod.rs", module_name)];
 
         // Return first possible path (we don't check if file exists here)
         possible_paths.into_iter().next()

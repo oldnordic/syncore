@@ -15,17 +15,9 @@ fn create_isolated_env() -> TempDir {
 
 /// Helper to create test documents
 fn setup_test_docs(base: &Path) {
-    fs::write(
-        base.join("readme.md"),
-        "# Project README\n\nThis is documentation.",
-    )
-    .unwrap();
+    fs::write(base.join("readme.md"), "# Project README\n\nThis is documentation.").unwrap();
     fs::write(base.join("notes.txt"), "Important notes for the project.").unwrap();
-    fs::write(
-        base.join("lib.rs"),
-        "pub fn hello() { println!(\"hello\"); }",
-    )
-    .unwrap();
+    fs::write(base.join("lib.rs"), "pub fn hello() { println!(\"hello\"); }").unwrap();
 }
 
 #[test]
@@ -91,10 +83,9 @@ fn test_global_db_pool_with_custom_path() {
     // Insert test data
     {
         let conn = pool.get();
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let ts =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         conn.execute(
             "INSERT INTO memory (k, v, ts) VALUES (?1, ?2, ?3)",
@@ -107,9 +98,7 @@ fn test_global_db_pool_with_custom_path() {
     {
         let conn = pool.get();
         let value: String = conn
-            .query_row("SELECT v FROM memory WHERE k = ?1", ["test_key"], |row| {
-                row.get(0)
-            })
+            .query_row("SELECT v FROM memory WHERE k = ?1", ["test_key"], |row| row.get(0))
             .expect("Should read from custom db");
         assert_eq!(value, "test_value");
     }
@@ -135,10 +124,7 @@ fn test_global_vector_store_with_custom_dir() {
     let vectors_file = format!("{}.vectors", index_path.display());
 
     // The vectors file should be in the custom directory
-    assert!(
-        index_path.starts_with(&vectors_dir),
-        "Index path should be within custom directory"
-    );
+    assert!(index_path.starts_with(&vectors_dir), "Index path should be within custom directory");
 }
 
 #[test]
@@ -172,11 +158,7 @@ fn test_no_sqlite_readonly_panic_in_temp_dir() {
     // Should NOT panic with SQLITE_READONLY_DIRECTORY
     let result = indexer.index_directory_with_storage(&docs_dir, &db_path, &vectors_dir);
 
-    assert!(
-        result.is_ok(),
-        "Should not panic or fail with readonly directory: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should not panic or fail with readonly directory: {:?}", result.err());
 }
 
 #[test]
@@ -221,11 +203,7 @@ fn test_indexer_returns_correct_chunk_count_with_custom_storage() {
 
     // Create documents with known content
     fs::write(docs_dir.join("short.md"), "Short").unwrap();
-    fs::write(
-        docs_dir.join("medium.txt"),
-        "Medium length document content here",
-    )
-    .unwrap();
+    fs::write(docs_dir.join("medium.txt"), "Medium length document content here").unwrap();
 
     let indexer = DocumentIndexer::with_defaults();
     let chunk_count = indexer
@@ -233,8 +211,5 @@ fn test_indexer_returns_correct_chunk_count_with_custom_storage() {
         .expect("Should index successfully");
 
     // Each small document should create exactly 1 chunk
-    assert!(
-        chunk_count >= 2,
-        "Should have at least 2 chunks for 2 documents"
-    );
+    assert!(chunk_count >= 2, "Should have at least 2 chunks for 2 documents");
 }

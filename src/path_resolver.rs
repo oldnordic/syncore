@@ -40,10 +40,7 @@ impl PathResolver {
     pub fn new() -> Self {
         Self {
             workspace_root: None,
-            excluded_dirs: DEFAULT_EXCLUDED_DIRS
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+            excluded_dirs: DEFAULT_EXCLUDED_DIRS.iter().map(|s| s.to_string()).collect(),
         }
     }
 
@@ -189,8 +186,7 @@ impl PathResolver {
             return Err(anyhow!("Path does not exist: {:?}", path));
         }
 
-        path.canonicalize()
-            .map_err(|e| anyhow!("Failed to canonicalize path {:?}: {}", path, e))
+        path.canonicalize().map_err(|e| anyhow!("Failed to canonicalize path {:?}: {}", path, e))
     }
 }
 

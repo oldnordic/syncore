@@ -92,10 +92,7 @@ fn test_parser_analyze_no_persist_does_not_modify_db() -> Result<()> {
         db.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?
     };
 
-    assert_eq!(
-        initial_count, final_count,
-        "persist=false should not modify database"
-    );
+    assert_eq!(initial_count, final_count, "persist=false should not modify database");
 
     // Cleanup
     std::fs::remove_dir_all(&temp_path)?;
@@ -164,10 +161,7 @@ fn test_parser_analyze_persist_updates_hnsw_index() -> Result<()> {
         vs.len()
     };
 
-    assert!(
-        final_len > initial_len,
-        "Vector store should have more entries after indexing"
-    );
+    assert!(final_len > initial_len, "Vector store should have more entries after indexing");
     assert_eq!(
         final_len - initial_len,
         entities_indexed,
@@ -193,11 +187,7 @@ fn test_parser_analyze_persist_allows_vector_search_after() -> Result<()> {
     // Search for indexed content
     let results = {
         let vs = vector_store.lock().unwrap();
-        vs.search(
-            "hello world function",
-            5,
-            syncore::vector::SearchScope::Global,
-        )?
+        vs.search("hello world function", 5, syncore::vector::SearchScope::Global)?
     };
 
     assert!(!results.is_empty(), "Should find results after indexing");
@@ -237,11 +227,7 @@ async fn test_parser_analyze_persist_syncs_neo4j() -> Result<()> {
             vec![],
         )
         .await
-        .map(|rows| {
-            rows.first()
-                .and_then(|r| r.get("cnt").and_then(|v| v.as_i64()))
-                .unwrap_or(0)
-        })
+        .map(|rows| rows.first().and_then(|r| r.get("cnt").and_then(|v| v.as_i64())).unwrap_or(0))
         .unwrap_or(0);
 
     // Index file WITH Neo4j sync
@@ -260,11 +246,7 @@ async fn test_parser_analyze_persist_syncs_neo4j() -> Result<()> {
             vec![],
         )
         .await
-        .map(|rows| {
-            rows.first()
-                .and_then(|r| r.get("cnt").and_then(|v| v.as_i64()))
-                .unwrap_or(0)
-        })
+        .map(|rows| rows.first().and_then(|r| r.get("cnt").and_then(|v| v.as_i64())).unwrap_or(0))
         .unwrap_or(0);
 
     assert!(
@@ -315,9 +297,7 @@ fn test_parser_analyze_persist_uses_common_extractor() -> Result<()> {
         "SELECT entity_type, name FROM code_entities WHERE file_path LIKE '%test_sample.rs'",
     )?;
     let entities: Vec<(String, String)> = stmt
-        .query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?
+        .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
         .filter_map(|r| r.ok())
         .collect();
     eprintln!("DEBUG: entities = {:?}", entities);
@@ -334,11 +314,7 @@ fn test_parser_analyze_persist_uses_common_extractor() -> Result<()> {
         [],
         |row| row.get(0),
     )?;
-    assert!(
-        class_count >= 1,
-        "Should extract at least 1 class (TestStruct), got {}",
-        class_count
-    );
+    assert!(class_count >= 1, "Should extract at least 1 class (TestStruct), got {}", class_count);
 
     // Note: The current parser extracts impl methods as top-level functions, not methods
     // So we just verify we have all expected functions
@@ -348,11 +324,7 @@ fn test_parser_analyze_persist_uses_common_extractor() -> Result<()> {
         |row| row.get(0),
     )?;
     // Should have hello_world, helper_function, and new (from impl)
-    assert!(
-        total_funcs >= 3,
-        "Should extract at least 3 functions, got {}",
-        total_funcs
-    );
+    assert!(total_funcs >= 3, "Should extract at least 3 functions, got {}", total_funcs);
 
     assert!(entities_indexed > 0, "Should index entities");
 
@@ -421,10 +393,7 @@ fn test_parser_analyze_persist_respects_state_machine() -> Result<()> {
         let vs = vector_store.lock().unwrap();
         vs.search("hello world", 5, syncore::vector::SearchScope::Global)?
     };
-    assert!(
-        !results.is_empty(),
-        "Brute-force search should work when Cold"
-    );
+    assert!(!results.is_empty(), "Brute-force search should work when Cold");
 
     // Cleanup
     std::fs::remove_dir_all(&temp_path)?;

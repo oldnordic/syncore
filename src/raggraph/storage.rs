@@ -152,9 +152,7 @@ impl StorageAdapter for RealStorageAdapter {
     fn seed_nodes_from_query(&self, query_text: &str, top_k: usize) -> Result<Vec<(NodeId, f32)>> {
         // Validate input
         if query_text.trim().is_empty() {
-            return Err(
-                StorageError::InvalidQuery("Query text cannot be empty".to_string()).into(),
-            );
+            return Err(StorageError::InvalidQuery("Query text cannot be empty".to_string()).into());
         }
 
         // Generate embedding from query text
@@ -207,10 +205,8 @@ impl StorageAdapter for RealStorageAdapter {
         .map_err(|e| StorageError::GraphQueryFailed(format!("Neo4j query failed: {}", e)))?;
 
         // Convert NeighborResult to (NodeId, weight) tuples
-        let neighbors: Vec<(NodeId, f32)> = neighbor_results
-            .into_iter()
-            .map(|n| (n.id, n.weight.unwrap_or(1.0)))
-            .collect();
+        let neighbors: Vec<(NodeId, f32)> =
+            neighbor_results.into_iter().map(|n| (n.id, n.weight.unwrap_or(1.0))).collect();
 
         Ok(neighbors)
     }

@@ -81,11 +81,7 @@ fn test_vector_insert_and_search_roundtrip() -> Result<()> {
     // Assert the document appears in top results with reasonable score
     let top_hit = &results[0];
     assert_eq!(top_hit.id, 1, "Expected doc ID 1 to be top result");
-    assert!(
-        top_hit.score > 0.3,
-        "Expected score > 0.3, got {}",
-        top_hit.score
-    );
+    assert!(top_hit.score > 0.3, "Expected score > 0.3, got {}", top_hit.score);
 
     Ok(())
 }
@@ -126,9 +122,7 @@ fn test_semantic_similarity_ranking() -> Result<()> {
         let top_ids: Vec<i64> = results.iter().take(3).map(|h| h.id).collect();
 
         // Assert at least one expected doc appears in top 3
-        let found = expected_ids
-            .iter()
-            .any(|&expected| top_ids.contains(&expected));
+        let found = expected_ids.iter().any(|&expected| top_ids.contains(&expected));
         assert!(
             found,
             "Query '{}': expected one of {:?} in top 3, got {:?}",

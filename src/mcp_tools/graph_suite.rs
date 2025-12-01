@@ -45,7 +45,9 @@ pub struct GraphSuite {
 
 impl GraphSuite {
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Execute the suite command
@@ -237,11 +239,8 @@ impl GraphSuite {
                     return SuiteResult::err("rag_query", format!("Validation failed: {}", e));
                 }
 
-                let storage = Arc::new(RealStorageAdapter::new(
-                    vector_index,
-                    (**neo4j).clone(),
-                    dimension,
-                ));
+                let storage =
+                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
 
                 RagQuery::with_storage(config.clone(), storage)
             } else {
@@ -312,11 +311,8 @@ impl GraphSuite {
                     return SuiteResult::err("rag_multihop", format!("Validation failed: {}", e));
                 }
 
-                let storage = Arc::new(RealStorageAdapter::new(
-                    vector_index,
-                    (**neo4j).clone(),
-                    dimension,
-                ));
+                let storage =
+                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
 
                 HopGraphTransformer::with_storage(config.clone(), storage)
             } else {
@@ -383,14 +379,7 @@ impl SuiteDispatcher for GraphSuite {
     }
 
     fn list_commands(&self) -> Vec<&'static str> {
-        vec![
-            "query",
-            "insert",
-            "relate",
-            "rag_query",
-            "rag_multihop",
-            "help",
-        ]
+        vec!["query", "insert", "relate", "rag_query", "rag_multihop", "help"]
     }
 
     fn help(&self, command: &str) -> Option<&'static str> {

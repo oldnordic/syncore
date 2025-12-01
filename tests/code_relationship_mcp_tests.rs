@@ -115,12 +115,8 @@ pub fn process() {}
     let result = server.handle_code_relationship_query(params).await.unwrap();
 
     let imports = result["imports"].as_array().unwrap();
-    assert!(imports
-        .iter()
-        .any(|v| v.as_str().unwrap().contains("HashMap")));
-    assert!(imports
-        .iter()
-        .any(|v| v.as_str().unwrap().contains("process")));
+    assert!(imports.iter().any(|v| v.as_str().unwrap().contains("HashMap")));
+    assert!(imports.iter().any(|v| v.as_str().unwrap().contains("process")));
 }
 
 #[tokio::test]
@@ -172,9 +168,7 @@ fn execute_action() {}
 
     let calls = result["calls"].as_array().unwrap();
     assert!(calls.iter().any(|v| v.as_str().unwrap() == "init"));
-    assert!(calls
-        .iter()
-        .any(|v| v.as_str().unwrap() == "process_request"));
+    assert!(calls.iter().any(|v| v.as_str().unwrap() == "process_request"));
 }
 
 #[tokio::test]
@@ -239,10 +233,8 @@ fn calculate_sum(a: i32, b: i32) -> i32 {
     assert_eq!(matches.len(), 2);
 
     // Should find auth functions, not math
-    let function_names: Vec<&str> = matches
-        .iter()
-        .map(|m| m["function"].as_str().unwrap())
-        .collect();
+    let function_names: Vec<&str> =
+        matches.iter().map(|m| m["function"].as_str().unwrap()).collect();
 
     assert!(
         function_names.contains(&"validate_user_credentials")

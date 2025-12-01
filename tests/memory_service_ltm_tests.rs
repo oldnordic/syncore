@@ -52,10 +52,7 @@ fn test_ltm_store_validates_dimension() {
     };
 
     let result = adapter.ltm_store(&entry);
-    assert!(
-        result.is_err(),
-        "ltm_store should fail with wrong dimension"
-    );
+    assert!(result.is_err(), "ltm_store should fail with wrong dimension");
 
     match result {
         Err(MemoryError::DimensionMismatch) => {} // Expected error
@@ -105,15 +102,9 @@ fn test_ltm_query_returns_relevant_nodes() {
         },
     };
 
-    adapter
-        .ltm_store(&entry1)
-        .expect("Store entry1 should succeed");
-    adapter
-        .ltm_store(&entry2)
-        .expect("Store entry2 should succeed");
-    adapter
-        .ltm_store(&entry3)
-        .expect("Store entry3 should succeed");
+    adapter.ltm_store(&entry1).expect("Store entry1 should succeed");
+    adapter.ltm_store(&entry2).expect("Store entry2 should succeed");
+    adapter.ltm_store(&entry3).expect("Store entry3 should succeed");
 
     // Query with embedding similar to entry1
     let mut query = vec![1.0, 0.0, 0.0, 0.0];
@@ -122,10 +113,7 @@ fn test_ltm_query_returns_relevant_nodes() {
     let results = adapter.ltm_query(&query, 2).expect("Query should succeed");
 
     assert_eq!(results.len(), 2, "Should return 2 results");
-    assert_eq!(
-        results[0].id, "entry1",
-        "Most similar entry should be first"
-    );
+    assert_eq!(results[0].id, "entry1", "Most similar entry should be first");
 }
 
 #[test]
@@ -230,11 +218,7 @@ fn test_ltm_query_empty_returns_empty() {
     let query = vec![0.5; 128];
     let results = adapter.ltm_query(&query, 5).expect("Query should succeed");
 
-    assert_eq!(
-        results.len(),
-        0,
-        "Empty adapter should return empty results"
-    );
+    assert_eq!(results.len(), 0, "Empty adapter should return empty results");
 }
 
 #[test]

@@ -33,6 +33,8 @@ impl managed::Manager for SqliteManager {
 pub type ReadPool = deadpool::managed::Pool<SqliteManager>;
 
 pub fn create_read_pool(path: String, size: usize) -> ReadPool {
-    let mgr = SqliteManager { path };
+    let mgr = SqliteManager {
+        path,
+    };
     ReadPool::builder(mgr).max_size(size).build().unwrap()
 }

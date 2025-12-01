@@ -58,14 +58,8 @@ async fn test_full_pipeline_file_create_modify_delete() -> Result<()> {
     };
 
     // Start LiveIndexer
-    let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        vector_store.clone(),
-        lsp_bridge,
-        config,
-    )?;
+    let indexer =
+        LiveIndexer::new(fs_rx, parser, update_service, vector_store.clone(), lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -138,14 +132,8 @@ async fn test_pipeline_triggers_hnsw_reembedding() -> Result<()> {
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        vector_store.clone(),
-        lsp_bridge,
-        config,
-    )?;
+    let indexer =
+        LiveIndexer::new(fs_rx, parser, update_service, vector_store.clone(), lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -171,10 +159,7 @@ async fn test_pipeline_triggers_hnsw_reembedding() -> Result<()> {
     };
 
     // HNSW should have been updated with new entity embedding
-    assert!(
-        vectors_after >= vectors_before,
-        "HNSW should be updated after modification"
-    );
+    assert!(vectors_after >= vectors_before, "HNSW should be updated after modification");
 
     indexer.shutdown().await?;
 
@@ -221,14 +206,8 @@ async fn test_pipeline_produces_lsp_notifications() -> Result<()> {
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        vector_store.clone(),
-        lsp_bridge,
-        config,
-    )?;
+    let indexer =
+        LiveIndexer::new(fs_rx, parser, update_service, vector_store.clone(), lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 

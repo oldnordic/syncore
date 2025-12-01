@@ -24,10 +24,8 @@ fn test_basic_task_operations() -> Result<()> {
     )?;
 
     // Test adding a task
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
 
     let task_id = db.execute(
         "INSERT INTO tasks (goal, description, priority, created_at, updated_at) 
@@ -62,9 +60,7 @@ fn test_basic_task_operations() -> Result<()> {
     )?;
 
     let status: Option<String> = db
-        .query_row("SELECT status FROM tasks WHERE id = ?1", [task_id], |row| {
-            row.get(0)
-        })
+        .query_row("SELECT status FROM tasks WHERE id = ?1", [task_id], |row| row.get(0))
         .optional()?;
 
     assert_eq!(status, Some("done".to_string()));

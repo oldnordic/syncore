@@ -47,10 +47,8 @@ fn create_test_database() -> Result<(TempDir, Arc<DbManager>, DiagnosticsManager
         "CREATE INDEX IF NOT EXISTS idx_diagnostics_file ON code_diagnostics(file_path)",
         [],
     )?;
-    conn_guard.execute(
-        "CREATE INDEX IF NOT EXISTS idx_diagnostics_tool ON code_diagnostics(tool)",
-        [],
-    )?;
+    conn_guard
+        .execute("CREATE INDEX IF NOT EXISTS idx_diagnostics_tool ON code_diagnostics(tool)", [])?;
     conn_guard.execute(
         "CREATE INDEX IF NOT EXISTS idx_diagnostics_type ON code_diagnostics(diagnostic_type)",
         [],

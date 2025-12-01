@@ -69,11 +69,8 @@ impl HopGraphTransformer {
         let top_scores: Vec<(NodeId, f32)> = scored_nodes.into_iter().take(top_k).collect();
 
         // Get graph neighbors (all nodes from diffusion except seeds)
-        let graph_neighbors: Vec<NodeId> = top_scores
-            .iter()
-            .map(|(id, _)| *id)
-            .filter(|id| !seed_nodes.contains(id))
-            .collect();
+        let graph_neighbors: Vec<NodeId> =
+            top_scores.iter().map(|(id, _)| *id).filter(|id| !seed_nodes.contains(id)).collect();
 
         // Fuse knowledge: combine top-k nodes with their embeddings
         let context_embedding = fuse_knowledge(&top_scores, &graph_neighbors, &embeddings)?;
@@ -84,11 +81,7 @@ impl HopGraphTransformer {
 
         // Build reasoning path (step-by-step description)
         let reasoning_path = vec![
-            format!(
-                "Started with {} seed nodes: {:?}",
-                seed_nodes.len(),
-                seed_nodes
-            ),
+            format!("Started with {} seed nodes: {:?}", seed_nodes.len(), seed_nodes),
             format!(
                 "Ran {} diffusion iterations with alpha={:.2}",
                 self.config.num_hops, self.config.alpha
@@ -110,10 +103,7 @@ impl HopGraphTransformer {
         &self,
         seed_nodes: &[NodeId],
         storage: &Arc<dyn StorageAdapter>,
-    ) -> Result<(
-        HashMap<NodeId, Vec<(NodeId, f32)>>,
-        HashMap<NodeId, Vec<f32>>,
-    )> {
+    ) -> Result<(HashMap<NodeId, Vec<(NodeId, f32)>>, HashMap<NodeId, Vec<f32>>)> {
         let mut adjacency = HashMap::new();
         let mut embeddings = HashMap::new();
         let mut visited = std::collections::HashSet::new();

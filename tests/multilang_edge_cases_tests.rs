@@ -463,11 +463,10 @@ fn test_manual_database_edge_cases() -> Result<()> {
     assert_eq!(count, 2);
 
     // Verify Unicode was stored correctly
-    let unicode_name: String = conn.query_row(
-        "SELECT name FROM code_entities WHERE language = 'python'",
-        [],
-        |row| row.get(0),
-    )?;
+    let unicode_name: String =
+        conn.query_row("SELECT name FROM code_entities WHERE language = 'python'", [], |row| {
+            row.get(0)
+        })?;
     assert_eq!(unicode_name, "函数_测试");
 
     Ok(())

@@ -38,24 +38,12 @@ impl EntityResult {
             id: record.get("id")?.as_i64()?,
             name: record.get("name")?.as_str()?.to_string(),
             label: record.get("label")?.as_str()?.to_string(),
-            path: record
-                .get("path")
-                .and_then(|v| v.as_str())
-                .map(String::from),
+            path: record.get("path").and_then(|v| v.as_str()).map(String::from),
             start_line: record.get("start_line").and_then(|v| v.as_i64()),
             end_line: record.get("end_line").and_then(|v| v.as_i64()),
-            signature: record
-                .get("signature")
-                .and_then(|v| v.as_str())
-                .map(String::from),
-            body_snippet: record
-                .get("body_snippet")
-                .and_then(|v| v.as_str())
-                .map(String::from),
-            created_at: record
-                .get("created_at")
-                .and_then(|v| v.as_str())
-                .map(String::from),
+            signature: record.get("signature").and_then(|v| v.as_str()).map(String::from),
+            body_snippet: record.get("body_snippet").and_then(|v| v.as_str()).map(String::from),
+            created_at: record.get("created_at").and_then(|v| v.as_str()).map(String::from),
             last_modified_at: record
                 .get("last_modified_at")
                 .and_then(|v| v.as_str())
@@ -129,10 +117,7 @@ pub async fn get_file_entities(client: &Neo4jClient, file_path: &str) -> Result<
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(EntityResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
 
 /// Get functions called by a function
@@ -169,10 +154,7 @@ pub async fn get_function_callees(
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(EntityResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
 
 /// Get functions that call a function
@@ -209,10 +191,7 @@ pub async fn get_function_callers(
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(EntityResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
 
 /// Get entities by name (exact match)
@@ -244,10 +223,7 @@ pub async fn find_entities_by_name(client: &Neo4jClient, name: &str) -> Result<V
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(EntityResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
 
 /// Get entities by label type
@@ -285,10 +261,7 @@ pub async fn get_entities_by_type(
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(EntityResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
 
 /// Count entities by type
@@ -351,10 +324,7 @@ pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<E
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(EntityResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
 
 /// Find orphan entities (no relationships)
@@ -387,10 +357,7 @@ pub async fn find_orphan_entities(client: &Neo4jClient) -> Result<Vec<EntityResu
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(EntityResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
 
 /// Validate graph structure (returns stats)
@@ -435,11 +402,7 @@ async fn count_total_nodes(client: &Neo4jClient) -> Result<i64> {
         )
         .await?;
 
-    Ok(results
-        .first()
-        .and_then(|r| r.get("count"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0))
+    Ok(results.first().and_then(|r| r.get("count")).and_then(|v| v.as_i64()).unwrap_or(0))
 }
 
 async fn count_total_edges(client: &Neo4jClient) -> Result<i64> {
@@ -459,11 +422,7 @@ async fn count_total_edges(client: &Neo4jClient) -> Result<i64> {
         )
         .await?;
 
-    Ok(results
-        .first()
-        .and_then(|r| r.get("count"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0))
+    Ok(results.first().and_then(|r| r.get("count")).and_then(|v| v.as_i64()).unwrap_or(0))
 }
 
 async fn count_edges_by_type(client: &Neo4jClient) -> Result<Vec<(String, i64)>> {
@@ -514,16 +473,11 @@ async fn count_orphan_nodes(client: &Neo4jClient) -> Result<i64> {
         )
         .await?;
 
-    Ok(results
-        .first()
-        .and_then(|r| r.get("count"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0))
+    Ok(results.first().and_then(|r| r.get("count")).and_then(|v| v.as_i64()).unwrap_or(0))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // Tests removed - namespace is now dynamic via project_namespace(client)
 }

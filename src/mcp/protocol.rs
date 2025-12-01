@@ -241,10 +241,9 @@ pub async fn handle_mcp_request(request: MCPRequest, state: &SynCoreState) -> MC
         }
         "mcp.call_tool" => {
             if let Some(params) = request.params {
-                if let (Some(name), Some(arguments)) = (
-                    params.get("name").and_then(|v| v.as_str()),
-                    params.get("arguments"),
-                ) {
+                if let (Some(name), Some(arguments)) =
+                    (params.get("name").and_then(|v| v.as_str()), params.get("arguments"))
+                {
                     // Validate arguments against schema
                     if let Err(validation_error) = validate_arguments(name, arguments) {
                         return MCPResponse {
@@ -343,9 +342,8 @@ async fn invoke_tool(
             let scope = if let Some(scope_obj) = arguments.get("scope").and_then(|v| v.as_object())
             {
                 if let Some(task_obj) = scope_obj.get("task").and_then(|v| v.as_object()) {
-                    let task_id = task_obj["task_id"]
-                        .as_u64()
-                        .ok_or("Missing task_id in task scope")?;
+                    let task_id =
+                        task_obj["task_id"].as_u64().ok_or("Missing task_id in task scope")?;
                     crate::vector::SearchScope::Task(task_id.try_into().unwrap())
                 } else {
                     return Err("Invalid scope format".into());
@@ -376,45 +374,29 @@ async fn invoke_tool(
         }
         "parser.search" => {
             let pattern = arguments["pattern"].as_str().ok_or("Missing pattern")?;
-            let directory = arguments
-                .get("directory")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
-            let context_lines = arguments
-                .get("context_lines")
-                .and_then(|v| v.as_u64())
-                .map(|n| n as usize);
+            let directory =
+                arguments.get("directory").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let context_lines =
+                arguments.get("context_lines").and_then(|v| v.as_u64()).map(|n| n as usize);
             rmp_serde::to_vec(&(pattern.to_string(), directory, context_lines))?
         }
         "code.explain" => {
             use crate::code_explainer::ExplainRequest;
             let request = ExplainRequest {
-                file_path: arguments["file_path"]
-                    .as_str()
-                    .ok_or("Missing file_path")?
-                    .to_string(),
+                file_path: arguments["file_path"].as_str().ok_or("Missing file_path")?.to_string(),
                 function_name: arguments
                     .get("function_name")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string()),
-                model: arguments
-                    .get("model")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string()),
+                model: arguments.get("model").and_then(|v| v.as_str()).map(|s| s.to_string()),
             };
             rmp_serde::to_vec(&request)?
         }
         "code.index_directory" => {
             use crate::code_directory_indexer::DirectoryIndexRequest;
             let request = DirectoryIndexRequest {
-                directory: arguments["directory"]
-                    .as_str()
-                    .ok_or("Missing directory")?
-                    .to_string(),
-                pattern: arguments["pattern"]
-                    .as_str()
-                    .ok_or("Missing pattern")?
-                    .to_string(),
+                directory: arguments["directory"].as_str().ok_or("Missing directory")?.to_string(),
+                pattern: arguments["pattern"].as_str().ok_or("Missing pattern")?.to_string(),
             };
             rmp_serde::to_vec(&request)?
         }

@@ -14,7 +14,10 @@ use std::sync::{Arc, Mutex};
 pub enum ValidationError {
     Neo4jUnavailable(String),
     VectorIndexEmpty,
-    DimensionMismatch { expected: usize, actual: usize },
+    DimensionMismatch {
+        expected: usize,
+        actual: usize,
+    },
     BackendMisconfigured(String),
 }
 
@@ -27,7 +30,10 @@ impl std::fmt::Display for ValidationError {
             ValidationError::VectorIndexEmpty => {
                 write!(f, "Vector index is empty. Real mode requires a populated HNSW index with embeddings.")
             }
-            ValidationError::DimensionMismatch { expected, actual } => {
+            ValidationError::DimensionMismatch {
+                expected,
+                actual,
+            } => {
                 write!(f, "Vector dimension mismatch: expected {}, got {}. Check embedding configuration.", expected, actual)
             }
             ValidationError::BackendMisconfigured(msg) => {

@@ -110,10 +110,7 @@ async fn test_project_rust_clippy_scan_integration() -> Result<(), Box<dyn std::
 
     // Create test state using the same pattern as other tests
     let id = std::process::id();
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let mem_path = format!("/tmp/syncore_clippy_test_mem_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_clippy_test_task_{}_{}.db", id, ts);
 
@@ -121,11 +118,7 @@ async fn test_project_rust_clippy_scan_integration() -> Result<(), Box<dyn std::
     let tasks = Tasks::new(&task_path)?;
     let embeddings = Box::new(RealEmbeddings::new(384)?);
     let vector_store = Arc::new(std::sync::Mutex::new(VectorStore::new(embeddings)));
-    let state = Arc::new(syncore::router::SynCoreState::new(
-        memory,
-        tasks,
-        vector_store,
-    ));
+    let state = Arc::new(syncore::router::SynCoreState::new(memory, tasks, vector_store));
 
     // Create executor
     let executor = RealExecutor::new(state);
@@ -136,9 +129,7 @@ async fn test_project_rust_clippy_scan_integration() -> Result<(), Box<dyn std::
 
     // Call the project_rust_clippy_scan tool through executor
     let params = json!({}); // No parameters required
-    let result = executor
-        .execute_real_tool_async("project_rust_clippy_scan", &params)
-        .await?;
+    let result = executor.execute_real_tool_async("project_rust_clippy_scan", &params).await?;
 
     // Restore original directory
     env::set_current_dir(original_dir)?;
@@ -155,11 +146,7 @@ async fn test_project_rust_clippy_scan_integration() -> Result<(), Box<dyn std::
     let inserted = data["inserted"].as_u64().unwrap_or(0) as usize;
 
     // Verify that diagnostics were inserted
-    assert!(
-        inserted > 0,
-        "Should have inserted at least one diagnostic, got: {}",
-        inserted
-    );
+    assert!(inserted > 0, "Should have inserted at least one diagnostic, got: {}", inserted);
 
     // Verify diagnostics are actually in the database by checking the state
     // Note: We can't directly access the database from the test, but we can verify
@@ -200,10 +187,7 @@ fn main() {
 
     // Create test state using the same pattern as other tests
     let id = std::process::id();
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let mem_path = format!("/tmp/syncore_clippy_clean_mem_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_clippy_clean_task_{}_{}.db", id, ts);
 
@@ -211,11 +195,7 @@ fn main() {
     let tasks = Tasks::new(&task_path)?;
     let embeddings = Box::new(RealEmbeddings::new(384)?);
     let vector_store = Arc::new(std::sync::Mutex::new(VectorStore::new(embeddings)));
-    let state = Arc::new(syncore::router::SynCoreState::new(
-        memory,
-        tasks,
-        vector_store,
-    ));
+    let state = Arc::new(syncore::router::SynCoreState::new(memory, tasks, vector_store));
 
     // Create executor
     let executor = RealExecutor::new(state);
@@ -226,18 +206,13 @@ fn main() {
 
     // Call the project_rust_clippy_scan tool through executor
     let params = json!({}); // No parameters required
-    let result = executor
-        .execute_real_tool_async("project_rust_clippy_scan", &params)
-        .await?;
+    let result = executor.execute_real_tool_async("project_rust_clippy_scan", &params).await?;
 
     // Restore original directory
     env::set_current_dir(original_dir)?;
 
     // Verify the tool call was successful using envelope structure
-    assert!(
-        result["ok"].as_bool().unwrap_or(false),
-        "Tool call should succeed"
-    );
+    assert!(result["ok"].as_bool().unwrap_or(false), "Tool call should succeed");
 
     // Extract the data from the envelope
     let data = &result["data"];
@@ -258,10 +233,7 @@ async fn test_project_rust_clippy_scan_invalid_directory() -> Result<(), Box<dyn
 
     // Create test state using the same pattern as other tests
     let id = std::process::id();
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let mem_path = format!("/tmp/syncore_clippy_invalid_mem_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_clippy_invalid_task_{}_{}.db", id, ts);
 
@@ -269,11 +241,7 @@ async fn test_project_rust_clippy_scan_invalid_directory() -> Result<(), Box<dyn
     let tasks = Tasks::new(&task_path)?;
     let embeddings = Box::new(RealEmbeddings::new(384)?);
     let vector_store = Arc::new(std::sync::Mutex::new(VectorStore::new(embeddings)));
-    let state = Arc::new(syncore::router::SynCoreState::new(
-        memory,
-        tasks,
-        vector_store,
-    ));
+    let state = Arc::new(syncore::router::SynCoreState::new(memory, tasks, vector_store));
 
     // Create executor
     let executor = RealExecutor::new(state);
@@ -284,9 +252,7 @@ async fn test_project_rust_clippy_scan_invalid_directory() -> Result<(), Box<dyn
 
     // Call the project_rust_clippy_scan tool through executor
     let params = json!({}); // No parameters required
-    let result = executor
-        .execute_real_tool_async("project_rust_clippy_scan", &params)
-        .await?;
+    let result = executor.execute_real_tool_async("project_rust_clippy_scan", &params).await?;
 
     // Restore original directory
     env::set_current_dir(original_dir)?;
@@ -300,10 +266,7 @@ async fn test_project_rust_clippy_scan_invalid_directory() -> Result<(), Box<dyn
     // Extract the error from the envelope
     let error = &result["error"];
     assert!(
-        error["type"]
-            .as_str()
-            .unwrap_or("")
-            .contains("ExecutionFailed")
+        error["type"].as_str().unwrap_or("").contains("ExecutionFailed")
             || error["type"].as_str().unwrap_or("").contains("ClippyError")
             || error["type"].as_str().unwrap_or("").contains("Internal"),
         "Error type should indicate execution failure"
@@ -311,10 +274,7 @@ async fn test_project_rust_clippy_scan_invalid_directory() -> Result<(), Box<dyn
 
     println!("✅ Invalid directory test passed!");
     println!("📝 Error type: {}", error["type"].as_str().unwrap_or(""));
-    println!(
-        "📝 Error message: {}",
-        error["message"].as_str().unwrap_or("")
-    );
+    println!("📝 Error message: {}", error["message"].as_str().unwrap_or(""));
 
     Ok(())
 }

@@ -274,11 +274,8 @@ impl RustMacroExpander {
                 let end = (orig_end as isize + offset) as usize;
 
                 // Simple expansion: info!(...) -> println!("[INFO] ...")
-                let expanded = format!(
-                    "println!(\"[{}] {}\")",
-                    level.as_str().to_uppercase(),
-                    args.as_str()
-                );
+                let expanded =
+                    format!("println!(\"[{}] {}\")", level.as_str().to_uppercase(), args.as_str());
 
                 expansions.push(MacroExpansion {
                     macro_name: format!("{}!", level.as_str()),
@@ -499,10 +496,7 @@ mod tests {
         let expander = RustMacroExpander::new()?;
         let source = "MY_MACRO!(placeholder)";
         let mut substitutions = HashMap::new();
-        substitutions.insert(
-            "MY_MACRO!(placeholder)".to_string(),
-            "replaced_value".to_string(),
-        );
+        substitutions.insert("MY_MACRO!(placeholder)".to_string(), "replaced_value".to_string());
 
         let result = expander.substitute_macro_patterns(source, &substitutions)?;
 
@@ -523,11 +517,8 @@ mod tests {
 
         assert_eq!(context.expansions.len(), 3);
 
-        let macro_names: Vec<String> = context
-            .expansions
-            .iter()
-            .map(|e| e.macro_name.clone())
-            .collect();
+        let macro_names: Vec<String> =
+            context.expansions.iter().map(|e| e.macro_name.clone()).collect();
         assert!(macro_names.contains(&"vec!".to_string()));
         assert!(macro_names.contains(&"info!".to_string()));
         assert!(macro_names.contains(&"assert!".to_string()));
@@ -556,11 +547,7 @@ mod tests {
         let duration = start.elapsed();
 
         // Should complete in under 300ms
-        assert!(
-            duration.as_millis() < 300,
-            "Macro expansion took too long: {:?}",
-            duration
-        );
+        assert!(duration.as_millis() < 300, "Macro expansion took too long: {:?}", duration);
 
         Ok(())
     }

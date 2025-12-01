@@ -71,9 +71,7 @@ impl CodeGraphUpdateService {
             FsEvent::Created(_) | FsEvent::Modified(_) => {
                 // APEX 2.6: Use delta engine if parse_delta is available
                 if let Some(parse_delta) = event.parse_delta {
-                    let ast_delta = self
-                        .delta_engine
-                        .compute_ast_delta(file_path, &parse_delta)?;
+                    let ast_delta = self.delta_engine.compute_ast_delta(file_path, &parse_delta)?;
                     self.delta_engine.apply_delta(&ast_delta)?;
                     // Return approximate count (delta doesn't track exact count)
                     Ok(1)
@@ -99,19 +97,12 @@ impl CodeGraphUpdateService {
 
     /// Query entities by file path (for test verification)
     pub fn query_entities_by_path(&self, path: &Path) -> Result<Vec<CodeEntity>> {
-        let path_str = path
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
+        let path_str = path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
 
-        let graph = self
-            .graph
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
+        let graph =
+            self.graph.lock().map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
 
-        let db = graph
-            .db
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock db: {}", e))?;
+        let db = graph.db.lock().map_err(|e| anyhow::anyhow!("Failed to lock db: {}", e))?;
 
         let mut stmt = db.prepare(
             "SELECT id, file_path, entity_type, name, signature, line_start, line_end, docstring, language,
@@ -158,19 +149,12 @@ impl CodeGraphUpdateService {
 
     /// Delete all entities for a file path
     fn delete_entities_for_file(&self, path: &Path) -> Result<u64> {
-        let path_str = path
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
+        let path_str = path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
 
-        let graph = self
-            .graph
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
+        let graph =
+            self.graph.lock().map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
 
-        let db = graph
-            .db
-            .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to lock db: {}", e))?;
+        let db = graph.db.lock().map_err(|e| anyhow::anyhow!("Failed to lock db: {}", e))?;
 
         let deleted = db.execute("DELETE FROM code_entities WHERE file_path = ?", [path_str])?;
 

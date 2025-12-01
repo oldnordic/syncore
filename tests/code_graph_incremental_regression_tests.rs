@@ -61,17 +61,12 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
         }),
     };
 
-    update_service
-        .apply_update(event_a)
-        .expect("Failed to index A");
-    update_service
-        .apply_update(event_b)
-        .expect("Failed to index B");
+    update_service.apply_update(event_a).expect("Failed to index A");
+    update_service.apply_update(event_b).expect("Failed to index B");
 
     // Get initial state of file B
-    let entities_b_before = update_service
-        .query_entities_by_path(&file_b)
-        .expect("Failed to query B");
+    let entities_b_before =
+        update_service.query_entities_by_path(&file_b).expect("Failed to query B");
     let count_b_before = entities_b_before.len();
 
     // Modify only file A
@@ -86,32 +81,22 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
         }),
     };
 
-    let affected = update_service
-        .apply_update(modify_event_a)
-        .expect("Failed to modify A");
+    let affected = update_service.apply_update(modify_event_a).expect("Failed to modify A");
 
     assert!(affected > 0, "File A should be affected");
 
     // Verify file B is unchanged
-    let entities_b_after = update_service
-        .query_entities_by_path(&file_b)
-        .expect("Failed to query B after");
+    let entities_b_after =
+        update_service.query_entities_by_path(&file_b).expect("Failed to query B after");
     let count_b_after = entities_b_after.len();
 
-    assert_eq!(
-        count_b_before, count_b_after,
-        "File B entity count should be unchanged"
-    );
+    assert_eq!(count_b_before, count_b_after, "File B entity count should be unchanged");
 
-    assert!(
-        entities_b_after.iter().any(|e| e.name == "func_b"),
-        "File B should still have func_b"
-    );
+    assert!(entities_b_after.iter().any(|e| e.name == "func_b"), "File B should still have func_b");
 
     // Verify file A was updated
-    let entities_a_after = update_service
-        .query_entities_by_path(&file_a)
-        .expect("Failed to query A after");
+    let entities_a_after =
+        update_service.query_entities_by_path(&file_a).expect("Failed to query A after");
 
     assert!(
         entities_a_after.iter().any(|e| e.name == "func_a_modified"),
@@ -172,36 +157,21 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
         }),
     };
 
-    update_service
-        .apply_update(event_caller)
-        .expect("Failed to index caller");
-    update_service
-        .apply_update(event_callee)
-        .expect("Failed to index callee");
+    update_service.apply_update(event_caller).expect("Failed to index caller");
+    update_service.apply_update(event_callee).expect("Failed to index callee");
 
     // Verify initial entities exist
-    let entities_caller_before = update_service
-        .query_entities_by_path(&file_caller)
-        .expect("Failed to query caller");
-    let entities_callee_before = update_service
-        .query_entities_by_path(&file_callee)
-        .expect("Failed to query callee");
+    let entities_caller_before =
+        update_service.query_entities_by_path(&file_caller).expect("Failed to query caller");
+    let entities_callee_before =
+        update_service.query_entities_by_path(&file_callee).expect("Failed to query callee");
 
-    assert!(
-        !entities_caller_before.is_empty(),
-        "Caller should have entities"
-    );
-    assert!(
-        !entities_callee_before.is_empty(),
-        "Callee should have entities"
-    );
+    assert!(!entities_caller_before.is_empty(), "Caller should have entities");
+    assert!(!entities_callee_before.is_empty(), "Callee should have entities");
 
     // Modify caller file
-    std::fs::write(
-        &file_caller,
-        "pub fn caller() { callee::callee_func(); }\npub fn another() {}",
-    )
-    .expect("Failed to modify caller");
+    std::fs::write(&file_caller, "pub fn caller() { callee::callee_func(); }\npub fn another() {}")
+        .expect("Failed to modify caller");
 
     let modify_event = CodeGraphUpdateEvent {
         fs_event: FsEvent::Modified(file_caller.clone()),
@@ -212,26 +182,16 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
         }),
     };
 
-    update_service
-        .apply_update(modify_event)
-        .expect("Failed to modify caller");
+    update_service.apply_update(modify_event).expect("Failed to modify caller");
 
     // Verify both files still have entities
-    let entities_caller_after = update_service
-        .query_entities_by_path(&file_caller)
-        .expect("Failed to query caller after");
-    let entities_callee_after = update_service
-        .query_entities_by_path(&file_callee)
-        .expect("Failed to query callee after");
+    let entities_caller_after =
+        update_service.query_entities_by_path(&file_caller).expect("Failed to query caller after");
+    let entities_callee_after =
+        update_service.query_entities_by_path(&file_callee).expect("Failed to query callee after");
 
-    assert!(
-        !entities_caller_after.is_empty(),
-        "Caller should still have entities"
-    );
-    assert!(
-        !entities_callee_after.is_empty(),
-        "Callee should still have entities"
-    );
+    assert!(!entities_caller_after.is_empty(), "Caller should still have entities");
+    assert!(!entities_callee_after.is_empty(), "Callee should still have entities");
 
     // Verify caller has both functions
     assert!(
@@ -245,9 +205,7 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
 
     // Verify callee unchanged
     assert!(
-        entities_callee_after
-            .iter()
-            .any(|e| e.name == "callee_func"),
+        entities_callee_after.iter().any(|e| e.name == "callee_func"),
         "Callee should still have callee_func"
     );
 

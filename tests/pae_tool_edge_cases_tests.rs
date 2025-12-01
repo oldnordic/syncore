@@ -422,10 +422,7 @@ fn function3() -> HashMap<String, i32> {
     let file1_data = file1_response.data.unwrap();
 
     // Should only return imports for file1
-    assert!(file1_data
-        .unused_imports
-        .iter()
-        .all(|i| i.file_path.contains("file1.rs")));
+    assert!(file1_data.unused_imports.iter().all(|i| i.file_path.contains("file1.rs")));
 
     Ok(())
 }
@@ -516,14 +513,8 @@ fn main() {
 
     // If cycles are detected, verify they have the expected structure
     for cycle in &cycles_data.cycles {
-        assert!(
-            !cycle.files.is_empty(),
-            "Cycle should have at least one file"
-        );
-        assert!(
-            !cycle.relation_kinds.is_empty(),
-            "Cycle should have relation types"
-        );
+        assert!(!cycle.files.is_empty(), "Cycle should have at least one file");
+        assert!(!cycle.relation_kinds.is_empty(), "Cycle should have relation types");
         assert!(cycle.cycle_length >= 2, "Cycle length should be at least 2");
 
         // Check if this is the expected 2-node cycle

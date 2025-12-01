@@ -161,9 +161,8 @@ async fn count_neo4j_relationships(neo4j: &Neo4jClient, rel_type: &str) -> Resul
         rel_type
     );
 
-    let result = neo4j
-        .execute_query(&cypher, vec![("ns", serde_json::json!(neo4j.namespace()))])
-        .await?;
+    let result =
+        neo4j.execute_query(&cypher, vec![("ns", serde_json::json!(neo4j.namespace()))]).await?;
 
     Ok(result[0].get("count").and_then(|v| v.as_i64()).unwrap_or(0))
 }
@@ -181,23 +180,14 @@ async fn test_sync_neo4j_creates_relationships_from_edges() -> Result<()> {
 
     // Verify summary
     assert_eq!(summary.edges_processed, 3, "Should process 3 edges");
-    assert!(
-        summary.edges_created >= 3,
-        "Should create at least 3 relationships"
-    );
+    assert!(summary.edges_created >= 3, "Should create at least 3 relationships");
 
     // Verify relationships in Neo4j
     let calls_count = count_neo4j_relationships(&neo4j, "CALLS").await?;
     let refs_count = count_neo4j_relationships(&neo4j, "REFERENCES").await?;
 
-    assert!(
-        calls_count >= 2,
-        "Should have at least 2 CALLS relationships"
-    );
-    assert!(
-        refs_count >= 1,
-        "Should have at least 1 REFERENCES relationship"
-    );
+    assert!(calls_count >= 2, "Should have at least 2 CALLS relationships");
+    assert!(refs_count >= 1, "Should have at least 1 REFERENCES relationship");
 
     Ok(())
 }
@@ -317,9 +307,8 @@ async fn test_sync_backwards_compatibility() -> Result<()> {
 async fn count_neo4j_entities(neo4j: &Neo4jClient) -> Result<i64> {
     let cypher = "MATCH (n:CodeEntity) WHERE n.namespace = $ns OR n.namespace IS NULL RETURN count(n) as count";
 
-    let result = neo4j
-        .execute_query(cypher, vec![("ns", serde_json::json!(neo4j.namespace()))])
-        .await?;
+    let result =
+        neo4j.execute_query(cypher, vec![("ns", serde_json::json!(neo4j.namespace()))]).await?;
 
     Ok(result[0].get("count").and_then(|v| v.as_i64()).unwrap_or(0))
 }
@@ -343,10 +332,7 @@ async fn test_sync_entities_creates_all_nodes() -> Result<()> {
     let summary = sync_entities_to_neo4j(&db, &neo4j, None, None).await?;
 
     // Verify summary
-    assert_eq!(
-        summary.entities_processed, 3,
-        "Should process 3 entities from SQLite"
-    );
+    assert_eq!(summary.entities_processed, 3, "Should process 3 entities from SQLite");
     assert!(
         summary.entities_created >= 3,
         "Should create at least 3 entity nodes, got {}",
@@ -355,11 +341,7 @@ async fn test_sync_entities_creates_all_nodes() -> Result<()> {
 
     // Verify nodes in Neo4j
     let neo4j_count = count_neo4j_entities(&neo4j).await?;
-    assert!(
-        neo4j_count >= 3,
-        "Neo4j should have at least 3 CodeEntity nodes, got {}",
-        neo4j_count
-    );
+    assert!(neo4j_count >= 3, "Neo4j should have at least 3 CodeEntity nodes, got {}", neo4j_count);
 
     Ok(())
 }
@@ -403,10 +385,7 @@ async fn test_sync_entities_runs_before_edges() -> Result<()> {
 
     // Sync entities FIRST
     let entity_summary = sync_entities_to_neo4j(&db, &neo4j, None, None).await?;
-    assert!(
-        entity_summary.entities_created >= 3,
-        "Should create entity nodes first"
-    );
+    assert!(entity_summary.entities_created >= 3, "Should create entity nodes first");
 
     // Then sync edges
     let edge_summary = sync_relationships_to_neo4j(&db, &neo4j, None, None).await?;
@@ -421,14 +400,10 @@ async fn test_sync_entities_runs_before_edges() -> Result<()> {
         RETURN count(r) as dangling_count
     "#;
 
-    let result = neo4j
-        .execute_query(cypher, vec![("ns", serde_json::json!(neo4j.namespace()))])
-        .await?;
+    let result =
+        neo4j.execute_query(cypher, vec![("ns", serde_json::json!(neo4j.namespace()))]).await?;
 
-    let dangling_count = result[0]
-        .get("dangling_count")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let dangling_count = result[0].get("dangling_count").and_then(|v| v.as_i64()).unwrap_or(0);
 
     assert_eq!(
         dangling_count, 0,

@@ -18,14 +18,8 @@ fn test_dual_embedding_routing() -> Result<()> {
     // Override environment variables for isolated testing
     std::env::set_var("DB_PATH", format!("{}/test.db", temp_path));
     std::env::set_var("CODE_GRAPH_DB", format!("{}/test_code_graph.db", temp_path));
-    std::env::set_var(
-        "CODE_VECTOR_INDEX_PATH",
-        format!("{}/code.index", temp_path),
-    );
-    std::env::set_var(
-        "GENERAL_VECTOR_INDEX_PATH",
-        format!("{}/general.index", temp_path),
-    );
+    std::env::set_var("CODE_VECTOR_INDEX_PATH", format!("{}/code.index", temp_path));
+    std::env::set_var("GENERAL_VECTOR_INDEX_PATH", format!("{}/general.index", temp_path));
 
     // Create dual VectorStores
     let code_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
@@ -139,11 +133,8 @@ fn test_dual_embedding_routing() -> Result<()> {
     // Test 7: Search with Domain(Code) scope only searches CODE store
     {
         let code_lock = code_store.lock().unwrap();
-        let results = code_lock.search(
-            "function main",
-            5,
-            SearchScope::Domain(EmbeddingDomain::Code),
-        )?;
+        let results =
+            code_lock.search("function main", 5, SearchScope::Domain(EmbeddingDomain::Code))?;
         drop(code_lock);
 
         // Results should only include CODE domain vectors (IDs 1, 2)
@@ -191,10 +182,7 @@ fn test_dual_embedding_routing() -> Result<()> {
         let code_ptr = Arc::as_ptr(&code_store);
         let general_ptr = Arc::as_ptr(&general_store);
 
-        assert_ne!(
-            code_ptr, general_ptr,
-            "CODE and GENERAL stores should be separate instances"
-        );
+        assert_ne!(code_ptr, general_ptr, "CODE and GENERAL stores should be separate instances");
         println!("✓ CODE and GENERAL stores are physically separate instances");
     }
 
@@ -206,11 +194,7 @@ fn test_dual_embedding_routing() -> Result<()> {
             let code_store_ptr = Arc::as_ptr(&code_store);
             let namespace_store_ptr = Arc::as_ptr(&store);
 
-            assert_eq!(
-                code_store_ptr, namespace_store_ptr,
-                "{} should route to CODE store",
-                ns
-            );
+            assert_eq!(code_store_ptr, namespace_store_ptr, "{} should route to CODE store", ns);
         }
         println!("✓ All CODE namespaces route correctly");
     }
@@ -283,27 +267,15 @@ fn test_dual_store_vector_counts() -> Result<()> {
     code_store.insert_text(3, None, "function bar() {}", "javascript_code")?;
 
     assert_eq!(code_store.len(), 3, "CODE store should have 3 vectors");
-    assert_eq!(
-        general_store.len(),
-        0,
-        "GENERAL store should still be empty"
-    );
+    assert_eq!(general_store.len(), 0, "GENERAL store should still be empty");
     println!("✓ CODE store len() = 3, GENERAL store len() = 0");
 
     // Insert into GENERAL store
     general_store.insert_text(10, None, "Document content", "documents")?;
     general_store.insert_text(11, None, "Step 1: Do something", "task_steps")?;
 
-    assert_eq!(
-        code_store.len(),
-        3,
-        "CODE store should still have 3 vectors"
-    );
-    assert_eq!(
-        general_store.len(),
-        2,
-        "GENERAL store should have 2 vectors"
-    );
+    assert_eq!(code_store.len(), 3, "CODE store should still have 3 vectors");
+    assert_eq!(general_store.len(), 2, "GENERAL store should have 2 vectors");
     println!("✓ CODE store len() = 3, GENERAL store len() = 2");
 
     println!("\n✅ Vector count test passed - stores maintain separate counts");
@@ -319,10 +291,7 @@ fn test_search_scope_routing() -> Result<()> {
 
     // Use unique names to avoid database locks from parallel test execution
     std::env::set_var("DB_PATH", format!("{}/scope_routing_test.db", temp_path));
-    std::env::set_var(
-        "CODE_GRAPH_DB",
-        format!("{}/scope_routing_code_graph.db", temp_path),
-    );
+    std::env::set_var("CODE_GRAPH_DB", format!("{}/scope_routing_code_graph.db", temp_path));
 
     // Create dual stores
     let code_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
@@ -349,10 +318,7 @@ fn test_search_scope_routing() -> Result<()> {
 
         let code_ptr = Arc::as_ptr(&code_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(
-            code_ptr, store_ptr,
-            "Domain(Code) should route to code_store"
-        );
+        assert_eq!(code_ptr, store_ptr, "Domain(Code) should route to code_store");
         println!("✓ SearchScope::Domain(Code) routes to code_store");
     }
 
@@ -367,10 +333,7 @@ fn test_search_scope_routing() -> Result<()> {
 
         let general_ptr = Arc::as_ptr(&general_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(
-            general_ptr, store_ptr,
-            "Domain(General) should route to general_store"
-        );
+        assert_eq!(general_ptr, store_ptr, "Domain(General) should route to general_store");
         println!("✓ SearchScope::Domain(General) routes to general_store");
     }
 
@@ -385,10 +348,7 @@ fn test_search_scope_routing() -> Result<()> {
 
         let general_ptr = Arc::as_ptr(&general_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(
-            general_ptr, store_ptr,
-            "Global should default to general_store"
-        );
+        assert_eq!(general_ptr, store_ptr, "Global should default to general_store");
         println!("✓ SearchScope::Global defaults to general_store");
     }
 
@@ -403,10 +363,7 @@ fn test_search_scope_routing() -> Result<()> {
 
         let general_ptr = Arc::as_ptr(&general_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(
-            general_ptr, store_ptr,
-            "Task should default to general_store"
-        );
+        assert_eq!(general_ptr, store_ptr, "Task should default to general_store");
         println!("✓ SearchScope::Task defaults to general_store");
     }
 
@@ -421,10 +378,7 @@ fn test_search_scope_routing() -> Result<()> {
 
         let code_ptr = Arc::as_ptr(&code_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(
-            code_ptr, store_ptr,
-            "DomainTask(Code, _) should route to code_store"
-        );
+        assert_eq!(code_ptr, store_ptr, "DomainTask(Code, _) should route to code_store");
         println!("✓ SearchScope::DomainTask(Code, _) routes to code_store");
     }
 

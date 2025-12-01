@@ -36,7 +36,9 @@ impl DirectoryIndexer {
     /// Create a new directory indexer with database path and vector store
     pub fn new(db_path: &str, vector_store: Arc<Mutex<VectorStore>>) -> Result<Self> {
         let code_graph = CodeGraph::new(db_path, vector_store)?;
-        Ok(Self { code_graph })
+        Ok(Self {
+            code_graph,
+        })
     }
 
     /// Index all files in a directory matching the given pattern
@@ -116,11 +118,7 @@ impl DirectoryIndexer {
                 }
                 Err(e) => {
                     // Log error but continue processing other files
-                    eprintln!(
-                        "Warning: Failed to index file {}: {}",
-                        file_path.display(),
-                        e
-                    );
+                    eprintln!("Warning: Failed to index file {}: {}", file_path.display(), e);
                     continue;
                 }
             }

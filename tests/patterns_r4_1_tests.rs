@@ -69,10 +69,7 @@ fn test_mine_patterns_groups_by_intent_and_mode() -> Result<()> {
     assert!(!patterns.is_empty());
 
     // Find pattern for simple mode
-    let simple_patterns: Vec<_> = patterns
-        .iter()
-        .filter(|p| p.selected_mode == "simple")
-        .collect();
+    let simple_patterns: Vec<_> = patterns.iter().filter(|p| p.selected_mode == "simple").collect();
     assert!(!simple_patterns.is_empty());
 
     Ok(())
@@ -157,10 +154,7 @@ fn test_mine_patterns_detects_graph_usage() -> Result<()> {
         user_query: "test".to_string(),
         selected_mode: "reasoning".to_string(),
         important_entities: vec![],
-        tool_calls: vec![
-            "code_graph_fusion_query".to_string(),
-            "code_index".to_string(),
-        ],
+        tool_calls: vec!["code_graph_fusion_query".to_string(), "code_index".to_string()],
         outcome: "success".to_string(),
         notes: None,
         client_id: None,
@@ -172,10 +166,7 @@ fn test_mine_patterns_detects_graph_usage() -> Result<()> {
     let pattern = &patterns[0];
 
     // Should detect graph usage
-    assert!(matches!(
-        pattern.graph_usage,
-        PatternGraphUsage::Heavy | PatternGraphUsage::Light
-    ));
+    assert!(matches!(pattern.graph_usage, PatternGraphUsage::Heavy | PatternGraphUsage::Light));
 
     Ok(())
 }

@@ -119,14 +119,7 @@ fn test_embedding_domain_routes_correctly() {
 fn test_fusion_query_uses_graphbert_score() {
     // Use ripgrep to check if RankedEntity includes graph_embedding_score
     let output = std::process::Command::new("rg")
-        .args(&[
-            "pub struct RankedEntity",
-            "--type",
-            "rust",
-            "src/code_graph/",
-            "-A",
-            "20",
-        ])
+        .args(&["pub struct RankedEntity", "--type", "rust", "src/code_graph/", "-A", "20"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -451,14 +444,7 @@ fn test_graph_domain_architecture_exists() {
     // 3. Integration point in fusion query (to be verified)
 
     let domain_enum = std::process::Command::new("rg")
-        .args(&[
-            "enum EmbeddingDomain",
-            "--type",
-            "rust",
-            "src/vector/domain.rs",
-            "-A",
-            "10",
-        ])
+        .args(&["enum EmbeddingDomain", "--type", "rust", "src/vector/domain.rs", "-A", "10"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -483,12 +469,7 @@ fn test_graph_domain_architecture_exists() {
 
     // Verify GraphEmbeddingStrategy exists
     let strategy_trait = std::process::Command::new("rg")
-        .args(&[
-            "trait GraphEmbeddingStrategy",
-            "--type",
-            "rust",
-            "src/code_graph/",
-        ])
+        .args(&["trait GraphEmbeddingStrategy", "--type", "rust", "src/code_graph/"])
         .output()
         .expect("Failed to execute ripgrep");
 

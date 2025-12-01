@@ -21,10 +21,7 @@ impl LlmBackend {
         match s.to_lowercase().as_str() {
             "ollama" => Ok(Self::Ollama),
             "test" => Ok(Self::Test),
-            _ => Err(anyhow!(
-                "Unknown LLM backend '{}'. Supported: ollama, test",
-                s
-            )),
+            _ => Err(anyhow!("Unknown LLM backend '{}'. Supported: ollama, test", s)),
         }
     }
 

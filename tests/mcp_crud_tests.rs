@@ -1,5 +1,5 @@
 use rusqlite::Connection;
-use std::fs;
+
 use syncore::{cognitive_db, tasks};
 
 #[test]
@@ -62,11 +62,9 @@ fn mcp_update_task_tool_ok() {
 
     // Verify updates
     let updated = conn
-        .query_row(
-            "SELECT priority, description FROM tasks WHERE id = ?1",
-            [task_id],
-            |row| Ok((row.get::<_, i32>(0)?, row.get::<_, String>(1)?)),
-        )
+        .query_row("SELECT priority, description FROM tasks WHERE id = ?1", [task_id], |row| {
+            Ok((row.get::<_, i32>(0)?, row.get::<_, String>(1)?))
+        })
         .unwrap();
     assert_eq!(updated.0, 1);
     assert_eq!(updated.1, "Updated description");
@@ -86,7 +84,7 @@ fn mcp_next_task_tool_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create multiple tasks with different priorities
-    let low_id = tasks::add_task(&conn, "Low priority", "Description", 5, None).unwrap();
+    let _low_id = tasks::add_task(&conn, "Low priority", "Description", 5, None).unwrap();
     let high_id = tasks::add_task(&conn, "High priority", "Description", 1, None).unwrap();
     let medium_id = tasks::add_task(&conn, "Medium priority", "Description", 3, None).unwrap();
 

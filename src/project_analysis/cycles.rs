@@ -23,10 +23,7 @@ pub struct CyclesData {
 impl ProjectAnalysisEngine {
     /// Detect circular dependencies in the project
     pub async fn cycles(&self, request: CyclesRequest) -> Result<PAEResponse<CyclesData>> {
-        match self
-            .detect_cycles(request.max_cycles, request.max_depth)
-            .await
-        {
+        match self.detect_cycles(request.max_cycles, request.max_depth).await {
             Ok(data) => Ok(PAEResponse::success(data)),
             Err(e) => Ok(PAEResponse::error(e.to_string())),
         }
@@ -42,7 +39,9 @@ impl ProjectAnalysisEngine {
         // Find cycles using DFS
         let cycles = self.find_cycles_in_graph(graph, max_cycles, max_depth)?;
 
-        Ok(CyclesData { cycles })
+        Ok(CyclesData {
+            cycles,
+        })
     }
 
     fn build_dependency_graph(
@@ -75,10 +74,7 @@ impl ProjectAnalysisEngine {
 
         for row in rows {
             let (from_file, to_file, edge_type) = row?;
-            graph
-                .entry(from_file.clone())
-                .or_default()
-                .push((to_file, edge_type));
+            graph.entry(from_file.clone()).or_default().push((to_file, edge_type));
         }
 
         Ok(graph)
@@ -116,6 +112,7 @@ impl ProjectAnalysisEngine {
         Ok(cycles)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn dfs_find_cycle(
         &self,
         current: &str,

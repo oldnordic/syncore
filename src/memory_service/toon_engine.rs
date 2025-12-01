@@ -13,16 +13,25 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToonInstr {
     /// Load memory entry by ID
-    LoadMemory { id: String },
+    LoadMemory {
+        id: String,
+    },
 
     /// Retrieve memory entries by query
-    Retrieve { query: String, k: usize },
+    Retrieve {
+        query: String,
+        k: usize,
+    },
 
     /// Fold context from multiple entries into new summary
-    FoldContext { context_ids: Vec<String> },
+    FoldContext {
+        context_ids: Vec<String>,
+    },
 
     /// Emit a pointer token
-    EmitPointer { id: String },
+    EmitPointer {
+        id: String,
+    },
 
     /// No operation
     NoOp,
@@ -145,14 +154,19 @@ impl ToonExecutor {
 
         let result =
             match &node.instr {
-                ToonInstr::LoadMemory { id } => {
+                ToonInstr::LoadMemory {
+                    id,
+                } => {
                     let entry = self
                         .resolve_pointer(id)
                         .ok_or_else(|| ToonError::InvalidPointer(id.clone()))?;
                     ToonResult::Loaded(entry)
                 }
 
-                ToonInstr::Retrieve { query, k } => {
+                ToonInstr::Retrieve {
+                    query,
+                    k,
+                } => {
                     let memory_lock = self.memory.lock().map_err(|e| {
                         ToonError::Internal(format!("Failed to lock memory: {}", e))
                     })?;
@@ -169,7 +183,9 @@ impl ToonExecutor {
                     ToonResult::Retrieved(entries)
                 }
 
-                ToonInstr::FoldContext { context_ids } => {
+                ToonInstr::FoldContext {
+                    context_ids,
+                } => {
                     // Fold all context entries into a single summary
                     let mut combined_text = String::new();
                     let mut combined_tags = Vec::new();
@@ -211,10 +227,14 @@ impl ToonExecutor {
                     // Add to pointer store
                     self.pointer_store.insert(new_id.clone(), folded_entry);
 
-                    ToonResult::Folded { new_id }
+                    ToonResult::Folded {
+                        new_id,
+                    }
                 }
 
-                ToonInstr::EmitPointer { id } => ToonResult::Pointer(id.clone()),
+                ToonInstr::EmitPointer {
+                    id,
+                } => ToonResult::Pointer(id.clone()),
 
                 ToonInstr::NoOp => ToonResult::Completed,
             };
@@ -263,7 +283,6 @@ impl ToonExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::memory_service::MemoryService;
 
     #[test]
     fn test_toon_graph_basic() {
@@ -278,7 +297,10 @@ mod tests {
             k: 5,
         };
         match instr {
-            ToonInstr::Retrieve { query, k } => {
+            ToonInstr::Retrieve {
+                query,
+                k,
+            } => {
                 assert_eq!(query, "test");
                 assert_eq!(k, 5);
             }
@@ -297,9 +319,6 @@ mod tests {
     fn test_hash_text_to_embedding_different() {
         let emb1 = ToonExecutor::hash_text_to_embedding("text1");
         let emb2 = ToonExecutor::hash_text_to_embedding("text2");
-        assert_ne!(
-            emb1, emb2,
-            "Different texts should have different embeddings"
-        );
+        assert_ne!(emb1, emb2, "Different texts should have different embeddings");
     }
 }

@@ -16,10 +16,8 @@ async fn test_body_snippet_boosts_relevance() -> Result<()> {
     let temp_db = NamedTempFile::new()?;
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = VectorStore::new(embeddings);
-    let mut code_graph = CodeGraph::new(
-        temp_db.path().to_str().unwrap(),
-        Arc::new(Mutex::new(vector_store)),
-    )?;
+    let mut code_graph =
+        CodeGraph::new(temp_db.path().to_str().unwrap(), Arc::new(Mutex::new(vector_store)))?;
 
     // Index fixture project with body content
     let fixture_path = Path::new("tests/fixtures/body_index_project");
@@ -36,21 +34,13 @@ async fn test_body_snippet_boosts_relevance() -> Result<()> {
     let mode_hint = Some("simple");
     let top_k = Some(5);
 
-    let response = rag_api
-        .query(query_text, namespace, mode_hint, top_k)
-        .await?;
+    let response = rag_api.query(query_text, namespace, mode_hint, top_k).await?;
 
     // Assert that we got results
-    assert!(
-        !response.entities.is_empty(),
-        "Should find entities matching body content"
-    );
+    assert!(!response.entities.is_empty(), "Should find entities matching body content");
 
     // Assert that entity with body_snippet has higher score than one without
-    let has_body = response
-        .entities
-        .iter()
-        .any(|e| e.entity.body_snippet.is_some());
+    let has_body = response.entities.iter().any(|e| e.entity.body_snippet.is_some());
     assert!(has_body, "Should find entities with body_snippet");
 
     Ok(())
@@ -62,10 +52,8 @@ async fn test_fusion_modes_use_body_content() -> Result<()> {
     let temp_db = NamedTempFile::new()?;
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = VectorStore::new(embeddings);
-    let mut code_graph = CodeGraph::new(
-        temp_db.path().to_str().unwrap(),
-        Arc::new(Mutex::new(vector_store)),
-    )?;
+    let mut code_graph =
+        CodeGraph::new(temp_db.path().to_str().unwrap(), Arc::new(Mutex::new(vector_store)))?;
 
     // Index fixture file
     let fixture_path = Path::new("tests/fixtures/body_index_project");
@@ -82,9 +70,7 @@ async fn test_fusion_modes_use_body_content() -> Result<()> {
         let mode_hint = Some(*mode);
         let top_k = Some(5);
 
-        let response = rag_api
-            .query(query_text, namespace, mode_hint, top_k)
-            .await?;
+        let response = rag_api.query(query_text, namespace, mode_hint, top_k).await?;
 
         assert!(
             !response.entities.is_empty(),
@@ -102,10 +88,8 @@ async fn test_body_boost_remains_deterministic() -> Result<()> {
     let temp_db = NamedTempFile::new()?;
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = VectorStore::new(embeddings);
-    let mut code_graph = CodeGraph::new(
-        temp_db.path().to_str().unwrap(),
-        Arc::new(Mutex::new(vector_store)),
-    )?;
+    let mut code_graph =
+        CodeGraph::new(temp_db.path().to_str().unwrap(), Arc::new(Mutex::new(vector_store)))?;
 
     // Index fixture file
     let fixture_path = Path::new("tests/fixtures/body_index_project");
@@ -121,12 +105,8 @@ async fn test_body_boost_remains_deterministic() -> Result<()> {
     let mode_hint = Some("simple");
     let top_k = Some(5);
 
-    let response1 = rag_api
-        .query(query_text, namespace, mode_hint, top_k)
-        .await?;
-    let response2 = rag_api
-        .query(query_text, namespace, mode_hint, top_k)
-        .await?;
+    let response1 = rag_api.query(query_text, namespace, mode_hint, top_k).await?;
+    let response2 = rag_api.query(query_text, namespace, mode_hint, top_k).await?;
 
     // Scores should be identical (deterministic)
     assert_eq!(response1.entities.len(), response2.entities.len());

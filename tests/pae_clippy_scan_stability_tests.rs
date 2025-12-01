@@ -56,9 +56,7 @@ fn test_clippy_broken_json_line_handling() -> Result<()> {
                 diagnostic_value.get("file_path").and_then(|v| v.as_str()),
                 diagnostic_value.get("line_start").and_then(|v| v.as_i64()),
                 diagnostic_value.get("severity").and_then(|v| v.as_str()),
-                diagnostic_value
-                    .get("diagnostic_type")
-                    .and_then(|v| v.as_str()),
+                diagnostic_value.get("diagnostic_type").and_then(|v| v.as_str()),
                 diagnostic_value.get("message").and_then(|v| v.as_str()),
                 diagnostic_value.get("tool").and_then(|v| v.as_str()),
             ) {
@@ -86,10 +84,7 @@ fn test_clippy_broken_json_line_handling() -> Result<()> {
     assert_eq!(all_diagnostics.len(), 3);
 
     // Verify content of valid diagnostics
-    let file_paths: Vec<String> = all_diagnostics
-        .iter()
-        .map(|d| d.file_path.clone())
-        .collect();
+    let file_paths: Vec<String> = all_diagnostics.iter().map(|d| d.file_path.clone()).collect();
     assert!(file_paths.contains(&"src/main.rs".to_string()));
     assert!(file_paths.contains(&"src/lib.rs".to_string()));
     assert!(file_paths.contains(&"src/utils.rs".to_string()));
@@ -182,21 +177,12 @@ fn test_clippy_warning_level_severity_only() -> Result<()> {
     }
 
     // Verify count by severity
-    let warning_count = all_diagnostics
-        .iter()
-        .filter(|d| d.severity == "warning")
-        .count();
+    let warning_count = all_diagnostics.iter().filter(|d| d.severity == "warning").count();
     assert_eq!(warning_count, 3);
 
     // Verify no other severities exist
-    let error_count = all_diagnostics
-        .iter()
-        .filter(|d| d.severity == "error")
-        .count();
-    let note_count = all_diagnostics
-        .iter()
-        .filter(|d| d.severity == "note")
-        .count();
+    let error_count = all_diagnostics.iter().filter(|d| d.severity == "error").count();
+    let note_count = all_diagnostics.iter().filter(|d| d.severity == "note").count();
 
     assert_eq!(error_count, 0);
     assert_eq!(note_count, 0);
@@ -243,9 +229,7 @@ fn test_clippy_unexpected_fields_handling() -> Result<()> {
                 diagnostic_value.get("file_path").and_then(|v| v.as_str()),
                 diagnostic_value.get("line_start").and_then(|v| v.as_i64()),
                 diagnostic_value.get("severity").and_then(|v| v.as_str()),
-                diagnostic_value
-                    .get("diagnostic_type")
-                    .and_then(|v| v.as_str()),
+                diagnostic_value.get("diagnostic_type").and_then(|v| v.as_str()),
                 diagnostic_value.get("message").and_then(|v| v.as_str()),
                 diagnostic_value.get("tool").and_then(|v| v.as_str()),
             ) {
@@ -273,10 +257,8 @@ fn test_clippy_unexpected_fields_handling() -> Result<()> {
     assert_eq!(all_diagnostics.len(), 2);
 
     // Verify content
-    let diagnostic_types: Vec<String> = all_diagnostics
-        .iter()
-        .map(|d| d.diagnostic_type.clone())
-        .collect();
+    let diagnostic_types: Vec<String> =
+        all_diagnostics.iter().map(|d| d.diagnostic_type.clone()).collect();
     assert!(diagnostic_types.contains(&"clippy::dead_code".to_string()));
     assert!(diagnostic_types.contains(&"clippy::unimplemented".to_string()));
 

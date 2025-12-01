@@ -180,14 +180,8 @@ mod tests {
         let path1 = PathBuf::from("/tmp/test");
         let path2 = PathBuf::from("/tmp/test");
 
-        assert_eq!(
-            FsEvent::Created(path1.clone()),
-            FsEvent::Created(path2.clone())
-        );
-        assert_eq!(
-            FsEvent::Modified(path1.clone()),
-            FsEvent::Modified(path2.clone())
-        );
+        assert_eq!(FsEvent::Created(path1.clone()), FsEvent::Created(path2.clone()));
+        assert_eq!(FsEvent::Modified(path1.clone()), FsEvent::Modified(path2.clone()));
         assert_eq!(FsEvent::Removed(path1), FsEvent::Removed(path2));
     }
 

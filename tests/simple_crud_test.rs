@@ -101,23 +101,13 @@ fn test_vector_operations() {
     assert_eq!(vector_store.len(), 3);
 
     // Test search global scope
-    let global_hits = vector::search(
-        &vector_store,
-        "Test",
-        10,
-        syncore::vector::SearchScope::Global,
-    )
-    .unwrap();
+    let global_hits =
+        vector::search(&vector_store, "Test", 10, syncore::vector::SearchScope::Global).unwrap();
     assert_eq!(global_hits.len(), 3);
 
     // Test search task scope
-    let task_hits = vector::search(
-        &vector_store,
-        "Test",
-        10,
-        syncore::vector::SearchScope::Task(100),
-    )
-    .unwrap();
+    let task_hits =
+        vector::search(&vector_store, "Test", 10, syncore::vector::SearchScope::Task(100)).unwrap();
     assert_eq!(task_hits.len(), 2);
 
     // Clean up vector files

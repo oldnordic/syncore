@@ -52,12 +52,7 @@ fn test_stub_embeddings_used_in_tests_only() {
 
     // Verify StubEmbeddings is available for tests
     let stub_def = std::process::Command::new("rg")
-        .args(&[
-            "pub struct StubEmbeddings",
-            "--type",
-            "rust",
-            "src/vector.rs",
-        ])
+        .args(&["pub struct StubEmbeddings", "--type", "rust", "src/vector.rs"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -122,13 +117,7 @@ fn test_no_real_embeddings_in_docstrings() {
 fn test_production_embedding_paths_unchanged() {
     // Verify mcp_stdio_main.rs still uses HuggingFaceEmbeddings
     let main_init = std::process::Command::new("rg")
-        .args(&[
-            "HuggingFaceEmbeddings::new",
-            "--type",
-            "rust",
-            "src/mcp_stdio_main.rs",
-            "-c",
-        ])
+        .args(&["HuggingFaceEmbeddings::new", "--type", "rust", "src/mcp_stdio_main.rs", "-c"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -148,12 +137,7 @@ fn test_production_embedding_paths_unchanged() {
 
     // Verify BGE model is used for CODE domain
     let bge_usage = std::process::Command::new("rg")
-        .args(&[
-            "HuggingFaceEmbeddings::new_bge",
-            "--type",
-            "rust",
-            "src/mcp_stdio_main.rs",
-        ])
+        .args(&["HuggingFaceEmbeddings::new_bge", "--type", "rust", "src/mcp_stdio_main.rs"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -164,12 +148,7 @@ fn test_production_embedding_paths_unchanged() {
 
     // Verify dual store initialization unchanged
     let dual_store = std::process::Command::new("rg")
-        .args(&[
-            "with_dual_stores",
-            "--type",
-            "rust",
-            "src/mcp_stdio_main.rs",
-        ])
+        .args(&["with_dual_stores", "--type", "rust", "src/mcp_stdio_main.rs"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -238,30 +217,15 @@ fn test_domain_routing_stability_after_fixes() {
     use syncore::vector::domain::EmbeddingDomain;
 
     // CODE domain
-    assert_eq!(
-        EmbeddingDomain::from_namespace("code_entity"),
-        EmbeddingDomain::Code
-    );
-    assert_eq!(
-        EmbeddingDomain::from_namespace("rust_code"),
-        EmbeddingDomain::Code
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("code_entity"), EmbeddingDomain::Code);
+    assert_eq!(EmbeddingDomain::from_namespace("rust_code"), EmbeddingDomain::Code);
 
     // GENERAL domain
-    assert_eq!(
-        EmbeddingDomain::from_namespace("documents"),
-        EmbeddingDomain::General
-    );
-    assert_eq!(
-        EmbeddingDomain::from_namespace("plan"),
-        EmbeddingDomain::General
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("documents"), EmbeddingDomain::General);
+    assert_eq!(EmbeddingDomain::from_namespace("plan"), EmbeddingDomain::General);
 
     // Default to GENERAL
-    assert_eq!(
-        EmbeddingDomain::from_namespace("unknown"),
-        EmbeddingDomain::General
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("unknown"), EmbeddingDomain::General);
 }
 
 // ============================================================================
@@ -272,44 +236,22 @@ fn test_domain_routing_stability_after_fixes() {
 fn test_hnsw_dual_store_separation_preserved() {
     // Verify separate index paths still exist
     let code_index_path = std::process::Command::new("rg")
-        .args(&[
-            "code_vector_index_path",
-            "--type",
-            "rust",
-            "src/mcp_stdio_main.rs",
-        ])
+        .args(&["code_vector_index_path", "--type", "rust", "src/mcp_stdio_main.rs"])
         .output()
         .expect("Failed to execute ripgrep");
 
-    assert!(
-        !code_index_path.stdout.is_empty(),
-        "CODE vector index path must be configured"
-    );
+    assert!(!code_index_path.stdout.is_empty(), "CODE vector index path must be configured");
 
     let general_index_path = std::process::Command::new("rg")
-        .args(&[
-            "general_vector_index_path",
-            "--type",
-            "rust",
-            "src/mcp_stdio_main.rs",
-        ])
+        .args(&["general_vector_index_path", "--type", "rust", "src/mcp_stdio_main.rs"])
         .output()
         .expect("Failed to execute ripgrep");
 
-    assert!(
-        !general_index_path.stdout.is_empty(),
-        "GENERAL vector index path must be configured"
-    );
+    assert!(!general_index_path.stdout.is_empty(), "GENERAL vector index path must be configured");
 
     // Verify paths are different
     let paths_check = std::process::Command::new("rg")
-        .args(&[
-            "syncore_code.index|syncore_general.index",
-            "--type",
-            "rust",
-            "src/",
-            "-c",
-        ])
+        .args(&["syncore_code.index|syncore_general.index", "--type", "rust", "src/", "-c"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -329,11 +271,8 @@ fn test_no_accidental_real_model_invocations_in_tests() {
     // Ensure test code doesn't accidentally invoke HuggingFace models
     // (which would slow down test suite significantly)
 
-    let test_files = vec![
-        "src/router.rs",
-        "src/macro_tools/executor_real.rs",
-        "src/http_stream_server.rs",
-    ];
+    let test_files =
+        vec!["src/router.rs", "src/macro_tools/executor_real.rs", "src/http_stream_server.rs"];
 
     for file in test_files {
         let test_blocks = std::process::Command::new("rg")
@@ -364,14 +303,7 @@ fn test_triple_domain_architecture_unchanged() {
 
     // Check EmbeddingDomain enum
     let domain_enum = std::process::Command::new("rg")
-        .args(&[
-            "pub enum EmbeddingDomain",
-            "--type",
-            "rust",
-            "src/vector/domain.rs",
-            "-A",
-            "10",
-        ])
+        .args(&["pub enum EmbeddingDomain", "--type", "rust", "src/vector/domain.rs", "-A", "10"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -384,12 +316,7 @@ fn test_triple_domain_architecture_unchanged() {
 
     // Check GraphEmbeddingStrategy trait still exists
     let graph_strategy = std::process::Command::new("rg")
-        .args(&[
-            "pub trait GraphEmbeddingStrategy",
-            "--type",
-            "rust",
-            "src/code_graph/",
-        ])
+        .args(&["pub trait GraphEmbeddingStrategy", "--type", "rust", "src/code_graph/"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -440,13 +367,7 @@ fn test_raggraph_pipeline_unchanged() {
 fn test_apex_audit_tests_still_pass() {
     // Run original audit tests to ensure no regressions
     let audit_result = std::process::Command::new("cargo")
-        .args(&[
-            "test",
-            "--test",
-            "apex_2_1_audit_wiring_tests",
-            "--",
-            "--test-threads=1",
-        ])
+        .args(&["test", "--test", "apex_2_1_audit_wiring_tests", "--", "--test-threads=1"])
         .output()
         .expect("Failed to run audit tests");
 

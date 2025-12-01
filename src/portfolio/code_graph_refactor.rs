@@ -66,7 +66,9 @@ pub struct RefactoringSuggestionEngine<'a> {
 impl<'a> RefactoringSuggestionEngine<'a> {
     /// Create a new engine with a reference to the code graph store
     pub fn new(store: &'a CodeGraphStore) -> Self {
-        Self { store }
+        Self {
+            store,
+        }
     }
 
     /// Detect functions that exceed the maximum line threshold
@@ -198,9 +200,7 @@ impl<'a> RefactoringSuggestionEngine<'a> {
 
         // Sort by similarity descending
         duplicates.sort_by(|a, b| {
-            b.similarity
-                .partial_cmp(&a.similarity)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal)
         });
         Ok(duplicates)
     }
@@ -291,10 +291,7 @@ impl<'a> RefactoringSuggestionEngine<'a> {
             steps.push(RefactoringStep {
                 step_number,
                 action: "update_callers".to_string(),
-                description: format!(
-                    "Update {} calling sites if signature changes",
-                    callers.len()
-                ),
+                description: format!("Update {} calling sites if signature changes", callers.len()),
                 files_affected: callers.clone(),
             });
             step_number += 1;
@@ -390,10 +387,7 @@ impl<'a> RefactoringSuggestionEngine<'a> {
         }
 
         if caller_count > 10 {
-            risks.push(format!(
-                "High coupling: {} callers may be affected",
-                caller_count
-            ));
+            risks.push(format!("High coupling: {} callers may be affected", caller_count));
         }
 
         if line_count > 100 {
@@ -418,7 +412,7 @@ impl<'a> RefactoringSuggestionEngine<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::portfolio::code_graph_extractor::{CodeGraph, FunctionNode};
+
     use tempfile::TempDir;
 
     #[test]

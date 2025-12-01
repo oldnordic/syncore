@@ -26,9 +26,7 @@ async fn test_fs_event_did_open_sent_for_new_file() {
     let root = temp_dir.path().to_path_buf();
 
     // Create LSP bridge
-    let bridge = LspBridge::try_start(&root, "rust")
-        .await
-        .expect("Failed to start bridge");
+    let bridge = LspBridge::try_start(&root, "rust").await.expect("Failed to start bridge");
 
     assert_eq!(bridge.status(), LspStatus::Ready);
 
@@ -47,11 +45,7 @@ async fn test_fs_event_did_open_sent_for_new_file() {
     // Call helper to update LSP
     let result = on_fs_event_update_lsp(&bridge, &parser, &event).await;
 
-    assert!(
-        result.is_ok(),
-        "Helper should send didOpen without error: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Helper should send didOpen without error: {:?}", result.err());
 
     // Give LSP time to process
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -75,9 +69,7 @@ async fn test_fs_event_did_change_sent_for_modify() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let root = temp_dir.path().to_path_buf();
 
-    let bridge = LspBridge::try_start(&root, "rust")
-        .await
-        .expect("Failed to start bridge");
+    let bridge = LspBridge::try_start(&root, "rust").await.expect("Failed to start bridge");
 
     let language = unsafe { tree_sitter_rust::language() };
     let mut parser = ParserService::new(language, root.clone()).expect("Failed to create parser");
@@ -89,14 +81,10 @@ async fn test_fs_event_did_change_sent_for_modify() {
 
     let create_event = FsEvent::Created(test_file.clone());
 
-    on_fs_event_update_lsp(&bridge, &parser, &create_event)
-        .await
-        .expect("Failed to send didOpen");
+    on_fs_event_update_lsp(&bridge, &parser, &create_event).await.expect("Failed to send didOpen");
 
     // Apply event to parser to track state
-    parser
-        .apply_fs_event(create_event)
-        .expect("Failed to apply create event");
+    parser.apply_fs_event(create_event).expect("Failed to apply create event");
 
     // Modify file
     let modified_code = "fn main() { println!(\"modified\"); }";
@@ -107,11 +95,7 @@ async fn test_fs_event_did_change_sent_for_modify() {
     // Call helper for didChange
     let result = on_fs_event_update_lsp(&bridge, &parser, &modify_event).await;
 
-    assert!(
-        result.is_ok(),
-        "Helper should send didChange without error: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Helper should send didChange without error: {:?}", result.err());
 
     assert_eq!(bridge.status(), LspStatus::Ready);
 }

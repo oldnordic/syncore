@@ -17,16 +17,27 @@ struct LlmOutput {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum OpJson {
-    LoadMemory { id: String },
-    Retrieve { query: String, k: usize },
-    FoldContext { context_ids: Vec<String> },
-    EmitPointer { id: String },
+    LoadMemory {
+        id: String,
+    },
+    Retrieve {
+        query: String,
+        k: usize,
+    },
+    FoldContext {
+        context_ids: Vec<String>,
+    },
+    EmitPointer {
+        id: String,
+    },
     Noop,
 }
 
 impl ToonDecoder {
     pub fn new() -> Self {
-        Self { _private: () }
+        Self {
+            _private: (),
+        }
     }
 
     /// Decode LLM JSON output into TOON instructions
@@ -52,10 +63,28 @@ impl ToonDecoder {
         let mut instructions = Vec::new();
         for op in output.ops {
             let instr = match op {
-                OpJson::LoadMemory { id } => ToonInstr::LoadMemory { id },
-                OpJson::Retrieve { query, k } => ToonInstr::Retrieve { query, k },
-                OpJson::FoldContext { context_ids } => ToonInstr::FoldContext { context_ids },
-                OpJson::EmitPointer { id } => ToonInstr::EmitPointer { id },
+                OpJson::LoadMemory {
+                    id,
+                } => ToonInstr::LoadMemory {
+                    id,
+                },
+                OpJson::Retrieve {
+                    query,
+                    k,
+                } => ToonInstr::Retrieve {
+                    query,
+                    k,
+                },
+                OpJson::FoldContext {
+                    context_ids,
+                } => ToonInstr::FoldContext {
+                    context_ids,
+                },
+                OpJson::EmitPointer {
+                    id,
+                } => ToonInstr::EmitPointer {
+                    id,
+                },
                 OpJson::Noop => ToonInstr::NoOp,
             };
             instructions.push(instr);
@@ -131,8 +160,14 @@ mod tests {
         // Check first instruction
         match (&ops1[0], &ops2[0]) {
             (
-                ToonInstr::Retrieve { query: q1, k: k1 },
-                ToonInstr::Retrieve { query: q2, k: k2 },
+                ToonInstr::Retrieve {
+                    query: q1,
+                    k: k1,
+                },
+                ToonInstr::Retrieve {
+                    query: q2,
+                    k: k2,
+                },
             ) => {
                 assert_eq!(q1, q2);
                 assert_eq!(k1, k2);

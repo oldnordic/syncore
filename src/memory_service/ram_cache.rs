@@ -97,9 +97,7 @@ impl RamCache {
 
         // Sort by similarity (descending), then by ID (ascending) for deterministic ordering
         scored.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.0.cmp(&b.0))
+            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.cmp(&b.0))
         });
 
         // Return top-k entries

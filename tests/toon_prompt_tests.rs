@@ -21,10 +21,7 @@ fn test_prompt_includes_graph() {
     let prompt = builder.build_prompt(&graph, &[], &HashMap::new());
 
     // Should include entry point
-    assert!(
-        prompt.contains("start"),
-        "Prompt should include entry node ID"
-    );
+    assert!(prompt.contains("start"), "Prompt should include entry node ID");
     // Should include instruction type
     assert!(
         prompt.contains("Retrieve") || prompt.contains("retrieve"),
@@ -49,14 +46,8 @@ fn test_prompt_includes_memory_entries() {
 
     let prompt = builder.build_prompt(&graph, &memory, &HashMap::new());
 
-    assert!(
-        prompt.contains("mem1"),
-        "Prompt should include memory entry ID"
-    );
-    assert!(
-        prompt.contains("Test memory entry"),
-        "Prompt should include summary"
-    );
+    assert!(prompt.contains("mem1"), "Prompt should include memory entry ID");
+    assert!(prompt.contains("Test memory entry"), "Prompt should include summary");
 }
 
 #[test]
@@ -81,10 +72,7 @@ fn test_prompt_includes_pointer_store() {
     let prompt = builder.build_prompt(&graph, &[], &pointer_store);
 
     assert!(prompt.contains("ptr1"), "Prompt should include pointer ID");
-    assert!(
-        prompt.contains("Pointer entry"),
-        "Prompt should include pointer summary"
-    );
+    assert!(prompt.contains("Pointer entry"), "Prompt should include pointer summary");
 }
 
 #[test]
@@ -98,10 +86,7 @@ fn test_prompt_obeys_max_context_tokens() {
     let memory: Vec<MemoryEntry> = (0..100)
         .map(|i| MemoryEntry {
             id: format!("entry{}", i),
-            summary: format!(
-                "This is a very long summary for entry {} with lots of text",
-                i
-            ),
+            summary: format!("This is a very long summary for entry {} with lots of text", i),
             importance: 0.5,
             tags: vec![],
             embedding: vec![0.1; 128],
@@ -112,10 +97,7 @@ fn test_prompt_obeys_max_context_tokens() {
 
     // Prompt should be bounded (not include all 100 entries)
     let entry_count = prompt.matches("entry").count();
-    assert!(
-        entry_count < 100,
-        "Should limit number of entries due to token limit"
-    );
+    assert!(entry_count < 100, "Should limit number of entries due to token limit");
 }
 
 #[test]
@@ -190,10 +172,7 @@ fn test_prompt_handles_empty_inputs() {
     let graph = ToonGraph::new("empty".to_string());
     let prompt = builder.build_prompt(&graph, &[], &HashMap::new());
 
-    assert!(
-        !prompt.is_empty(),
-        "Should produce valid prompt even with empty inputs"
-    );
+    assert!(!prompt.is_empty(), "Should produce valid prompt even with empty inputs");
     assert!(prompt.contains("empty"), "Should still include entry node");
 }
 

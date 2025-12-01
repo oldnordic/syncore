@@ -80,10 +80,7 @@ pub fn main() {
     let params = vec![("ns", serde_json::json!("syncore_default"))];
 
     let nodes = neo4j
-        .execute_query(
-            "MATCH (e {namespace: $ns}) RETURN count(e) as count",
-            params.clone(),
-        )
+        .execute_query("MATCH (e {namespace: $ns}) RETURN count(e) as count", params.clone())
         .await?;
     assert!(!nodes.is_empty(), "Should have created nodes");
 
@@ -94,10 +91,7 @@ pub fn main() {
             params,
         )
         .await?;
-    assert!(
-        !edges.is_empty(),
-        "Should have created edges for method calls"
-    );
+    assert!(!edges.is_empty(), "Should have created edges for method calls");
 
     Ok(())
 }
@@ -153,17 +147,11 @@ fn gamma() { }
 
     // Count nodes after reindex
     let nodes_second = neo4j
-        .execute_query(
-            "MATCH (e:Function {namespace: $ns}) RETURN count(e) as count",
-            params,
-        )
+        .execute_query("MATCH (e:Function {namespace: $ns}) RETURN count(e) as count", params)
         .await?;
 
     // Should have 3 nodes now (alpha, beta, gamma), not 2+3=5 (duplicates)
-    assert!(
-        !nodes_second.is_empty(),
-        "Should have exactly 3 nodes after reindex, not duplicates"
-    );
+    assert!(!nodes_second.is_empty(), "Should have exactly 3 nodes after reindex, not duplicates");
 
     Ok(())
 }
@@ -212,10 +200,7 @@ fn main() {
     let params = vec![("ns", serde_json::json!("syncore_default"))];
 
     let nodes = neo4j
-        .execute_query(
-            "MATCH (e:Function {namespace: $ns}) RETURN e.name as name",
-            params.clone(),
-        )
+        .execute_query("MATCH (e:Function {namespace: $ns}) RETURN e.name as name", params.clone())
         .await?;
 
     assert!(nodes.len() >= 2, "Should have functions from both files");

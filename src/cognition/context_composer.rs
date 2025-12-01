@@ -58,7 +58,9 @@ impl ContextComposer {
 
     /// Create ContextComposer with custom config
     pub fn with_config(config: LtmcLookupConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+        }
     }
 
     /// Compose unified ContextBundle

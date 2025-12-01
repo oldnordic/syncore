@@ -86,10 +86,7 @@ fn test_storage_error_display_messages() {
     assert_eq!(err.to_string(), "Invalid query: empty text");
 
     let err = StorageError::EmptySeedNodes;
-    assert_eq!(
-        err.to_string(),
-        "Empty seed nodes returned from vector search"
-    );
+    assert_eq!(err.to_string(), "Empty seed nodes returned from vector search");
 
     // Verify std::error::Error trait is implemented
     let _: &dyn Error = &err;

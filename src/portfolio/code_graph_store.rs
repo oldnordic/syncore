@@ -190,12 +190,7 @@ impl CodeGraphStore {
             self.conn.execute(
                 "INSERT INTO code_graph_implementations (namespace, struct_name, trait_name, line)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    self.namespace,
-                    imp.struct_name,
-                    imp.trait_name,
-                    imp.line as i64
-                ],
+                params![self.namespace, imp.struct_name, imp.trait_name, imp.line as i64],
             )?;
         }
 
@@ -356,9 +351,8 @@ impl CodeGraphStore {
             return Ok(());
         }
 
-        let embeddings_result = model
-            .embed(texts.clone(), None)
-            .map_err(|e| anyhow!("Embedding failed: {}", e))?;
+        let embeddings_result =
+            model.embed(texts.clone(), None).map_err(|e| anyhow!("Embedding failed: {}", e))?;
 
         // Store embeddings with IDs
         self.embeddings.clear();
@@ -403,11 +397,7 @@ impl CodeGraphStore {
 
         scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-        Ok(scores
-            .into_iter()
-            .take(limit)
-            .map(|(name, _)| name)
-            .collect())
+        Ok(scores.into_iter().take(limit).map(|(name, _)| name).collect())
     }
 
     /// Sync code graph to Neo4j (graceful fallback if unavailable)
@@ -546,10 +536,8 @@ impl CodeGraphStore {
                 .map_err(|e| anyhow!("Neo4j connection/query error: {}", e))?;
 
             let mut callees = Vec::new();
-            while let Some(row) = result
-                .next()
-                .await
-                .map_err(|e| anyhow!("Neo4j row error: {}", e))?
+            while let Some(row) =
+                result.next().await.map_err(|e| anyhow!("Neo4j row error: {}", e))?
             {
                 if let Ok(name) = row.get::<String>("callee") {
                     callees.push(name);
@@ -587,10 +575,8 @@ impl CodeGraphStore {
                 .map_err(|e| anyhow!("Neo4j connection/query error: {}", e))?;
 
             let mut traits = Vec::new();
-            while let Some(row) = result
-                .next()
-                .await
-                .map_err(|e| anyhow!("Neo4j row error: {}", e))?
+            while let Some(row) =
+                result.next().await.map_err(|e| anyhow!("Neo4j row error: {}", e))?
             {
                 if let Ok(name) = row.get::<String>("trait_name") {
                     traits.push(name);
@@ -668,11 +654,7 @@ impl CodeGraphStore {
             })
             .collect();
 
-        scores.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
         Ok(scores.into_iter().take(limit).collect())
     }
@@ -695,9 +677,7 @@ impl CodeGraphStore {
 
         std::fs::create_dir_all(&self.vectors_dir)?;
 
-        let embeddings_path = self
-            .vectors_dir
-            .join(format!("{}_embeddings.bin", self.namespace));
+        let embeddings_path = self.vectors_dir.join(format!("{}_embeddings.bin", self.namespace));
         let mut file = std::fs::File::create(&embeddings_path)?;
 
         // Use bincode for serialization
@@ -718,9 +698,7 @@ impl CodeGraphStore {
 
     /// Load embeddings from disk in the vectors directory
     pub fn load_embeddings(&mut self) -> Result<()> {
-        let embeddings_path = self
-            .vectors_dir
-            .join(format!("{}_embeddings.bin", self.namespace));
+        let embeddings_path = self.vectors_dir.join(format!("{}_embeddings.bin", self.namespace));
 
         if !embeddings_path.exists() {
             tracing::debug!("No embeddings file found at {}", embeddings_path.display());

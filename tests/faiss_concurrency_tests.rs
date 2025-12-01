@@ -31,10 +31,7 @@ async fn faiss_concurrent_reads_and_writes_do_not_deadlock() -> Result<()> {
         let st = state.clone();
         tasks.push(task::spawn(async move {
             let pool = st.faiss_pool.as_ref().unwrap().pool.clone();
-            let conn = pool
-                .get()
-                .await
-                .map_err(|e| anyhow::anyhow!("Pool error: {:?}", e))?;
+            let conn = pool.get().await.map_err(|e| anyhow::anyhow!("Pool error: {:?}", e))?;
             let path = conn.path.clone();
             // Simulate read work using wrapper in spawn_blocking
             let res = tokio::task::spawn_blocking(move || {
@@ -95,10 +92,7 @@ async fn faiss_pool_connections_are_reusable() -> Result<()> {
 
     // Get and return connections multiple times
     for _ in 0..10 {
-        let conn = pool
-            .get()
-            .await
-            .map_err(|e| anyhow::anyhow!("Pool error: {:?}", e))?;
+        let conn = pool.get().await.map_err(|e| anyhow::anyhow!("Pool error: {:?}", e))?;
         assert_eq!(conn.path, "tests/data/faiss_test.index");
         drop(conn);
     }

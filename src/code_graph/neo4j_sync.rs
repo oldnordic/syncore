@@ -90,10 +90,7 @@ pub async fn sync_entities_to_neo4j(
             }
             Err(e) => {
                 // Log error but continue processing (best-effort)
-                eprintln!(
-                    "[Neo4jSync] Failed to create node for entity {}: {}",
-                    entity.name, e
-                );
+                eprintln!("[Neo4jSync] Failed to create node for entity {}: {}", entity.name, e);
                 summary.entities_skipped += 1;
             }
         }
@@ -147,10 +144,7 @@ pub async fn sync_relationships_to_neo4j(
             }
             Err(e) => {
                 // Log error but continue processing
-                eprintln!(
-                    "[Neo4jSync] Failed to create relationship for edge {:?}: {}",
-                    edge, e
-                );
+                eprintln!("[Neo4jSync] Failed to create relationship for edge {:?}: {}", edge, e);
                 summary.edges_skipped += 1;
             }
         }
@@ -171,15 +165,11 @@ fn fetch_edges_from_sqlite(
     db_conn: &Arc<Mutex<Connection>>,
     limit: Option<u64>,
 ) -> Result<Vec<CodeEdge>> {
-    let conn = db_conn
-        .lock()
-        .map_err(|e| anyhow::anyhow!("Failed to lock database connection: {}", e))?;
+    let conn =
+        db_conn.lock().map_err(|e| anyhow::anyhow!("Failed to lock database connection: {}", e))?;
 
     let query = if let Some(lim) = limit {
-        format!(
-            "SELECT src_entity_id, dst_entity_id, edge_type FROM code_edges LIMIT {}",
-            lim
-        )
+        format!("SELECT src_entity_id, dst_entity_id, edge_type FROM code_edges LIMIT {}", lim)
     } else {
         "SELECT src_entity_id, dst_entity_id, edge_type FROM code_edges".to_string()
     };
@@ -229,9 +219,8 @@ fn fetch_entities_from_sqlite(
 ) -> Result<Vec<(i64, super::types::CodeEntity)>> {
     use super::types::{CodeEntity, EntityType};
 
-    let conn = db_conn
-        .lock()
-        .map_err(|e| anyhow::anyhow!("Failed to lock database connection: {}", e))?;
+    let conn =
+        db_conn.lock().map_err(|e| anyhow::anyhow!("Failed to lock database connection: {}", e))?;
 
     let query = if let Some(lim) = limit {
         format!(

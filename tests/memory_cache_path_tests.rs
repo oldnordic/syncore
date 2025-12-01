@@ -28,9 +28,7 @@ fn test_memory_cache_no_pollution_with_memory_db() {
     let memory = Memory::new(":memory:_test_cache_pollution").expect("Failed to create memory");
 
     // Store and retrieve some data to trigger cache usage
-    memory
-        .store("test_key", "test_value")
-        .expect("Failed to store data");
+    memory.store("test_key", "test_value").expect("Failed to store data");
     let _value = memory.query("test_key").expect("Failed to query data");
 
     // List files after memory operations
@@ -49,11 +47,7 @@ fn test_memory_cache_no_pollution_with_memory_db() {
         .filter(|name| name.contains(":memory:") && name.contains("_cache"))
         .collect();
 
-    assert!(
-        cache_files.is_empty(),
-        "Found cache files in working directory: {:?}",
-        cache_files
-    );
+    assert!(cache_files.is_empty(), "Found cache files in working directory: {:?}", cache_files);
 
     // Files should be the same as before (no pollution)
     if files_before.len() != files_after.len() {
@@ -87,17 +81,12 @@ fn test_memory_cache_with_file_db() {
     let memory = Memory::new(db_path).expect("Failed to create memory");
 
     // Store and retrieve some data to trigger cache usage
-    memory
-        .store("test_key", "test_value")
-        .expect("Failed to store data");
+    memory.store("test_key", "test_value").expect("Failed to store data");
     let _value = memory.query("test_key").expect("Failed to query data");
 
     // Check that cache directory was created next to the database
     let cache_path = format!("{}_cache", db_path);
-    assert!(
-        Path::new(&cache_path).exists(),
-        "Cache directory should exist for file database"
-    );
+    assert!(Path::new(&cache_path).exists(), "Cache directory should exist for file database");
 
     // Clean up
     drop(memory);
@@ -121,9 +110,7 @@ fn test_memory_cache_cleanup_on_drop() {
         let memory = Memory::new(":memory:_test_cleanup").expect("Failed to create memory");
 
         // Store and retrieve some data
-        memory
-            .store("test_key", "test_value")
-            .expect("Failed to store data");
+        memory.store("test_key", "test_value").expect("Failed to store data");
         let _value = memory.query("test_key").expect("Failed to query data");
 
         // Memory should be using a temporary cache directory

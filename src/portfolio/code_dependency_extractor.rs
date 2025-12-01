@@ -22,17 +22,15 @@ pub struct CodeDependencyExtractor {
 impl CodeDependencyExtractor {
     pub fn new() -> Self {
         let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_rust::language())
-            .expect("Failed to set Rust language");
-        CodeDependencyExtractor { parser }
+        parser.set_language(tree_sitter_rust::language()).expect("Failed to set Rust language");
+        CodeDependencyExtractor {
+            parser,
+        }
     }
 
     pub fn extract_from_source(&mut self, source: &str, path: &str) -> Result<CodeDependencies> {
-        let tree = self
-            .parser
-            .parse(source, None)
-            .ok_or_else(|| anyhow!("Failed to parse source"))?;
+        let tree =
+            self.parser.parse(source, None).ok_or_else(|| anyhow!("Failed to parse source"))?;
 
         let root = tree.root_node();
         let source_bytes = source.as_bytes();
@@ -83,10 +81,8 @@ impl CodeDependencyExtractor {
 
         for m in matches {
             for capture in m.captures {
-                let import_text = capture
-                    .node
-                    .utf8_text(source)
-                    .map_err(|e| anyhow!("UTF8 error: {}", e))?;
+                let import_text =
+                    capture.node.utf8_text(source).map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 if !deps.imports.contains(&import_text.to_string()) {
                     deps.imports.push(import_text.to_string());
                 }
@@ -114,10 +110,8 @@ impl CodeDependencyExtractor {
 
         for m in matches {
             for capture in m.captures {
-                let fn_name = capture
-                    .node
-                    .utf8_text(source)
-                    .map_err(|e| anyhow!("UTF8 error: {}", e))?;
+                let fn_name =
+                    capture.node.utf8_text(source).map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 deps.function_defs.push(fn_name.to_string());
             }
         }
@@ -143,10 +137,8 @@ impl CodeDependencyExtractor {
 
         for m in matches {
             for capture in m.captures {
-                let struct_name = capture
-                    .node
-                    .utf8_text(source)
-                    .map_err(|e| anyhow!("UTF8 error: {}", e))?;
+                let struct_name =
+                    capture.node.utf8_text(source).map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 deps.struct_defs.push(struct_name.to_string());
             }
         }
@@ -176,10 +168,8 @@ impl CodeDependencyExtractor {
             let mut struct_name = String::new();
 
             for capture in m.captures {
-                let text = capture
-                    .node
-                    .utf8_text(source)
-                    .map_err(|e| anyhow!("UTF8 error: {}", e))?;
+                let text =
+                    capture.node.utf8_text(source).map_err(|e| anyhow!("UTF8 error: {}", e))?;
                 let capture_name = &query.capture_names()[capture.index as usize];
                 if capture_name == "trait_name" {
                     trait_name = text.to_string();

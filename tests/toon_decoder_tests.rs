@@ -20,7 +20,10 @@ fn test_decoder_parses_valid_json() {
     assert_eq!(ops.len(), 1);
 
     match &ops[0] {
-        ToonInstr::Retrieve { query, k } => {
+        ToonInstr::Retrieve {
+            query,
+            k,
+        } => {
             assert_eq!(query, "test");
             assert_eq!(*k, 5);
         }
@@ -99,13 +102,22 @@ fn test_decoder_stable_ordering() {
     let ops = decoder.decode_ops(json).unwrap();
 
     // Order should be preserved
-    if let ToonInstr::EmitPointer { id } = &ops[0] {
+    if let ToonInstr::EmitPointer {
+        id,
+    } = &ops[0]
+    {
         assert_eq!(id, "P1");
     }
-    if let ToonInstr::EmitPointer { id } = &ops[1] {
+    if let ToonInstr::EmitPointer {
+        id,
+    } = &ops[1]
+    {
         assert_eq!(id, "P2");
     }
-    if let ToonInstr::EmitPointer { id } = &ops[2] {
+    if let ToonInstr::EmitPointer {
+        id,
+    } = &ops[2]
+    {
         assert_eq!(id, "P3");
     }
 }
@@ -150,16 +162,10 @@ fn test_decoder_validates_retrieve_fields() {
     let decoder = ToonDecoder::new();
 
     let missing_k = r#"{"ops": [{"type": "retrieve", "query": "test"}]}"#;
-    assert!(
-        decoder.decode_ops(missing_k).is_err(),
-        "Should require 'k' field"
-    );
+    assert!(decoder.decode_ops(missing_k).is_err(), "Should require 'k' field");
 
     let missing_query = r#"{"ops": [{"type": "retrieve", "k": 5}]}"#;
-    assert!(
-        decoder.decode_ops(missing_query).is_err(),
-        "Should require 'query' field"
-    );
+    assert!(decoder.decode_ops(missing_query).is_err(), "Should require 'query' field");
 }
 
 #[test]
@@ -168,16 +174,10 @@ fn test_decoder_validates_fold_context_fields() {
     let decoder = ToonDecoder::new();
 
     let missing_ids = r#"{"ops": [{"type": "fold_context"}]}"#;
-    assert!(
-        decoder.decode_ops(missing_ids).is_err(),
-        "Should require 'context_ids' field"
-    );
+    assert!(decoder.decode_ops(missing_ids).is_err(), "Should require 'context_ids' field");
 
     let valid = r#"{"ops": [{"type": "fold_context", "context_ids": ["id1"]}]}"#;
-    assert!(
-        decoder.decode_ops(valid).is_ok(),
-        "Valid fold_context should parse"
-    );
+    assert!(decoder.decode_ops(valid).is_ok(), "Valid fold_context should parse");
 }
 
 #[test]
@@ -199,7 +199,16 @@ fn test_decoder_is_deterministic() {
 
     // Check first instruction
     match (&ops1[0], &ops2[0]) {
-        (ToonInstr::Retrieve { query: q1, k: k1 }, ToonInstr::Retrieve { query: q2, k: k2 }) => {
+        (
+            ToonInstr::Retrieve {
+                query: q1,
+                k: k1,
+            },
+            ToonInstr::Retrieve {
+                query: q2,
+                k: k2,
+            },
+        ) => {
             assert_eq!(q1, q2);
             assert_eq!(k1, k2);
         }

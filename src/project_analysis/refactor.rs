@@ -53,9 +53,7 @@ impl ProjectAnalysisEngine {
         let loc_threshold = request.loc_threshold.unwrap_or(DEFAULT_LOC_THRESHOLD);
         let entity_threshold = request.entity_threshold.unwrap_or(DEFAULT_ENTITY_THRESHOLD);
         let fan_in_threshold = request.fan_in_threshold.unwrap_or(DEFAULT_FAN_IN_THRESHOLD);
-        let fan_out_threshold = request
-            .fan_out_threshold
-            .unwrap_or(DEFAULT_FAN_OUT_THRESHOLD);
+        let fan_out_threshold = request.fan_out_threshold.unwrap_or(DEFAULT_FAN_OUT_THRESHOLD);
 
         // 1. Suggest file splits for large files
         suggestions.extend(self.suggest_file_splits(
@@ -81,13 +79,13 @@ impl ProjectAnalysisEngine {
             // Simple priority: files with more issues first
             let a_score = self.calculate_suggestion_priority(&a);
             let b_score = self.calculate_suggestion_priority(&b);
-            b_score
-                .partial_cmp(&a_score)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b_score.partial_cmp(&a_score).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         suggestions.truncate(request.limit as usize);
 
-        Ok(RefactorSuggestionsData { suggestions })
+        Ok(RefactorSuggestionsData {
+            suggestions,
+        })
     }
 }

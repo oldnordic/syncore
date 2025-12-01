@@ -230,12 +230,7 @@ impl RagGraphAPI {
                 FusionMode::Simple => {
                     use super::fusion_simple::FusionSimple;
                     let fusion = FusionSimple::default();
-                    fusion.combine(
-                        vector_score,
-                        graph_score,
-                        temporal_score,
-                        graph_embedding_score,
-                    )
+                    fusion.combine(vector_score, graph_score, temporal_score, graph_embedding_score)
                 }
                 FusionMode::Attention => {
                     // Simplified attention fusion

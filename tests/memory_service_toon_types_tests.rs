@@ -35,28 +35,18 @@ fn test_toon_controller_max_context_tokens() {
 
     // Test ToonController with max_context_tokens
     let max_tokens = 1000;
-    let graph = ToonGraph::new();
-    let memory = Arc::new(Mutex::new(MemoryService::new(128, 10));
+    let graph = ToonGraph::new("test_entry".to_string());
+    let memory = Arc::new(Mutex::new(MemoryService::new(128, 10)));
     let controller = ToonController::new(graph, memory, max_tokens);
 
-    assert_eq!(
-        controller.max_context_tokens(),
-        max_tokens,
-        "Should return configured max tokens"
-    );
+    assert_eq!(controller.max_context_tokens(), max_tokens, "Should return configured max tokens");
 
     // Test prompt fitting
     let short_prompt = "Short prompt that should fit";
-    assert!(
-        controller.can_fit_prompt(short_prompt),
-        "Short prompt should fit"
-    );
+    assert!(controller.can_fit_prompt(short_prompt), "Short prompt should fit");
 
     let long_prompt = "A".repeat(500); // ~2000 chars = ~500 tokens
-    assert!(
-        !controller.can_fit_prompt(&long_prompt),
-        "Long prompt should not fit"
-    );
+    assert!(!controller.can_fit_prompt(&long_prompt), "Long prompt should not fit");
 }
 
 #[test]
@@ -68,7 +58,10 @@ fn test_toon_retrieve_op_construction() {
     };
 
     match op {
-        ToonMemoryOp::Retrieve { query, k } => {
+        ToonMemoryOp::Retrieve {
+            query,
+            k,
+        } => {
             assert_eq!(query, "search query");
             assert_eq!(k, 5);
         }
@@ -84,7 +77,9 @@ fn test_toon_pointer_op_construction() {
     };
 
     match op {
-        ToonMemoryOp::Pointer { id } => {
+        ToonMemoryOp::Pointer {
+            id,
+        } => {
             assert_eq!(id, "N123");
         }
         _ => panic!("Expected Pointer variant"),
@@ -102,7 +97,10 @@ fn test_toon_store_with_multiple_tags() {
     };
 
     match op {
-        ToonMemoryOp::Store { tags, .. } => {
+        ToonMemoryOp::Store {
+            tags,
+            ..
+        } => {
             assert_eq!(tags.len(), 3);
         }
         _ => panic!("Expected Store variant"),
@@ -118,7 +116,10 @@ fn test_toon_retrieve_with_k_zero() {
     };
 
     match op {
-        ToonMemoryOp::Retrieve { k, .. } => {
+        ToonMemoryOp::Retrieve {
+            k,
+            ..
+        } => {
             assert_eq!(k, 0);
         }
         _ => panic!("Expected Retrieve variant"),

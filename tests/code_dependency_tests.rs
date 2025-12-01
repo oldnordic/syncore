@@ -16,12 +16,8 @@ fn main() {}
     let mut extractor = CodeDependencyExtractor::new();
     let deps = extractor.extract_from_source(rust_code, "test.rs").unwrap();
 
-    assert!(deps
-        .imports
-        .contains(&"std::collections::HashMap".to_string()));
-    assert!(deps
-        .imports
-        .contains(&"crate::storage::manager::StorageManager".to_string()));
+    assert!(deps.imports.contains(&"std::collections::HashMap".to_string()));
+    assert!(deps.imports.contains(&"crate::storage::manager::StorageManager".to_string()));
     assert!(deps.imports.contains(&"anyhow::Result".to_string()));
     assert_eq!(deps.imports.len(), 3);
 }
@@ -48,10 +44,7 @@ fn process_data(val: i32) -> i32 {
     let deps = extractor.extract_from_source(rust_code, "test.rs").unwrap();
 
     // compute calls helper and process_data
-    assert!(deps
-        .calls
-        .iter()
-        .any(|(caller, callee)| caller == "compute" && callee == "helper"));
+    assert!(deps.calls.iter().any(|(caller, callee)| caller == "compute" && callee == "helper"));
     assert!(deps
         .calls
         .iter()
@@ -89,18 +82,9 @@ impl CustomTrait for MyStruct {
     let mut extractor = CodeDependencyExtractor::new();
     let deps = extractor.extract_from_source(rust_code, "test.rs").unwrap();
 
-    assert!(deps
-        .implements
-        .iter()
-        .any(|(s, t)| s == "MyStruct" && t == "Default"));
-    assert!(deps
-        .implements
-        .iter()
-        .any(|(s, t)| s == "MyStruct" && t == "Clone"));
-    assert!(deps
-        .implements
-        .iter()
-        .any(|(s, t)| s == "MyStruct" && t == "CustomTrait"));
+    assert!(deps.implements.iter().any(|(s, t)| s == "MyStruct" && t == "Default"));
+    assert!(deps.implements.iter().any(|(s, t)| s == "MyStruct" && t == "Clone"));
+    assert!(deps.implements.iter().any(|(s, t)| s == "MyStruct" && t == "CustomTrait"));
     assert_eq!(deps.implements.len(), 3);
 }
 
@@ -144,10 +128,7 @@ fn fetch_data(_db: &Database) -> String {
     assert!(deps.imports.contains(&"tokio::sync::Mutex".to_string()));
 
     // Check trait impls
-    assert!(deps
-        .implements
-        .iter()
-        .any(|(s, t)| s == "Database" && t == "Default"));
+    assert!(deps.implements.iter().any(|(s, t)| s == "Database" && t == "Default"));
 
     // Check function calls
     assert!(deps
@@ -165,9 +146,7 @@ fn test_handles_empty_file() {
     let rust_code = "";
 
     let mut extractor = CodeDependencyExtractor::new();
-    let deps = extractor
-        .extract_from_source(rust_code, "empty.rs")
-        .unwrap();
+    let deps = extractor.extract_from_source(rust_code, "empty.rs").unwrap();
 
     assert!(deps.imports.is_empty());
     assert!(deps.calls.is_empty());

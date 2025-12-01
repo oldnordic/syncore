@@ -106,10 +106,9 @@ impl LanguageModel for TestLanguageModel {
 
                 Ok(Completion::new(response))
             }
-            TestMode::SimulateFailure(error_msg) => Err(anyhow::anyhow!(
-                "Test backend simulated failure: {}",
-                error_msg
-            )),
+            TestMode::SimulateFailure(error_msg) => {
+                Err(anyhow::anyhow!("Test backend simulated failure: {}", error_msg))
+            }
         }
     }
 
@@ -178,10 +177,7 @@ mod tests {
 
         let result = model.complete(&prompt);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Backend unreachable"));
+        assert!(result.unwrap_err().to_string().contains("Backend unreachable"));
     }
 
     #[test]

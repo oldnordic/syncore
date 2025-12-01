@@ -79,11 +79,7 @@ async fn test_fs_watcher_emits_create_and_modify() {
     .unwrap();
 
     assert_eq!(event.path(), &test_file);
-    assert!(
-        matches!(event, FsEvent::Modified(_)),
-        "Expected Modified event, got {:?}",
-        event
-    );
+    assert!(matches!(event, FsEvent::Modified(_)), "Expected Modified event, got {:?}", event);
 }
 
 // ============================================================================
@@ -127,11 +123,7 @@ async fn test_fs_watcher_debounces_rapid_writes() {
     }
 
     // Should have debounced to at most 2 events (create + 1 batched modify)
-    assert!(
-        event_count <= 2,
-        "Expected ≤2 events due to debouncing, got {}",
-        event_count
-    );
+    assert!(event_count <= 2, "Expected ≤2 events due to debouncing, got {}", event_count);
 }
 
 // ============================================================================
@@ -163,10 +155,7 @@ async fn test_fs_watcher_ignores_outside_root() {
     .await
     .unwrap();
 
-    assert!(
-        result.is_none(),
-        "Should not receive events for files outside watched root"
-    );
+    assert!(result.is_none(), "Should not receive events for files outside watched root");
 }
 
 // ============================================================================
@@ -212,11 +201,7 @@ async fn test_fs_watcher_handles_delete() {
     .unwrap();
 
     assert_eq!(event.path(), &test_file);
-    assert!(
-        matches!(event, FsEvent::Removed(_)),
-        "Expected Removed event, got {:?}",
-        event
-    );
+    assert!(matches!(event, FsEvent::Removed(_)), "Expected Removed event, got {:?}", event);
 }
 
 // ============================================================================

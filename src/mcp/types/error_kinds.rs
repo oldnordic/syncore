@@ -74,30 +74,12 @@ mod tests {
 
     #[test]
     fn test_error_type_inference() {
-        assert_eq!(
-            ErrorType::from_message("Missing 'key' parameter"),
-            ErrorType::MissingParameter
-        );
-        assert_eq!(
-            ErrorType::from_message("Timeout exceeded"),
-            ErrorType::Timeout
-        );
-        assert_eq!(
-            ErrorType::from_message("IO error reading file"),
-            ErrorType::IoError
-        );
-        assert_eq!(
-            ErrorType::from_message("Invalid action"),
-            ErrorType::InvalidAction
-        );
-        assert_eq!(
-            ErrorType::from_message("Feature not available"),
-            ErrorType::NotAvailable
-        );
-        assert_eq!(
-            ErrorType::from_message("Something went wrong"),
-            ErrorType::Internal
-        );
+        assert_eq!(ErrorType::from_message("Missing 'key' parameter"), ErrorType::MissingParameter);
+        assert_eq!(ErrorType::from_message("Timeout exceeded"), ErrorType::Timeout);
+        assert_eq!(ErrorType::from_message("IO error reading file"), ErrorType::IoError);
+        assert_eq!(ErrorType::from_message("Invalid action"), ErrorType::InvalidAction);
+        assert_eq!(ErrorType::from_message("Feature not available"), ErrorType::NotAvailable);
+        assert_eq!(ErrorType::from_message("Something went wrong"), ErrorType::Internal);
     }
 
     #[test]

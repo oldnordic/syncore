@@ -84,10 +84,7 @@ pub fn should_index_path_with_excludes(path: &str, excluded_dirs: &[String]) -> 
     }
 
     let normalized = path.trim_start_matches("./");
-    let components: Vec<&str> = normalized
-        .split(['/', '\\'])
-        .filter(|s| !s.is_empty())
-        .collect();
+    let components: Vec<&str> = normalized.split(['/', '\\']).filter(|s| !s.is_empty()).collect();
 
     for component in &components {
         for excluded in excluded_dirs {
@@ -111,10 +108,7 @@ fn should_index_path_with_defaults(path: &str) -> bool {
     }
 
     let normalized = path.trim_start_matches("./");
-    let components: Vec<&str> = normalized
-        .split(['/', '\\'])
-        .filter(|s| !s.is_empty())
-        .collect();
+    let components: Vec<&str> = normalized.split(['/', '\\']).filter(|s| !s.is_empty()).collect();
 
     for component in &components {
         for excluded in DEFAULT_EXCLUDED_DIRS {
@@ -136,10 +130,7 @@ pub fn get_excluded_dirs() -> Vec<String> {
     if let Some(config) = SyncoreConfig::try_global() {
         config.indexing.excluded_dirs.clone()
     } else {
-        DEFAULT_EXCLUDED_DIRS
-            .iter()
-            .map(|s| s.to_string())
-            .collect()
+        DEFAULT_EXCLUDED_DIRS.iter().map(|s| s.to_string()).collect()
     }
 }
 
@@ -174,20 +165,11 @@ mod tests {
     fn test_with_custom_excludes() {
         let excludes = vec!["custom_dir".to_string(), "my_build".to_string()];
 
-        assert!(!should_index_path_with_excludes(
-            "custom_dir/file.rs",
-            &excludes
-        ));
-        assert!(!should_index_path_with_excludes(
-            "src/my_build/output.js",
-            &excludes
-        ));
+        assert!(!should_index_path_with_excludes("custom_dir/file.rs", &excludes));
+        assert!(!should_index_path_with_excludes("src/my_build/output.js", &excludes));
         assert!(should_index_path_with_excludes("src/main.rs", &excludes));
         // Note: default excludes like target are NOT excluded with custom list
-        assert!(should_index_path_with_excludes(
-            "target/debug/foo.rs",
-            &excludes
-        ));
+        assert!(should_index_path_with_excludes("target/debug/foo.rs", &excludes));
     }
 
     #[test]

@@ -32,10 +32,7 @@ impl PatchResult {
     pub fn from_neo4j_value(value: &serde_json::Value) -> Option<Self> {
         Some(PatchResult {
             id: value.get("id")?.as_i64()?,
-            metadata: value
-                .get("metadata")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            metadata: value.get("metadata").and_then(|v| v.as_str()).map(|s| s.to_string()),
         })
     }
 }
@@ -45,10 +42,7 @@ impl StepResult {
         Some(StepResult {
             id: value.get("id")?.as_i64()?,
             step_number: value.get("step_number")?.as_i64()?,
-            metadata: value
-                .get("metadata")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            metadata: value.get("metadata").and_then(|v| v.as_str()).map(|s| s.to_string()),
         })
     }
 }
@@ -57,10 +51,7 @@ impl TaskResult {
     pub fn from_neo4j_value(value: &serde_json::Value) -> Option<Self> {
         Some(TaskResult {
             id: value.get("id")?.as_i64()?,
-            metadata: value
-                .get("metadata")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            metadata: value.get("metadata").and_then(|v| v.as_str()).map(|s| s.to_string()),
         })
     }
 }
@@ -148,10 +139,7 @@ pub async fn get_patches_for_task(client: &Neo4jClient, task_id: i64) -> Result<
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(PatchResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(PatchResult::from_neo4j_value).collect())
 }
 
 /// Get all steps for a task
@@ -174,10 +162,7 @@ pub async fn get_steps_for_task(client: &Neo4jClient, task_id: i64) -> Result<Ve
         )
         .await?;
 
-    Ok(results
-        .iter()
-        .filter_map(StepResult::from_neo4j_value)
-        .collect())
+    Ok(results.iter().filter_map(StepResult::from_neo4j_value).collect())
 }
 
 /// Get files that a patch applies to
@@ -200,11 +185,7 @@ pub async fn get_patch_files(client: &Neo4jClient, patch_id: i64) -> Result<Vec<
 
     Ok(results
         .iter()
-        .filter_map(|r| {
-            r.get("path")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-        })
+        .filter_map(|r| r.get("path").and_then(|v| v.as_str()).map(|s| s.to_string()))
         .collect())
 }
 
@@ -218,10 +199,7 @@ pub async fn count_portfolio_nodes(client: &Neo4jClient) -> Result<(i64, i64, i6
     "#;
 
     let results = client
-        .execute_query(
-            query,
-            vec![("ns", serde_json::json!(portfolio_namespace(client)))],
-        )
+        .execute_query(query, vec![("ns", serde_json::json!(portfolio_namespace(client)))])
         .await?;
 
     let mut patches = 0i64;

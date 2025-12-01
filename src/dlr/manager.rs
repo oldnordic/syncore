@@ -100,10 +100,7 @@ impl DlrManager {
             .ok_or_else(|| DlrError::PluginNotFound(plugin_name.to_string()))?;
 
         if !matches!(plugin.status, PluginStatus::Ready) {
-            return Err(DlrError::ExecutionFailed(format!(
-                "Plugin {} is not ready",
-                plugin_name
-            )));
+            return Err(DlrError::ExecutionFailed(format!("Plugin {} is not ready", plugin_name)));
         }
 
         if let Some(child) = self.loader.plugins.remove(plugin_name) {
@@ -116,21 +113,13 @@ impl DlrManager {
 
             let mut result = HashMap::new();
             result.insert("result".to_string(), response.result);
-            result.insert(
-                "diagnostics".to_string(),
-                serde_json::Value::Array(response.diagnostics),
-            );
-            result.insert(
-                "entities".to_string(),
-                serde_json::Value::Array(response.entities),
-            );
+            result
+                .insert("diagnostics".to_string(), serde_json::Value::Array(response.diagnostics));
+            result.insert("entities".to_string(), serde_json::Value::Array(response.entities));
 
             Ok(result)
         } else {
-            Err(DlrError::ExecutionFailed(format!(
-                "Plugin {} process not found",
-                plugin_name
-            )))
+            Err(DlrError::ExecutionFailed(format!("Plugin {} process not found", plugin_name)))
         }
     }
 
@@ -148,12 +137,8 @@ impl DlrManager {
     }
 
     pub fn shutdown_all(&mut self) -> Result<(), DlrError> {
-        let plugin_names: Vec<String> = self
-            .registry
-            .list_plugins()
-            .iter()
-            .map(|p| p.name.clone())
-            .collect();
+        let plugin_names: Vec<String> =
+            self.registry.list_plugins().iter().map(|p| p.name.clone()).collect();
 
         for plugin_name in plugin_names {
             let _ = self.unload_plugin(&plugin_name);

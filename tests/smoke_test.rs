@@ -54,10 +54,9 @@ mod tests {
         priority: i32,
         parent_id: Option<i64>,
     ) -> Result<i64> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         db.execute(
             "INSERT INTO tasks (goal, description, priority, parent_id, created_at, updated_at)
@@ -140,9 +139,7 @@ mod tests {
             }
             if let Some(ref desc) = self.description {
                 if desc.len() > 1000 {
-                    return Err(anyhow::anyhow!(
-                        "Task description too long (max 1000 chars)"
-                    ));
+                    return Err(anyhow::anyhow!("Task description too long (max 1000 chars)"));
                 }
             }
             Ok(())
@@ -159,16 +156,11 @@ mod tests {
             };
 
             let priority_marker = "⚡".repeat(self.priority as usize);
-            let parent_info = self
-                .parent_id
-                .map(|p| format!(" (parent: {})", p))
-                .unwrap_or_default();
+            let parent_info =
+                self.parent_id.map(|p| format!(" (parent: {})", p)).unwrap_or_default();
 
-            let description_info = self
-                .description
-                .as_ref()
-                .map(|d| format!(" - {}", d))
-                .unwrap_or_default();
+            let description_info =
+                self.description.as_ref().map(|d| format!(" - {}", d)).unwrap_or_default();
 
             format!(
                 "{} {}[{}]: {}{}{}",
@@ -256,10 +248,7 @@ mod tests {
         println!("✓ Created 3 tasks with priorities 3, 1, 2");
 
         // Verify task IDs are unique and sequential (real functionality)
-        assert!(
-            id1 != id2 && id2 != id3 && id1 != id3,
-            "Task IDs should be unique"
-        );
+        assert!(id1 != id2 && id2 != id3 && id1 != id3, "Task IDs should be unique");
         assert!(id1 < id2 && id2 < id3, "Task IDs should be sequential");
 
         // Get next task - should be highest priority (lowest number)
@@ -271,10 +260,7 @@ mod tests {
         // Use real Task functionality to verify priority
         task.validate()?;
         println!("✓ Priority task validated: {}", task.format_display());
-        assert!(
-            task.is_ready_for_work(),
-            "High priority task should be ready"
-        );
+        assert!(task.is_ready_for_work(), "High priority task should be ready");
 
         println!("✓ Confirmed priority ordering works");
 
@@ -291,10 +277,7 @@ mod tests {
         let id3 = add_task(&db, "Done Task", "Should NOT appear", 3, None)?;
 
         // Verify all task IDs were created successfully
-        assert!(
-            id1 > 0 && id2 > 0 && id3 > 0,
-            "All task IDs should be positive"
-        );
+        assert!(id1 > 0 && id2 > 0 && id3 > 0, "All task IDs should be positive");
 
         // Mark one as done
         update_task(&db, id3, Some("done"), None, None)?;

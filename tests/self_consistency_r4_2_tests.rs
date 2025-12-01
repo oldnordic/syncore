@@ -168,10 +168,7 @@ fn test_graph_inconsistency_when_no_graph_entities_present() -> Result<()> {
     let context_bundle = ContextBundle::new();
 
     // But plan includes graph-heavy tools
-    let planned_tools = vec![
-        "code_graph_fusion_query".to_string(),
-        "raggraph_query".to_string(),
-    ];
+    let planned_tools = vec!["code_graph_fusion_query".to_string(), "raggraph_query".to_string()];
 
     let continuity = ReasoningContinuity::new();
     let recommended_patterns = Vec::new();
@@ -243,10 +240,7 @@ fn test_namespace_mismatch() -> Result<()> {
 
     // Should detect namespace mismatch
     assert!(
-        result
-            .issues
-            .iter()
-            .any(|i| matches!(i.kind, SelfConsistencyIssueKind::NamespaceMismatch)),
+        result.issues.iter().any(|i| matches!(i.kind, SelfConsistencyIssueKind::NamespaceMismatch)),
         "Should detect namespace mismatch"
     );
 
@@ -263,10 +257,7 @@ fn test_tool_order_suspicious_against_success_patterns() -> Result<()> {
         id: 1,
         intent_type: QueryIntent::Semantic,
         selected_mode: "attention".to_string(),
-        tool_sequence: vec![
-            "code_index".to_string(),
-            "code_graph_fusion_query".to_string(),
-        ],
+        tool_sequence: vec!["code_index".to_string(), "code_graph_fusion_query".to_string()],
         graph_usage: PatternGraphUsage::Heavy,
         success_count: 10,
         failure_count: 0,
@@ -276,10 +267,7 @@ fn test_tool_order_suspicious_against_success_patterns() -> Result<()> {
     };
 
     // But planned tools are in reverse order
-    let planned_tools = vec![
-        "code_graph_fusion_query".to_string(),
-        "code_index".to_string(),
-    ];
+    let planned_tools = vec!["code_graph_fusion_query".to_string(), "code_index".to_string()];
 
     let recommended_patterns = vec![pattern];
     let context_bundle = ContextBundle::new();
@@ -319,10 +307,7 @@ fn test_missing_required_step_detected() -> Result<()> {
         id: 1,
         intent_type: QueryIntent::Causal,
         selected_mode: "reasoning".to_string(),
-        tool_sequence: vec![
-            "code_index".to_string(),
-            "code_graph_fusion_query".to_string(),
-        ],
+        tool_sequence: vec!["code_index".to_string(), "code_graph_fusion_query".to_string()],
         graph_usage: PatternGraphUsage::Heavy,
         success_count: 15,
         failure_count: 1,
@@ -434,10 +419,7 @@ fn test_potential_loop_detected_from_continuity() -> Result<()> {
 
     // Should detect potential loop
     assert!(
-        result
-            .issues
-            .iter()
-            .any(|i| matches!(i.kind, SelfConsistencyIssueKind::PotentialLoop)),
+        result.issues.iter().any(|i| matches!(i.kind, SelfConsistencyIssueKind::PotentialLoop)),
         "Should detect potential loop"
     );
 
@@ -536,14 +518,8 @@ fn test_score_decreases_with_issue_severity() -> Result<()> {
     );
 
     // Scores should decrease with severity
-    assert!(
-        result_clean.score >= result_warn.score,
-        "Clean score should be >= warning score"
-    );
-    assert!(
-        result_warn.score >= result_error.score,
-        "Warning score should be >= error score"
-    );
+    assert!(result_clean.score >= result_warn.score, "Clean score should be >= warning score");
+    assert!(result_warn.score >= result_error.score, "Warning score should be >= error score");
 
     Ok(())
 }

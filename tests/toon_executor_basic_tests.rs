@@ -154,16 +154,14 @@ fn test_executor_foldcontext_creates_new_ltm_summary() {
     let results = executor.execute().unwrap();
 
     // Should have Folded result
-    let folded = results
-        .iter()
-        .find(|r| matches!(r.result, ToonResult::Folded { .. }));
+    let folded = results.iter().find(|r| matches!(r.result, ToonResult::Folded { .. }));
     assert!(folded.is_some(), "Should have Folded result");
 
-    if let ToonResult::Folded { new_id } = &folded.unwrap().result {
-        assert!(
-            new_id.starts_with("FOLD_"),
-            "Folded ID should start with FOLD_"
-        );
+    if let ToonResult::Folded {
+        new_id,
+    } = &folded.unwrap().result
+    {
+        assert!(new_id.starts_with("FOLD_"), "Folded ID should start with FOLD_");
     }
 }
 

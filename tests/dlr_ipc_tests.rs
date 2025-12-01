@@ -101,17 +101,10 @@ fn main() {
             .expect("Failed to build test plugin");
 
         if !output.status.success() {
-            panic!(
-                "Failed to build test plugin: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            panic!("Failed to build test plugin: {}", String::from_utf8_lossy(&output.stderr));
         }
 
-        plugin_dir
-            .join("target/release")
-            .join(plugin_name)
-            .to_string_lossy()
-            .to_string()
+        plugin_dir.join("target/release").join(plugin_name).to_string_lossy().to_string()
     }
 
     #[test]
@@ -154,14 +147,10 @@ fn main() {
 
         let response = result.unwrap();
         assert_eq!(response.capabilities.len(), 4);
-        assert!(response
-            .capabilities
-            .contains(&"index_directory".to_string()));
+        assert!(response.capabilities.contains(&"index_directory".to_string()));
         assert!(response.capabilities.contains(&"lsp_ingest".to_string()));
         assert!(response.capabilities.contains(&"lint_ingest".to_string()));
-        assert!(response
-            .capabilities
-            .contains(&"diagnostics_export".to_string()));
+        assert!(response.capabilities.contains(&"diagnostics_export".to_string()));
     }
 
     #[test]
@@ -179,10 +168,8 @@ fn main() {
         let mut ipc_client = IpcClient::new(child).unwrap();
 
         let mut params = HashMap::new();
-        params.insert(
-            "test_param".to_string(),
-            serde_json::Value::String("test_value".to_string()),
-        );
+        params
+            .insert("test_param".to_string(), serde_json::Value::String("test_value".to_string()));
 
         let result = ipc_client.execute_task("test_task", params);
         assert!(result.is_ok(), "Should execute task successfully");

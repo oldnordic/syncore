@@ -44,7 +44,9 @@ impl ProjectAnalysisEngine {
             request.min_loc,
         )?;
 
-        Ok(HotspotsData { hotspots })
+        Ok(HotspotsData {
+            hotspots,
+        })
     }
 
     fn calculate_hotspots(

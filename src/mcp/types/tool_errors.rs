@@ -23,13 +23,22 @@ pub enum SynCoreError {
     },
 
     /// Database operation failed
-    DatabaseError { operation: String, message: String },
+    DatabaseError {
+        operation: String,
+        message: String,
+    },
 
     /// Vector store operation failed
-    VectorError { operation: String, message: String },
+    VectorError {
+        operation: String,
+        message: String,
+    },
 
     /// Graph database operation failed
-    GraphError { operation: String, message: String },
+    GraphError {
+        operation: String,
+        message: String,
+    },
 
     /// File system operation failed
     FileSystemError {
@@ -45,13 +54,22 @@ pub enum SynCoreError {
     },
 
     /// Network/external service error (Ollama, Neo4j, etc.)
-    ExternalServiceError { service: String, message: String },
+    ExternalServiceError {
+        service: String,
+        message: String,
+    },
 
     /// Permission denied
-    PermissionDenied { operation: String, resource: String },
+    PermissionDenied {
+        operation: String,
+        resource: String,
+    },
 
     /// Operation would violate constraints
-    ConstraintViolation { constraint: String, message: String },
+    ConstraintViolation {
+        constraint: String,
+        message: String,
+    },
 
     /// Internal server error (unexpected)
     Internal {
@@ -63,7 +81,10 @@ pub enum SynCoreError {
 impl fmt::Display for SynCoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidInput { message, field } => {
+            Self::InvalidInput {
+                message,
+                field,
+            } => {
                 if let Some(field) = field {
                     write!(f, "Invalid input for field '{}': {}", field, message)
                 } else {
@@ -76,13 +97,22 @@ impl fmt::Display for SynCoreError {
             } => {
                 write!(f, "{} not found: {}", resource_type, identifier)
             }
-            Self::DatabaseError { operation, message } => {
+            Self::DatabaseError {
+                operation,
+                message,
+            } => {
                 write!(f, "Database error during {}: {}", operation, message)
             }
-            Self::VectorError { operation, message } => {
+            Self::VectorError {
+                operation,
+                message,
+            } => {
                 write!(f, "Vector store error during {}: {}", operation, message)
             }
-            Self::GraphError { operation, message } => {
+            Self::GraphError {
+                operation,
+                message,
+            } => {
                 write!(f, "Graph error during {}: {}", operation, message)
             }
             Self::FileSystemError {
@@ -90,20 +120,22 @@ impl fmt::Display for SynCoreError {
                 path,
                 message,
             } => {
-                write!(
-                    f,
-                    "File system error during {} on '{}': {}",
-                    operation, path, message
-                )
+                write!(f, "File system error during {} on '{}': {}", operation, path, message)
             }
-            Self::ParserError { language, message } => {
+            Self::ParserError {
+                language,
+                message,
+            } => {
                 if let Some(lang) = language {
                     write!(f, "Parser error ({} parser): {}", lang, message)
                 } else {
                     write!(f, "Parser error: {}", message)
                 }
             }
-            Self::ExternalServiceError { service, message } => {
+            Self::ExternalServiceError {
+                service,
+                message,
+            } => {
                 write!(f, "{} service error: {}", service, message)
             }
             Self::PermissionDenied {
@@ -118,7 +150,10 @@ impl fmt::Display for SynCoreError {
             } => {
                 write!(f, "Constraint violation ({}): {}", constraint, message)
             }
-            Self::Internal { message, context } => {
+            Self::Internal {
+                message,
+                context,
+            } => {
                 if let Some(ctx) = context {
                     write!(f, "Internal error ({}): {}", ctx, message)
                 } else {

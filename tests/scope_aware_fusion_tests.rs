@@ -76,21 +76,12 @@ async fn test_fusion_query_with_global_scope_returns_all_results() -> Result<()>
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     // Use temp file for database
-    let db_file = Builder::new()
-        .prefix("scope_global_")
-        .suffix(".db")
-        .tempfile()?;
+    let db_file = Builder::new().prefix("scope_global_").suffix(".db").tempfile()?;
     let mut code_graph = CodeGraph::new(db_file.path().to_str().unwrap(), vector_store)?;
 
     // Create and index a sample file
-    let mut temp_file = Builder::new()
-        .prefix("test_global_")
-        .suffix(".rs")
-        .tempfile()?;
-    writeln!(
-        temp_file,
-        "pub fn global_test_function(s: &str) -> String {{"
-    )?;
+    let mut temp_file = Builder::new().prefix("test_global_").suffix(".rs").tempfile()?;
+    writeln!(temp_file, "pub fn global_test_function(s: &str) -> String {{")?;
     writeln!(temp_file, "    s.to_string()")?;
     writeln!(temp_file, "}}")?;
     temp_file.flush()?;
@@ -127,19 +118,13 @@ async fn test_fusion_query_with_project_scope_filters_by_label() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     // Use temp file for database
-    let db_file = Builder::new()
-        .prefix("scope_project_")
-        .suffix(".db")
-        .tempfile()?;
+    let db_file = Builder::new().prefix("scope_project_").suffix(".db").tempfile()?;
     let mut code_graph = CodeGraph::new(db_file.path().to_str().unwrap(), vector_store)?;
 
     // Create temp files in different "project" directories
     let temp_dir = Builder::new().prefix("SynCore").tempdir()?;
     let syncore_file = temp_dir.path().join("syncore_func.rs");
-    std::fs::write(
-        &syncore_file,
-        "pub fn syncore_specific_function() -> i32 { 42 }\n",
-    )?;
+    std::fs::write(&syncore_file, "pub fn syncore_specific_function() -> i32 { 42 }\n")?;
 
     code_graph.index_file_with_neo4j(&syncore_file, Some(&neo4j))?;
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -174,19 +159,13 @@ async fn test_fusion_query_with_local_scope_filters_by_path() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     // Use temp file for database
-    let db_file = Builder::new()
-        .prefix("scope_local_")
-        .suffix(".db")
-        .tempfile()?;
+    let db_file = Builder::new().prefix("scope_local_").suffix(".db").tempfile()?;
     let mut code_graph = CodeGraph::new(db_file.path().to_str().unwrap(), vector_store)?;
 
     // Create temp file
     let temp_dir = Builder::new().prefix("local_test").tempdir()?;
     let local_file = temp_dir.path().join("local_func.rs");
-    std::fs::write(
-        &local_file,
-        "pub fn local_specific_function() -> bool { true }\n",
-    )?;
+    std::fs::write(&local_file, "pub fn local_specific_function() -> bool { true }\n")?;
 
     code_graph.index_file_with_neo4j(&local_file, Some(&neo4j))?;
     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -221,10 +200,7 @@ async fn test_backward_compatible_query_defaults_to_global() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     // Use temp file for database
-    let db_file = Builder::new()
-        .prefix("scope_compat_")
-        .suffix(".db")
-        .tempfile()?;
+    let db_file = Builder::new().prefix("scope_compat_").suffix(".db").tempfile()?;
     let mut code_graph = CodeGraph::new(db_file.path().to_str().unwrap(), vector_store)?;
 
     // Create temp file
@@ -253,25 +229,14 @@ async fn test_auto_scope_aliases_to_global() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     // Use temp file for database
-    let db_file = Builder::new()
-        .prefix("scope_auto_")
-        .suffix(".db")
-        .tempfile()?;
+    let db_file = Builder::new().prefix("scope_auto_").suffix(".db").tempfile()?;
     let code_graph = CodeGraph::new(db_file.path().to_str().unwrap(), vector_store)?;
 
     let api = RagGraphAPI::new(code_graph, neo4j);
 
     // Query with Auto scope
     let response = api
-        .query_with_scope(
-            "test query",
-            None,
-            None,
-            Some(5),
-            QueryScope::Auto,
-            None,
-            None,
-        )
+        .query_with_scope("test query", None, None, Some(5), QueryScope::Auto, None, None)
         .await?;
 
     // Auto should be recorded as "auto" in response
@@ -289,11 +254,7 @@ fn test_matches_project_path_detection() {
         // (file_path, project_label, expected_match)
         ("/home/user/Projects/SynCore/src/main.rs", "SynCore", true),
         ("/home/user/Projects/SynCore/src/main.rs", "syncore", true), // case insensitive
-        (
-            "/home/user/Projects/OtherProject/src/main.rs",
-            "SynCore",
-            false,
-        ),
+        ("/home/user/Projects/OtherProject/src/main.rs", "SynCore", false),
         ("/workspace/my-project/lib/util.js", "my-project", true),
         ("C:\\Users\\dev\\SynCore\\src\\lib.rs", "SynCore", true), // Windows paths
     ];

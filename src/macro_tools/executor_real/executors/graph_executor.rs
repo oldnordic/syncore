@@ -24,10 +24,7 @@ use std::sync::Arc;
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
         Some(v) if !v.is_empty() => Ok(v),
-        _ => Err(wrap_error_static(
-            tool,
-            &format!("Missing '{}' parameter", key),
-        )),
+        _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
 
@@ -128,10 +125,7 @@ pub async fn execute_graph_query(
                 "results": results
             }),
         )),
-        Err(e) => Ok(wrap_error(
-            "graph_query",
-            &format!("Neo4j query failed: {}", e),
-        )),
+        Err(e) => Ok(wrap_error("graph_query", &format!("Neo4j query failed: {}", e))),
     }
 }
 
@@ -183,10 +177,7 @@ pub async fn execute_graph_insert(
                 "created": true
             }),
         )),
-        Err(e) => Ok(wrap_error(
-            "graph_insert",
-            &format!("Neo4j insert failed: {}", e),
-        )),
+        Err(e) => Ok(wrap_error("graph_insert", &format!("Neo4j insert failed: {}", e))),
     }
 }
 
@@ -199,21 +190,11 @@ pub async fn execute_graph_relate(
 ) -> anyhow::Result<Value> {
     let from_id = match params.get("from_id").and_then(|v| v.as_i64()) {
         Some(v) => v,
-        None => {
-            return Ok(wrap_error_static(
-                "graph_relate",
-                "Missing 'from_id' parameter",
-            ))
-        }
+        None => return Ok(wrap_error_static("graph_relate", "Missing 'from_id' parameter")),
     };
     let to_id = match params.get("to_id").and_then(|v| v.as_i64()) {
         Some(v) => v,
-        None => {
-            return Ok(wrap_error_static(
-                "graph_relate",
-                "Missing 'to_id' parameter",
-            ))
-        }
+        None => return Ok(wrap_error_static("graph_relate", "Missing 'to_id' parameter")),
     };
     let rel_type = match param_str("graph_relate", params, "rel_type") {
         Ok(v) => v,
@@ -242,29 +223,19 @@ pub async fn execute_graph_relate(
 
     // Create relationship via neo4j client
     let neo4j = state.neo4j.as_ref().unwrap();
-    let from_label = params
-        .get("from_label")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Node");
-    let to_label = params
-        .get("to_label")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Node");
+    let from_label = params.get("from_label").and_then(|v| v.as_str()).unwrap_or("Node");
+    let to_label = params.get("to_label").and_then(|v| v.as_str()).unwrap_or("Node");
 
-    match neo4j
-        .create_relationship(from_label, from_id, to_label, to_id, rel_type)
-        .await
-    {
+    match neo4j.create_relationship(from_label, from_id, to_label, to_id, rel_type).await {
         Ok(_) => Ok(wrap_success(
             "graph_relate",
             json!({
                 "success": true
             }),
         )),
-        Err(e) => Ok(wrap_error(
-            "graph_relate",
-            &format!("Neo4j relationship creation failed: {}", e),
-        )),
+        Err(e) => {
+            Ok(wrap_error("graph_relate", &format!("Neo4j relationship creation failed: {}", e)))
+        }
     }
 }
 
@@ -284,10 +255,7 @@ pub async fn execute_raggraph_query(
         rel_type: None,
         from_label: None,
         to_label: None,
-        query_text: params
-            .get("query_text")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        query_text: params.get("query_text").and_then(|v| v.as_str()).map(|s| s.to_string()),
         seed_nodes: None,
     };
 
@@ -334,17 +302,11 @@ pub async fn execute_code_graph_sync_neo4j(
         file_path: None,
         query: None,
         pattern: None,
-        limit: params
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .map(|l| l as usize),
+        limit: params.get("limit").and_then(|v| v.as_u64()).map(|l| l as usize),
         directory: None,
         context_lines: None,
         function_name: None,
-        namespace: params
-            .get("namespace")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        namespace: params.get("namespace").and_then(|v| v.as_str()).map(|s| s.to_string()),
         mode_hint: None,
         top_k: None,
         scope: None,
@@ -369,10 +331,7 @@ pub async fn execute_code_graph_enrich_temporal(
         file_path: None,
         query: None,
         pattern: None,
-        limit: params
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .map(|l| l as usize),
+        limit: params.get("limit").and_then(|v| v.as_u64()).map(|l| l as usize),
         directory: None,
         context_lines: None,
         function_name: None,
@@ -399,39 +358,18 @@ pub async fn execute_code_graph_fusion_query(
     let suite_args = CodeSuiteArgs {
         command: "fusion_query".to_string(),
         file_path: None,
-        query: params
-            .get("query")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        query: params.get("query").and_then(|v| v.as_str()).map(|s| s.to_string()),
         pattern: None,
         limit: None,
         directory: None,
         context_lines: None,
         function_name: None,
-        namespace: params
-            .get("namespace")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        mode_hint: params
-            .get("mode_hint")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        top_k: params
-            .get("top_k")
-            .and_then(|v| v.as_u64())
-            .map(|k| k as usize),
-        scope: params
-            .get("scope")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        project_label: params
-            .get("project_label")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        local_root: params
-            .get("local_root")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        namespace: params.get("namespace").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        mode_hint: params.get("mode_hint").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        top_k: params.get("top_k").and_then(|v| v.as_u64()).map(|k| k as usize),
+        scope: params.get("scope").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        project_label: params.get("project_label").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        local_root: params.get("local_root").and_then(|v| v.as_str()).map(|s| s.to_string()),
         only_missing: None,
     };
 

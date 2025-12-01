@@ -67,10 +67,7 @@ impl CogStep {
         Self {
             state,
             content,
-            timestamp: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as i64,
+            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
             related_task,
         }
     }

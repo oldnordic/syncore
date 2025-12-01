@@ -182,7 +182,10 @@ impl ProjectAnalysisEngine {
         db_manager: std::sync::Arc<crate::db::DbManager>,
         neo4j: Option<std::sync::Arc<crate::graph::Neo4jClient>>,
     ) -> Self {
-        Self { db_manager, neo4j }
+        Self {
+            db_manager,
+            neo4j,
+        }
     }
 
     /// Get database connection for code graph

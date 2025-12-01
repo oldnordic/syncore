@@ -113,7 +113,12 @@ async fn test_message_bus_concurrent_messaging() -> Result<()> {
                 id: i,
                 from: AgentId::Internal("sender".to_string()),
                 to: Some(AgentId::Internal(
-                    if i % 2 == 0 { "agent1" } else { "agent2" }.to_string(),
+                    if i % 2 == 0 {
+                        "agent1"
+                    } else {
+                        "agent2"
+                    }
+                    .to_string(),
                 )),
                 kind: MsgKind::Direct,
                 payload: serde_json::json!({"message": i}),

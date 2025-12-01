@@ -29,18 +29,10 @@ fn test_extract_filesystem_metadata() -> Result<()> {
     let metadata = extract_temporal_metadata(temp_file)?;
 
     // Verify timestamps are recent (within last 60 seconds)
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs() as i64;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
 
-    assert!(
-        metadata.created_at > 0,
-        "created_at should be positive Unix timestamp"
-    );
-    assert!(
-        metadata.last_modified_at > 0,
-        "last_modified_at should be positive Unix timestamp"
-    );
+    assert!(metadata.created_at > 0, "created_at should be positive Unix timestamp");
+    assert!(metadata.last_modified_at > 0, "last_modified_at should be positive Unix timestamp");
 
     assert!(
         now - metadata.created_at < 60,
@@ -54,14 +46,8 @@ fn test_extract_filesystem_metadata() -> Result<()> {
     );
 
     // Without git, should default to 1/1
-    assert_eq!(
-        metadata.change_count, 1,
-        "change_count should default to 1 without git"
-    );
-    assert_eq!(
-        metadata.author_count, 1,
-        "author_count should default to 1 without git"
-    );
+    assert_eq!(metadata.change_count, 1, "change_count should default to 1 without git");
+    assert_eq!(metadata.author_count, 1, "author_count should default to 1 without git");
 
     // Cleanup
     std::fs::remove_file(temp_file)?;
@@ -113,14 +99,7 @@ fn test_extract_git_change_count() -> Result<()> {
     let tree_id = index.write_tree()?;
     let tree = repo.find_tree(tree_id)?;
     let parent = repo.head()?.peel_to_commit()?;
-    repo.commit(
-        Some("HEAD"),
-        &sig1,
-        &sig1,
-        "Second commit",
-        &tree,
-        &[&parent],
-    )?;
+    repo.commit(Some("HEAD"), &sig1, &sig1, "Second commit", &tree, &[&parent])?;
 
     // Modify file again
     std::fs::write(&test_file_path, "fn version3() {}")?;
@@ -133,27 +112,14 @@ fn test_extract_git_change_count() -> Result<()> {
     let tree = repo.find_tree(tree_id)?;
     let parent = repo.head()?.peel_to_commit()?;
     let sig2 = Signature::now("User Two", "user2@test.com")?;
-    repo.commit(
-        Some("HEAD"),
-        &sig2,
-        &sig2,
-        "Third commit by different author",
-        &tree,
-        &[&parent],
-    )?;
+    repo.commit(Some("HEAD"), &sig2, &sig2, "Third commit by different author", &tree, &[&parent])?;
 
     // Extract metadata
     let metadata = extract_temporal_metadata(&test_file_path)?;
 
     // Verify git metadata
-    assert_eq!(
-        metadata.change_count, 3,
-        "File should have 3 commits (change_count)"
-    );
-    assert_eq!(
-        metadata.author_count, 2,
-        "File should have 2 unique authors (author_count)"
-    );
+    assert_eq!(metadata.change_count, 3, "File should have 3 commits (change_count)");
+    assert_eq!(metadata.author_count, 2, "File should have 2 unique authors (author_count)");
 
     // Cleanup
     std::fs::remove_dir_all(temp_dir)?;
@@ -216,9 +182,7 @@ pub struct Config {
 
     // Query SQLite to verify temporal fields
     let db_conn = code_graph.db_conn();
-    let conn = db_conn
-        .lock()
-        .map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
+    let conn = db_conn.lock().map_err(|e| anyhow::anyhow!("Lock error: {}", e))?;
 
     let mut stmt = conn.prepare(
         "SELECT name, created_at, last_modified_at, change_count, author_count
@@ -228,20 +192,11 @@ pub struct Config {
 
     let entities: Vec<(String, Option<i64>, Option<i64>, Option<i32>, Option<i32>)> = stmt
         .query_map([&source_file], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-            ))
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
-    assert!(
-        !entities.is_empty(),
-        "Should have indexed at least one entity"
-    );
+    assert!(!entities.is_empty(), "Should have indexed at least one entity");
 
     // Debug: print all entities
     println!("Found {} entities:", entities.len());
@@ -253,11 +208,9 @@ pub struct Config {
     }
 
     // Check that at least one entity has temporal metadata
-    let entity_with_metadata = entities
-        .iter()
-        .find(|(_, created, modified, changes, authors)| {
-            created.is_some() && modified.is_some() && changes.is_some() && authors.is_some()
-        });
+    let entity_with_metadata = entities.iter().find(|(_, created, modified, changes, authors)| {
+        created.is_some() && modified.is_some() && changes.is_some() && authors.is_some()
+    });
 
     assert!(
         entity_with_metadata.is_some(),
@@ -390,43 +343,15 @@ pub fn process() -> String {
     let changes_neo = record.get("changes").and_then(|v| v.as_i64());
     let authors_neo = record.get("authors").and_then(|v| v.as_i64());
 
-    assert!(
-        created_neo.is_some(),
-        "created_at property should exist in Neo4j"
-    );
-    assert!(
-        modified_neo.is_some(),
-        "last_modified_at property should exist in Neo4j"
-    );
-    assert!(
-        changes_neo.is_some(),
-        "change_count property should exist in Neo4j"
-    );
-    assert!(
-        authors_neo.is_some(),
-        "author_count property should exist in Neo4j"
-    );
+    assert!(created_neo.is_some(), "created_at property should exist in Neo4j");
+    assert!(modified_neo.is_some(), "last_modified_at property should exist in Neo4j");
+    assert!(changes_neo.is_some(), "change_count property should exist in Neo4j");
+    assert!(authors_neo.is_some(), "author_count property should exist in Neo4j");
 
-    assert_eq!(
-        created_neo.unwrap(),
-        temporal.created_at,
-        "created_at should match"
-    );
-    assert_eq!(
-        modified_neo.unwrap(),
-        temporal.last_modified_at,
-        "last_modified_at should match"
-    );
-    assert_eq!(
-        changes_neo.unwrap() as i32,
-        temporal.change_count,
-        "change_count should match"
-    );
-    assert_eq!(
-        authors_neo.unwrap() as i32,
-        temporal.author_count,
-        "author_count should match"
-    );
+    assert_eq!(created_neo.unwrap(), temporal.created_at, "created_at should match");
+    assert_eq!(modified_neo.unwrap(), temporal.last_modified_at, "last_modified_at should match");
+    assert_eq!(changes_neo.unwrap() as i32, temporal.change_count, "change_count should match");
+    assert_eq!(authors_neo.unwrap() as i32, temporal.author_count, "author_count should match");
 
     // Cleanup
     std::fs::remove_dir_all(temp_dir)?;

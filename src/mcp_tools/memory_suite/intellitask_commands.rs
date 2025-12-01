@@ -66,10 +66,9 @@ pub fn cmd_intellitask_get(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteR
     match suite.state.tasks.get_task(task_id) {
         Ok(Some(task)) => match serde_json::to_value(&task) {
             Ok(v) => SuiteResult::ok("intellitask_get", v),
-            Err(e) => SuiteResult::err(
-                "intellitask_get",
-                format!("Failed to serialize task: {}", e),
-            ),
+            Err(e) => {
+                SuiteResult::err("intellitask_get", format!("Failed to serialize task: {}", e))
+            }
         },
         Ok(None) => SuiteResult::err("intellitask_get", format!("Task {} not found", task_id)),
         Err(e) => SuiteResult::err("intellitask_get", format!("Database error: {}", e)),
@@ -107,10 +106,9 @@ pub fn cmd_intellitask_update_status(suite: &MemorySuite, args: MemorySuiteArgs)
                 "status": status
             }),
         ),
-        Err(e) => SuiteResult::err(
-            "intellitask_update_status",
-            format!("Failed to update status: {}", e),
-        ),
+        Err(e) => {
+            SuiteResult::err("intellitask_update_status", format!("Failed to update status: {}", e))
+        }
     }
 }
 
@@ -247,10 +245,8 @@ pub fn cmd_intellitask_subtask_stats(suite: &MemorySuite, args: MemorySuiteArgs)
         let query = "SELECT status, COUNT(*) FROM tasks WHERE parent_id = ? GROUP BY status";
 
         db_guard.prepare(query).and_then(|mut stmt| {
-            stmt.query_map([parent_id], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
-            })
-            .and_then(|rows| rows.collect::<Result<Vec<_>, _>>())
+            stmt.query_map([parent_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))
+                .and_then(|rows| rows.collect::<Result<Vec<_>, _>>())
         })
     };
 
@@ -272,10 +268,7 @@ pub fn cmd_intellitask_subtask_stats(suite: &MemorySuite, args: MemorySuiteArgs)
                 }),
             )
         }
-        Err(e) => SuiteResult::err(
-            "intellitask_subtask_stats",
-            format!("Database error: {}", e),
-        ),
+        Err(e) => SuiteResult::err("intellitask_subtask_stats", format!("Database error: {}", e)),
     }
 }
 
@@ -285,10 +278,8 @@ pub fn cmd_intellitask_task_statistics(suite: &MemorySuite, _args: MemorySuiteAr
         let query = "SELECT status, COUNT(*) FROM tasks GROUP BY status";
 
         db_guard.prepare(query).and_then(|mut stmt| {
-            stmt.query_map([], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
-            })
-            .and_then(|rows| rows.collect::<Result<Vec<_>, _>>())
+            stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))
+                .and_then(|rows| rows.collect::<Result<Vec<_>, _>>())
         })
     };
 
@@ -304,10 +295,7 @@ pub fn cmd_intellitask_task_statistics(suite: &MemorySuite, _args: MemorySuiteAr
 
             SuiteResult::ok("intellitask_task_statistics", serde_json::json!(stats_map))
         }
-        Err(e) => SuiteResult::err(
-            "intellitask_task_statistics",
-            format!("Database error: {}", e),
-        ),
+        Err(e) => SuiteResult::err("intellitask_task_statistics", format!("Database error: {}", e)),
     }
 }
 
@@ -374,10 +362,7 @@ pub fn cmd_intellitask_prd_statistics(suite: &MemorySuite, args: MemorySuiteArgs
                 )
             }
         }
-        Err(e) => SuiteResult::err(
-            "intellitask_prd_statistics",
-            format!("Database error: {}", e),
-        ),
+        Err(e) => SuiteResult::err("intellitask_prd_statistics", format!("Database error: {}", e)),
     }
 }
 
@@ -419,10 +404,7 @@ pub fn cmd_intellitask_generate(suite: &MemorySuite, args: MemorySuiteArgs) -> S
         }
         Err(e) => SuiteResult::err(
             "intellitask_generate",
-            format!(
-                "IntelliTask generation failed: {}. Check LLM backend connectivity.",
-                e
-            ),
+            format!("IntelliTask generation failed: {}. Check LLM backend connectivity.", e),
         ),
     }
 }
@@ -543,10 +525,7 @@ pub fn cmd_intellitask_prioritize(suite: &MemorySuite, args: MemorySuiteArgs) ->
         }
         Err(e) => SuiteResult::err(
             "intellitask_prioritize",
-            format!(
-                "IntelliTask prioritization failed: {}. Check LLM backend connectivity.",
-                e
-            ),
+            format!("IntelliTask prioritization failed: {}. Check LLM backend connectivity.", e),
         ),
     }
 }
@@ -657,10 +636,7 @@ pub fn cmd_intellitask_save(suite: &MemorySuite, args: MemorySuiteArgs) -> Suite
             Err(e) => {
                 return SuiteResult::err(
                     "intellitask_save",
-                    format!(
-                        "Failed to insert parent task '{}': {}",
-                        parent_task.title, e
-                    ),
+                    format!("Failed to insert parent task '{}': {}", parent_task.title, e),
                 )
             }
         };

@@ -9,7 +9,9 @@ pub enum ToonResult {
     Retrieved(Vec<MemoryEntry>),
 
     /// Context was folded into new memory entry
-    Folded { new_id: String },
+    Folded {
+        new_id: String,
+    },
 
     /// Pointer token emitted
     Pointer(String),
@@ -30,6 +32,9 @@ pub struct ToonStepResult {
 
 impl ToonStepResult {
     pub fn new(node_id: String, result: ToonResult) -> Self {
-        Self { node_id, result }
+        Self {
+            node_id,
+            result,
+        }
     }
 }

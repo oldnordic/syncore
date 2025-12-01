@@ -126,14 +126,8 @@ async fn test_empty_delta_does_not_trigger_unnecessary_embeddings() -> Result<()
     let final_code_count = code_store.lock().unwrap().len();
     let final_general_count = general_store.lock().unwrap().len();
 
-    assert_eq!(
-        initial_code_count, final_code_count,
-        "No spurious CODE embeddings"
-    );
-    assert_eq!(
-        initial_general_count, final_general_count,
-        "No spurious GENERAL embeddings"
-    );
+    assert_eq!(initial_code_count, final_code_count, "No spurious CODE embeddings");
+    assert_eq!(initial_general_count, final_general_count, "No spurious GENERAL embeddings");
 
     daemon.shutdown().await?;
     Ok(())

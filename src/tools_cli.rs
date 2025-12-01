@@ -68,10 +68,8 @@ pub async fn test_mcp_tools() -> Result<()> {
             failed += 1;
 
             if !input_exists {
-                warnings.push(format!(
-                    "  - {} input schema missing: {}",
-                    tool.name, tool.input_schema
-                ));
+                warnings
+                    .push(format!("  - {} input schema missing: {}", tool.name, tool.input_schema));
             } else if !input_valid {
                 warnings.push(format!(
                     "  - {} input schema invalid JSON: {}",

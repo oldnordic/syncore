@@ -208,7 +208,7 @@ impl FusionReasoning {
         for (id, score) in diffusion_results {
             combined
                 .entry(*id)
-                .and_modify(|(vec_score, diff_score)| {
+                .and_modify(|(_vec_score, diff_score)| {
                     *diff_score = *score;
                 })
                 .or_insert((0.0, *score));

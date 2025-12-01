@@ -48,10 +48,7 @@ pub fn cmd_store(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {
     // APEX 2.0-M-FIX: Use store_with_metadata() with namespace instead of store()
     let result = if let Some(ns) = namespace {
         // Explicit namespace provided
-        suite
-            .state
-            .memory
-            .store_with_metadata(&key, &value, ns, &[], 0.5)
+        suite.state.memory.store_with_metadata(&key, &value, ns, &[], 0.5)
     } else {
         // No namespace - use configured default via store()
         suite.state.memory.store(&key, &value).map(|_| 0)
@@ -185,11 +182,7 @@ pub fn cmd_search_hybrid(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteRes
     let limit = args.limit.unwrap_or(10);
     let namespace = args.namespace.as_deref();
 
-    match suite
-        .state
-        .memory
-        .search_hybrid(&query, &keywords, namespace, limit)
-    {
+    match suite.state.memory.search_hybrid(&query, &keywords, namespace, limit) {
         Ok(results) => SuiteResult::ok(
             "search_hybrid",
             serde_json::json!({
@@ -236,11 +229,7 @@ pub fn cmd_query_by_importance(suite: &MemorySuite, args: MemorySuiteArgs) -> Su
 
     let limit = args.limit.unwrap_or(10);
 
-    match suite
-        .state
-        .memory
-        .query_by_importance(min_importance, limit)
-    {
+    match suite.state.memory.query_by_importance(min_importance, limit) {
         Ok(entries) => SuiteResult::ok(
             "query_by_importance",
             serde_json::json!({
@@ -297,10 +286,7 @@ pub fn cmd_consolidate_similar(suite: &MemorySuite, args: MemorySuiteArgs) -> Su
     let threshold = match args.threshold {
         Some(t) => t,
         None => {
-            return SuiteResult::err(
-                "consolidate_similar",
-                "Missing required parameter: threshold",
-            )
+            return SuiteResult::err("consolidate_similar", "Missing required parameter: threshold")
         }
     };
 

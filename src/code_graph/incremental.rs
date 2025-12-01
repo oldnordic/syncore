@@ -105,9 +105,7 @@ pub fn update_file_state(db: &Connection, state: &FileIndexState) -> Result<()> 
 
 /// Mark file as deleted in database
 pub fn mark_file_deleted(db: &Connection, file_path: &str) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .as_secs() as i64;
+    let now = std::time::SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs() as i64;
     db.execute(
         "UPDATE file_index_state SET status = 'deleted', last_indexed_at = ? WHERE file_path = ?",
         rusqlite::params![now, file_path],
@@ -117,18 +115,13 @@ pub fn mark_file_deleted(db: &Connection, file_path: &str) -> Result<()> {
 
 /// Remove file state from database entirely
 pub fn remove_file_state(db: &Connection, file_path: &str) -> Result<()> {
-    db.execute(
-        "DELETE FROM file_index_state WHERE file_path = ?",
-        [file_path],
-    )?;
+    db.execute("DELETE FROM file_index_state WHERE file_path = ?", [file_path])?;
     Ok(())
 }
 
 /// Classify a single file's change status
 pub fn classify_file(db: &Connection, file_path: &Path) -> Result<FileChangeStatus> {
-    let path_str = file_path
-        .to_str()
-        .ok_or_else(|| anyhow!("Invalid file path"))?;
+    let path_str = file_path.to_str().ok_or_else(|| anyhow!("Invalid file path"))?;
 
     // Check if file exists on disk
     if !file_path.exists() {

@@ -17,12 +17,10 @@ use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
 /// Helper to create a RealExecutor with fresh state
+#[allow(deprecated)]
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_vec_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(":memory:").expect("Failed to create tasks");
@@ -54,18 +52,11 @@ fn test_vector_insert_real_basic() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_insert", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("vector_insert", &params).await });
 
     // Should succeed (returns Ok(Value))
-    assert!(
-        result.is_ok(),
-        "Real vector_insert should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real vector_insert should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -109,17 +100,11 @@ fn test_vector_search_real_basic() {
     });
 
     let insert_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_insert", &insert_params)
-            .await
+        executor.execute_real_tool_async("vector_insert", &insert_params).await
     });
     assert!(insert_result.is_ok(), "Insert should succeed");
     let insert_envelope = insert_result.unwrap();
-    assert_eq!(
-        insert_envelope.get("ok"),
-        Some(&json!(true)),
-        "Insert should return ok=true"
-    );
+    assert_eq!(insert_envelope.get("ok"), Some(&json!(true)), "Insert should return ok=true");
 
     // Now search with a similar query
     let search_params = json!({
@@ -129,42 +114,24 @@ fn test_vector_search_real_basic() {
     });
 
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_search", &search_params)
-            .await
+        executor.execute_real_tool_async("vector_search", &search_params).await
     });
 
     assert!(result.is_ok(), "Real vector_search should succeed");
     let envelope = result.unwrap();
 
     // Validate envelope structure
-    assert_eq!(
-        envelope.get("ok"),
-        Some(&json!(true)),
-        "Envelope should have ok=true"
-    );
-    assert!(
-        envelope.get("data").is_some(),
-        "Success envelope must have 'data' field"
-    );
+    assert_eq!(envelope.get("ok"), Some(&json!(true)), "Envelope should have ok=true");
+    assert!(envelope.get("data").is_some(), "Success envelope must have 'data' field");
 
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
-    assert!(
-        data.get("results").is_some(),
-        "Search data must have 'results' field: {:?}",
-        data
-    );
+    assert!(data.get("results").is_some(), "Search data must have 'results' field: {:?}", data);
 
-    let results = data["results"]
-        .as_array()
-        .expect("Results must be an array");
+    let results = data["results"].as_array().expect("Results must be an array");
 
     // Should find at least our inserted vector
-    assert!(
-        !results.is_empty(),
-        "Search should return non-empty results after insertion"
-    );
+    assert!(!results.is_empty(), "Search should return non-empty results after insertion");
 }
 
 // ============================================================================
@@ -182,17 +149,11 @@ fn test_vector_insert_real_error_handling() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_insert", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("vector_insert", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
 
     // Validate error envelope structure
@@ -218,17 +179,11 @@ fn test_vector_search_real_error_handling() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("vector_search", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
 
     // Validate error envelope structure
@@ -259,26 +214,16 @@ fn test_vector_insert_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_insert", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("vector_insert", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "Dry run should succeed");
     let envelope = result.unwrap();
 
     // Validate envelope structure
-    assert_eq!(
-        envelope.get("ok"),
-        Some(&json!(true)),
-        "Dry run envelope should have ok=true"
-    );
-    assert!(
-        envelope.get("data").is_some(),
-        "Success envelope must have 'data' field"
-    );
+    assert_eq!(envelope.get("ok"), Some(&json!(true)), "Dry run envelope should have ok=true");
+    assert!(envelope.get("data").is_some(), "Success envelope must have 'data' field");
 
     // Unwrap data and validate dry run indication
     let data = unwrap_data(&envelope);
@@ -321,25 +266,15 @@ fn test_vector_search_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("vector_search", &params).await });
 
     assert!(result.is_ok(), "Dry run search should succeed");
     let envelope = result.unwrap();
 
     // Validate envelope structure
-    assert_eq!(
-        envelope.get("ok"),
-        Some(&json!(true)),
-        "Dry run envelope should have ok=true"
-    );
-    assert!(
-        envelope.get("data").is_some(),
-        "Success envelope must have 'data' field"
-    );
+    assert_eq!(envelope.get("ok"), Some(&json!(true)), "Dry run envelope should have ok=true");
+    assert!(envelope.get("data").is_some(), "Success envelope must have 'data' field");
 
     // Unwrap data and validate dry run response
     let data = unwrap_data(&envelope);

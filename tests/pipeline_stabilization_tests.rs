@@ -71,11 +71,7 @@ async fn test_pipeline_full_execution() -> Result<()> {
 async fn test_pipeline_guardrail_short_circuit_graph_required() -> Result<()> {
     let executor = PipelineExecutor::new();
     let plan = QueryPlan {
-        steps: vec![
-            PlannerStep::HopGraph,
-            PlannerStep::VectorRefine,
-            PlannerStep::Fusion,
-        ],
+        steps: vec![PlannerStep::HopGraph, PlannerStep::VectorRefine, PlannerStep::Fusion],
         constraints: QueryConstraints {
             graph_required: true,
             ..Default::default()
@@ -96,11 +92,7 @@ async fn test_pipeline_guardrail_short_circuit_graph_required() -> Result<()> {
 async fn test_pipeline_guardrail_no_short_circuit_graph_not_required() -> Result<()> {
     let executor = PipelineExecutor::new();
     let plan = QueryPlan {
-        steps: vec![
-            PlannerStep::HopGraph,
-            PlannerStep::VectorRefine,
-            PlannerStep::Fusion,
-        ],
+        steps: vec![PlannerStep::HopGraph, PlannerStep::VectorRefine, PlannerStep::Fusion],
         constraints: QueryConstraints {
             graph_required: false,
             ..Default::default()
@@ -224,10 +216,8 @@ fn test_pipeline_context_store_and_get_results() -> Result<()> {
         has_results: true,
     };
 
-    context.store_result(
-        PlannerStep::HopGraph,
-        PipelineStage::HopGraphResult(mock_hopgraph_output),
-    );
+    context
+        .store_result(PlannerStep::HopGraph, PipelineStage::HopGraphResult(mock_hopgraph_output));
 
     // Retrieve stored result
     let stored_result = context.get_result(&PlannerStep::HopGraph);
@@ -270,10 +260,7 @@ fn test_pipeline_context_get_current_entities() -> Result<()> {
         metadata: std::collections::HashMap::new(),
         has_results: true,
     };
-    context.store_result(
-        PlannerStep::HopGraph,
-        PipelineStage::HopGraphResult(hopgraph_output),
-    );
+    context.store_result(PlannerStep::HopGraph, PipelineStage::HopGraphResult(hopgraph_output));
 
     // Get current entities should return HopGraph entities
     let current_entities = context.get_current_entities();
@@ -286,10 +273,7 @@ fn test_pipeline_context_get_current_entities() -> Result<()> {
         metadata: std::collections::HashMap::new(),
         has_matches: true,
     };
-    context.store_result(
-        PlannerStep::VectorRefine,
-        PipelineStage::VectorResult(vector_output),
-    );
+    context.store_result(PlannerStep::VectorRefine, PipelineStage::VectorResult(vector_output));
 
     // Get current entities should return Vector entities (more recent)
     let current_entities = context.get_current_entities();
@@ -321,10 +305,7 @@ fn test_pipeline_context_should_short_circuit() -> Result<()> {
         metadata: std::collections::HashMap::new(),
         has_results: false,
     };
-    context.store_result(
-        PlannerStep::HopGraph,
-        PipelineStage::HopGraphResult(empty_hopgraph),
-    );
+    context.store_result(PlannerStep::HopGraph, PipelineStage::HopGraphResult(empty_hopgraph));
 
     // Should short-circuit before RAGGraph and VectorRefine (graph_required = true)
     assert!(context.should_short_circuit(&PlannerStep::RAGGraph));

@@ -46,11 +46,12 @@ impl OllamaClient {
         let version_check = Command::new("ollama").arg("--version").output();
 
         match version_check {
-            Ok(output) if output.status.success() => Ok(Self { config }),
-            Ok(output) => Err(anyhow!(
-                "ollama command failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            )),
+            Ok(output) if output.status.success() => Ok(Self {
+                config,
+            }),
+            Ok(output) => {
+                Err(anyhow!("ollama command failed: {}", String::from_utf8_lossy(&output.stderr)))
+            }
             Err(e) => Err(anyhow!(
                 "ollama CLI not found. Please install from https://ollama.ai - Error: {}",
                 e
@@ -82,18 +83,13 @@ impl OllamaClient {
 
         // Write prompt to stdin
         {
-            let stdin = child
-                .stdin
-                .as_mut()
-                .ok_or_else(|| anyhow!("Failed to open stdin"))?;
+            let stdin = child.stdin.as_mut().ok_or_else(|| anyhow!("Failed to open stdin"))?;
 
             stdin
                 .write_all(prompt.as_bytes())
                 .map_err(|e| anyhow!("Failed to write prompt to stdin: {}", e))?;
 
-            stdin
-                .flush()
-                .map_err(|e| anyhow!("Failed to flush stdin: {}", e))?;
+            stdin.flush().map_err(|e| anyhow!("Failed to flush stdin: {}", e))?;
         }
 
         // Drop stdin to signal EOF to ollama
@@ -103,10 +99,7 @@ impl OllamaClient {
         let timeout = Duration::from_secs(self.config.timeout_secs);
         let start = std::time::Instant::now();
 
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| anyhow!("Failed to open stdout"))?;
+        let stdout = child.stdout.take().ok_or_else(|| anyhow!("Failed to open stdout"))?;
 
         let reader = BufReader::new(stdout);
         let mut response_lines = Vec::new();

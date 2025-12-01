@@ -55,12 +55,7 @@ impl FusionRouter {
 
         // Rule 3: Causal/trace keywords → Reasoning
         let reasoning_keywords = ["trace", "dependency", "from", "to", "path", "chain"];
-        if reasoning_keywords
-            .iter()
-            .filter(|kw| query_lower.contains(*kw))
-            .count()
-            >= 2
-        {
+        if reasoning_keywords.iter().filter(|kw| query_lower.contains(*kw)).count() >= 2 {
             return FusionMode::Reasoning;
         }
 
@@ -107,35 +102,20 @@ mod tests {
     #[test]
     fn test_semantic_query_attention() {
         let router = FusionRouter::new();
-        assert_eq!(
-            router.select_mode("explain why function A fails"),
-            FusionMode::Attention
-        );
-        assert_eq!(
-            router.select_mode("how does this work"),
-            FusionMode::Attention
-        );
+        assert_eq!(router.select_mode("explain why function A fails"), FusionMode::Attention);
+        assert_eq!(router.select_mode("how does this work"), FusionMode::Attention);
     }
 
     #[test]
     fn test_causal_query_reasoning() {
         let router = FusionRouter::new();
-        assert_eq!(
-            router.select_mode("trace dependency from A to D"),
-            FusionMode::Reasoning
-        );
-        assert_eq!(
-            router.select_mode("path from module A to module B"),
-            FusionMode::Reasoning
-        );
+        assert_eq!(router.select_mode("trace dependency from A to D"), FusionMode::Reasoning);
+        assert_eq!(router.select_mode("path from module A to module B"), FusionMode::Reasoning);
     }
 
     #[test]
     fn test_multi_sentence_attention() {
         let router = FusionRouter::new();
-        assert_eq!(
-            router.select_mode("Find the bug. Check the tests."),
-            FusionMode::Attention
-        );
+        assert_eq!(router.select_mode("Find the bug. Check the tests."), FusionMode::Attention);
     }
 }

@@ -20,8 +20,7 @@ impl CodeGraph {
     /// * `caller_id` - Entity ID of the calling function
     /// * `callee_id` - Entity ID of the called function
     pub async fn upsert_call_edge(&self, caller_id: i64, callee_id: i64) -> Result<()> {
-        self.upsert_edge(caller_id, callee_id, EdgeType::Calls)
-            .await
+        self.upsert_edge(caller_id, callee_id, EdgeType::Calls).await
     }
 
     /// Upsert an IMPLEMENTS edge between a type and a trait
@@ -33,8 +32,7 @@ impl CodeGraph {
     /// * `type_id` - Entity ID of the implementing type/struct
     /// * `trait_id` - Entity ID of the trait being implemented
     pub async fn upsert_implements_edge(&self, type_id: i64, trait_id: i64) -> Result<()> {
-        self.upsert_edge(type_id, trait_id, EdgeType::Implements)
-            .await
+        self.upsert_edge(type_id, trait_id, EdgeType::Implements).await
     }
 
     /// Upsert a USES_FIELD edge for struct field access
@@ -46,8 +44,7 @@ impl CodeGraph {
     /// * `accessor_id` - Entity ID of the function/method accessing the field
     /// * `struct_id` - Entity ID of the struct containing the field
     pub async fn upsert_field_edge(&self, accessor_id: i64, struct_id: i64) -> Result<()> {
-        self.upsert_edge(accessor_id, struct_id, EdgeType::UsesField)
-            .await
+        self.upsert_edge(accessor_id, struct_id, EdgeType::UsesField).await
     }
 
     /// Upsert a USES_TYPE edge for type usage
@@ -71,8 +68,7 @@ impl CodeGraph {
     /// * `parent_id` - Entity ID of the parent module
     /// * `child_id` - Entity ID of the child module
     pub async fn upsert_module_child_edge(&self, parent_id: i64, child_id: i64) -> Result<()> {
-        self.upsert_edge(parent_id, child_id, EdgeType::ModuleChild)
-            .await
+        self.upsert_edge(parent_id, child_id, EdgeType::ModuleChild).await
     }
 
     /// Internal helper: Upsert edge to both SQLite and Neo4j
@@ -113,10 +109,7 @@ impl CodeGraph {
         dst_entity_id: i64,
         edge_type: &EdgeType,
     ) -> Result<()> {
-        let db = self
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+        let db = self.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
 
         let edge_type_str = match edge_type {
             EdgeType::Calls => "calls",

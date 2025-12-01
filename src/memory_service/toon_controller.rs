@@ -50,8 +50,7 @@ impl ToonController {
             mem_lock.retrieve(&zero_embedding, 1000) // Get many entries
         };
 
-        self.prompt_builder
-            .build_prompt(&self.graph, &memory_entries, &self.pointer_store)
+        self.prompt_builder.build_prompt(&self.graph, &memory_entries, &self.pointer_store)
     }
 
     /// Process LLM output: decode, execute, and update graph
@@ -104,9 +103,7 @@ impl ToonController {
 
         // Execute subgraph
         let mut executor = ToonExecutor::new(subgraph, Arc::clone(&self.memory));
-        let results = executor
-            .execute()
-            .map_err(|e| format!("Execution failed: {:?}", e))?;
+        let results = executor.execute().map_err(|e| format!("Execution failed: {:?}", e))?;
 
         // Update pointer store from executor
         for result in &results {
@@ -119,7 +116,9 @@ impl ToonController {
                 ToonResult::Loaded(entry) => {
                     self.pointer_store.insert(entry.id.clone(), entry.clone());
                 }
-                ToonResult::Folded { new_id } => {
+                ToonResult::Folded {
+                    new_id,
+                } => {
                     // Load folded entry from memory
                     let mem_lock = self.memory.lock().unwrap();
                     let zero_embedding = vec![0.0; 128];
@@ -180,13 +179,15 @@ impl ToonController {
 
                 // Execute fold
                 let mut executor = ToonExecutor::new(fold_graph, Arc::clone(&self.memory));
-                let results = executor
-                    .execute()
-                    .map_err(|e| format!("Fold execution failed: {:?}", e))?;
+                let results =
+                    executor.execute().map_err(|e| format!("Fold execution failed: {:?}", e))?;
 
                 // Extract folded ID
                 for result in results {
-                    if let ToonResult::Folded { new_id } = result.result {
+                    if let ToonResult::Folded {
+                        new_id,
+                    } = result.result
+                    {
                         // Update pointer store
                         let mem_lock = self.memory.lock().unwrap();
                         let zero_embedding = vec![0.0; 128];

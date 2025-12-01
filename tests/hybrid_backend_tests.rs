@@ -33,10 +33,7 @@ fn test_hybrid_backend_disabled_returns_error() {
 
     #[cfg(feature = "hybrid-backend")]
     {
-        assert!(
-            result.is_ok(),
-            "HybridVectorStore::new should succeed when feature is enabled"
-        );
+        assert!(result.is_ok(), "HybridVectorStore::new should succeed when feature is enabled");
     }
 }
 
@@ -61,19 +58,13 @@ fn test_usearch_backend_disabled_returns_error() {
 
     #[cfg(not(feature = "hybrid-backend"))]
     {
-        assert!(
-            result.is_err(),
-            "USearch backend should return error when feature is disabled"
-        );
+        assert!(result.is_err(), "USearch backend should return error when feature is disabled");
     }
 
     #[cfg(feature = "hybrid-backend")]
     {
         // When enabled, USearch backend should work
-        assert!(
-            result.is_ok(),
-            "USearch backend should succeed when feature is enabled"
-        );
+        assert!(result.is_ok(), "USearch backend should succeed when feature is enabled");
     }
 }
 
@@ -113,20 +104,14 @@ fn test_no_panic_on_box_clone() {
     {
         // When enabled, should use Arc instead of box_clone
         let result = HybridVectorStore::new(Box::new(embeddings), VectorBackend::Linear);
-        assert!(
-            result.is_ok(),
-            "Should not panic on creation when feature enabled"
-        );
+        assert!(result.is_ok(), "Should not panic on creation when feature enabled");
     }
 
     #[cfg(not(feature = "hybrid-backend"))]
     {
         // When disabled, should return error before reaching box_clone
         let result = HybridVectorStore::new(Box::new(embeddings), VectorBackend::Linear);
-        assert!(
-            result.is_err(),
-            "Should return error before reaching box_clone"
-        );
+        assert!(result.is_err(), "Should return error before reaching box_clone");
     }
 }
 

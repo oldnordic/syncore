@@ -61,7 +61,10 @@ impl BatchEdgePusher {
 
     /// Create with custom batch size
     pub fn with_batch_size(neo4j: Neo4jClient, batch_size: usize) -> Self {
-        Self { neo4j, batch_size }
+        Self {
+            neo4j,
+            batch_size,
+        }
     }
 
     /// Push a batch of edges to Neo4j using MERGE for idempotency
@@ -136,20 +139,12 @@ impl BatchEdgePusher {
         total += self.push_typed_edges(&imports_edges, "IMPORTS").await?;
         total += self.push_typed_edges(&uses_edges, "USES").await?;
         total += self.push_typed_edges(&inherits_edges, "INHERITS").await?;
-        total += self
-            .push_typed_edges(&references_edges, "REFERENCES")
-            .await?;
+        total += self.push_typed_edges(&references_edges, "REFERENCES").await?;
         total += self.push_typed_edges(&contains_edges, "CONTAINS").await?;
-        total += self
-            .push_typed_edges(&implements_edges, "IMPLEMENTS")
-            .await?;
-        total += self
-            .push_typed_edges(&uses_field_edges, "USES_FIELD")
-            .await?;
+        total += self.push_typed_edges(&implements_edges, "IMPLEMENTS").await?;
+        total += self.push_typed_edges(&uses_field_edges, "USES_FIELD").await?;
         total += self.push_typed_edges(&uses_type_edges, "USES_TYPE").await?;
-        total += self
-            .push_typed_edges(&module_child_edges, "MODULE_CHILD")
-            .await?;
+        total += self.push_typed_edges(&module_child_edges, "MODULE_CHILD").await?;
 
         Ok(total)
     }
@@ -165,10 +160,8 @@ impl BatchEdgePusher {
             .ok_or_else(|| anyhow::anyhow!("Unknown relationship type: {}", rel_type))?;
 
         // Convert to canonical format: Vec<(src_id, dst_id, RelationType)>
-        let relationships: Vec<(i64, i64, RelationType)> = edges
-            .iter()
-            .map(|(src, dst)| (*src, *dst, relation_type))
-            .collect();
+        let relationships: Vec<(i64, i64, RelationType)> =
+            edges.iter().map(|(src, dst)| (*src, *dst, relation_type)).collect();
 
         // Use canonical batch_create_relationships (handles MERGE, namespace, idempotency)
         let count = batch_create_relationships(&self.neo4j, relationships, self.batch_size)
@@ -207,17 +200,11 @@ impl BatchEdgePusher {
 
         let result = self
             .neo4j
-            .execute_query(
-                query,
-                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
-            )
+            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
             .await?;
 
-        let deleted = result
-            .first()
-            .and_then(|r| r.get("deleted"))
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        let deleted =
+            result.first().and_then(|r| r.get("deleted")).and_then(|v| v.as_u64()).unwrap_or(0);
 
         Ok(deleted)
     }
@@ -274,9 +261,7 @@ impl BatchEdgePusher {
                 continue;
             }
 
-            let count = self
-                .push_typed_named_edges(&typed_edges, &edge_type)
-                .await?;
+            let count = self.push_typed_named_edges(&typed_edges, &edge_type).await?;
             total += count;
         }
 

@@ -12,17 +12,12 @@ async fn create_test_database() -> (Arc<DbManager>, TempDir) {
     let db_path = temp_dir.path().join("test.db");
     let code_graph_path = temp_dir.path().join("code_graph.db");
     let db_manager = Arc::new(
-        DbManager::new(
-            &db_path.to_string_lossy(),
-            &code_graph_path.to_string_lossy(),
-        )
-        .expect("Failed to create DbManager"),
+        DbManager::new(&db_path.to_string_lossy(), &code_graph_path.to_string_lossy())
+            .expect("Failed to create DbManager"),
     );
 
     // Initialize with sample data to avoid hangs
-    init_sample_data(&db_manager)
-        .await
-        .expect("Failed to init sample data");
+    init_sample_data(&db_manager).await.expect("Failed to init sample data");
 
     (db_manager, temp_dir)
 }
@@ -95,29 +90,17 @@ async fn init_sample_data(db_manager: &Arc<DbManager>) -> Result<(), Box<dyn std
     // Insert sample edges
     db.execute(
         "INSERT INTO code_edges (src_entity_id, dst_entity_id, edge_type) VALUES (?1, ?2, ?3)",
-        [
-            main_id.to_string().as_str(),
-            helper_id.to_string().as_str(),
-            "CALLS",
-        ],
+        [main_id.to_string().as_str(), helper_id.to_string().as_str(), "CALLS"],
     )?;
 
     db.execute(
         "INSERT INTO code_edges (src_entity_id, dst_entity_id, edge_type) VALUES (?1, ?2, ?3)",
-        [
-            main_id.to_string().as_str(),
-            struct_id.to_string().as_str(),
-            "USES",
-        ],
+        [main_id.to_string().as_str(), struct_id.to_string().as_str(), "USES"],
     )?;
 
     db.execute(
         "INSERT INTO code_edges (src_entity_id, dst_entity_id, edge_type) VALUES (?1, ?2, ?3)",
-        [
-            helper_id.to_string().as_str(),
-            struct_id.to_string().as_str(),
-            "REFERENCES",
-        ],
+        [helper_id.to_string().as_str(), struct_id.to_string().as_str(), "REFERENCES"],
     )?;
 
     Ok(())
@@ -143,10 +126,7 @@ async fn test_project_reasoning_overview_basic() -> Result<(), Box<dyn std::erro
     //     !overview.problem_map.critical_hotspots.is_empty(),
     //     "Should have hotspots"
     // );
-    assert!(
-        !overview.blueprint.immediate_fixes.is_empty(),
-        "Should have fixes"
-    );
+    assert!(!overview.blueprint.immediate_fixes.is_empty(), "Should have fixes");
 
     println!("✓ All components populated successfully");
     Ok(())
@@ -162,20 +142,12 @@ async fn test_individual_components() -> Result<(), Box<dyn std::error::Error>> 
     // Test topology
     let start = std::time::Instant::now();
     let topology = engine.build_topology().await?;
-    println!(
-        "✓ Topology built in {:?}: {} modules",
-        start.elapsed(),
-        topology.modules.len()
-    );
+    println!("✓ Topology built in {:?}: {} modules", start.elapsed(), topology.modules.len());
 
     // Test behavior
     let start = std::time::Instant::now();
     let behavior = engine.build_behavior().await?;
-    println!(
-        "✓ Behavior built in {:?}: {} flows",
-        start.elapsed(),
-        behavior.key_flows.len()
-    );
+    println!("✓ Behavior built in {:?}: {} flows", start.elapsed(), behavior.key_flows.len());
 
     // Test problem map
     let start = std::time::Instant::now();

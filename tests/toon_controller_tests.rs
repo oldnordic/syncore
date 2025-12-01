@@ -150,10 +150,7 @@ fn test_controller_trigger_folding() {
 
     // If folding occurred, should have new ID
     if let Ok(Some(folded_id)) = fold_result {
-        assert!(
-            folded_id.starts_with("FOLD_"),
-            "Folded ID should have FOLD_ prefix"
-        );
+        assert!(folded_id.starts_with("FOLD_"), "Folded ID should have FOLD_ prefix");
     }
 }
 
@@ -186,10 +183,7 @@ fn test_controller_does_not_fold_when_not_needed() {
 
     // Should not fold when not needed
     if let Ok(fold_id) = fold_result {
-        assert!(
-            fold_id.is_none(),
-            "Should not fold when memory is under capacity"
-        );
+        assert!(fold_id.is_none(), "Should not fold when memory is under capacity");
     }
 }
 

@@ -146,15 +146,11 @@ async fn test_rag_graph_router_mode_auto_selection() -> Result<()> {
     assert_eq!(result1.selected_mode, "simple");
 
     // Test 2: Semantic query -> Attention (must be 4+ tokens with semantic keyword)
-    let result2 = api
-        .query("explain why format function works", None, None, Some(5))
-        .await?;
+    let result2 = api.query("explain why format function works", None, None, Some(5)).await?;
     assert_eq!(result2.selected_mode, "attention");
 
     // Test 3: Causal query -> Reasoning
-    let result3 = api
-        .query("trace dependency from A to B", None, None, Some(5))
-        .await?;
+    let result3 = api.query("trace dependency from A to B", None, None, Some(5)).await?;
     assert_eq!(result3.selected_mode, "reasoning");
 
     Ok(())
@@ -228,10 +224,7 @@ async fn test_rag_graph_backwards_compatibility() -> Result<()> {
     // Test R2.4: Fusion modes still work
     let fusion = FusionSimple::new(0.6, 0.3, 0.1, 0.0);
     let score = fusion.combine(0.8, 0.4, 0.0, 0.0);
-    assert!(
-        (score - 0.64).abs() < 0.001,
-        "R2.4 backward compatibility broken"
-    );
+    assert!((score - 0.64).abs() < 0.001, "R2.4 backward compatibility broken");
 
     let router = FusionRouter::new();
     let mode = router.select_mode("fmt");

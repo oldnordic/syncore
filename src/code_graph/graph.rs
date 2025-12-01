@@ -1,5 +1,6 @@
 //! Main CodeGraph struct and constructors
 
+use crate::databases::neo4j::update_git_metadata;
 use crate::graph::Neo4jClient;
 use crate::parser::Parser;
 use crate::vector::VectorStore;
@@ -110,9 +111,8 @@ impl CodeGraph {
     ) -> Result<Self> {
         // FIX 1: Detect if connection is :memory: and reject it
         {
-            let conn_lock = db
-                .lock()
-                .map_err(|e| anyhow!("Failed to lock database connection: {}", e))?;
+            let conn_lock =
+                db.lock().map_err(|e| anyhow!("Failed to lock database connection: {}", e))?;
 
             // Check database file path via pragma_database_list
             let db_file: String = conn_lock.query_row(
@@ -211,8 +211,7 @@ impl CodeGraph {
     /// This should be called after every successful write operation
     /// that changes the state of the code graph.
     pub fn increment_version(&self) {
-        self.version
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.version.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Ensure code_graph schema exists (fallback for test environments)
@@ -276,9 +275,8 @@ impl CodeGraph {
         }
 
         // PHASE 3: Migrate existing databases to add temporal columns if missing
-        let has_created_at: bool = db
-            .prepare("SELECT created_at FROM code_entities LIMIT 1")
-            .is_ok();
+        let has_created_at: bool =
+            db.prepare("SELECT created_at FROM code_entities LIMIT 1").is_ok();
 
         if !has_created_at {
             db.execute_batch(
@@ -292,9 +290,8 @@ impl CodeGraph {
         }
 
         // APEX v1.7 Phase 3: Add body_snippet column for function body indexing
-        let has_body_snippet: bool = db
-            .prepare("SELECT body_snippet FROM code_entities LIMIT 1")
-            .is_ok();
+        let has_body_snippet: bool =
+            db.prepare("SELECT body_snippet FROM code_entities LIMIT 1").is_ok();
 
         if !has_body_snippet {
             db.execute_batch(
@@ -326,9 +323,8 @@ impl CodeGraph {
         }
 
         // Add code_macro_expansions table for Rust macro tracking
-        let has_macro_expansions: bool = db
-            .prepare("SELECT 1 FROM code_macro_expansions LIMIT 1")
-            .is_ok();
+        let has_macro_expansions: bool =
+            db.prepare("SELECT 1 FROM code_macro_expansions LIMIT 1").is_ok();
 
         if !has_macro_expansions {
             db.execute_batch(
@@ -392,14 +388,12 @@ impl CodeGraph {
         entity_id: i64,
         max_depth: usize,
     ) -> Result<super::multi_hop::MultiHopResult> {
-        let db = self
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
-
         let neo4j_ref = self.neo4j.as_ref().map(|arc| arc.as_ref());
 
-        super::multi_hop::multi_hop(&db, neo4j_ref, entity_id, max_depth).await
+        {
+            let db = self.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+            super::multi_hop::multi_hop(&db, neo4j_ref, entity_id, max_depth).await
+        }
     }
 
     /// Enrich all entities with temporal metadata (TASK A)
@@ -410,25 +404,26 @@ impl CodeGraph {
     /// # Returns
     /// Number of entities enriched
     pub async fn enrich_temporal_metadata_for_all(&self) -> Result<usize> {
-        let db = self
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
-
         // Find entities with null temporal metadata
-        let mut stmt = db.prepare(
-            "SELECT id, file_path FROM code_entities
-             WHERE created_at IS NULL
-                OR last_modified_at IS NULL
-                OR change_count IS NULL
-                OR author_count IS NULL",
-        )?;
+        let entities_to_enrich: Vec<(i64, String)> = {
+            let db = self.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
 
-        let entities_to_enrich: Vec<(i64, String)> = stmt
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-            .collect::<Result<Vec<_>, _>>()?;
+            let mut stmt = db.prepare(
+                "SELECT id, file_path FROM code_entities
+                 WHERE created_at IS NULL
+                    OR last_modified_at IS NULL
+                    OR change_count IS NULL
+                    OR author_count IS NULL",
+            )?;
+
+            let results = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<Result<Vec<_>, _>>()?;
+            results
+        };
 
         let mut enriched_count = 0;
+        let neo4j_ref = self.neo4j.as_ref().map(|arc| arc.as_ref());
 
         for (entity_id, file_path) in entities_to_enrich {
             // Extract temporal metadata using existing Phase 3 module
@@ -445,24 +440,26 @@ impl CodeGraph {
                 }
             };
 
-            // Update SQLite
-            db.execute(
-                "UPDATE code_entities
-                 SET created_at = ?1, last_modified_at = ?2, change_count = ?3, author_count = ?4
-                 WHERE id = ?5",
-                rusqlite::params![
-                    temporal.created_at,
-                    temporal.last_modified_at,
-                    temporal.change_count,
-                    temporal.author_count,
-                    entity_id
-                ],
-            )?;
+            // Update SQLite with temporal metadata
+            {
+                let db = self.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
 
-            // Update Neo4j if available - use canonical update function
-            if let Some(ref neo4j) = self.neo4j {
-                use crate::databases::neo4j::update_git_metadata;
+                db.execute(
+                    "UPDATE code_entities 
+                     SET created_at = ?, last_modified_at = ?, change_count = ?, author_count = ?
+                     WHERE id = ?",
+                    (
+                        temporal.created_at.to_string(),
+                        temporal.last_modified_at.to_string(),
+                        temporal.change_count as i64,
+                        temporal.author_count as i64,
+                        entity_id,
+                    ),
+                )?;
+            }
 
+            // Update Neo4j with temporal metadata
+            if let Some(neo4j) = neo4j_ref {
                 update_git_metadata(
                     neo4j,
                     entity_id,
@@ -493,10 +490,7 @@ impl CodeGraph {
     pub fn rebuild_hnsw_from_entities(&self) -> Result<usize> {
         // Query entities - collect fully before releasing db lock
         let entities: Vec<EntityQueryRow> = {
-            let db = self
-                .db
-                .lock()
-                .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+            let db = self.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
 
             // Query all entities that have embeddings
             let mut stmt = db.prepare(
@@ -529,10 +523,8 @@ impl CodeGraph {
         eprintln!("[SynCore] Rebuilding HNSW index ({} entities)...", count);
 
         // Lock vector store and insert all entities using NO-SNAPSHOT version
-        let mut vector_store = self
-            .vector_store
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
+        let mut vector_store =
+            self.vector_store.lock().map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
 
         for (i, (entity_id, entity_type, name, signature, docstring)) in entities.iter().enumerate()
         {
@@ -576,14 +568,9 @@ impl CodeGraph {
     /// This is used by the delta engine when a file is deleted or renamed.
     /// Cascading deletes will remove associated edges automatically.
     pub fn delete_entities_by_path(&self, file_path: &Path) -> Result<usize> {
-        let path_str = file_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Invalid UTF-8 in file path"))?;
+        let path_str = file_path.to_str().ok_or_else(|| anyhow!("Invalid UTF-8 in file path"))?;
 
-        let db = self
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock db: {}", e))?;
+        let db = self.db.lock().map_err(|e| anyhow!("Failed to lock db: {}", e))?;
 
         let deleted = db.execute("DELETE FROM code_entities WHERE file_path = ?", [path_str])?;
 
@@ -609,10 +596,7 @@ impl CodeGraph {
         &self,
         entity_id: i64,
     ) -> Result<super::graph_embeddings::GraphFeatures> {
-        let db = self
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock db: {}", e))?;
+        let db = self.db.lock().map_err(|e| anyhow!("Failed to lock db: {}", e))?;
 
         // Query incoming edges (degree_in)
         let degree_in: u32 = db.query_row(

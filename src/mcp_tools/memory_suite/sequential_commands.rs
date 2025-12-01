@@ -17,10 +17,7 @@ pub fn cmd_sequential_record(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
     let step_number = match args.step_number {
         Some(n) => n,
         None => {
-            return SuiteResult::err(
-                "sequential_record",
-                "Missing required parameter: step_number",
-            )
+            return SuiteResult::err("sequential_record", "Missing required parameter: step_number")
         }
     };
 
@@ -114,10 +111,7 @@ pub fn cmd_sequential_search(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
                 }),
             )
         }
-        Err(e) => SuiteResult::err(
-            "sequential_search",
-            format!("Failed to search steps: {}", e),
-        ),
+        Err(e) => SuiteResult::err("sequential_search", format!("Failed to search steps: {}", e)),
     }
 }
 

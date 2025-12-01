@@ -24,10 +24,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create a RealExecutor with fresh state
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_application_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -59,18 +56,11 @@ fn test_application_record_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_record", &params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("application_record", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real application_record should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real application_record should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -80,10 +70,7 @@ fn test_application_record_real() {
     let data = unwrap_data(&envelope);
     assert!(
         data.get("change_id").is_some()
-            || data
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false),
+            || data.get("success").and_then(|s| s.as_bool()).unwrap_or(false),
         "Data should indicate recording success: {:?}",
         data
     );
@@ -108,11 +95,8 @@ fn test_application_record_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_record", &params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("application_record", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -153,9 +137,7 @@ fn test_application_get_real() {
         });
 
         rt.block_on(async {
-            executor
-                .execute_real_tool_async("application_record", &record_params)
-                .await
+            executor.execute_real_tool_async("application_record", &record_params).await
         })
         .expect("Record should succeed");
     }
@@ -166,18 +148,11 @@ fn test_application_get_real() {
         "dry_run": false
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_get", &get_params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("application_get", &get_params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real application_get should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real application_get should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -206,11 +181,8 @@ fn test_application_get_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_get", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("application_get", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -254,9 +226,7 @@ fn test_application_history_real() {
         });
 
         rt.block_on(async {
-            executor
-                .execute_real_tool_async("application_record", &record_params)
-                .await
+            executor.execute_real_tool_async("application_record", &record_params).await
         })
         .expect("Record should succeed");
     }
@@ -268,17 +238,11 @@ fn test_application_history_real() {
     });
 
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_history", &history_params)
-            .await
+        executor.execute_real_tool_async("application_history", &history_params).await
     });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real application_history should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real application_history should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -307,11 +271,8 @@ fn test_application_history_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_history", &params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("application_history", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -347,17 +308,11 @@ fn test_application_tools_error_handling() {
         // Missing 'file_path' - should error
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_record", &params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("application_record", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -372,16 +327,10 @@ fn test_application_tools_error_handling() {
         // Missing 'change_type' - should error
     });
 
-    let result2 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_record", &params2)
-            .await
-    });
+    let result2 = rt
+        .block_on(async { executor.execute_real_tool_async("application_record", &params2).await });
 
-    assert!(
-        result2.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result2.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope2 = result2.unwrap();
     assert_error_envelope(&envelope2);
     let error2 = unwrap_error(&envelope2);
@@ -393,16 +342,10 @@ fn test_application_tools_error_handling() {
         // Missing 'task_id' - should error
     });
 
-    let result3 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_get", &params3)
-            .await
-    });
+    let result3 =
+        rt.block_on(async { executor.execute_real_tool_async("application_get", &params3).await });
 
-    assert!(
-        result3.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result3.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope3 = result3.unwrap();
     assert_error_envelope(&envelope3);
     let error3 = unwrap_error(&envelope3);
@@ -415,15 +358,10 @@ fn test_application_tools_error_handling() {
     });
 
     let result4 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("application_history", &params4)
-            .await
+        executor.execute_real_tool_async("application_history", &params4).await
     });
 
-    assert!(
-        result4.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result4.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope4 = result4.unwrap();
     assert_error_envelope(&envelope4);
     let error4 = unwrap_error(&envelope4);

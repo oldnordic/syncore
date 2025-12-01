@@ -233,12 +233,8 @@ async fn vector_search_defaults_ok() {
     // Insert some test data
     {
         let mut store = state.general_store.lock().unwrap();
-        store
-            .insert_text(1, Some(1), "branch misprediction in CPU pipeline", "note")
-            .unwrap();
-        store
-            .insert_text(2, Some(1), "SIMD fused kernel optimization", "note")
-            .unwrap();
+        store.insert_text(1, Some(1), "branch misprediction in CPU pipeline", "note").unwrap();
+        store.insert_text(2, Some(1), "SIMD fused kernel optimization", "note").unwrap();
     }
 
     // Test with only "query" provided (defaults k=8, scope=global)
@@ -279,15 +275,9 @@ async fn vector_search_scope_task_ok() {
     // Insert test data for different tasks
     {
         let mut store = state.general_store.lock().unwrap();
-        store
-            .insert_text(1, Some(7), "task 7: simd fused operations", "note")
-            .unwrap();
-        store
-            .insert_text(2, Some(8), "task 8: different content", "note")
-            .unwrap();
-        store
-            .insert_text(3, Some(7), "task 7: more simd work", "note")
-            .unwrap();
+        store.insert_text(1, Some(7), "task 7: simd fused operations", "note").unwrap();
+        store.insert_text(2, Some(8), "task 8: different content", "note").unwrap();
+        store.insert_text(3, Some(7), "task 7: more simd work", "note").unwrap();
     }
 
     // Test with task scope using the new JSON format

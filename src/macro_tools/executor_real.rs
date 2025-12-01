@@ -62,7 +62,7 @@ impl RealExecutor {
     }
 
     /// Centralized parameter extraction helper for Value params
-
+    ///
     /// Execute a real tool call (synchronous wrapper for async tools)
     ///
     /// This method blocks on the async tool call. In production, this should
@@ -100,10 +100,7 @@ impl RealExecutor {
         params: &Value,
     ) -> anyhow::Result<Value> {
         // Check dry_run flag (defaults to false if not present)
-        let dry_run = params
-            .get("dry_run")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+        let dry_run = params.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
 
         match tool_name {
             // ================================================================
@@ -686,6 +683,7 @@ impl ExecutionRecorder for RealExecutor {
 
 #[cfg(test)]
 impl Default for RealExecutor {
+    #[allow(deprecated)]
     fn default() -> Self {
         // Default uses minimal state (for testing)
         use crate::memory::Memory;

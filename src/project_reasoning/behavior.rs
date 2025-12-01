@@ -71,9 +71,8 @@ impl ProjectAnalysisEngine {
             HashMap::new();
 
         for diagnostic in diagnostics {
-            let file_diagnostics = diagnostics_by_file
-                .entry(diagnostic.file_path.clone())
-                .or_default();
+            let file_diagnostics =
+                diagnostics_by_file.entry(diagnostic.file_path.clone()).or_default();
 
             let severity = crate::project_analysis::diagnostics_severity::normalize_severity(
                 &diagnostic.severity,
@@ -86,10 +85,8 @@ impl ProjectAnalysisEngine {
         let mut file_count = 0u32;
 
         for hotspot in hotspots {
-            let file_diagnostics = diagnostics_by_file
-                .get(&hotspot.file_path)
-                .cloned()
-                .unwrap_or_default();
+            let file_diagnostics =
+                diagnostics_by_file.get(&hotspot.file_path).cloned().unwrap_or_default();
 
             let risk_inputs = FileRiskInputs {
                 file_path: hotspot.file_path.clone(),
@@ -138,9 +135,7 @@ impl ProjectAnalysisEngine {
         let mut clippy_counts: HashMap<String, u32> = HashMap::new();
         for diagnostic in diagnostics {
             if diagnostic.tool == "clippy" {
-                *clippy_counts
-                    .entry(diagnostic.file_path.clone())
-                    .or_insert(0) += 1;
+                *clippy_counts.entry(diagnostic.file_path.clone()).or_insert(0) += 1;
             }
         }
 
@@ -161,11 +156,8 @@ impl ProjectAnalysisEngine {
     async fn identify_key_flows(&self, hotspots: &[HotspotInfo]) -> Result<Vec<FlowSummary>> {
         // Sort hotspots by score (descending)
         let mut sorted_hotspots = hotspots.to_vec();
-        sorted_hotspots.sort_by(|a, b| {
-            b.score
-                .partial_cmp(&a.score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        sorted_hotspots
+            .sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
 
         // Take top 3 as key flows
         let mut key_flows = Vec::new();

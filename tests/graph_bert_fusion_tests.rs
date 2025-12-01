@@ -122,11 +122,7 @@ async fn test_graph_bert_score_influences_ranking() -> Result<()> {
         + 0.2 * ranked_low.graph_embedding_score;
 
     // Sort by combined_score (descending)
-    let mut results = vec![
-        ranked_low.clone(),
-        ranked_medium.clone(),
-        ranked_high.clone(),
-    ];
+    let mut results = vec![ranked_low.clone(), ranked_medium.clone(), ranked_high.clone()];
     results.sort_by(|a, b| b.combined_score.partial_cmp(&a.combined_score).unwrap());
 
     // Assert: Ranking order should be high → medium → low

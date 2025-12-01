@@ -205,37 +205,19 @@ async fn test_count_entities_by_type() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create entities of different types
-    upsert_entity(
-        &client,
-        NodeLabel::Function,
-        NodeProperties::minimal(4001, "func1".to_string()),
-    )
-    .await?;
-    upsert_entity(
-        &client,
-        NodeLabel::Function,
-        NodeProperties::minimal(4002, "func2".to_string()),
-    )
-    .await?;
-    upsert_entity(
-        &client,
-        NodeLabel::Struct,
-        NodeProperties::minimal(4003, "struct1".to_string()),
-    )
-    .await?;
+    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(4001, "func1".to_string()))
+        .await?;
+    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(4002, "func2".to_string()))
+        .await?;
+    upsert_entity(&client, NodeLabel::Struct, NodeProperties::minimal(4003, "struct1".to_string()))
+        .await?;
 
     let counts = count_entities_by_type(&client).await?;
 
-    let func_count = counts
-        .iter()
-        .find(|(label, _)| label == "Function")
-        .map(|(_, count)| *count)
-        .unwrap_or(0);
-    let struct_count = counts
-        .iter()
-        .find(|(label, _)| label == "Struct")
-        .map(|(_, count)| *count)
-        .unwrap_or(0);
+    let func_count =
+        counts.iter().find(|(label, _)| label == "Function").map(|(_, count)| *count).unwrap_or(0);
+    let struct_count =
+        counts.iter().find(|(label, _)| label == "Struct").map(|(_, count)| *count).unwrap_or(0);
 
     assert_eq!(func_count, 2);
     assert_eq!(struct_count, 1);
@@ -351,10 +333,7 @@ async fn test_namespace_isolation() -> Result<()> {
     assert!(entity.is_some());
 
     let entity = get_entity_by_id(&client, 7002).await?;
-    assert!(
-        entity.is_none(),
-        "Should not see entities from other namespaces"
-    );
+    assert!(entity.is_none(), "Should not see entities from other namespaces");
 
     cleanup_test_data(&client).await?;
 
@@ -375,18 +354,10 @@ async fn test_validate_structure() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create graph structure
-    upsert_entity(
-        &client,
-        NodeLabel::Function,
-        NodeProperties::minimal(8001, "func1".to_string()),
-    )
-    .await?;
-    upsert_entity(
-        &client,
-        NodeLabel::Function,
-        NodeProperties::minimal(8002, "func2".to_string()),
-    )
-    .await?;
+    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(8001, "func1".to_string()))
+        .await?;
+    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(8002, "func2".to_string()))
+        .await?;
     upsert_entity(
         &client,
         NodeLabel::Function,

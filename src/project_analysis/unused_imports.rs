@@ -28,10 +28,7 @@ impl ProjectAnalysisEngine {
         &self,
         request: UnusedImportsRequest,
     ) -> Result<PAEResponse<UnusedImportsData>> {
-        match self
-            .find_unused_imports(request.file_path, request.limit)
-            .await
-        {
+        match self.find_unused_imports(request.file_path, request.limit).await {
             Ok(data) => Ok(PAEResponse::success(data)),
             Err(e) => Ok(PAEResponse::error(e.to_string())),
         }

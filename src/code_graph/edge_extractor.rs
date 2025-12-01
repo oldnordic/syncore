@@ -453,9 +453,8 @@ fn extract_trait_methods(
 /// Extract impl block methods and connect to struct
 fn extract_impl_methods(edges: &mut Vec<ExtractedEdge>, source_code: &str, impl_node: Node) {
     // Get the type being implemented (the struct/enum name)
-    let struct_name = impl_node
-        .child_by_field_name("type")
-        .map(|n| source_code[n.byte_range()].to_string());
+    let struct_name =
+        impl_node.child_by_field_name("type").map(|n| source_code[n.byte_range()].to_string());
 
     if let Some(struct_nm) = struct_name {
         let mut cursor = impl_node.walk();
@@ -532,9 +531,7 @@ mod tests {
         "#;
 
         let mut parser = tree_sitter::Parser::new();
-        parser
-            .set_language(unsafe { tree_sitter_rust::language() })
-            .unwrap();
+        parser.set_language(tree_sitter_rust::language()).unwrap();
         let tree = parser.parse(code, None).unwrap();
 
         let names = extract_function_names(code, tree.root_node());
@@ -552,9 +549,7 @@ mod tests {
         "#;
 
         let mut parser = tree_sitter::Parser::new();
-        parser
-            .set_language(unsafe { tree_sitter_rust::language() })
-            .unwrap();
+        parser.set_language(tree_sitter_rust::language()).unwrap();
         let tree = parser.parse(code, None).unwrap();
 
         let function_names = extract_function_names(code, tree.root_node());

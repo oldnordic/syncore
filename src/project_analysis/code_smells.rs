@@ -83,9 +83,7 @@ impl ProjectAnalysisEngine {
 
         // Sort by file path and line number, then limit
         smells.sort_by(|a, b| {
-            a.file_path
-                .cmp(&b.file_path)
-                .then_with(|| a.line_start.cmp(&b.line_start))
+            a.file_path.cmp(&b.file_path).then_with(|| a.line_start.cmp(&b.line_start))
         });
         smells.truncate(limit);
 
@@ -200,10 +198,7 @@ impl ProjectAnalysisEngine {
                     dead_entity_count: None,
                     unused_import_count: None,
                     risk_score: Some(risk_score),
-                    notes: format!(
-                        "Large file with {} LOC and risk score {:.1}",
-                        loc, risk_score
-                    ),
+                    notes: format!("Large file with {} LOC and risk score {:.1}", loc, risk_score),
                 });
             }
         }
@@ -439,14 +434,7 @@ impl ProjectAnalysisEngine {
                 0
             };
 
-            Ok((
-                file_path,
-                name,
-                entity_type,
-                line_start,
-                line_end,
-                param_count,
-            ))
+            Ok((file_path, name, entity_type, line_start, line_end, param_count))
         })?;
 
         let mut result = Vec::new();
@@ -470,9 +458,7 @@ impl ProjectAnalysisEngine {
 
         // Sort and limit
         result.sort_by(|a, b| {
-            a.file_path
-                .cmp(&b.file_path)
-                .then_with(|| a.line_start.cmp(&b.line_start))
+            a.file_path.cmp(&b.file_path).then_with(|| a.line_start.cmp(&b.line_start))
         });
         result.truncate(limit);
 

@@ -19,18 +19,24 @@ impl OllamaLanguageModel {
     /// Create a new Ollama language model with the given configuration
     pub fn new(config: OllamaConfig) -> Result<Self> {
         let client = OllamaClient::new(config)?;
-        Ok(Self { client })
+        Ok(Self {
+            client,
+        })
     }
 
     /// Create with default configuration (qwen2.5-coder:3b)
     pub fn new_default() -> Result<Self> {
         let client = OllamaClient::new_default()?;
-        Ok(Self { client })
+        Ok(Self {
+            client,
+        })
     }
 
     /// Create from an existing OllamaClient instance (for backward compatibility)
     pub fn from_client(client: OllamaClient) -> Self {
-        Self { client }
+        Self {
+            client,
+        }
     }
 
     /// Create from endpoint URL and model name

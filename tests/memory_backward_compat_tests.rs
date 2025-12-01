@@ -16,9 +16,7 @@ fn test_memory_new_still_works() {
     let memory = Memory::new(db_path).expect("Failed to create Memory with old API");
 
     // Should use default configuration
-    memory
-        .store("test", "value")
-        .expect("Failed to store with old API");
+    memory.store("test", "value").expect("Failed to store with old API");
 
     let result = memory.query("test").expect("Failed to query with old API");
 
@@ -34,23 +32,15 @@ fn test_deprecated_apis_still_functional() {
     let memory = Memory::new(db_path).expect("Failed to create Memory");
 
     // These methods may be marked deprecated but must still work
-    memory
-        .store("key1", "value1")
-        .expect("Deprecated store() should still work");
+    memory.store("key1", "value1").expect("Deprecated store() should still work");
 
-    let result = memory
-        .query("key1")
-        .expect("Deprecated query() should still work");
+    let result = memory.query("key1").expect("Deprecated query() should still work");
 
     assert_eq!(result, Some("value1".to_string()));
 
-    memory
-        .delete("key1")
-        .expect("Deprecated delete() should still work");
+    memory.delete("key1").expect("Deprecated delete() should still work");
 
-    let result = memory
-        .query("key1")
-        .expect("Query after delete should work");
+    let result = memory.query("key1").expect("Query after delete should work");
 
     assert_eq!(result, None, "Entry should be deleted");
 }
@@ -67,22 +57,14 @@ fn test_migration_006_namespace_isolation_intact() {
     let memory = Memory::new(db_path).expect("Failed to create Memory");
 
     // Store same key in different namespaces
-    memory
-        .store_with_metadata("shared", "v1", "ns1", &[], 0.5)
-        .expect("Failed to store in ns1");
-    memory
-        .store_with_metadata("shared", "v2", "ns2", &[], 0.5)
-        .expect("Failed to store in ns2");
+    memory.store_with_metadata("shared", "v1", "ns1", &[], 0.5).expect("Failed to store in ns1");
+    memory.store_with_metadata("shared", "v2", "ns2", &[], 0.5).expect("Failed to store in ns2");
 
     // Should NOT raise unique constraint violation
     // (Migration 006 creates composite unique index on (k, namespace))
 
-    let r1 = memory
-        .query_with_namespace("shared", Some("ns1"))
-        .expect("Failed to query ns1");
-    let r2 = memory
-        .query_with_namespace("shared", Some("ns2"))
-        .expect("Failed to query ns2");
+    let r1 = memory.query_with_namespace("shared", Some("ns1")).expect("Failed to query ns1");
+    let r2 = memory.query_with_namespace("shared", Some("ns2")).expect("Failed to query ns2");
 
     assert_eq!(r1, Some("v1".to_string()));
     assert_eq!(r2, Some("v2".to_string()));

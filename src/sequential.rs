@@ -145,8 +145,7 @@ impl SequentialCore {
 
         // DETECT EMPTY THOUGHT - Circuit breaker protection
         if thought.trim().is_empty() {
-            self.circuit_breaker
-                .record_result("cognitive_cycle", &cycle_id, false);
+            self.circuit_breaker.record_result("cognitive_cycle", &cycle_id, false);
             return Err(anyhow!("Empty thought detected - cognitive cycle failed. This may indicate the model is stuck or unable to reason about the task."));
         }
 
@@ -161,8 +160,7 @@ impl SequentialCore {
 
         // DETECT EMPTY DECISION - Circuit breaker protection
         if decision.trim().is_empty() {
-            self.circuit_breaker
-                .record_result("cognitive_cycle", &cycle_id, false);
+            self.circuit_breaker.record_result("cognitive_cycle", &cycle_id, false);
             return Err(anyhow!("Empty decision detected - cognitive cycle failed. The model was unable to decide on actions."));
         }
 
@@ -201,8 +199,7 @@ impl SequentialCore {
 
         // RECORD CIRCUIT BREAKER SUCCESS
         let had_output = !thought.is_empty() && !decision.is_empty();
-        self.circuit_breaker
-            .record_result("cognitive_cycle", &cycle_id, had_output);
+        self.circuit_breaker.record_result("cognitive_cycle", &cycle_id, had_output);
 
         Ok(CycleResult::Completed {
             task_id: task.id as u64,
@@ -251,10 +248,8 @@ impl SequentialCore {
 
         // 3. Similar tasks from history
         if let Ok(historical_context) = self.get_similar_tasks(task) {
-            context.push_str(&format!(
-                "=== SIMILAR HISTORICAL TASKS ===\n{}\n\n",
-                historical_context
-            ));
+            context
+                .push_str(&format!("=== SIMILAR HISTORICAL TASKS ===\n{}\n\n", historical_context));
         }
 
         // 4. Available actions and capabilities
@@ -302,21 +297,27 @@ impl SequentialCore {
     /// Execute parsed actions with real implementations
     fn execute_action(&self, task: &Task, action: &ParsedAction) -> Result<String> {
         match &action.action_type {
-            ActionType::CreateFile { path, content } => {
+            ActionType::CreateFile {
+                path,
+                content,
+            } => {
                 std::fs::write(path, content)?;
                 let result = format!("Created file: {} with {} bytes", path, content.len());
-                self.memory
-                    .store(&format!("file_created_{}", path), &result)?;
+                self.memory.store(&format!("file_created_{}", path), &result)?;
                 Ok(result)
             }
-            ActionType::ReadFile { path } => {
+            ActionType::ReadFile {
+                path,
+            } => {
                 let content = std::fs::read_to_string(path)?;
                 let result = format!("Read file: {} ({} bytes)\n{}", path, content.len(), content);
-                self.memory
-                    .store(&format!("file_read_{}", path), &content)?;
+                self.memory.store(&format!("file_read_{}", path), &content)?;
                 Ok(result)
             }
-            ActionType::UpdateFile { path, content } => {
+            ActionType::UpdateFile {
+                path,
+                content,
+            } => {
                 let old_content = std::fs::read_to_string(path).unwrap_or_default();
                 std::fs::write(path, content)?;
                 let result = format!(
@@ -325,35 +326,41 @@ impl SequentialCore {
                     old_content.len(),
                     content.len()
                 );
-                self.memory
-                    .store(&format!("file_updated_{}", path), &result)?;
+                self.memory.store(&format!("file_updated_{}", path), &result)?;
                 Ok(result)
             }
-            ActionType::DeleteFile { path } => {
+            ActionType::DeleteFile {
+                path,
+            } => {
                 std::fs::remove_file(path)?;
                 let result = format!("Deleted file: {}", path);
-                self.memory
-                    .store(&format!("file_deleted_{}", path), &result)?;
+                self.memory.store(&format!("file_deleted_{}", path), &result)?;
                 Ok(result)
             }
-            ActionType::CreateTask { goal, priority } => {
+            ActionType::CreateTask {
+                goal,
+                priority,
+            } => {
                 let task_id = self.tasks.add_task(goal, "", *priority, Some(task.id))?;
                 let result = format!(
                     "Created subtask {} with goal: {} (priority: {})",
                     task_id, goal, priority
                 );
-                self.memory
-                    .store(&format!("task_created_{}", task_id), &result)?;
+                self.memory.store(&format!("task_created_{}", task_id), &result)?;
                 Ok(result)
             }
-            ActionType::CompleteTask { task_id } => {
+            ActionType::CompleteTask {
+                task_id,
+            } => {
                 self.tasks.complete_task((*task_id) as i64)?;
                 let result = format!("Completed task: {}", task_id);
-                self.memory
-                    .store(&format!("task_completed_{}", task_id), &result)?;
+                self.memory.store(&format!("task_completed_{}", task_id), &result)?;
                 Ok(result)
             }
-            ActionType::SearchCode { query, path } => {
+            ActionType::SearchCode {
+                query,
+                path,
+            } => {
                 use std::process::Command;
                 let output = Command::new("rg").args(["--json", query, path]).output()?;
 
@@ -366,13 +373,12 @@ impl SequentialCore {
                     )?;
                     Ok(result)
                 } else {
-                    Err(anyhow!(
-                        "Code search failed: {}",
-                        String::from_utf8_lossy(&output.stderr)
-                    ))
+                    Err(anyhow!("Code search failed: {}", String::from_utf8_lossy(&output.stderr)))
                 }
             }
-            ActionType::AnalyzeCode { file_path } => {
+            ActionType::AnalyzeCode {
+                file_path,
+            } => {
                 // Use parser for deep code analysis
                 let parser = crate::parser::Parser::new()?;
                 let structure = parser.parse_file(std::path::Path::new(file_path))?;
@@ -381,21 +387,27 @@ impl SequentialCore {
                     file_path,
                     serde_json::to_string_pretty(&structure)?
                 );
-                self.memory.store(
-                    &format!("code_analysis_{}", file_path.replace("/", "_")),
-                    &analysis,
-                )?;
+                self.memory
+                    .store(&format!("code_analysis_{}", file_path.replace("/", "_")), &analysis)?;
                 Ok(analysis)
             }
-            ActionType::StoreMemory { key, value } => {
+            ActionType::StoreMemory {
+                key,
+                value,
+            } => {
                 self.memory.store(key, value)?;
                 Ok(format!("Stored memory: {} -> {}", key, value))
             }
-            ActionType::QueryMemory { key } => match self.memory.query(key)? {
+            ActionType::QueryMemory {
+                key,
+            } => match self.memory.query(key)? {
                 Some(value) => Ok(format!("Retrieved memory: {} -> {}", key, value)),
                 None => Ok(format!("Memory key not found: {}", key)),
             },
-            ActionType::SearchVector { query, limit } => {
+            ActionType::SearchVector {
+                query,
+                limit,
+            } => {
                 let vector_store = self.vector_store.lock().unwrap();
                 let results =
                     vector_store.search(query, *limit, crate::vector::SearchScope::Global)?;
@@ -409,15 +421,14 @@ impl SequentialCore {
 
                 Ok(format!("Vector search for '{}':\n{}", query, result_text))
             }
-            ActionType::CustomAction { action, parameters } => {
-                let result = format!(
-                    "Executed custom action: {} with parameters: {:?}",
-                    action, parameters
-                );
-                self.memory.store(
-                    &format!("custom_action_{}", action.replace(" ", "_")),
-                    &result,
-                )?;
+            ActionType::CustomAction {
+                action,
+                parameters,
+            } => {
+                let result =
+                    format!("Executed custom action: {} with parameters: {:?}", action, parameters);
+                self.memory
+                    .store(&format!("custom_action_{}", action.replace(" ", "_")), &result)?;
                 Ok(result)
             }
         }
@@ -484,11 +495,8 @@ impl SequentialCore {
         let db = self.tasks.get_db();
         let db_guard = db.lock().unwrap();
 
-        let meta_json = format!(
-            "{{\"task_id\": {}, \"state\": \"{}\"}}",
-            task.id,
-            state.to_string()
-        );
+        let meta_json =
+            format!("{{\"task_id\": {}, \"state\": \"{}\"}}", task.id, state.to_string());
         cognitive_db::store_step(
             &db_guard,
             Some(task.id),
@@ -765,10 +773,8 @@ impl OllamaLanguageModel {
 
     /// Generate text using the Ollama model
     fn generate(&self, prompt: &str) -> Result<String> {
-        let client = self
-            .client
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock Ollama client: {}", e))?;
+        let client =
+            self.client.lock().map_err(|e| anyhow!("Failed to lock Ollama client: {}", e))?;
 
         client.generate(prompt)
     }
@@ -859,9 +865,7 @@ impl DemoLanguageModel {
 
 impl LanguageModel for DemoLanguageModel {
     fn think(&self, context: &str) -> Result<String> {
-        let count = self
-            .cycle_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let count = self.cycle_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(format!(
             "🧠 Sequential Thinking Cycle {}:\n\
              Analyzing context and task requirements...\n\

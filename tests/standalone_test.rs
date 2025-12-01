@@ -55,14 +55,7 @@ fn test_database_basic_operations() {
         INSERT INTO tasks (goal, description, priority, parent_id, created_at, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
     ",
-            (
-                "Test goal",
-                "Test description",
-                3,
-                None::<Option<i64>>,
-                1234567890,
-                1234567890,
-            ),
+            ("Test goal", "Test description", 3, None::<Option<i64>>, 1234567890, 1234567890),
         )
         .unwrap();
 
@@ -126,14 +119,7 @@ fn test_database_basic_operations() {
         INSERT INTO tasks (goal, description, priority, parent_id, created_at, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
     ",
-            (
-                "Task 2",
-                "Description 2",
-                2,
-                None::<Option<i64>>,
-                1234567892,
-                1234567892,
-            ),
+            ("Task 2", "Description 2", 2, None::<Option<i64>>, 1234567892, 1234567892),
         )
         .unwrap();
 
@@ -159,8 +145,7 @@ fn test_database_basic_operations() {
     assert_eq!(link_exists, 1);
 
     // Test cascade delete
-    conn.execute("DELETE FROM tasks WHERE id = ?1", [task_id])
-        .unwrap();
+    conn.execute("DELETE FROM tasks WHERE id = ?1", [task_id]).unwrap();
 
     let child_remaining = conn
         .query_row(
@@ -221,14 +206,7 @@ fn test_cognitive_step_operations() {
         INSERT INTO tasks (goal, description, priority, parent_id, created_at, updated_at)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
     ",
-            (
-                "Test task",
-                "For cognitive steps",
-                1,
-                None::<i64>,
-                1234567890,
-                1234567890,
-            ),
+            ("Test task", "For cognitive steps", 1, None::<i64>, 1234567890, 1234567890),
         )
         .unwrap();
 
@@ -249,13 +227,7 @@ fn test_cognitive_step_operations() {
         INSERT INTO steps (task_id, state, content, meta_json, created_at)
         VALUES (?1, ?2, ?3, ?4, ?5)
     ",
-            (
-                Some(task_id),
-                "Decide",
-                "Made decision",
-                "{\"decision\": \"proceed\"}",
-                1234567892,
-            ),
+            (Some(task_id), "Decide", "Made decision", "{\"decision\": \"proceed\"}", 1234567892),
         )
         .unwrap();
 

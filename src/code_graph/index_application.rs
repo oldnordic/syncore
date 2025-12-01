@@ -149,25 +149,17 @@ impl IndexApplication {
         entities: Vec<super::types::CodeEntity>,
         edges: Vec<super::types::CodeEdge>,
     ) -> Result<usize> {
-        let file_path_str = file_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Invalid file path"))?
-            .to_string();
+        let file_path_str =
+            file_path.to_str().ok_or_else(|| anyhow!("Invalid file path"))?.to_string();
 
-        let mut db = self
-            .code_graph
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+        let mut db =
+            self.code_graph.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
 
         // Use transaction for atomic operations
         let tx = db.transaction()?;
 
         // Delete existing entities for this file to allow re-indexing
-        tx.execute(
-            "DELETE FROM code_entities WHERE file_path = ?",
-            [&file_path_str],
-        )?;
+        tx.execute("DELETE FROM code_entities WHERE file_path = ?", [&file_path_str])?;
 
         // Store entities and collect IDs
         let mut entity_ids = Vec::new();
@@ -205,10 +197,7 @@ impl IndexApplication {
         // Create embeddings for entities (best-effort)
         for (entity_id, entity_name) in entity_ids {
             if let Err(e) = self.create_entity_embedding(&db, entity_id, &entity_name) {
-                eprintln!(
-                    "[WARN] Failed to create embedding for entity {}: {}",
-                    entity_name, e
-                );
+                eprintln!("[WARN] Failed to create embedding for entity {}: {}", entity_name, e);
             }
         }
 

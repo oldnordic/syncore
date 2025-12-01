@@ -88,11 +88,8 @@ pub async fn run_startup_bootstrap_for_tests(cfg: &SyncoreConfig) -> Result<()> 
         for entry in paths.flatten() {
             // Skip excluded directories (target/, etc.)
             let entry_str = entry.to_string_lossy();
-            let should_skip = cfg
-                .indexing
-                .excluded_dirs
-                .iter()
-                .any(|excluded| entry_str.contains(excluded));
+            let should_skip =
+                cfg.indexing.excluded_dirs.iter().any(|excluded| entry_str.contains(excluded));
 
             if should_skip {
                 continue;
@@ -104,11 +101,7 @@ pub async fn run_startup_bootstrap_for_tests(cfg: &SyncoreConfig) -> Result<()> 
                     total_entities += count;
                 }
                 Err(e) => {
-                    eprintln!(
-                        "[SynCore] Bootstrap: Failed to index {}: {}",
-                        entry.display(),
-                        e
-                    );
+                    eprintln!("[SynCore] Bootstrap: Failed to index {}: {}", entry.display(), e);
                 }
             }
         }

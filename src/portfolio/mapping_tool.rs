@@ -40,7 +40,9 @@ impl MappingTool {
     pub fn new(state: SynCoreState) -> Self {
         // Ensure schema exists
         Self::initialize_schema(&state).expect("Failed to initialize mapping schema");
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Initialize SQLite schema for file mapping
@@ -72,9 +74,7 @@ impl MappingTool {
 
     /// Record a file node in SQLite and FAISS
     pub fn record_file(&self, node: &FileNode) -> Result<()> {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs() as i64;
 
         // Persist to SQLite
         self.state.tasks.with_db(|conn| {

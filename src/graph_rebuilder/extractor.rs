@@ -47,7 +47,9 @@ impl RelationshipExtractor {
     pub fn new() -> Result<Self> {
         let parser = tree_sitter::Parser::new();
         // Language is set per-file in extract_from_source
-        Ok(Self { parser })
+        Ok(Self {
+            parser,
+        })
     }
 
     /// Extract relationships from Rust source code
@@ -71,10 +73,7 @@ impl RelationshipExtractor {
             .set_language(tree_sitter_rust::language())
             .context("Failed to set Rust language for tree-sitter")?;
 
-        let tree = self
-            .parser
-            .parse(source_code, None)
-            .context("Failed to parse source code")?;
+        let tree = self.parser.parse(source_code, None).context("Failed to parse source code")?;
 
         let root = tree.root_node();
 
@@ -127,11 +126,7 @@ impl RelationshipExtractor {
             match self.extract_from_file(entry.path()) {
                 Ok(edges) => all_edges.extend(edges),
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to extract from {}: {}",
-                        entry.path().display(),
-                        e
-                    );
+                    eprintln!("Warning: Failed to extract from {}: {}", entry.path().display(), e);
                 }
             }
         }
@@ -192,9 +187,7 @@ fn main() {
         // Should find call edge from main to helper
         let call_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == "calls").collect();
         assert!(
-            call_edges
-                .iter()
-                .any(|e| e.src_name == "main" && e.dst_name == "helper"),
+            call_edges.iter().any(|e| e.src_name == "main" && e.dst_name == "helper"),
             "Should extract call from main to helper"
         );
     }

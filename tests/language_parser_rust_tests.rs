@@ -85,10 +85,7 @@ fn multiply(x: i32, y: i32) -> i32 {
     assert_eq!(add_func.language, "rust");
     assert_eq!(add_func.line_start, 3);
     assert_eq!(add_func.line_end, 5);
-    assert_eq!(
-        add_func.docstring,
-        Some("Adds two numbers together".to_string())
-    );
+    assert_eq!(add_func.docstring, Some("Adds two numbers together".to_string()));
     assert!(add_func.signature.as_ref().unwrap().contains("add("));
     // Note: Return type extraction depends on underlying parser capabilities
 
@@ -97,10 +94,7 @@ fn multiply(x: i32, y: i32) -> i32 {
     assert_eq!(mult_func.entity_type, EntityType::Function);
     assert_eq!(mult_func.line_start, 8);
     assert_eq!(mult_func.line_end, 10);
-    assert_eq!(
-        mult_func.docstring,
-        Some("Multiplies two numbers".to_string())
-    );
+    assert_eq!(mult_func.docstring, Some("Multiplies two numbers".to_string()));
 
     Ok(())
 }
@@ -137,21 +131,13 @@ impl User {
     assert!(entities.len() >= 1);
 
     // Check struct
-    let user_struct = entities
-        .iter()
-        .find(|e| e.name == "User" && e.entity_type == EntityType::Struct)
-        .unwrap();
+    let user_struct =
+        entities.iter().find(|e| e.name == "User" && e.entity_type == EntityType::Struct).unwrap();
     assert_eq!(user_struct.line_start, 3);
-    assert_eq!(
-        user_struct.docstring,
-        Some("Represents a user account".to_string())
-    );
+    assert_eq!(user_struct.docstring, Some("Represents a user account".to_string()));
 
     // Check methods if extracted (parser may or may not extract impl block methods)
-    let methods: Vec<_> = entities
-        .iter()
-        .filter(|e| e.entity_type == EntityType::Method)
-        .collect();
+    let methods: Vec<_> = entities.iter().filter(|e| e.entity_type == EntityType::Method).collect();
     // Methods are optional - parser extracts what it can from impl blocks
     if !methods.is_empty() {
         // If methods are found, verify their basic properties
@@ -182,10 +168,8 @@ use serde::{Deserialize, Serialize};
 
     // Should have import entities - exact count depends on parser's grouped import handling
     // Parser may not expand `use std::io::{Read, Write}` into multiple entities
-    let import_entities: Vec<_> = entities
-        .iter()
-        .filter(|e| e.entity_type == EntityType::Import)
-        .collect();
+    let import_entities: Vec<_> =
+        entities.iter().filter(|e| e.entity_type == EntityType::Import).collect();
     assert!(
         import_entities.len() >= 3,
         "Should detect at least 3 imports, got {}",
@@ -350,11 +334,10 @@ fn test_manual_database_seeding() -> Result<()> {
     )?;
 
     // Verify data was inserted
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities WHERE language = 'rust'",
-        [],
-        |row| row.get(0),
-    )?;
+    let count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM code_entities WHERE language = 'rust'", [], |row| {
+            row.get(0)
+        })?;
     assert_eq!(count, 1);
 
     Ok(())

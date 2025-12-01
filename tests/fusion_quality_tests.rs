@@ -47,14 +47,8 @@ fn test_quality_score_computation() {
     let result = evaluator.evaluate(&entities, "find main function");
 
     // Quality score should be weighted: 50% confidence + 30% completeness + 20% diversity
-    assert!(
-        result.quality_score > 0.5,
-        "Good results should have quality > 0.5"
-    );
-    assert!(
-        result.quality_score <= 1.0,
-        "Quality should be clamped to 1.0"
-    );
+    assert!(result.quality_score > 0.5, "Good results should have quality > 0.5");
+    assert!(result.quality_score <= 1.0, "Quality should be clamped to 1.0");
 }
 
 #[test]
@@ -67,10 +61,7 @@ fn test_confidence_from_score_gap() {
         make_entity(2, 0.3, 0.4, 0.2, 0.1, "other.rs"),
     ];
     let result_clear = evaluator.evaluate(&clear_winner, "test");
-    assert!(
-        result_clear.confidence > 0.7,
-        "Clear winner should have high confidence"
-    );
+    assert!(result_clear.confidence > 0.7, "Clear winner should have high confidence");
 
     // Tie (small gap) = lower confidence
     let tie = vec![
@@ -78,10 +69,7 @@ fn test_confidence_from_score_gap() {
         make_entity(2, 0.58, 0.55, 0.52, 0.48, "b.rs"),
     ];
     let result_tie = evaluator.evaluate(&tie, "test");
-    assert!(
-        result_tie.confidence < result_clear.confidence,
-        "Tie should have lower confidence"
-    );
+    assert!(result_tie.confidence < result_clear.confidence, "Tie should have lower confidence");
 }
 
 #[test]
@@ -95,16 +83,11 @@ fn test_completeness_scales_with_query() {
         make_entity(3, 0.7, 0.65, 0.6, 0.5, "c.rs"),
     ];
     let result_simple = evaluator.evaluate(&simple_query, "fmt");
-    assert!(
-        result_simple.completeness >= 0.9,
-        "3 results for simple query = high completeness"
-    );
+    assert!(result_simple.completeness >= 0.9, "3 results for simple query = high completeness");
 
     // Complex query expects ~8 results
-    let result_complex = evaluator.evaluate(
-        &simple_query,
-        "explain the full implementation of the parser module",
-    );
+    let result_complex =
+        evaluator.evaluate(&simple_query, "explain the full implementation of the parser module");
     assert!(
         result_complex.completeness < result_simple.completeness,
         "Same results for complex query = lower completeness"
@@ -146,14 +129,8 @@ fn test_empty_results_recommend_deep_read() {
     let evaluator = FusionQualityEvaluator::new();
     let result = evaluator.evaluate(&[], "some query");
 
-    assert!(
-        result.recommend_deep_read,
-        "Empty results should recommend deep read"
-    );
-    assert_eq!(
-        result.token_budget, 2000,
-        "Empty results get max token budget"
-    );
+    assert!(result.recommend_deep_read, "Empty results should recommend deep read");
+    assert_eq!(result.token_budget, 2000, "Empty results get max token budget");
 }
 
 #[test]
@@ -182,10 +159,7 @@ fn test_isolated_entity_needs_context() {
     let isolated = vec![make_entity(1, 0.85, 0.9, 0.1, 0.3, "isolated.rs")];
     let result = evaluator.evaluate(&isolated, "isolated function");
 
-    assert!(
-        result.recommend_deep_read,
-        "Isolated entity should recommend deep read"
-    );
+    assert!(result.recommend_deep_read, "Isolated entity should recommend deep read");
     assert!(
         result.recommendation_reason.contains("context"),
         "Reason should mention context: {}",
@@ -205,14 +179,8 @@ fn test_high_quality_uses_snippet_mode() {
     ];
     let result = evaluator.evaluate(&excellent, "find main");
 
-    assert!(
-        !result.recommend_deep_read,
-        "High quality should use snippet mode"
-    );
-    assert_eq!(
-        result.token_budget, 500,
-        "Snippet mode should have lower token budget"
-    );
+    assert!(!result.recommend_deep_read, "High quality should use snippet mode");
+    assert_eq!(result.token_budget, 500, "Snippet mode should have lower token budget");
 }
 
 #[test]
@@ -258,10 +226,7 @@ fn test_token_guard_respects_quality_budget() {
     };
 
     let tokens = evaluator.guard_token_budget(&high_quality, 1000);
-    assert!(
-        tokens <= 500,
-        "High quality should stay within snippet budget"
-    );
+    assert!(tokens <= 500, "High quality should stay within snippet budget");
 }
 
 #[test]
@@ -293,10 +258,7 @@ fn test_token_guard_scales_with_quality() {
     let tokens_high = evaluator.guard_token_budget(&very_high, 400);
     let tokens_medium = evaluator.guard_token_budget(&medium, 400);
 
-    assert!(
-        tokens_high <= tokens_medium,
-        "Higher quality should result in fewer or equal tokens"
-    );
+    assert!(tokens_high <= tokens_medium, "Higher quality should result in fewer or equal tokens");
 }
 
 #[test]
@@ -314,10 +276,7 @@ fn test_token_guard_low_quality_gets_max() {
     };
 
     let tokens = evaluator.guard_token_budget(&low_quality, 1500);
-    assert_eq!(
-        tokens, 2000,
-        "Low quality should get max budget (deep read mode)"
-    );
+    assert_eq!(tokens, 2000, "Low quality should get max budget (deep read mode)");
 }
 
 #[test]
@@ -359,15 +318,9 @@ fn test_quality_config_customization() {
 
     // Should use custom thresholds
     if result.recommend_deep_read {
-        assert_eq!(
-            result.token_budget, 3000,
-            "Custom deep-read budget should apply"
-        );
+        assert_eq!(result.token_budget, 3000, "Custom deep-read budget should apply");
     } else {
-        assert_eq!(
-            result.token_budget, 300,
-            "Custom snippet budget should apply"
-        );
+        assert_eq!(result.token_budget, 300, "Custom snippet budget should apply");
     }
 }
 

@@ -17,9 +17,7 @@ use tree_sitter::Parser;
 /// Helper to parse Rust code and return the tree
 fn parse_rust_code(code: &str) -> tree_sitter::Tree {
     let mut parser = Parser::new();
-    parser
-        .set_language(tree_sitter_rust::language())
-        .expect("Failed to set Rust language");
+    parser.set_language(tree_sitter_rust::language()).expect("Failed to set Rust language");
     parser.parse(code, None).expect("Failed to parse code")
 }
 
@@ -60,21 +58,13 @@ fn test_static_method_creates_call_edge() {
         !static_call_edges.is_empty(),
         "Expected CALLS edge for FusionAttention::new() but found none. \
          Current edges: {:?}",
-        edges
-            .iter()
-            .filter(|e| matches!(e.edge_type, EdgeType::Calls))
-            .collect::<Vec<_>>()
+        edges.iter().filter(|e| matches!(e.edge_type, EdgeType::Calls)).collect::<Vec<_>>()
     );
 
     // Verify the caller is create_fusion
-    let has_correct_caller = static_call_edges
-        .iter()
-        .any(|e| e.src_entity_name == "create_fusion");
+    let has_correct_caller = static_call_edges.iter().any(|e| e.src_entity_name == "create_fusion");
 
-    assert!(
-        has_correct_caller,
-        "Expected caller to be 'create_fusion' for FusionAttention::new()"
-    );
+    assert!(has_correct_caller, "Expected caller to be 'create_fusion' for FusionAttention::new()");
 }
 
 /// Test 2: Static method call should also create a TYPE_USAGE edge
@@ -108,15 +98,10 @@ fn test_codegraph_static_call_creates_edges() {
         .expect("Failed to extract edges");
 
     // Find edges for CodeGraph::new
-    let codegraph_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.dst_entity_name.contains("CodeGraph"))
-        .collect();
+    let codegraph_edges: Vec<_> =
+        edges.iter().filter(|e| e.dst_entity_name.contains("CodeGraph")).collect();
 
-    assert!(
-        !codegraph_edges.is_empty(),
-        "Expected edges for CodeGraph::new() but found none"
-    );
+    assert!(!codegraph_edges.is_empty(), "Expected edges for CodeGraph::new() but found none");
 }
 
 /// Test 4: After indexing, FusionAttention should have incoming edges
@@ -132,10 +117,8 @@ async fn test_static_call_fixes_pae_false_positive() -> Result<()> {
     let main_db = temp_dir.path().join("main.db");
     let code_graph_db = temp_dir.path().join("code_graph.db");
 
-    let db_manager = Arc::new(DbManager::new(
-        main_db.to_str().unwrap(),
-        code_graph_db.to_str().unwrap(),
-    )?);
+    let db_manager =
+        Arc::new(DbManager::new(main_db.to_str().unwrap(), code_graph_db.to_str().unwrap())?);
 
     // Setup schema
     {
@@ -229,10 +212,8 @@ fn process() {
         extract_edges_from_rust_ast(code, tree.root_node()).expect("Failed to extract edges");
 
     // Instance method calls should still create edges
-    let call_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| matches!(e.edge_type, EdgeType::Calls))
-        .collect();
+    let call_edges: Vec<_> =
+        edges.iter().filter(|e| matches!(e.edge_type, EdgeType::Calls)).collect();
 
     // Note: Currently the extractor may not handle these either,
     // but this test documents expected behavior

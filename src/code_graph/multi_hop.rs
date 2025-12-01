@@ -43,7 +43,9 @@ impl Default for MultiHopResult {
 impl MultiHopResult {
     /// Create empty result
     pub fn new() -> Self {
-        Self { nodes: Vec::new() }
+        Self {
+            nodes: Vec::new(),
+        }
     }
 
     /// Add a node to the result
@@ -181,10 +183,8 @@ pub fn multi_hop_sqlite(
         let neighbors = neighbors_sqlite(db, current_id)?;
 
         // Apply branch limit: only take first MAX_NEIGHBORS_PER_NODE neighbors
-        let neighbors_to_explore = neighbors
-            .into_iter()
-            .take(MAX_NEIGHBORS_PER_NODE)
-            .collect::<Vec<_>>();
+        let neighbors_to_explore =
+            neighbors.into_iter().take(MAX_NEIGHBORS_PER_NODE).collect::<Vec<_>>();
 
         for (neighbor_id, edge_type) in neighbors_to_explore {
             // Skip if already visited (cycle detection)
@@ -272,10 +272,8 @@ pub async fn multi_hop(
         }
 
         // Apply branch limit: only take first MAX_NEIGHBORS_PER_NODE neighbors
-        let neighbors_to_explore = all_neighbors
-            .into_iter()
-            .take(MAX_NEIGHBORS_PER_NODE)
-            .collect::<Vec<_>>();
+        let neighbors_to_explore =
+            all_neighbors.into_iter().take(MAX_NEIGHBORS_PER_NODE).collect::<Vec<_>>();
 
         for (neighbor_id, edge_type) in neighbors_to_explore {
             // Skip if already visited (cycle detection)

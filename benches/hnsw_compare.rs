@@ -98,11 +98,7 @@ fn cosine_distance(v1: &[f32], v2: &[f32]) -> f32 {
     let v1_norm: Vec<f32> = v1.iter().map(|x| x / norm1).collect();
     let v2_norm: Vec<f32> = v2.iter().map(|x| x / norm2).collect();
 
-    let dist_squared: f32 = v1_norm
-        .iter()
-        .zip(v2_norm.iter())
-        .map(|(a, b)| (a - b).powi(2))
-        .sum();
+    let dist_squared: f32 = v1_norm.iter().zip(v2_norm.iter()).map(|(a, b)| (a - b).powi(2)).sum();
 
     dist_squared.sqrt()
 }
@@ -138,9 +134,7 @@ fn bench_insertion(c: &mut Criterion) {
                     let mut index = HnswVectorIndex::new(hnsw_config, 42).unwrap();
 
                     for (i, vec) in vectors.iter().enumerate() {
-                        index
-                            .add(black_box(i as i64), black_box(vec.clone()))
-                            .unwrap();
+                        index.add(black_box(i as i64), black_box(vec.clone())).unwrap();
                     }
                 });
             },
@@ -163,13 +157,9 @@ fn bench_search(c: &mut Criterion) {
             index.add(i as i64, vec.clone()).unwrap();
         }
 
-        group.bench_with_input(
-            BenchmarkId::new("search_k10", config.name),
-            &config,
-            |b, _| {
-                b.iter(|| index.search(black_box(&query), black_box(10)).unwrap());
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("search_k10", config.name), &config, |b, _| {
+            b.iter(|| index.search(black_box(&query), black_box(10)).unwrap());
+        });
     }
     group.finish();
 }
@@ -225,11 +215,5 @@ fn bench_graph_build(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    hnsw_benches,
-    bench_insertion,
-    bench_search,
-    bench_recall,
-    bench_graph_build
-);
+criterion_group!(hnsw_benches, bench_insertion, bench_search, bench_recall, bench_graph_build);
 criterion_main!(hnsw_benches);

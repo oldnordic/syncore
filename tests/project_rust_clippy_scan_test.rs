@@ -87,10 +87,7 @@ fn main() {
             }
         }
         Err(e) => {
-            println!(
-                "Clippy scan failed (this may be expected if clippy is not available): {}",
-                e
-            );
+            println!("Clippy scan failed (this may be expected if clippy is not available): {}", e);
             // Don't fail the test if clippy is not available in the test environment
         }
     }

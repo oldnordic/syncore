@@ -46,11 +46,7 @@ fn test_mcp_delete() {
     let result = suite.execute(delete_args);
 
     assert!(result.success, "Delete should succeed");
-    assert!(result
-        .data
-        .get("success")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false));
+    assert!(result.data.get("success").and_then(|v| v.as_bool()).unwrap_or(false));
 }
 
 #[test]
@@ -124,11 +120,8 @@ fn test_help_includes_all_commands() {
 
     let command_list = commands.unwrap();
     // Verify new commands are in the list
-    let command_strings: Vec<String> = command_list
-        .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.to_string())
-        .collect();
+    let command_strings: Vec<String> =
+        command_list.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect();
 
     assert!(command_strings.contains(&"delete".to_string()));
     assert!(command_strings.contains(&"list_keys".to_string()));

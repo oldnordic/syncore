@@ -207,9 +207,7 @@ impl LspBridge {
         match language_id {
             "rust" => {
                 // Check if rust-analyzer is on PATH
-                which::which("rust-analyzer")
-                    .ok()
-                    .and_then(|p| p.to_str().map(|s| s.to_string()))
+                which::which("rust-analyzer").ok().and_then(|p| p.to_str().map(|s| s.to_string()))
             }
             _ => None, // Other languages not supported yet
         }
@@ -230,10 +228,7 @@ impl LspBridge {
         });
 
         let framed = jsonrpc::frame_jsonrpc_message(&init_message.to_string());
-        stdin_tx
-            .send(framed)
-            .await
-            .context("Failed to send initialize")?;
+        stdin_tx.send(framed).await.context("Failed to send initialize")?;
 
         // Send initialized notification
         let initialized_message = serde_json::json!({
@@ -243,10 +238,7 @@ impl LspBridge {
         });
 
         let framed = jsonrpc::frame_jsonrpc_message(&initialized_message.to_string());
-        stdin_tx
-            .send(framed)
-            .await
-            .context("Failed to send initialized")?;
+        stdin_tx.send(framed).await.context("Failed to send initialized")?;
 
         Ok(())
     }

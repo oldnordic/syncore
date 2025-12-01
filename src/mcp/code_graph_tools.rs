@@ -13,16 +13,13 @@ use walkdir::WalkDir;
 
 /// Index a directory of Rust files into the code graph
 pub async fn handle_code_graph_index(params: Value) -> Result<Value> {
-    let directory = params["directory"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'directory' parameter"))?;
+    let directory =
+        params["directory"].as_str().ok_or_else(|| anyhow!("Missing 'directory' parameter"))?;
     let recursive = params["recursive"].as_bool().unwrap_or(true);
-    let db_path = params["db_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
-    let vectors_dir = params["vectors_dir"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'vectors_dir' parameter"))?;
+    let db_path =
+        params["db_path"].as_str().ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+    let vectors_dir =
+        params["vectors_dir"].as_str().ok_or_else(|| anyhow!("Missing 'vectors_dir' parameter"))?;
     let namespace = params["namespace"].as_str().unwrap_or("default");
 
     // Set namespace environment variable
@@ -87,9 +84,8 @@ pub async fn handle_code_graph_index(params: Value) -> Result<Value> {
 
 /// Query the code graph for specific information
 pub async fn handle_code_graph_query(params: Value) -> Result<Value> {
-    let db_path = params["db_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+    let db_path =
+        params["db_path"].as_str().ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
     let namespace = params["namespace"].as_str().unwrap_or("default");
 
     std::env::set_var("GRAPH_NAMESPACE", namespace);
@@ -169,12 +165,10 @@ pub async fn handle_code_graph_query(params: Value) -> Result<Value> {
 
 /// Explain a function's role in the codebase
 pub async fn handle_code_graph_explain(params: Value) -> Result<Value> {
-    let function_name = params["function"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'function' parameter"))?;
-    let db_path = params["db_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+    let function_name =
+        params["function"].as_str().ok_or_else(|| anyhow!("Missing 'function' parameter"))?;
+    let db_path =
+        params["db_path"].as_str().ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
     let namespace = params["namespace"].as_str().unwrap_or("default");
 
     std::env::set_var("GRAPH_NAMESPACE", namespace);
@@ -208,12 +202,10 @@ pub async fn handle_code_graph_explain(params: Value) -> Result<Value> {
 
 /// Analyze the impact of changing a function
 pub async fn handle_code_graph_impact(params: Value) -> Result<Value> {
-    let function_name = params["function"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'function' parameter"))?;
-    let db_path = params["db_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+    let function_name =
+        params["function"].as_str().ok_or_else(|| anyhow!("Missing 'function' parameter"))?;
+    let db_path =
+        params["db_path"].as_str().ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
     let namespace = params["namespace"].as_str().unwrap_or("default");
     let include_transitive = params["include_transitive"].as_bool().unwrap_or(false);
 
@@ -303,36 +295,24 @@ fn generate_function_summary(name: &str, callers: &[String], callees: &[String])
     };
 
     let callees_desc = if callee_count > 0 {
-        format!(
-            " It calls {} other function(s): {}.",
-            callee_count,
-            callees.join(", ")
-        )
+        format!(" It calls {} other function(s): {}.", callee_count, callees.join(", "))
     } else {
         String::new()
     };
 
     let callers_desc = if caller_count > 0 {
-        format!(
-            " It is called by {} function(s): {}.",
-            caller_count,
-            callers.join(", ")
-        )
+        format!(" It is called by {} function(s): {}.", caller_count, callers.join(", "))
     } else {
         String::new()
     };
 
-    format!(
-        "{} is a {} in the codebase.{}{}",
-        name, role, callees_desc, callers_desc
-    )
+    format!("{} is a {} in the codebase.{}{}", name, role, callees_desc, callers_desc)
 }
 
 /// Run comprehensive refactoring check on the code graph
 pub async fn handle_code_graph_refactor_check(params: Value) -> Result<Value> {
-    let db_path = params["db_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+    let db_path =
+        params["db_path"].as_str().ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
     let namespace = params["namespace"].as_str().unwrap_or("default");
     let max_function_lines = params["max_function_lines"].as_u64().unwrap_or(50) as usize;
     let similarity_threshold = params["similarity_threshold"].as_f64().unwrap_or(0.85) as f32;
@@ -360,15 +340,12 @@ pub async fn handle_code_graph_refactor_check(params: Value) -> Result<Value> {
 
 /// Generate a detailed refactoring plan for a specific symbol
 pub async fn handle_code_graph_refactor_symbol(params: Value) -> Result<Value> {
-    let symbol_name = params["symbol_name"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'symbol_name' parameter"))?;
-    let symbol_kind = params["symbol_kind"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'symbol_kind' parameter"))?;
-    let db_path = params["db_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+    let symbol_name =
+        params["symbol_name"].as_str().ok_or_else(|| anyhow!("Missing 'symbol_name' parameter"))?;
+    let symbol_kind =
+        params["symbol_kind"].as_str().ok_or_else(|| anyhow!("Missing 'symbol_kind' parameter"))?;
+    let db_path =
+        params["db_path"].as_str().ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
     let namespace = params["namespace"].as_str().unwrap_or("default");
 
     std::env::set_var("GRAPH_NAMESPACE", namespace);
@@ -384,9 +361,7 @@ pub async fn handle_code_graph_refactor_symbol(params: Value) -> Result<Value> {
 
     // Currently only supports function refactoring
     if symbol_kind != "function" {
-        return Err(anyhow!(
-            "Only 'function' symbol_kind is currently supported"
-        ));
+        return Err(anyhow!("Only 'function' symbol_kind is currently supported"));
     }
 
     let plan = engine.suggest_refactor_plan(symbol_name)?;
@@ -400,13 +375,11 @@ pub async fn handle_code_graph_refactor_symbol(params: Value) -> Result<Value> {
 
 /// Get macro expansions for a Rust file
 pub async fn handle_project_macro_expand(params: Value) -> Result<Value> {
-    let file_path = params["file_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'file_path' parameter"))?;
+    let file_path =
+        params["file_path"].as_str().ok_or_else(|| anyhow!("Missing 'file_path' parameter"))?;
 
-    let db_path = params["db_path"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
+    let db_path =
+        params["db_path"].as_str().ok_or_else(|| anyhow!("Missing 'db_path' parameter"))?;
 
     // Connect to database and query macro expansions
     let conn = rusqlite::Connection::open(db_path)?;

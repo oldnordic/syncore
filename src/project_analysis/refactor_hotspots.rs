@@ -41,10 +41,8 @@ impl ProjectAnalysisEngine {
                     "entity_count".to_string(),
                     Value::Number(serde_json::Number::from(entity_count)),
                 );
-                metrics.insert(
-                    "loc".to_string(),
-                    Value::Number(serde_json::Number::from(max_line)),
-                );
+                metrics
+                    .insert("loc".to_string(), Value::Number(serde_json::Number::from(max_line)));
 
                 Ok(RefactorSuggestion {
                     kind: RefactorKind::SplitFile,
@@ -94,14 +92,8 @@ impl ProjectAnalysisEngine {
             let fan_out: i64 = row.get(2)?;
 
             let mut metrics = HashMap::new();
-            metrics.insert(
-                "fan_in".to_string(),
-                Value::Number(serde_json::Number::from(fan_in)),
-            );
-            metrics.insert(
-                "fan_out".to_string(),
-                Value::Number(serde_json::Number::from(fan_out)),
-            );
+            metrics.insert("fan_in".to_string(), Value::Number(serde_json::Number::from(fan_in)));
+            metrics.insert("fan_out".to_string(), Value::Number(serde_json::Number::from(fan_out)));
 
             Ok(RefactorSuggestion {
                 kind: RefactorKind::ExtractFacade,
@@ -156,10 +148,7 @@ impl ProjectAnalysisEngine {
                 "cycle_strength".to_string(),
                 Value::Number(serde_json::Number::from(cycle_strength)),
             );
-            metrics.insert(
-                "cycle_length".to_string(),
-                Value::Number(serde_json::Number::from(2)),
-            );
+            metrics.insert("cycle_length".to_string(), Value::Number(serde_json::Number::from(2)));
 
             Ok(RefactorSuggestion {
                 kind: RefactorKind::ReduceCycle,

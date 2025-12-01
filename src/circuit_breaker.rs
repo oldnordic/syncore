@@ -289,16 +289,18 @@ impl std::fmt::Display for CircuitBreakerError {
                 reason,
                 retry_after,
             } => {
-                write!(
-                    f,
-                    "Circuit breaker is open: {}. Retry after {:?}",
-                    reason, retry_after
-                )
+                write!(f, "Circuit breaker is open: {}. Retry after {:?}", reason, retry_after)
             }
-            CircuitBreakerError::TooManyIdenticalCalls { tool, count } => {
+            CircuitBreakerError::TooManyIdenticalCalls {
+                tool,
+                count,
+            } => {
                 write!(f, "Too many identical calls to {}: {} times", tool, count)
             }
-            CircuitBreakerError::RateLimitExceeded { window, count } => {
+            CircuitBreakerError::RateLimitExceeded {
+                window,
+                count,
+            } => {
                 write!(f, "Rate limit exceeded: {} calls in {:?}", count, window)
             }
         }
@@ -338,9 +340,7 @@ mod tests {
 
         // Make 3 calls with no output
         for i in 0..3 {
-            assert!(breaker
-                .check_tool_call("tool", &format!("param{}", i))
-                .is_ok());
+            assert!(breaker.check_tool_call("tool", &format!("param{}", i)).is_ok());
             breaker.record_result("tool", &format!("param{}", i), false);
         }
 
@@ -352,9 +352,7 @@ mod tests {
         let breaker = AgentCircuitBreaker::new();
 
         for i in 0..10 {
-            assert!(breaker
-                .check_tool_call("tool", &format!("param{}", i))
-                .is_ok());
+            assert!(breaker.check_tool_call("tool", &format!("param{}", i)).is_ok());
             breaker.record_result("tool", &format!("param{}", i), true);
         }
 

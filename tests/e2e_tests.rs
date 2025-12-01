@@ -12,14 +12,8 @@ fn plan_expand_creates_children_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create parent task
-    let parent_id = tasks::add_task(
-        &conn,
-        "Build web app",
-        "Create full-stack application",
-        1,
-        None,
-    )
-    .unwrap();
+    let parent_id =
+        tasks::add_task(&conn, "Build web app", "Create full-stack application", 1, None).unwrap();
 
     // Simulate plan.expand AI response with valid JSON
     let ai_response = r#"{
@@ -55,11 +49,9 @@ fn plan_expand_creates_children_ok() {
     // Verify hierarchy
     for &child_id in &child_ids {
         let parent_id_check = conn
-            .query_row(
-                "SELECT parent_id FROM tasks WHERE id = ?1",
-                [child_id],
-                |row| row.get::<_, Option<i64>>(0),
-            )
+            .query_row("SELECT parent_id FROM tasks WHERE id = ?1", [child_id], |row| {
+                row.get::<_, Option<i64>>(0)
+            })
             .unwrap();
         assert_eq!(parent_id_check, Some(parent_id));
     }
@@ -69,13 +61,7 @@ fn plan_expand_creates_children_ok() {
         .query_row(
             "SELECT goal, description, priority FROM tasks WHERE id = ?1",
             [child_ids[0]],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, i32>(2)?,
-                ))
-            },
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i32>(2)?)),
         )
         .unwrap();
     assert_eq!(child1.0, "Setup backend");
@@ -128,15 +114,8 @@ fn plan_resume_suggests_tool_ok() {
     let recent_steps = cognitive_db::recent_steps(&conn, task1_id, 5).unwrap();
 
     // Use recent_steps for real functionality (not just placeholder)
-    assert!(
-        recent_steps.len() <= 5,
-        "Should return at most 5 recent steps"
-    );
-    println!(
-        "Retrieved {} recent steps for task {}",
-        recent_steps.len(),
-        task1_id
-    );
+    assert!(recent_steps.len() <= 5, "Should return at most 5 recent steps");
+    println!("Retrieved {} recent steps for task {}", recent_steps.len(), task1_id);
 
     // Test AI response with suggestion and tool recommendation
     let ai_suggestion = if current_tasks.iter().any(|(_, status)| *status == "running") {
@@ -186,14 +165,9 @@ fn cog_cycle_persists_steps_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // Create a task for the cognitive cycle
-    let task_id = tasks::add_task(
-        &conn,
-        "Debug performance issue",
-        "Fix slow database queries",
-        1,
-        None,
-    )
-    .unwrap();
+    let task_id =
+        tasks::add_task(&conn, "Debug performance issue", "Fix slow database queries", 1, None)
+            .unwrap();
 
     // Simulate cognitive cycle: Think → Reflect
     let think_content = "The queries are slow because of missing indexes on the user table. Need to analyze query patterns.";
@@ -258,22 +232,14 @@ fn create_expand_run_cycle_resume_done_ok() {
     let conn = syncore::db::open_db_with_wal(test_db).unwrap();
 
     // 1. CREATE: Create main task
-    let main_task_id = tasks::add_task(
-        &conn,
-        "Build REST API",
-        "Create complete backend service",
-        1,
-        None,
-    )
-    .unwrap();
+    let main_task_id =
+        tasks::add_task(&conn, "Build REST API", "Create complete backend service", 1, None)
+            .unwrap();
 
     let task = tasks::next_task(&conn, None, None).unwrap().unwrap();
 
     // Use task for real functionality
-    println!(
-        "Retrieved task: {} (priority: {})",
-        task.goal, task.priority
-    );
+    println!("Retrieved task: {} (priority: {})", task.goal, task.priority);
     assert!(!task.goal.is_empty(), "Task should have non-empty goal");
 
     let subtask1_id = tasks::add_task(
@@ -284,14 +250,9 @@ fn create_expand_run_cycle_resume_done_ok() {
         Some(main_task_id),
     )
     .unwrap();
-    let subtask2_id = tasks::add_task(
-        &conn,
-        "Define routes",
-        "Create API endpoints",
-        2,
-        Some(main_task_id),
-    )
-    .unwrap();
+    let subtask2_id =
+        tasks::add_task(&conn, "Define routes", "Create API endpoints", 2, Some(main_task_id))
+            .unwrap();
     let subtask3_id = tasks::add_task(
         &conn,
         "Add validation",
@@ -381,13 +342,10 @@ fn create_expand_run_cycle_resume_done_ok() {
 
     // Verify final state
     let done_list = {
-        let mut done_tasks_stmt = conn
-            .prepare("SELECT id, status FROM tasks WHERE status = 'done' ORDER BY id")
-            .unwrap();
+        let mut done_tasks_stmt =
+            conn.prepare("SELECT id, status FROM tasks WHERE status = 'done' ORDER BY id").unwrap();
         done_tasks_stmt
-            .query_map([], |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-            })
+            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap()
@@ -453,13 +411,9 @@ fn vector_scope_task_matches_steps_ok() {
     .unwrap();
 
     // Test global search - should return all results
-    let global_hits = vector::search(
-        &vector_store,
-        "authentication",
-        10,
-        syncore::vector::SearchScope::Global,
-    )
-    .unwrap();
+    let global_hits =
+        vector::search(&vector_store, "authentication", 10, syncore::vector::SearchScope::Global)
+            .unwrap();
     assert_eq!(global_hits.len(), 4); // All documents should match with some score
 
     // Test task-scoped search for task 100 - should only return 2 results
@@ -485,25 +439,17 @@ fn vector_scope_task_matches_steps_ok() {
     assert!(!hit_ids.contains(&4));
 
     // Test task-scoped search for task 200 - should return 1 result
-    let task200_hits = vector::search(
-        &vector_store,
-        "database",
-        10,
-        syncore::vector::SearchScope::Task(200),
-    )
-    .unwrap();
+    let task200_hits =
+        vector::search(&vector_store, "database", 10, syncore::vector::SearchScope::Task(200))
+            .unwrap();
     assert_eq!(task200_hits.len(), 1);
     assert_eq!(task200_hits[0].id, 3);
     assert_eq!(task200_hits[0].task_id, Some(200));
 
     // Test task-scoped search for non-existent task - should return no results
-    let no_task_hits = vector::search(
-        &vector_store,
-        "anything",
-        10,
-        syncore::vector::SearchScope::Task(999),
-    )
-    .unwrap();
+    let no_task_hits =
+        vector::search(&vector_store, "anything", 10, syncore::vector::SearchScope::Task(999))
+            .unwrap();
     assert_eq!(no_task_hits.len(), 0);
 
     // Clean up vector files

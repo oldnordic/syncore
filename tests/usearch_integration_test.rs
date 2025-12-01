@@ -24,10 +24,7 @@ fn test_usearch_basic_insert_and_search() -> Result<()> {
 
     assert_eq!(results.len(), 2, "Should return top 2 results");
     assert_eq!(results[0].id, 1, "First result should be most similar");
-    assert!(
-        results[0].score > 0.9,
-        "Score should be high for exact match"
-    );
+    assert!(results[0].score > 0.9, "Score should be high for exact match");
 
     Ok(())
 }
@@ -102,22 +99,13 @@ fn test_usearch_vs_linear_performance() -> Result<()> {
     let _results2 = usearch_store.search(&query, 10)?;
     let cached_search_time = search_start2.elapsed();
 
-    println!(
-        "Build + Insert time for {} vectors: {:?}",
-        num_vectors, build_time
-    );
-    println!(
-        "First search (includes index build): {:?}",
-        first_search_time
-    );
+    println!("Build + Insert time for {} vectors: {:?}", num_vectors, build_time);
+    println!("First search (includes index build): {:?}", first_search_time);
     println!("Cached search (no rebuild): {:?}", cached_search_time);
 
     // Cached search should be very fast (HNSW advantage)
     // Linear search would be O(n), HNSW is O(log n)
-    assert!(
-        cached_search_time.as_millis() < 50,
-        "Cached HNSW search should be fast"
-    );
+    assert!(cached_search_time.as_millis() < 50, "Cached HNSW search should be fast");
 
     // Verify we get results
     let results = usearch_store.search(&query, 5)?;
@@ -142,18 +130,10 @@ fn test_usearch_with_task_metadata() -> Result<()> {
 
     // Search within task scope
     let task_results = store.search_task(&[0.1_f32; 384], 10, 100)?;
-    assert_eq!(
-        task_results.len(),
-        2,
-        "Task search returns only task 100 docs"
-    );
+    assert_eq!(task_results.len(), 2, "Task search returns only task 100 docs");
 
     for hit in &task_results {
-        assert_eq!(
-            hit.task_id,
-            Some(100),
-            "All results should be from task 100"
-        );
+        assert_eq!(hit.task_id, Some(100), "All results should be from task 100");
     }
 
     Ok(())
@@ -181,10 +161,7 @@ fn test_usearch_hybrid_store_integration() -> Result<()> {
 
     let results = hybrid.search("rust", 2, SearchScope::Global)?;
     assert!(!results.is_empty(), "Should find results");
-    assert!(
-        results[0].text.contains("rust"),
-        "Should find rust doc first"
-    );
+    assert!(results[0].text.contains("rust"), "Should find rust doc first");
 
     Ok(())
 }

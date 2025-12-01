@@ -11,7 +11,9 @@ pub struct ToonPromptBuilder {
 
 impl ToonPromptBuilder {
     pub fn new(max_context_tokens: usize) -> Self {
-        Self { max_context_tokens }
+        Self {
+            max_context_tokens,
+        }
     }
 
     pub fn build_prompt(
@@ -93,10 +95,8 @@ impl ToonPromptBuilder {
 
             for ptr_id in ptr_ids {
                 if let Some(entry) = pointer_store.get(&ptr_id) {
-                    prompt.push_str(&format!(
-                        "Pointer: {}\nSummary: {}\n\n",
-                        ptr_id, entry.summary
-                    ));
+                    prompt
+                        .push_str(&format!("Pointer: {}\nSummary: {}\n\n", ptr_id, entry.summary));
                 }
             }
         }

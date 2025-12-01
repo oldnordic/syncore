@@ -23,7 +23,9 @@ impl FaissQueue {
             }
         });
 
-        Arc::new(Self { tx })
+        Arc::new(Self {
+            tx,
+        })
     }
 
     pub async fn submit<F>(&self, f: F) -> Result<()>

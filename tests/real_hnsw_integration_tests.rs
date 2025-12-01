@@ -16,12 +16,7 @@ use tempfile::TempDir;
 /// Helper to create test VectorStore with temp directory
 fn create_test_store() -> Result<(VectorStore, TempDir)> {
     let temp_dir = TempDir::new()?;
-    let index_path = temp_dir
-        .path()
-        .join("test_hnsw")
-        .to_str()
-        .unwrap()
-        .to_string();
+    let index_path = temp_dir.path().join("test_hnsw").to_str().unwrap().to_string();
 
     let embeddings = Box::new(RealEmbeddings::new(384)?);
     let mut store = VectorStore::new(embeddings);
@@ -71,12 +66,7 @@ fn test_vector_store_insert_populates_hnsw() -> Result<()> {
 #[test]
 fn test_vector_store_persistence_roundtrip() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let index_path = temp_dir
-        .path()
-        .join("test_hnsw")
-        .to_str()
-        .unwrap()
-        .to_string();
+    let index_path = temp_dir.path().join("test_hnsw").to_str().unwrap().to_string();
 
     // Phase 1: Insert and search
     let search_results_before = {
@@ -117,10 +107,7 @@ fn test_vector_store_persistence_roundtrip() -> Result<()> {
         "Search results count should match before and after persistence"
     );
 
-    for (before, after) in search_results_before
-        .iter()
-        .zip(search_results_after.iter())
-    {
+    for (before, after) in search_results_before.iter().zip(search_results_after.iter()) {
         assert_eq!(before.id, after.id, "Search results should have same IDs");
         // Similarity scores might differ slightly due to floating point precision
         assert!(
@@ -135,12 +122,7 @@ fn test_vector_store_persistence_roundtrip() -> Result<()> {
 #[test]
 fn test_vector_store_rebuild_from_snapshot_if_hnsw_missing() -> Result<()> {
     let temp_dir = TempDir::new()?;
-    let index_path = temp_dir
-        .path()
-        .join("test_hnsw")
-        .to_str()
-        .unwrap()
-        .to_string();
+    let index_path = temp_dir.path().join("test_hnsw").to_str().unwrap().to_string();
 
     // Phase 1: Insert vectors and save snapshot
     {
@@ -160,12 +142,7 @@ fn test_vector_store_rebuild_from_snapshot_if_hnsw_missing() -> Result<()> {
     // Phase 2: Delete HNSW index file (simulate missing index)
     let hnsw_files = std::fs::read_dir(temp_dir.path())?
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.file_name()
-                .to_str()
-                .map(|n| n.contains(".hnsw."))
-                .unwrap_or(false)
-        })
+        .filter(|e| e.file_name().to_str().map(|n| n.contains(".hnsw.")).unwrap_or(false))
         .collect::<Vec<_>>();
 
     for file in hnsw_files {
@@ -188,10 +165,7 @@ fn test_vector_store_rebuild_from_snapshot_if_hnsw_missing() -> Result<()> {
     // Verify we can find relevant documents
     let found_item_10 = results.iter().any(|hit| hit.id == 10);
 
-    assert!(
-        found_item_10,
-        "Item 10 should be findable after HNSW rebuild"
-    );
+    assert!(found_item_10, "Item 10 should be findable after HNSW rebuild");
 
     Ok(())
 }

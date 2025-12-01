@@ -74,10 +74,7 @@ fn test_snapshot_load_short_circuits_rebuild() -> Result<()> {
         assert!(load_result.is_ok(), "Snapshot load should succeed");
 
         // After load_snapshot, state should be Hot (no rebuild needed)
-        assert!(
-            store.warmup_controller().is_hot(),
-            "After snapshot load, state should be Hot"
-        );
+        assert!(store.warmup_controller().is_hot(), "After snapshot load, state should be Hot");
 
         // Verify vectors are loaded
         assert_eq!(store.len(), 10, "Should have 10 vectors after load");
@@ -139,10 +136,7 @@ fn test_bruteforce_fallback_when_not_hot() -> Result<()> {
     let results = store.search("document about topic 10", 5, SearchScope::Global)?;
 
     // Should return results despite HNSW not being ready
-    assert!(
-        !results.is_empty(),
-        "Brute-force fallback should return results"
-    );
+    assert!(!results.is_empty(), "Brute-force fallback should return results");
     assert!(results.len() <= 5, "Should respect k limit");
 
     // Results should be sorted by similarity (descending)
@@ -222,10 +216,7 @@ fn test_embedding_calls_nonblocking_during_warmup() -> Result<()> {
     thread::sleep(Duration::from_millis(100));
 
     let result = search_handle.join().expect("Search thread panicked");
-    assert!(
-        search_completed.load(Ordering::SeqCst),
-        "Search should complete"
-    );
+    assert!(search_completed.load(Ordering::SeqCst), "Search should complete");
     assert!(result.is_ok(), "Search should succeed via fallback");
 
     Ok(())
@@ -245,9 +236,8 @@ fn test_save_snapshot_once_per_rebuild() -> Result<()> {
     store.set_fast_mode(true);
 
     // Use batch insert which should NOT save snapshot per insert
-    let texts: Vec<(i64, Option<i64>, String)> = (0..50)
-        .map(|i| (i, None, format!("batch document {}", i)))
-        .collect();
+    let texts: Vec<(i64, Option<i64>, String)> =
+        (0..50).map(|i| (i, None, format!("batch document {}", i))).collect();
 
     // Batch insert should be efficient
     let start = std::time::Instant::now();
@@ -267,10 +257,7 @@ fn test_save_snapshot_once_per_rebuild() -> Result<()> {
 
     // Verify snapshot files exist
     let vectors_path = format!("{}.vectors", index_path.to_str().unwrap());
-    assert!(
-        std::path::Path::new(&vectors_path).exists(),
-        "Vectors snapshot should exist"
-    );
+    assert!(std::path::Path::new(&vectors_path).exists(), "Vectors snapshot should exist");
 
     Ok(())
 }

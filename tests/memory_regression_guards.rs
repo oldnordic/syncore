@@ -27,14 +27,10 @@ fn test_semantic_memory_metadata_preserved() {
         .expect("Failed to store with metadata");
 
     // Query should find entry
-    let result = memory
-        .query_with_namespace("semantic_test", Some("default"))
-        .expect("Failed to query");
+    let result =
+        memory.query_with_namespace("semantic_test", Some("default")).expect("Failed to query");
 
-    assert_eq!(
-        result,
-        Some("This is a test entry with metadata".to_string())
-    );
+    assert_eq!(result, Some("This is a test entry with metadata".to_string()));
 
     // Search by tags should work (if semantic search enabled)
     // This is a regression guard - should continue working after fix

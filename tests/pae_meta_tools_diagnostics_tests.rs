@@ -152,11 +152,7 @@ async fn test_architecture_overview_clippy_integration() -> Result<()> {
     };
 
     let response = engine.architecture_overview(request).await?;
-    assert!(
-        response.ok,
-        "Architecture overview failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Architecture overview failed: {:?}", response.error);
 
     let data = response.data.unwrap();
 
@@ -165,10 +161,7 @@ async fn test_architecture_overview_clippy_integration() -> Result<()> {
 
     // Verify total_clippy_warnings is included in module overviews
     let main_rs_module = data.modules.iter().find(|m| m.file_path == "src/main.rs");
-    assert!(
-        main_rs_module.is_some(),
-        "Should have module for src/main.rs"
-    );
+    assert!(main_rs_module.is_some(), "Should have module for src/main.rs");
 
     let main_rs_module = main_rs_module.unwrap();
     assert_eq!(main_rs_module.clippy_warning_count, 2);
@@ -195,14 +188,7 @@ async fn test_complexity_dashboard_clippy_integration() -> Result<()> {
 
     // Initialize code_graph schema and insert test entities
     ensure_code_graph_schema(&db_manager)?;
-    insert_test_entity(
-        &db_manager,
-        "src/complex.rs",
-        "function",
-        "complex_fn",
-        1,
-        50,
-    )?;
+    insert_test_entity(&db_manager, "src/complex.rs", "function", "complex_fn", 1, 50)?;
     insert_test_entity(&db_manager, "src/simple.rs", "function", "simple_fn", 1, 20)?;
 
     let engine = ProjectAnalysisEngine::new(db_manager.clone(), None);
@@ -247,11 +233,7 @@ async fn test_complexity_dashboard_clippy_integration() -> Result<()> {
     };
 
     let response = engine.complexity_dashboard(request).await?;
-    assert!(
-        response.ok,
-        "Complexity dashboard failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Complexity dashboard failed: {:?}", response.error);
 
     let data = response.data.unwrap();
 
@@ -260,19 +242,13 @@ async fn test_complexity_dashboard_clippy_integration() -> Result<()> {
 
     // Verify total_clippy_warnings is included in module complexity data
     let complex_rs_module = data.files.iter().find(|m| m.file_path == "src/complex.rs");
-    assert!(
-        complex_rs_module.is_some(),
-        "Should have module for src/complex.rs"
-    );
+    assert!(complex_rs_module.is_some(), "Should have module for src/complex.rs");
 
     let complex_rs_module = complex_rs_module.unwrap();
     assert_eq!(complex_rs_module.clippy_warning_count, 2);
 
     let simple_rs_module = data.files.iter().find(|m| m.file_path == "src/simple.rs");
-    assert!(
-        simple_rs_module.is_some(),
-        "Should have module for src/simple.rs"
-    );
+    assert!(simple_rs_module.is_some(), "Should have module for src/simple.rs");
 
     let simple_rs_module = simple_rs_module.unwrap();
     assert_eq!(simple_rs_module.clippy_warning_count, 1);
@@ -335,11 +311,7 @@ async fn test_improvement_roadmap_clippy_integration() -> Result<()> {
     };
 
     let response = engine.improvement_roadmap(request).await?;
-    assert!(
-        response.ok,
-        "Improvement roadmap failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Improvement roadmap failed: {:?}", response.error);
 
     let data = response.data.unwrap();
 
@@ -348,22 +320,10 @@ async fn test_improvement_roadmap_clippy_integration() -> Result<()> {
 
     // Verify improvement suggestions have required fields
     for suggestion in &data.improvements {
-        assert!(
-            !suggestion.id.is_empty(),
-            "Each suggestion should have an ID"
-        );
-        assert!(
-            !suggestion.file_path.is_empty(),
-            "Each suggestion should have a file path"
-        );
-        assert!(
-            suggestion.effort >= 1 && suggestion.effort <= 5,
-            "Effort should be 1-5"
-        );
-        assert!(
-            suggestion.impact >= 1 && suggestion.impact <= 5,
-            "Impact should be 1-5"
-        );
+        assert!(!suggestion.id.is_empty(), "Each suggestion should have an ID");
+        assert!(!suggestion.file_path.is_empty(), "Each suggestion should have a file path");
+        assert!(suggestion.effort >= 1 && suggestion.effort <= 5, "Effort should be 1-5");
+        assert!(suggestion.impact >= 1 && suggestion.impact <= 5, "Impact should be 1-5");
     }
 
     Ok(())
@@ -419,11 +379,7 @@ async fn test_refactor_action_plan_clippy_integration() -> Result<()> {
     let request = RefactorActionPlanRequest {};
 
     let response = engine.refactor_action_plan(request).await?;
-    assert!(
-        response.ok,
-        "Refactor action plan failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Refactor action plan failed: {:?}", response.error);
 
     let data = response.data.unwrap();
 
@@ -434,14 +390,8 @@ async fn test_refactor_action_plan_clippy_integration() -> Result<()> {
     for action in &data.dead_code_cleanup {
         assert!(action.id > 0, "Each action should have a valid ID");
         assert!(!action.name.is_empty(), "Each action should have a name");
-        assert!(
-            !action.entity_type.is_empty(),
-            "Each action should have an entity type"
-        );
-        assert!(
-            !action.file_path.is_empty(),
-            "Each action should have a file path"
-        );
+        assert!(!action.entity_type.is_empty(), "Each action should have an entity type");
+        assert!(!action.file_path.is_empty(), "Each action should have a file path");
         assert!(action.line_start >= 0, "Line start should be non-negative");
     }
 
@@ -555,10 +505,7 @@ async fn test_meta_tools_clippy_counts_consistency() -> Result<()> {
     ];
 
     for count in test1_counts {
-        assert_eq!(
-            count, 2,
-            "src/test1.rs should have 2 clippy warnings in all tools"
-        );
+        assert_eq!(count, 2, "src/test1.rs should have 2 clippy warnings in all tools");
     }
 
     let test2_counts = vec![
@@ -577,10 +524,7 @@ async fn test_meta_tools_clippy_counts_consistency() -> Result<()> {
     ];
 
     for count in test2_counts {
-        assert_eq!(
-            count, 1,
-            "src/test2.rs should have 1 clippy warning in all tools"
-        );
+        assert_eq!(count, 1, "src/test2.rs should have 1 clippy warning in all tools");
     }
 
     Ok(())

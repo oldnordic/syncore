@@ -304,8 +304,5 @@ pub fn list_all_metadata() -> Vec<&'static ToolMetadata> {
 
 /// List tools by category
 pub fn list_by_category(category: ToolCategory) -> Vec<&'static ToolMetadata> {
-    TOOL_REGISTRY
-        .values()
-        .filter(|meta| meta.category == category)
-        .collect()
+    TOOL_REGISTRY.values().filter(|meta| meta.category == category).collect()
 }

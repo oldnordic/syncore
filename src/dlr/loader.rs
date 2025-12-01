@@ -30,11 +30,8 @@ impl PluginLoader {
             let path = entry.path();
 
             if path.is_dir() {
-                let plugin_name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown")
-                    .to_string();
+                let plugin_name =
+                    path.file_name().and_then(|n| n.to_str()).unwrap_or("unknown").to_string();
 
                 let binary_path = path.join("target/release").join(&plugin_name);
                 if binary_path.exists() {

@@ -69,10 +69,7 @@ pub async fn upsert_entity(
                 ("file_sha256", serde_json::json!(props.file_sha256)),
                 ("mtime", serde_json::json!(props.mtime)),
                 ("created_at", serde_json::json!(props.created_at)),
-                (
-                    "last_modified_at",
-                    serde_json::json!(props.last_modified_at),
-                ),
+                ("last_modified_at", serde_json::json!(props.last_modified_at)),
                 ("change_count", serde_json::json!(props.change_count)),
                 ("author_count", serde_json::json!(props.author_count)),
                 ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
@@ -243,11 +240,8 @@ pub async fn delete_file_entities(client: &Neo4jClient, file_path: &str) -> Resu
         )
         .await?;
 
-    let deleted = results
-        .first()
-        .and_then(|r| r.get("deleted"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let deleted =
+        results.first().and_then(|r| r.get("deleted")).and_then(|v| v.as_i64()).unwrap_or(0);
 
     Ok(deleted as usize)
 }

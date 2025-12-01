@@ -29,34 +29,13 @@ pub async fn execute_application_record(state: &Arc<SynCoreState>, params: &Valu
         exports: None,
         dependencies: None,
         query: None,
-        file_path: params
-            .get("file_path")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        change_type: params
-            .get("change_type")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        old_content: params
-            .get("old_content")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        new_content: params
-            .get("new_content")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
-        line_start: params
-            .get("line_start")
-            .and_then(|v| v.as_i64())
-            .map(|i| i as i32),
-        line_end: params
-            .get("line_end")
-            .and_then(|v| v.as_i64())
-            .map(|i| i as i32),
-        description: params
-            .get("description")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        file_path: params.get("file_path").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        change_type: params.get("change_type").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        old_content: params.get("old_content").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        new_content: params.get("new_content").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        line_start: params.get("line_start").and_then(|v| v.as_i64()).map(|i| i as i32),
+        line_end: params.get("line_end").and_then(|v| v.as_i64()).map(|i| i as i32),
+        description: params.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
         task_id: params.get("task_id").and_then(|v| v.as_i64()),
     };
 
@@ -102,10 +81,7 @@ pub async fn execute_application_history(state: &Arc<SynCoreState>, params: &Val
         exports: None,
         dependencies: None,
         query: None,
-        file_path: params
-            .get("file_path")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        file_path: params.get("file_path").and_then(|v| v.as_str()).map(|s| s.to_string()),
         change_type: None,
         old_content: None,
         new_content: None,
@@ -130,10 +106,7 @@ pub async fn execute_application_search(state: &Arc<SynCoreState>, params: &Valu
         imports: None,
         exports: None,
         dependencies: None,
-        query: params
-            .get("query")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        query: params.get("query").and_then(|v| v.as_str()).map(|s| s.to_string()),
         file_path: None,
         change_type: None,
         old_content: None,

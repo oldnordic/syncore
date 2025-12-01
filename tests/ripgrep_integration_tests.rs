@@ -45,20 +45,12 @@ fn test_ripgrep_search_finds_pattern() {
     let matches =
         RipgrepSearcher::search("TestStruct", test_dir.path(), 0).expect("Search should succeed");
 
-    assert!(
-        !matches.is_empty(),
-        "Should find TestStruct pattern in test file"
-    );
+    assert!(!matches.is_empty(), "Should find TestStruct pattern in test file");
 
     // Verify at least one match contains expected content
-    let found_struct_def = matches
-        .iter()
-        .any(|m| m.line_content.contains("pub struct TestStruct"));
+    let found_struct_def = matches.iter().any(|m| m.line_content.contains("pub struct TestStruct"));
 
-    assert!(
-        found_struct_def,
-        "Should find struct definition with TestStruct"
-    );
+    assert!(found_struct_def, "Should find struct definition with TestStruct");
 }
 
 #[test]
@@ -84,11 +76,7 @@ fn test_ripgrep_search_no_matches_returns_empty() {
     let matches = RipgrepSearcher::search("NonexistentPattern_12345_XYZ", test_dir.path(), 0)
         .expect("Search should succeed even with no matches");
 
-    assert_eq!(
-        matches.len(),
-        0,
-        "No matches should return empty Vec, not error"
-    );
+    assert_eq!(matches.len(), 0, "No matches should return empty Vec, not error");
 }
 
 #[test]

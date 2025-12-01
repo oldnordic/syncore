@@ -99,10 +99,7 @@ fn sync_function() -> i32 {
     let response = handle_mcp_request(request, &state).await;
 
     // Debug: Print response to understand format
-    println!(
-        "DEBUG: Response: {:?}",
-        serde_json::to_string_pretty(&response).unwrap()
-    );
+    println!("DEBUG: Response: {:?}", serde_json::to_string_pretty(&response).unwrap());
 
     // Assert: Should return success response with async patterns found
     assert!(response.result.is_some(), "Should return a result");
@@ -320,11 +317,7 @@ async fn test_parser_search_code_should_support_file_patterns() {
     };
 
     // Test different search patterns
-    let test_cases = vec![
-        ("rust_function", true),
-        ("async", true),
-        ("nonexistent_pattern", false),
-    ];
+    let test_cases = vec![("rust_function", true), ("async", true), ("nonexistent_pattern", false)];
 
     for (search_pattern, should_find) in test_cases {
         let request = MCPRequest {
@@ -344,16 +337,8 @@ async fn test_parser_search_code_should_support_file_patterns() {
         let response = handle_mcp_request(request, &state).await;
 
         // Assert: Should handle each pattern correctly
-        assert!(
-            response.result.is_some(),
-            "Should return result for pattern: {}",
-            search_pattern
-        );
-        assert!(
-            response.error.is_none(),
-            "Should not error for pattern: {}",
-            search_pattern
-        );
+        assert!(response.result.is_some(), "Should return result for pattern: {}", search_pattern);
+        assert!(response.error.is_none(), "Should not error for pattern: {}", search_pattern);
 
         let result = response.result.unwrap();
 
@@ -361,11 +346,7 @@ async fn test_parser_search_code_should_support_file_patterns() {
         if let Some(results) = result.get("results").and_then(|r| r.as_str()) {
             // Parse ripgrep JSON output - may be empty for no matches
             if should_find {
-                assert!(
-                    !results.is_empty(),
-                    "Should find results for pattern: {}",
-                    search_pattern
-                );
+                assert!(!results.is_empty(), "Should find results for pattern: {}", search_pattern);
                 assert!(
                     results.contains("rust_function"),
                     "Should find rust_function in test file"
@@ -478,14 +459,8 @@ fn cleanup_function() {
     // Check if result has expected format
     if let Some(results) = result.get("results").and_then(|r| r.as_str()) {
         // Parse ripgrep JSON output with context
-        assert!(
-            !results.is_empty(),
-            "Should find rust_function with context"
-        );
-        assert!(
-            results.contains("rust_function"),
-            "Should contain the function"
-        );
+        assert!(!results.is_empty(), "Should find rust_function with context");
+        assert!(results.contains("rust_function"), "Should contain the function");
         // Context should include surrounding lines
         let lines: Vec<&str> = results.lines().collect();
         let has_context = lines.len() > 1 || (results.len() > 50); // Rough check for context

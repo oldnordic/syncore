@@ -124,11 +124,7 @@ fn test_arc_mutex_vector_store_load_snapshot() -> Result<()> {
 
     // Assert: Can search after loading
     let store_locked = code_store.lock().unwrap();
-    assert_eq!(
-        store_locked.len(),
-        2,
-        "Arc<Mutex<VectorStore>> should have loaded vectors"
-    );
+    assert_eq!(store_locked.len(), 2, "Arc<Mutex<VectorStore>> should have loaded vectors");
 
     Ok(())
 }
@@ -233,10 +229,7 @@ fn test_search_code_succeeds_with_loaded_vectors() -> Result<()> {
     let results = code_graph.search_code("search", 10)?;
 
     // Assert: Search returns results
-    assert!(
-        results.len() > 0,
-        "search_code() WITH loaded vectors should return results"
-    );
+    assert!(results.len() > 0, "search_code() WITH loaded vectors should return results");
 
     Ok(())
 }

@@ -13,10 +13,7 @@ fn test_router_maps_memory_store_to_correct_handler() {
 
     // Use state to track test progress (real functionality)
     state.insert("test_phase".to_string(), "memory_store_test".to_string());
-    state.insert(
-        "test_start".to_string(),
-        chrono::Utc::now().timestamp().to_string(),
-    );
+    state.insert("test_start".to_string(), chrono::Utc::now().timestamp().to_string());
 
     // Create a database connection for testing
     let test_db = "router_memory_test.db";
@@ -31,25 +28,16 @@ fn test_router_maps_memory_store_to_correct_handler() {
     let value = "test_value";
 
     // Actually store the value in memory
-    conn.execute(
-        "INSERT INTO memory (k, v, ts) VALUES (?1, ?2, datetime('now'))",
-        [key, value],
-    )
-    .unwrap();
+    conn.execute("INSERT INTO memory (k, v, ts) VALUES (?1, ?2, datetime('now'))", [key, value])
+        .unwrap();
 
     // Verify data was stored
     let stored = conn
-        .query_row("SELECT v FROM memory WHERE k = ?1", [key], |row| {
-            row.get::<_, String>(0)
-        })
+        .query_row("SELECT v FROM memory WHERE k = ?1", [key], |row| row.get::<_, String>(0))
         .optional()
         .unwrap();
 
-    assert_eq!(
-        stored.unwrap(),
-        value,
-        "Memory should store and retrieve correctly"
-    );
+    assert_eq!(stored.unwrap(), value, "Memory should store and retrieve correctly");
 
     // Clean up
     drop(conn);
@@ -75,9 +63,7 @@ fn test_router_maps_task_create_to_correct_handler() {
     assert!(task_id > 0, "tasks::add_task should succeed");
 
     // Verify task was created correctly
-    let task = syncore::tasks::next_task(&conn, None, None)
-        .unwrap()
-        .unwrap();
+    let task = syncore::tasks::next_task(&conn, None, None).unwrap().unwrap();
     assert_eq!(task.goal, goal);
     assert_eq!(task.description, description);
     assert_eq!(task.priority, priority);
@@ -110,10 +96,7 @@ fn test_router_maps_task_next_to_correct_handler() {
     assert_eq!(task.id, task1_id, "Should return highest priority task");
 
     // Verify task2_id was created and has correct priority (real functionality)
-    assert!(
-        task2_id > task1_id,
-        "task2_id should be greater than task1_id"
-    );
+    assert!(task2_id > task1_id, "task2_id should be greater than task1_id");
 
     // Use direct SQL query to verify task exists and has correct priority
     let task2_result: Option<syncore::tasks::Task> = conn.query_row(
@@ -132,11 +115,7 @@ fn test_router_maps_task_next_to_correct_handler() {
     ).optional().unwrap();
 
     assert!(task2_result.is_some(), "task2 should exist");
-    assert_eq!(
-        task2_result.unwrap().priority,
-        3,
-        "task2 should have priority 3"
-    );
+    assert_eq!(task2_result.unwrap().priority, 3, "task2 should have priority 3");
 
     // Clean up
     drop(conn);
@@ -207,26 +186,14 @@ fn test_router_maps_cognitive_step_to_correct_handler() {
     )
     .unwrap();
 
-    assert!(
-        step1_id > 0,
-        "cognitive_db::store_step should create first step"
-    );
-    assert!(
-        step2_id > step1_id,
-        "cognitive_db::store_step should create second step"
-    );
+    assert!(step1_id > 0, "cognitive_db::store_step should create first step");
+    assert!(step2_id > step1_id, "cognitive_db::store_step should create second step");
 
     // Test recent steps retrieval
     let steps = syncore::cognitive_db::recent_steps(&conn, task_id, 5).unwrap();
     assert_eq!(steps.len(), 2, "Should retrieve 2 steps");
-    assert_eq!(
-        steps[0].state, "Decide",
-        "Most recent step should be Decide"
-    );
-    assert_eq!(
-        steps[1].state, "Think",
-        "Second most recent should be Think"
-    );
+    assert_eq!(steps[0].state, "Decide", "Most recent step should be Decide");
+    assert_eq!(steps[1].state, "Think", "Second most recent should be Think");
 
     // Clean up
     drop(conn);
@@ -257,13 +224,9 @@ fn test_router_maps_vector_operations_to_correct_handler() {
     assert!(result.is_ok(), "vector::insert_text should succeed");
 
     // Test search
-    let hits = syncore::vector::search(
-        &vector_store,
-        "apple",
-        5,
-        syncore::vector::SearchScope::Global,
-    )
-    .unwrap();
+    let hits =
+        syncore::vector::search(&vector_store, "apple", 5, syncore::vector::SearchScope::Global)
+            .unwrap();
     assert_eq!(hits.len(), 1, "Should find 1 matching document");
     assert_eq!(hits[0].id, 1, "Should return correct document ID");
 
@@ -272,36 +235,21 @@ fn test_router_maps_vector_operations_to_correct_handler() {
         syncore::vector::insert_text(&mut vector_store, 2, Some(200), "car truck bicycle", "note");
     assert!(result2.is_ok(), "vector::insert_text should succeed");
 
-    let task_hits = syncore::vector::search(
-        &vector_store,
-        "apple",
-        5,
-        syncore::vector::SearchScope::Task(100),
-    )
-    .unwrap();
+    let task_hits =
+        syncore::vector::search(&vector_store, "apple", 5, syncore::vector::SearchScope::Task(100))
+            .unwrap();
     assert_eq!(task_hits.len(), 1, "Should find 1 task-scoped document");
-    assert_eq!(
-        task_hits[0].id, 1,
-        "Should return correct task-scoped document"
-    );
+    assert_eq!(task_hits[0].id, 1, "Should return correct task-scoped document");
 
     // Test different task scope
-    let different_task_hits = syncore::vector::search(
-        &vector_store,
-        "apple",
-        5,
-        syncore::vector::SearchScope::Task(200),
-    )
-    .unwrap();
+    let different_task_hits =
+        syncore::vector::search(&vector_store, "apple", 5, syncore::vector::SearchScope::Task(200))
+            .unwrap();
 
     // Verify that task-scoped search returns fewer or equal results than global search
-    let global_hits = syncore::vector::search(
-        &vector_store,
-        "apple",
-        5,
-        syncore::vector::SearchScope::Global,
-    )
-    .unwrap();
+    let global_hits =
+        syncore::vector::search(&vector_store, "apple", 5, syncore::vector::SearchScope::Global)
+            .unwrap();
     assert!(
         different_task_hits.len() <= global_hits.len(),
         "Task-scoped search should not return more results than global search"
@@ -347,14 +295,8 @@ fn simulate_mcp_request(
 ) -> Result<Value, String> {
     match tool_name {
         "memory.store" => {
-            let key = args
-                .get("key")
-                .and_then(|v| v.as_str())
-                .unwrap_or("missing");
-            let value = args
-                .get("value")
-                .and_then(|v| v.as_str())
-                .unwrap_or("missing");
+            let key = args.get("key").and_then(|v| v.as_str()).unwrap_or("missing");
+            let value = args.get("value").and_then(|v| v.as_str()).unwrap_or("missing");
 
             // Call actual memory function
             conn.execute(
@@ -363,20 +305,12 @@ fn simulate_mcp_request(
             )
             .map_err(|e| format!("Database error: {}", e))?;
 
-            Ok(create_success_response(
-                json!({"stored": format!("{}: {}", key, value)}),
-            ))
+            Ok(create_success_response(json!({"stored": format!("{}: {}", key, value)})))
         }
 
         "task.create" => {
-            let goal = args
-                .get("goal")
-                .and_then(|v| v.as_str())
-                .unwrap_or("missing");
-            let description = args
-                .get("description")
-                .and_then(|v| v.as_str())
-                .unwrap_or("missing");
+            let goal = args.get("goal").and_then(|v| v.as_str()).unwrap_or("missing");
+            let description = args.get("description").and_then(|v| v.as_str()).unwrap_or("missing");
             let priority = args.get("priority").and_then(|v| v.as_i64()).unwrap_or(3) as i32;
 
             // Call actual tasks function
@@ -404,14 +338,8 @@ fn simulate_mcp_request(
         }
 
         "cognitive.step" => {
-            let state = args
-                .get("state")
-                .and_then(|v| v.as_str())
-                .unwrap_or("Think");
-            let content = args
-                .get("content")
-                .and_then(|v| v.as_str())
-                .unwrap_or("missing");
+            let state = args.get("state").and_then(|v| v.as_str()).unwrap_or("Think");
+            let content = args.get("content").and_then(|v| v.as_str()).unwrap_or("missing");
             let task_id = args.get("task_id").and_then(|v| v.as_i64());
 
             // Call actual cognitive_db function
@@ -424,10 +352,7 @@ fn simulate_mcp_request(
         }
 
         "vector.insert" => {
-            let text = args
-                .get("text")
-                .and_then(|v| v.as_str())
-                .unwrap_or("missing");
+            let text = args.get("text").and_then(|v| v.as_str()).unwrap_or("missing");
             let id = args.get("id").and_then(|v| v.as_i64()).unwrap_or(1);
             let task_id = args.get("task_id").and_then(|v| v.as_i64());
 
@@ -441,10 +366,7 @@ fn simulate_mcp_request(
         }
 
         "vector.search" => {
-            let query = args
-                .get("query")
-                .and_then(|v| v.as_str())
-                .unwrap_or("missing");
+            let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("missing");
             let k = args.get("k").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
 
             // Call actual vector function

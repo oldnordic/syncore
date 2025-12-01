@@ -35,7 +35,9 @@ pub struct CodeGraphDeltaEngine {
 impl CodeGraphDeltaEngine {
     /// Create a new delta engine
     pub fn new(graph: Arc<Mutex<CodeGraph>>) -> Self {
-        Self { graph }
+        Self {
+            graph,
+        }
     }
 
     /// Compute AST delta from parse delta

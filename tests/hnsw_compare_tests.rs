@@ -34,10 +34,7 @@ fn test_identical_embeddings_produce_same_results() {
     assert_eq!(results.len(), 2);
 
     // Both should have same distance (identical vectors)
-    assert!(
-        (results[0].1 - results[1].1).abs() < 0.001,
-        "Distances should be identical"
-    );
+    assert!((results[0].1 - results[1].1).abs() < 0.001, "Distances should be identical");
 }
 
 /// Test 2: Deterministic neighbor ordering with fixed seed
@@ -143,11 +140,7 @@ fn test_recall_at_10_accuracy() {
     let recall = hnsw_ids.iter().filter(|id| gt_ids.contains(id)).count() as f32 / 10.0;
 
     // Recall should be >= 80% for well-tuned HNSW
-    assert!(
-        recall >= 0.8,
-        "Recall@10 too low: {} (expected >= 0.8)",
-        recall
-    );
+    assert!(recall >= 0.8, "Recall@10 too low: {} (expected >= 0.8)", recall);
 }
 
 /// Test 5: Index state consistency after mixed operations
@@ -236,11 +229,7 @@ fn cosine_distance(v1: &[f32], v2: &[f32]) -> f32 {
 
     // Cosine similarity -> cosine distance
     // L2 distance of normalized vectors approximates cosine distance
-    let dist_squared: f32 = v1_norm
-        .iter()
-        .zip(v2_norm.iter())
-        .map(|(a, b)| (a - b).powi(2))
-        .sum();
+    let dist_squared: f32 = v1_norm.iter().zip(v2_norm.iter()).map(|(a, b)| (a - b).powi(2)).sum();
 
     dist_squared.sqrt()
 }

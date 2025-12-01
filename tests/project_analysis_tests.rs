@@ -250,10 +250,7 @@ async fn test_project_module_map_links_modules() {
     assert!(file_paths.contains(&"src/another_file.rs".to_string()));
 
     // Check edges exist
-    assert!(
-        !data.edges.is_empty(),
-        "Should find relationships between modules"
-    );
+    assert!(!data.edges.is_empty(), "Should find relationships between modules");
 
     // Should have edge from test_file.rs to another_file.rs (test_function calls used_function)
     let has_edge = data.edges.iter().any(|e| {
@@ -278,11 +275,7 @@ async fn test_project_hotspots_orders_by_score() {
     };
 
     let result = engine.hotspots(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Hotspots analysis should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Hotspots analysis should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
     assert!(!data.hotspots.is_empty(), "Should find hotspots");
@@ -311,11 +304,7 @@ async fn test_project_cycles_detects_simple_cycle() {
     };
 
     let result = engine.cycles(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Cycle detection should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Cycle detection should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
 
@@ -343,11 +332,7 @@ async fn test_project_dead_code_finds_unreferenced_functions() {
     };
 
     let result = engine.dead_code(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Dead code detection should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Dead code detection should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
 
@@ -376,11 +361,7 @@ async fn test_project_unused_imports_detects_unused() {
     };
 
     let result = engine.unused_imports(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Unused imports detection should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Unused imports detection should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
 
@@ -411,21 +392,14 @@ async fn test_project_refactor_suggestions_generates_for_hotspot() {
     };
 
     let result = engine.refactor_suggestions(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Refactor suggestions should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Refactor suggestions should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
     assert!(!data.suggestions.is_empty(), "Should generate suggestions");
 
     // Should generate suggestions for our test files
-    let file_paths: Vec<String> = data
-        .suggestions
-        .iter()
-        .filter_map(|s| s.file_path.clone())
-        .collect();
+    let file_paths: Vec<String> =
+        data.suggestions.iter().filter_map(|s| s.file_path.clone()).collect();
 
     // With our low thresholds, should suggest something for our test files
     if !file_paths.is_empty() {
@@ -434,10 +408,7 @@ async fn test_project_refactor_suggestions_generates_for_hotspot() {
 
     // Check that suggestions have required fields
     for suggestion in &data.suggestions {
-        assert!(
-            !suggestion.description.is_empty(),
-            "Description should not be empty"
-        );
+        assert!(!suggestion.description.is_empty(), "Description should not be empty");
         assert!(!suggestion.metrics.is_empty(), "Should include metrics");
     }
 }
@@ -451,13 +422,11 @@ async fn test_project_analysis_is_read_only() {
     let conn = engine.code_graph_conn();
     let conn_guard = conn.lock().unwrap();
 
-    let initial_entities: i64 = conn_guard
-        .query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))
-        .unwrap();
+    let initial_entities: i64 =
+        conn_guard.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0)).unwrap();
 
-    let initial_edges: i64 = conn_guard
-        .query_row("SELECT COUNT(*) FROM code_edges", [], |row| row.get(0))
-        .unwrap();
+    let initial_edges: i64 =
+        conn_guard.query_row("SELECT COUNT(*) FROM code_edges", [], |row| row.get(0)).unwrap();
 
     drop(conn_guard);
 
@@ -513,18 +482,13 @@ async fn test_project_analysis_is_read_only() {
     let conn = engine.code_graph_conn();
     let conn_guard = conn.lock().unwrap();
 
-    let final_entities: i64 = conn_guard
-        .query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))
-        .unwrap();
+    let final_entities: i64 =
+        conn_guard.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0)).unwrap();
 
-    let final_edges: i64 = conn_guard
-        .query_row("SELECT COUNT(*) FROM code_edges", [], |row| row.get(0))
-        .unwrap();
+    let final_edges: i64 =
+        conn_guard.query_row("SELECT COUNT(*) FROM code_edges", [], |row| row.get(0)).unwrap();
 
-    assert_eq!(
-        initial_entities, final_entities,
-        "Entity count should not change"
-    );
+    assert_eq!(initial_entities, final_entities, "Entity count should not change");
     assert_eq!(initial_edges, final_edges, "Edge count should not change");
 }
 
@@ -540,25 +504,15 @@ async fn test_project_architecture_overview_basic() {
     };
 
     let result = engine.architecture_overview(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Architecture overview should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Architecture overview should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
 
     // Check summary statistics
-    assert!(
-        data.summary.total_files_indexed > 0,
-        "Should have indexed files"
-    );
+    assert!(data.summary.total_files_indexed > 0, "Should have indexed files");
     assert!(data.summary.total_entities > 0, "Should have entities");
     assert!(data.summary.total_edges > 0, "Should have edges");
-    assert_eq!(
-        data.summary.modules_analyzed,
-        data.summary.total_files_indexed
-    );
+    assert_eq!(data.summary.modules_analyzed, data.summary.total_files_indexed);
 
     // Check modules
     assert!(!data.modules.is_empty(), "Should have module data");
@@ -596,11 +550,7 @@ async fn test_project_complexity_dashboard_basic() {
     };
 
     let result = engine.complexity_dashboard(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Complexity dashboard should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Complexity dashboard should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
 
@@ -608,10 +558,7 @@ async fn test_project_complexity_dashboard_basic() {
     assert!(data.summary.total_files > 0, "Should have indexed files");
     assert!(data.summary.total_entities > 0, "Should have entities");
     assert!(data.summary.total_edges > 0, "Should have edges");
-    assert_eq!(
-        data.summary.total_dead_entities, 1,
-        "Should have 1 dead entity (unused_function)"
-    );
+    assert_eq!(data.summary.total_dead_entities, 1, "Should have 1 dead entity (unused_function)");
     // Note: unused imports detection may not find imports without proper usage relationships
     // This assertion can be adjusted based on actual implementation
     if data.summary.total_unused_imports == 0 {
@@ -636,10 +583,7 @@ async fn test_project_complexity_dashboard_basic() {
 
     // Verify hotspot structure
     for hotspot in &data.hotspots {
-        assert!(
-            !hotspot.file_path.is_empty(),
-            "Hotspot should have file path"
-        );
+        assert!(!hotspot.file_path.is_empty(), "Hotspot should have file path");
         assert!(hotspot.score > 0.0, "Hotspot should have positive score");
         // fan_in and fan_out are u32, so always >= 0 by definition
     }
@@ -704,48 +648,21 @@ async fn test_project_improvement_roadmap_basic() -> anyhow::Result<()> {
     );
 
     // Verify priority breakdown
-    assert!(
-        data.summary.by_priority.contains_key("Critical"),
-        "Should have Critical priority"
-    );
-    assert!(
-        data.summary.by_priority.contains_key("High"),
-        "Should have High priority"
-    );
-    assert!(
-        data.summary.by_priority.contains_key("Medium"),
-        "Should have Medium priority"
-    );
-    assert!(
-        data.summary.by_priority.contains_key("Low"),
-        "Should have Low priority"
-    );
+    assert!(data.summary.by_priority.contains_key("Critical"), "Should have Critical priority");
+    assert!(data.summary.by_priority.contains_key("High"), "Should have High priority");
+    assert!(data.summary.by_priority.contains_key("Medium"), "Should have Medium priority");
+    assert!(data.summary.by_priority.contains_key("Low"), "Should have Low priority");
 
     // Verify type breakdown
-    assert!(
-        data.summary.by_type.len() > 0,
-        "Should have improvement types"
-    );
+    assert!(data.summary.by_type.len() > 0, "Should have improvement types");
 
     // Verify improvements list
     for improvement in &data.improvements {
         assert!(!improvement.id.is_empty(), "Improvement should have ID");
-        assert!(
-            !improvement.file_path.is_empty(),
-            "Improvement should have file path"
-        );
-        assert!(
-            !improvement.description.is_empty(),
-            "Improvement should have description"
-        );
-        assert!(
-            improvement.effort >= 1 && improvement.effort <= 5,
-            "Effort should be 1-5"
-        );
-        assert!(
-            improvement.impact >= 1 && improvement.impact <= 5,
-            "Impact should be 1-5"
-        );
+        assert!(!improvement.file_path.is_empty(), "Improvement should have file path");
+        assert!(!improvement.description.is_empty(), "Improvement should have description");
+        assert!(improvement.effort >= 1 && improvement.effort <= 5, "Effort should be 1-5");
+        assert!(improvement.impact >= 1 && improvement.impact <= 5, "Impact should be 1-5");
     }
 
     // Verify category breakdown
@@ -772,26 +689,14 @@ async fn test_project_improvement_roadmap_basic() -> anyhow::Result<()> {
 
     // Verify quick wins are actually quick wins
     for quick_win in &data.effort_impact_matrix.quick_wins {
-        assert!(
-            quick_win.effort <= 2,
-            "Quick win should have low effort (≤2)"
-        );
-        assert!(
-            quick_win.impact >= 4,
-            "Quick win should have high impact (≥4)"
-        );
+        assert!(quick_win.effort <= 2, "Quick win should have low effort (≤2)");
+        assert!(quick_win.impact >= 4, "Quick win should have high impact (≥4)");
     }
 
     // Verify major projects are actually major
     for major_project in &data.effort_impact_matrix.major_projects {
-        assert!(
-            major_project.effort >= 4,
-            "Major project should have high effort (≥4)"
-        );
-        assert!(
-            major_project.impact >= 4,
-            "Major project should have high impact (≥4)"
-        );
+        assert!(major_project.effort >= 4, "Major project should have high effort (≥4)");
+        assert!(major_project.impact >= 4, "Major project should have high impact (≥4)");
     }
 
     Ok(())
@@ -805,11 +710,7 @@ async fn test_project_refactor_action_plan_basic() {
     let request = RefactorActionPlanRequest {};
 
     let result = engine.refactor_action_plan(request).await.unwrap();
-    assert!(
-        result.ok,
-        "Refactor action plan should succeed: {:?}",
-        result.error
-    );
+    assert!(result.ok, "Refactor action plan should succeed: {:?}", result.error);
 
     let data = result.data.unwrap();
 
@@ -821,22 +722,13 @@ async fn test_project_refactor_action_plan_basic() {
 
     // Verify data structure integrity
     for hotspot in &data.high_risk_hotspots {
-        assert!(
-            !hotspot.file_path.is_empty(),
-            "Hotspot should have file path"
-        );
-        assert!(
-            hotspot.score >= 100.0,
-            "High-risk hotspot should have score >= 100"
-        );
+        assert!(!hotspot.file_path.is_empty(), "Hotspot should have file path");
+        assert!(hotspot.score >= 100.0, "High-risk hotspot should have score >= 100");
     }
 
     for dead_entity in &data.dead_code_cleanup {
         assert!(!dead_entity.name.is_empty(), "Dead entity should have name");
-        assert!(
-            !dead_entity.file_path.is_empty(),
-            "Dead entity should have file path"
-        );
+        assert!(!dead_entity.file_path.is_empty(), "Dead entity should have file path");
         assert!(
             // line_start is u32, so always >= 0 by definition
             "Dead entity should have valid line start"
@@ -844,28 +736,16 @@ async fn test_project_refactor_action_plan_basic() {
     }
 
     for unused_import in &data.unused_imports {
-        assert!(
-            !unused_import.file_path.is_empty(),
-            "Unused import should have file path"
-        );
-        assert!(
-            !unused_import.import_name.is_empty(),
-            "Unused import should have import name"
-        );
+        assert!(!unused_import.file_path.is_empty(), "Unused import should have file path");
+        assert!(!unused_import.import_name.is_empty(), "Unused import should have import name");
     }
 
     for cycle_module in &data.cycle_break_candidates {
-        assert!(
-            !cycle_module.file_path.is_empty(),
-            "Cycle module should have file path"
-        );
+        assert!(!cycle_module.file_path.is_empty(), "Cycle module should have file path");
     }
 
     for module_op in &data.module_refactor_ops {
-        assert!(
-            !module_op.file_path.is_empty(),
-            "Module op should have file path"
-        );
+        assert!(!module_op.file_path.is_empty(), "Module op should have file path");
         assert!(
             module_op.operation == "split" || module_op.operation == "merge_candidate",
             "Module op should be 'split' or 'merge_candidate'"

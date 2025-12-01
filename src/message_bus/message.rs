@@ -65,7 +65,6 @@ impl Msg {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_agent_id_serialization() {

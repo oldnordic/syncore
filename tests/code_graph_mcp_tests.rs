@@ -97,26 +97,12 @@ async fn test_code_graph_index_indexes_directory() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_index(params)
-        .await
-        .expect("Should index directory");
+    let result = handle_code_graph_index(params).await.expect("Should index directory");
 
-    assert!(
-        result["success"].as_bool().unwrap(),
-        "Indexing should succeed"
-    );
-    assert!(
-        result["files_indexed"].as_u64().unwrap() >= 2,
-        "Should index at least 2 files"
-    );
-    assert!(
-        result["functions_found"].as_u64().unwrap() >= 5,
-        "Should find at least 5 functions"
-    );
-    assert!(
-        result["calls_found"].as_u64().unwrap() >= 3,
-        "Should find at least 3 call edges"
-    );
+    assert!(result["success"].as_bool().unwrap(), "Indexing should succeed");
+    assert!(result["files_indexed"].as_u64().unwrap() >= 2, "Should index at least 2 files");
+    assert!(result["functions_found"].as_u64().unwrap() >= 5, "Should find at least 5 functions");
+    assert!(result["calls_found"].as_u64().unwrap() >= 3, "Should find at least 3 call edges");
 }
 
 #[tokio::test]
@@ -144,15 +130,11 @@ async fn test_code_graph_query_returns_imports() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_query(query_params)
-        .await
-        .expect("Should query graph");
+    let result = handle_code_graph_query(query_params).await.expect("Should query graph");
 
     let imports = result["imports"].as_array().unwrap();
     assert!(!imports.is_empty(), "Should find imports");
-    assert!(imports
-        .iter()
-        .any(|i| i.as_str().unwrap().contains("HashMap")));
+    assert!(imports.iter().any(|i| i.as_str().unwrap().contains("HashMap")));
 }
 
 #[tokio::test]
@@ -180,17 +162,11 @@ async fn test_code_graph_query_returns_calls() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_query(query_params)
-        .await
-        .expect("Should query calls");
+    let result = handle_code_graph_query(query_params).await.expect("Should query calls");
 
     let calls = result["calls"].as_array().unwrap();
-    assert!(calls
-        .iter()
-        .any(|c| c.as_str().unwrap().contains("process_data")));
-    assert!(calls
-        .iter()
-        .any(|c| c.as_str().unwrap().contains("helper_function")));
+    assert!(calls.iter().any(|c| c.as_str().unwrap().contains("process_data")));
+    assert!(calls.iter().any(|c| c.as_str().unwrap().contains("helper_function")));
 }
 
 #[tokio::test]
@@ -218,14 +194,10 @@ async fn test_code_graph_query_returns_implementations() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_query(query_params)
-        .await
-        .expect("Should query implementations");
+    let result = handle_code_graph_query(query_params).await.expect("Should query implementations");
 
     let impls = result["implementations"].as_array().unwrap();
-    assert!(impls
-        .iter()
-        .any(|i| i.as_str().unwrap().contains("Processor")));
+    assert!(impls.iter().any(|i| i.as_str().unwrap().contains("Processor")));
 }
 
 #[tokio::test]
@@ -256,9 +228,8 @@ async fn test_code_graph_query_returns_semantic_neighbors() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_query(query_params)
-        .await
-        .expect("Should query semantic neighbors");
+    let result =
+        handle_code_graph_query(query_params).await.expect("Should query semantic neighbors");
 
     let neighbors = result["semantic_neighbors"].as_array().unwrap();
     assert!(!neighbors.is_empty(), "Should find semantic neighbors");
@@ -289,23 +260,16 @@ async fn test_code_graph_explain_returns_summary() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_explain(explain_params)
-        .await
-        .expect("Should explain function");
+    let result = handle_code_graph_explain(explain_params).await.expect("Should explain function");
 
     // Should return semantic summary and graph neighbors
     assert!(result["summary"].is_string(), "Should have summary");
     assert!(result["callers"].is_array(), "Should have callers");
     assert!(result["callees"].is_array(), "Should have callees");
-    assert!(
-        result["related_functions"].is_array(),
-        "Should have related functions"
-    );
+    assert!(result["related_functions"].is_array(), "Should have related functions");
 
     let callees = result["callees"].as_array().unwrap();
-    assert!(callees
-        .iter()
-        .any(|c| c.as_str().unwrap().contains("process_data")));
+    assert!(callees.iter().any(|c| c.as_str().unwrap().contains("process_data")));
 }
 
 #[tokio::test]
@@ -331,16 +295,12 @@ async fn test_code_graph_impact_returns_affected_nodes() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_impact(impact_params)
-        .await
-        .expect("Should analyze impact");
+    let result = handle_code_graph_impact(impact_params).await.expect("Should analyze impact");
 
     // Should return affected callgraph nodes
     let affected_functions = result["affected_functions"].as_array().unwrap();
     assert!(
-        affected_functions
-            .iter()
-            .any(|f| f.as_str().unwrap().contains("main_function")),
+        affected_functions.iter().any(|f| f.as_str().unwrap().contains("main_function")),
         "main_function calls helper_function, so it's affected"
     );
 
@@ -350,10 +310,7 @@ async fn test_code_graph_impact_returns_affected_nodes() {
 
     // Should return semantic similarity impact
     let semantic_impact = result["semantic_impact"].as_array().unwrap();
-    assert!(
-        semantic_impact.len() > 0,
-        "Should find semantically similar functions"
-    );
+    assert!(semantic_impact.len() > 0, "Should find semantically similar functions");
 }
 
 #[tokio::test]
@@ -380,17 +337,14 @@ async fn test_code_graph_impact_transitive_dependencies() {
         "namespace": env["namespace"]
     });
 
-    let result = handle_code_graph_impact(impact_params)
-        .await
-        .expect("Should analyze transitive impact");
+    let result =
+        handle_code_graph_impact(impact_params).await.expect("Should analyze transitive impact");
 
     let affected = result["affected_functions"].as_array().unwrap();
     // utility -> another_helper (direct)
     // utility -> helper_function -> main_function (transitive via utils::utility call)
     assert!(
-        affected
-            .iter()
-            .any(|f| f.as_str().unwrap().contains("another_helper")),
+        affected.iter().any(|f| f.as_str().unwrap().contains("another_helper")),
         "another_helper directly calls utility"
     );
 }

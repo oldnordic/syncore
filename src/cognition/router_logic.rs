@@ -168,18 +168,9 @@ mod tests {
 
     #[test]
     fn test_select_fusion_mode() {
-        assert_eq!(
-            select_fusion_mode(&QueryIntent::Symbolic),
-            Some("simple".to_string())
-        );
-        assert_eq!(
-            select_fusion_mode(&QueryIntent::Semantic),
-            Some("attention".to_string())
-        );
-        assert_eq!(
-            select_fusion_mode(&QueryIntent::Causal),
-            Some("reasoning".to_string())
-        );
+        assert_eq!(select_fusion_mode(&QueryIntent::Symbolic), Some("simple".to_string()));
+        assert_eq!(select_fusion_mode(&QueryIntent::Semantic), Some("attention".to_string()));
+        assert_eq!(select_fusion_mode(&QueryIntent::Causal), Some("reasoning".to_string()));
         assert_eq!(select_fusion_mode(&QueryIntent::Unknown), None);
     }
 }

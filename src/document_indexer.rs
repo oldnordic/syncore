@@ -23,9 +23,8 @@ pub enum DocumentType {
 impl DocumentType {
     /// Detect document type from file extension
     pub fn from_path(path: &Path) -> Option<Self> {
-        path.extension()
-            .and_then(|ext| ext.to_str())
-            .and_then(|ext| match ext.to_lowercase().as_str() {
+        path.extension().and_then(|ext| ext.to_str()).and_then(|ext| {
+            match ext.to_lowercase().as_str() {
                 "md" | "markdown" => Some(DocumentType::Markdown),
                 "txt" | "text" => Some(DocumentType::Text),
                 "pdf" => Some(DocumentType::Pdf),
@@ -34,7 +33,8 @@ impl DocumentType {
                 "json" => Some(DocumentType::Json),
                 "toml" => Some(DocumentType::Toml),
                 _ => None,
-            })
+            }
+        })
     }
 }
 
@@ -106,7 +106,9 @@ pub struct DocumentIndexer {
 
 impl DocumentIndexer {
     pub fn new(config: IndexerConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+        }
     }
 
     pub fn with_defaults() -> Self {
@@ -157,10 +159,7 @@ impl DocumentIndexer {
             // Check file count limit
             if let Some(max_files) = self.config.max_files {
                 if file_count >= max_files {
-                    eprintln!(
-                        "Warning: Reached maximum file limit ({}), stopping scan",
-                        max_files
-                    );
+                    eprintln!("Warning: Reached maximum file limit ({}), stopping scan", max_files);
                     break;
                 }
             }
@@ -181,11 +180,7 @@ impl DocumentIndexer {
 
                 documents.push(DocumentMetadata {
                     path: path.to_path_buf(),
-                    filename: path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string(),
+                    filename: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
                     doc_type,
                     size_bytes: metadata.len(),
                     modified_time: metadata
@@ -313,11 +308,7 @@ impl DocumentIndexer {
             let text = match self.extract_text(&doc) {
                 Ok(t) => t,
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to extract text from {}: {}",
-                        doc.path.display(),
-                        e
-                    );
+                    eprintln!("Warning: Failed to extract text from {}: {}", doc.path.display(), e);
                     continue;
                 }
             };
@@ -333,11 +324,8 @@ impl DocumentIndexer {
                     .as_secs() as i64;
 
                 // Create unique key and ID for this chunk
-                let key = format!(
-                    "doc:{}:chunk:{}",
-                    chunk.source_file.display(),
-                    chunk.chunk_index
-                );
+                let key =
+                    format!("doc:{}:chunk:{}", chunk.source_file.display(), chunk.chunk_index);
 
                 // Generate unique ID based on hash of the key
                 use std::collections::hash_map::DefaultHasher;
@@ -353,11 +341,9 @@ impl DocumentIndexer {
                 )?;
 
                 // Store vector embedding in global FAISS index
-                vector_store
-                    .insert_text(chunk_id, &chunk.text, "documents")
-                    .unwrap_or_else(|e| {
-                        eprintln!("Warning: Failed to store embedding for {}: {}", key, e);
-                    });
+                vector_store.insert_text(chunk_id, &chunk.text, "documents").unwrap_or_else(|e| {
+                    eprintln!("Warning: Failed to store embedding for {}: {}", key, e);
+                });
             }
 
             total_chunks += chunks.len();
@@ -388,11 +374,7 @@ impl DocumentIndexer {
             let text = match self.extract_text(&doc) {
                 Ok(t) => t,
                 Err(e) => {
-                    eprintln!(
-                        "Warning: Failed to extract text from {}: {}",
-                        doc.path.display(),
-                        e
-                    );
+                    eprintln!("Warning: Failed to extract text from {}: {}", doc.path.display(), e);
                     continue;
                 }
             };
@@ -408,11 +390,8 @@ impl DocumentIndexer {
                     .as_secs() as i64;
 
                 // Create unique key and ID for this chunk
-                let key = format!(
-                    "doc:{}:chunk:{}",
-                    chunk.source_file.display(),
-                    chunk.chunk_index
-                );
+                let key =
+                    format!("doc:{}:chunk:{}", chunk.source_file.display(), chunk.chunk_index);
 
                 // Generate unique ID based on hash of the key
                 use std::collections::hash_map::DefaultHasher;
@@ -428,11 +407,9 @@ impl DocumentIndexer {
                 )?;
 
                 // Store vector embedding in FAISS index
-                vector_store
-                    .insert_text(chunk_id, &chunk.text, "documents")
-                    .unwrap_or_else(|e| {
-                        eprintln!("Warning: Failed to store embedding for {}: {}", key, e);
-                    });
+                vector_store.insert_text(chunk_id, &chunk.text, "documents").unwrap_or_else(|e| {
+                    eprintln!("Warning: Failed to store embedding for {}: {}", key, e);
+                });
             }
 
             total_chunks += chunks.len();
@@ -469,26 +446,11 @@ mod tests {
 
     #[test]
     fn test_document_type_detection() {
-        assert_eq!(
-            DocumentType::from_path(Path::new("test.md")),
-            Some(DocumentType::Markdown)
-        );
-        assert_eq!(
-            DocumentType::from_path(Path::new("file.txt")),
-            Some(DocumentType::Text)
-        );
-        assert_eq!(
-            DocumentType::from_path(Path::new("doc.pdf")),
-            Some(DocumentType::Pdf)
-        );
-        assert_eq!(
-            DocumentType::from_path(Path::new("main.rs")),
-            Some(DocumentType::Rust)
-        );
-        assert_eq!(
-            DocumentType::from_path(Path::new("script.py")),
-            Some(DocumentType::Python)
-        );
+        assert_eq!(DocumentType::from_path(Path::new("test.md")), Some(DocumentType::Markdown));
+        assert_eq!(DocumentType::from_path(Path::new("file.txt")), Some(DocumentType::Text));
+        assert_eq!(DocumentType::from_path(Path::new("doc.pdf")), Some(DocumentType::Pdf));
+        assert_eq!(DocumentType::from_path(Path::new("main.rs")), Some(DocumentType::Rust));
+        assert_eq!(DocumentType::from_path(Path::new("script.py")), Some(DocumentType::Python));
         assert_eq!(DocumentType::from_path(Path::new("unknown.xyz")), None);
     }
 
@@ -511,10 +473,7 @@ mod tests {
         );
 
         // Should not include hidden files
-        assert!(
-            !docs.iter().any(|d| d.filename.starts_with('.')),
-            "Should skip hidden files"
-        );
+        assert!(!docs.iter().any(|d| d.filename.starts_with('.')), "Should skip hidden files");
     }
 
     #[test]
@@ -525,10 +484,7 @@ mod tests {
         let docs = indexer.scan_directory(temp_dir.path()).unwrap();
 
         // Should find nested document
-        assert!(
-            docs.iter().any(|d| d.filename == "nested.md"),
-            "Should find nested documents"
-        );
+        assert!(docs.iter().any(|d| d.filename == "nested.md"), "Should find nested documents");
     }
 
     #[test]
@@ -545,10 +501,7 @@ mod tests {
         };
 
         let text = indexer.extract_text(&metadata).unwrap();
-        assert!(
-            text.contains("Test Document"),
-            "Should extract markdown content"
-        );
+        assert!(text.contains("Test Document"), "Should extract markdown content");
     }
 
     #[test]
@@ -567,10 +520,7 @@ mod tests {
         let chunks = indexer.chunk_document(&long_text, &metadata);
 
         // Should create multiple chunks
-        assert!(
-            chunks.len() > 1,
-            "Should split long text into multiple chunks"
-        );
+        assert!(chunks.len() > 1, "Should split long text into multiple chunks");
 
         // Each chunk should be <= max_chunk_size
         for chunk in &chunks {
@@ -625,10 +575,7 @@ mod tests {
         let chunks = indexer.chunk_document(text, &metadata);
 
         for (i, chunk) in chunks.iter().enumerate() {
-            assert_eq!(
-                chunk.source_file, metadata.path,
-                "Should preserve source file"
-            );
+            assert_eq!(chunk.source_file, metadata.path, "Should preserve source file");
             assert_eq!(chunk.chunk_index, i, "Should have correct chunk index");
         }
     }
@@ -643,9 +590,8 @@ mod tests {
         let db_path = storage_dir.path().join("test.db");
         let vectors_dir = storage_dir.path().join("vectors");
 
-        let chunk_count = indexer
-            .index_directory_with_storage(temp_dir.path(), &db_path, &vectors_dir)
-            .unwrap();
+        let chunk_count =
+            indexer.index_directory_with_storage(temp_dir.path(), &db_path, &vectors_dir).unwrap();
 
         assert!(chunk_count > 0, "Should index and return chunk count");
     }
@@ -663,29 +609,16 @@ mod tests {
         fs::write(base.join("target/should_skip.rs"), "fn main() {}").unwrap();
 
         fs::create_dir(base.join("node_modules")).unwrap();
-        fs::write(
-            base.join("node_modules/should_skip.js"),
-            "console.log('skip');",
-        )
-        .unwrap();
+        fs::write(base.join("node_modules/should_skip.js"), "console.log('skip');").unwrap();
 
         fs::create_dir(base.join(".git")).unwrap();
-        fs::write(
-            base.join(".git/config"),
-            "[core]\n\trepositoryformatversion = 0",
-        )
-        .unwrap();
+        fs::write(base.join(".git/config"), "[core]\n\trepositoryformatversion = 0").unwrap();
 
         let indexer = DocumentIndexer::with_defaults();
         let docs = indexer.scan_directory(base).unwrap();
 
         // Should find the main document but not files in excluded directories
-        assert_eq!(
-            docs.len(),
-            1,
-            "Should only find 1 document, found {}",
-            docs.len()
-        );
+        assert_eq!(docs.len(), 1, "Should only find 1 document, found {}", docs.len());
         assert_eq!(docs[0].filename, "test.md", "Should find test.md");
     }
 
@@ -729,11 +662,8 @@ mod tests {
         );
 
         // Verify the deepest file found is at level 5
-        let deepest_path = docs
-            .iter()
-            .map(|d| &d.path)
-            .max_by_key(|p| p.components().count())
-            .unwrap();
+        let deepest_path =
+            docs.iter().map(|d| &d.path).max_by_key(|p| p.components().count()).unwrap();
         assert!(
             deepest_path.to_string_lossy().contains("level5"),
             "Should find file at level 5, found: {}",
@@ -784,11 +714,7 @@ mod tests {
         fs::write(base.join("custom_exclude/should_skip.rs"), "fn main() {}").unwrap();
 
         fs::create_dir(base.join("another_exclude")).unwrap();
-        fs::write(
-            base.join("another_exclude/should_skip.js"),
-            "console.log('skip');",
-        )
-        .unwrap();
+        fs::write(base.join("another_exclude/should_skip.js"), "console.log('skip');").unwrap();
 
         // Test with custom excluded directories
         let config = IndexerConfig {
@@ -798,12 +724,7 @@ mod tests {
         let indexer = DocumentIndexer::new(config);
         let docs = indexer.scan_directory(base).unwrap();
 
-        assert_eq!(
-            docs.len(),
-            1,
-            "Should only find 1 document, found {}",
-            docs.len()
-        );
+        assert_eq!(docs.len(), 1, "Should only find 1 document, found {}", docs.len());
         assert_eq!(docs[0].filename, "test.md", "Should find test.md");
     }
 
@@ -819,11 +740,8 @@ mod tests {
             let dir_path = base.join(format!("dir{}", i));
             fs::create_dir(&dir_path).unwrap();
             for j in 0..3 {
-                fs::write(
-                    dir_path.join(format!("file{}.md", j)),
-                    format!("Content {}-{}", i, j),
-                )
-                .unwrap();
+                fs::write(dir_path.join(format!("file{}.md", j)), format!("Content {}-{}", i, j))
+                    .unwrap();
             }
         }
 

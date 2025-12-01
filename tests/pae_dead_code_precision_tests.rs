@@ -113,14 +113,8 @@ async fn test_dead_code_false_positive_filtering() -> Result<()> {
     )?;
 
     // This function has an incoming edge (simulating it's called)
-    let used_id = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "used_function",
-        34,
-        36,
-    )?;
+    let used_id =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "used_function", 34, 36)?;
     // Create edge: something calls used_function (we use new as caller since we need any caller)
     insert_call_edge(&db_manager, new_id, used_id)?;
 
@@ -131,11 +125,7 @@ async fn test_dead_code_false_positive_filtering() -> Result<()> {
     };
 
     let response = engine.dead_code(request).await?;
-    assert!(
-        response.ok,
-        "Dead code analysis failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Dead code analysis failed: {:?}", response.error);
 
     let data = response.data.unwrap();
     let dead_entities = data.dead_entities;
@@ -155,10 +145,7 @@ async fn test_dead_code_false_positive_filtering() -> Result<()> {
 
     // Verify constructor "new" is not flagged
     for entity in &dead_entities {
-        assert!(
-            entity.name != "new",
-            "Constructor 'new' should not be flagged as dead code"
-        );
+        assert!(entity.name != "new", "Constructor 'new' should not be flagged as dead code");
     }
 
     Ok(())
@@ -183,32 +170,14 @@ async fn test_dead_code_entity_type_variations() -> Result<()> {
     // Insert entities directly - dead entities with different types
     let _unused_struct =
         insert_test_entity(&db_manager, "src/lib.rs", "struct", "UnusedStruct", 1, 4)?;
-    let _unused_fn = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "unused_function",
-        6,
-        8,
-    )?;
-    let _unused_method = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "unused_method",
-        10,
-        12,
-    )?;
+    let _unused_fn =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "unused_function", 6, 8)?;
+    let _unused_method =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "unused_method", 10, 12)?;
 
     // Insert used entities with call edges
-    let used_fn = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "used_function",
-        14,
-        16,
-    )?;
+    let used_fn =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "used_function", 14, 16)?;
     let main_fn = insert_test_entity(&db_manager, "src/lib.rs", "function", "main", 18, 20)?;
     insert_call_edge(&db_manager, main_fn, used_fn)?;
 
@@ -220,11 +189,7 @@ async fn test_dead_code_entity_type_variations() -> Result<()> {
     };
 
     let response = engine.dead_code(request).await?;
-    assert!(
-        response.ok,
-        "Dead code analysis failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Dead code analysis failed: {:?}", response.error);
 
     let data = response.data.unwrap();
     let dead_entities = data.dead_entities;
@@ -274,46 +239,22 @@ async fn test_dead_code_trait_impl_detection() -> Result<()> {
 
     // Insert entities directly to test dead code detection
     // Trait methods - should be filtered out as they're part of trait impl
-    let _trait_req = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "required_method",
-        10,
-        12,
-    )?;
-    let _trait_opt = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "optional_method",
-        14,
-        16,
-    )?;
+    let _trait_req =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "required_method", 10, 12)?;
+    let _trait_opt =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "optional_method", 14, 16)?;
 
     // Constructor - should be filtered out (heuristic)
     let _new_fn = insert_test_entity(&db_manager, "src/lib.rs", "function", "new", 20, 22)?;
 
     // Actually unused internal method - should be detected
-    let _unused_internal = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "unused_internal",
-        24,
-        26,
-    )?;
+    let _unused_internal =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "unused_internal", 24, 26)?;
 
     // Used function with call edge
     let main_fn = insert_test_entity(&db_manager, "src/lib.rs", "function", "main", 28, 30)?;
-    let used_fn = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "used_function",
-        32,
-        34,
-    )?;
+    let used_fn =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "used_function", 32, 34)?;
     insert_call_edge(&db_manager, main_fn, used_fn)?;
 
     // Run dead code analysis
@@ -323,11 +264,7 @@ async fn test_dead_code_trait_impl_detection() -> Result<()> {
     };
 
     let response = engine.dead_code(request).await?;
-    assert!(
-        response.ok,
-        "Dead code analysis failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Dead code analysis failed: {:?}", response.error);
 
     let data = response.data.unwrap();
     let dead_entities = data.dead_entities;
@@ -340,10 +277,7 @@ async fn test_dead_code_trait_impl_detection() -> Result<()> {
         }
     }
 
-    assert!(
-        found_unused_internal,
-        "Should detect unused_internal method"
-    );
+    assert!(found_unused_internal, "Should detect unused_internal method");
 
     Ok(())
 }
@@ -373,40 +307,16 @@ async fn test_dead_code_no_false_negatives() -> Result<()> {
         1,
         3,
     )?;
-    let _unused2 = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "unused_with_params",
-        5,
-        7,
-    )?;
-    let _unused3 = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "unused_complex",
-        9,
-        11,
-    )?;
+    let _unused2 =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "unused_with_params", 5, 7)?;
+    let _unused3 =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "unused_complex", 9, 11)?;
 
     // Insert used functions with call edges - these should NOT be detected
-    let used_fn = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "used_function",
-        13,
-        15,
-    )?;
-    let helper_fn = insert_test_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "helper_function",
-        17,
-        19,
-    )?;
+    let used_fn =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "used_function", 13, 15)?;
+    let helper_fn =
+        insert_test_entity(&db_manager, "src/lib.rs", "function", "helper_function", 17, 19)?;
     let main_fn = insert_test_entity(&db_manager, "src/lib.rs", "function", "main", 21, 23)?;
 
     // Create call edges: main -> used_function, main -> helper_function
@@ -421,21 +331,13 @@ async fn test_dead_code_no_false_negatives() -> Result<()> {
     };
 
     let response = engine.dead_code(request).await?;
-    assert!(
-        response.ok,
-        "Dead code analysis failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Dead code analysis failed: {:?}", response.error);
 
     let data = response.data.unwrap();
     let dead_entities = data.dead_entities;
 
     // Should find the unused functions (main also has no incoming edge but that's expected)
-    let unused_names = [
-        "completely_unused_function",
-        "unused_with_params",
-        "unused_complex",
-    ];
+    let unused_names = ["completely_unused_function", "unused_with_params", "unused_complex"];
     let mut found_count = 0;
 
     for entity in &dead_entities {
@@ -444,11 +346,7 @@ async fn test_dead_code_no_false_negatives() -> Result<()> {
         }
     }
 
-    assert!(
-        found_count >= 3,
-        "Should detect at least 3 unused functions, found {}",
-        found_count
-    );
+    assert!(found_count >= 3, "Should detect at least 3 unused functions, found {}", found_count);
 
     // Functions with incoming edges (used_function, helper_function) should not be flagged
     // Note: "main" has no incoming edges, so it will be flagged as dead - this is correct behavior

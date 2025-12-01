@@ -27,33 +27,16 @@ fn tasks_hierarchy_fk_ok() {
     assert_eq!(parent.goal, "Parent task");
 
     // Delete parent and verify cascade delete works
-    conn.execute("DELETE FROM tasks WHERE id = ?1", [parent_id])
-        .unwrap();
+    conn.execute("DELETE FROM tasks WHERE id = ?1", [parent_id]).unwrap();
 
     // Verify children are also deleted (cascade)
-    let child1 = conn
-        .query_row(
-            "SELECT id FROM tasks WHERE id = ?1",
-            [child1_id],
-            |_| Ok(()),
-        )
-        .optional();
-    let child2 = conn
-        .query_row(
-            "SELECT id FROM tasks WHERE id = ?1",
-            [child2_id],
-            |_| Ok(()),
-        )
-        .optional();
+    let child1 =
+        conn.query_row("SELECT id FROM tasks WHERE id = ?1", [child1_id], |_| Ok(())).optional();
+    let child2 =
+        conn.query_row("SELECT id FROM tasks WHERE id = ?1", [child2_id], |_| Ok(())).optional();
 
-    assert!(
-        child1.unwrap().is_none(),
-        "Child 1 should be cascade deleted"
-    );
-    assert!(
-        child2.unwrap().is_none(),
-        "Child 2 should be cascade deleted"
-    );
+    assert!(child1.unwrap().is_none(), "Child 1 should be cascade deleted");
+    assert!(child2.unwrap().is_none(), "Child 2 should be cascade deleted");
 
     // Clean up
     drop(conn);
@@ -82,21 +65,17 @@ fn task_link_depends_on_enforced_ok() {
 
     // Verify B is marked done
     let task_b = conn
-        .query_row(
-            "SELECT status FROM tasks WHERE id = ?1",
-            [task_b_id],
-            |row| row.get::<_, String>(0),
-        )
+        .query_row("SELECT status FROM tasks WHERE id = ?1", [task_b_id], |row| {
+            row.get::<_, String>(0)
+        })
         .unwrap();
     assert_eq!(task_b, "done");
 
     // Verify A is still open
     let task_a = conn
-        .query_row(
-            "SELECT status FROM tasks WHERE id = ?1",
-            [task_a_id],
-            |row| row.get::<_, String>(0),
-        )
+        .query_row("SELECT status FROM tasks WHERE id = ?1", [task_a_id], |row| {
+            row.get::<_, String>(0)
+        })
         .unwrap();
     assert_eq!(task_a, "open");
 
@@ -110,17 +89,12 @@ fn task_link_depends_on_enforced_ok() {
         .unwrap();
 
     let outstanding_deps = deps
-        .query_map([task_b_id], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-        })
+        .query_map([task_b_id], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
 
-    assert!(
-        !outstanding_deps.is_empty(),
-        "Should have outstanding dependencies"
-    );
+    assert!(!outstanding_deps.is_empty(), "Should have outstanding dependencies");
     assert_eq!(outstanding_deps[0].0, task_a_id);
     assert_eq!(outstanding_deps[0].1, "open");
 
@@ -152,27 +126,15 @@ fn task_crud_operations_ok() {
     assert_eq!(task.status, "open");
 
     // UPDATE - change status and priority
-    tasks::update_task(
-        &conn,
-        task_id,
-        Some("running"),
-        Some(1),
-        Some("Updated description"),
-    )
-    .unwrap();
+    tasks::update_task(&conn, task_id, Some("running"), Some(1), Some("Updated description"))
+        .unwrap();
 
     // Verify update
     let updated = conn
         .query_row(
             "SELECT status, priority, description FROM tasks WHERE id = ?1",
             [task_id],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, i32>(1)?,
-                    row.get::<_, String>(2)?,
-                ))
-            },
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i32>(1)?, row.get::<_, String>(2)?)),
         )
         .unwrap();
     assert_eq!(updated.0, "running");
@@ -180,13 +142,11 @@ fn task_crud_operations_ok() {
     assert_eq!(updated.2, "Updated description");
 
     // DELETE (cascade test will be separate)
-    conn.execute("DELETE FROM tasks WHERE id = ?1", [task_id])
-        .unwrap();
+    conn.execute("DELETE FROM tasks WHERE id = ?1", [task_id]).unwrap();
 
     // Verify deletion
-    let deleted = conn
-        .query_row("SELECT id FROM tasks WHERE id = ?1", [task_id], |_| Ok(()))
-        .optional();
+    let deleted =
+        conn.query_row("SELECT id FROM tasks WHERE id = ?1", [task_id], |_| Ok(())).optional();
     assert!(deleted.unwrap().is_none());
 
     // Clean up
@@ -258,35 +218,19 @@ fn vector_crud_operations_ok() {
     // INSERT text
     vector::insert_text(&mut vector_store, 1, Some(100), "Test document one", "note").unwrap();
     vector::insert_text(&mut vector_store, 2, Some(100), "Test document two", "note").unwrap();
-    vector::insert_text(
-        &mut vector_store,
-        3,
-        Some(200),
-        "Different task document",
-        "note",
-    )
-    .unwrap();
+    vector::insert_text(&mut vector_store, 3, Some(200), "Different task document", "note")
+        .unwrap();
 
     assert_eq!(vector_store.len(), 3);
 
     // SEARCH global scope
-    let global_hits = vector::search(
-        &vector_store,
-        "Test",
-        10,
-        syncore::vector::SearchScope::Global,
-    )
-    .unwrap();
+    let global_hits =
+        vector::search(&vector_store, "Test", 10, syncore::vector::SearchScope::Global).unwrap();
     assert_eq!(global_hits.len(), 3);
 
     // SEARCH task scope
-    let task_hits = vector::search(
-        &vector_store,
-        "Test",
-        10,
-        syncore::vector::SearchScope::Task(100),
-    )
-    .unwrap();
+    let task_hits =
+        vector::search(&vector_store, "Test", 10, syncore::vector::SearchScope::Task(100)).unwrap();
     assert_eq!(task_hits.len(), 2);
 
     // Verify results contain expected IDs

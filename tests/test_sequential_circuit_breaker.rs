@@ -45,9 +45,7 @@ fn test_circuit_breaker_trips_on_empty_thoughts() {
     let core = SequentialCore::new(tasks.clone(), vector_store, memory, model, logger);
 
     // Create a test task
-    tasks
-        .add_task("Test task", "Test description", 1, None)
-        .unwrap();
+    tasks.add_task("Test task", "Test description", 1, None).unwrap();
 
     // Run cycles until circuit breaker trips
     let mut cycle_count = 0;
@@ -80,14 +78,8 @@ fn test_circuit_breaker_trips_on_empty_thoughts() {
     }
 
     // ASSERTIONS
-    assert!(
-        circuit_tripped,
-        "Circuit breaker should have tripped on empty thoughts"
-    );
-    assert!(
-        cycle_count <= 5,
-        "Should trip within 5 cycles (configured for 4 no-output calls)"
-    );
+    assert!(circuit_tripped, "Circuit breaker should have tripped on empty thoughts");
+    assert!(cycle_count <= 5, "Should trip within 5 cycles (configured for 4 no-output calls)");
 }
 
 #[test]
@@ -142,10 +134,7 @@ fn test_circuit_breaker_allows_successful_cycles() {
         }
     }
 
-    assert_eq!(
-        successful_cycles, 3,
-        "All 3 cycles should complete successfully"
-    );
+    assert_eq!(successful_cycles, 3, "All 3 cycles should complete successfully");
 }
 
 #[test]

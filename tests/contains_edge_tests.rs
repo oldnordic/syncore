@@ -88,10 +88,8 @@ impl Config {
     let contains_edges: Vec<_> = edges.iter().filter(|e| e.edge_type == "contains").collect();
 
     // Config -> new, Config -> validate
-    let struct_method_edges: Vec<_> = contains_edges
-        .iter()
-        .filter(|e| e.src_name == "Config")
-        .collect();
+    let struct_method_edges: Vec<_> =
+        contains_edges.iter().filter(|e| e.src_name == "Config").collect();
 
     assert!(
         struct_method_edges.len() >= 2,
@@ -118,10 +116,8 @@ fn main_function() {}
     let edges = extractor.extract_from_source(code, "src/lib.rs").unwrap();
 
     // Should find MODULE_CHILD edges from parent module to child modules
-    let module_child_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == "module_child")
-        .collect();
+    let module_child_edges: Vec<_> =
+        edges.iter().filter(|e| e.edge_type == "module_child").collect();
 
     assert!(
         module_child_edges.len() >= 3,
@@ -130,20 +126,11 @@ fn main_function() {}
     );
 
     // Verify child module names
-    let child_names: HashSet<_> = module_child_edges
-        .iter()
-        .map(|e| e.dst_name.as_str())
-        .collect();
+    let child_names: HashSet<_> = module_child_edges.iter().map(|e| e.dst_name.as_str()).collect();
 
     assert!(child_names.contains("utils"), "Should have utils as child");
-    assert!(
-        child_names.contains("parser"),
-        "Should have parser as child"
-    );
-    assert!(
-        child_names.contains("config"),
-        "Should have config as child"
-    );
+    assert!(child_names.contains("parser"), "Should have parser as child");
+    assert!(child_names.contains("config"), "Should have config as child");
 }
 
 #[test]
@@ -161,10 +148,8 @@ trait Validator {
     let edges = extractor.extract_from_source(code, "test.rs").unwrap();
 
     // Should find CONTAINS edges from trait to its methods
-    let contains_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == "contains" && e.src_name == "Validator")
-        .collect();
+    let contains_edges: Vec<_> =
+        edges.iter().filter(|e| e.edge_type == "contains" && e.src_name == "Validator").collect();
 
     assert!(
         contains_edges.len() >= 2,
@@ -189,10 +174,8 @@ enum Status {
     let edges = extractor.extract_from_source(code, "test.rs").unwrap();
 
     // Should find CONTAINS edges from enum to its variants
-    let contains_edges: Vec<_> = edges
-        .iter()
-        .filter(|e| e.edge_type == "contains" && e.src_name == "Status")
-        .collect();
+    let contains_edges: Vec<_> =
+        edges.iter().filter(|e| e.edge_type == "contains" && e.src_name == "Status").collect();
 
     assert!(
         contains_edges.len() >= 3,

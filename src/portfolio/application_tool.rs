@@ -40,7 +40,9 @@ impl ApplicationTool {
     /// Create a new application tool
     pub fn new(state: SynCoreState) -> Self {
         Self::initialize_schema(&state).expect("Failed to initialize code change schema");
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Initialize SQLite schema for code changes
@@ -82,9 +84,7 @@ impl ApplicationTool {
 
     /// Record a code change
     pub fn record_change(&self, change: &CodeChange) -> Result<i64> {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs() as i64;
 
         // Persist to SQLite
         let change_id: i64 = self.state.tasks.with_db(|conn| {

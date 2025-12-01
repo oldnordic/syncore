@@ -42,7 +42,10 @@ impl CodeExplainer {
     pub fn new() -> Result<Self> {
         let parser = Parser::new()?;
         let ollama = OllamaClient::new_default()?;
-        Ok(Self { parser, ollama })
+        Ok(Self {
+            parser,
+            ollama,
+        })
     }
 
     /// Create a new code explainer with custom Ollama model
@@ -53,7 +56,10 @@ impl CodeExplainer {
             ..Default::default()
         };
         let ollama = OllamaClient::new(config)?;
-        Ok(Self { parser, ollama })
+        Ok(Self {
+            parser,
+            ollama,
+        })
     }
 
     /// Explain code from a file

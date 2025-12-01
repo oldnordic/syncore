@@ -10,27 +10,15 @@ use syncore::code_graph::entity_boost::{compute_entity_type_boost, EntityCategor
 #[test]
 fn test_function_boost() {
     let boost = compute_entity_type_boost("Function");
-    assert!(
-        boost > 1.0,
-        "Function should get positive boost, got {}",
-        boost
-    );
-    assert!(
-        boost >= 1.3,
-        "Function boost should be >= 1.3, got {}",
-        boost
-    );
+    assert!(boost > 1.0, "Function should get positive boost, got {}", boost);
+    assert!(boost >= 1.3, "Function boost should be >= 1.3, got {}", boost);
 }
 
 /// Test: Struct entities get high boost
 #[test]
 fn test_struct_boost() {
     let boost = compute_entity_type_boost("Struct");
-    assert!(
-        boost > 1.0,
-        "Struct should get positive boost, got {}",
-        boost
-    );
+    assert!(boost > 1.0, "Struct should get positive boost, got {}", boost);
     assert!(boost >= 1.3, "Struct boost should be >= 1.3, got {}", boost);
 }
 
@@ -46,11 +34,7 @@ fn test_impl_boost() {
 #[test]
 fn test_class_boost() {
     let boost = compute_entity_type_boost("Class");
-    assert!(
-        boost > 1.0,
-        "Class should get positive boost, got {}",
-        boost
-    );
+    assert!(boost > 1.0, "Class should get positive boost, got {}", boost);
     assert!(boost >= 1.3, "Class boost should be >= 1.3, got {}", boost);
 }
 
@@ -58,11 +42,7 @@ fn test_class_boost() {
 #[test]
 fn test_method_boost() {
     let boost = compute_entity_type_boost("Method");
-    assert!(
-        boost > 1.0,
-        "Method should get positive boost, got {}",
-        boost
-    );
+    assert!(boost > 1.0, "Method should get positive boost, got {}", boost);
     assert!(boost >= 1.2, "Method boost should be >= 1.2, got {}", boost);
 }
 
@@ -70,16 +50,8 @@ fn test_method_boost() {
 #[test]
 fn test_trait_boost() {
     let boost = compute_entity_type_boost("Trait");
-    assert!(
-        boost > 1.0,
-        "Trait should get positive boost, got {}",
-        boost
-    );
-    assert!(
-        boost >= 1.15,
-        "Trait boost should be >= 1.15, got {}",
-        boost
-    );
+    assert!(boost > 1.0, "Trait should get positive boost, got {}", boost);
+    assert!(boost >= 1.15, "Trait boost should be >= 1.15, got {}", boost);
 }
 
 /// Test: Enum entities get moderate boost
@@ -94,27 +66,15 @@ fn test_enum_boost() {
 #[test]
 fn test_import_deboost() {
     let boost = compute_entity_type_boost("Import");
-    assert!(
-        boost < 1.0,
-        "Import should get negative boost (de-boost), got {}",
-        boost
-    );
-    assert!(
-        boost <= 0.7,
-        "Import de-boost should be <= 0.7, got {}",
-        boost
-    );
+    assert!(boost < 1.0, "Import should get negative boost (de-boost), got {}", boost);
+    assert!(boost <= 0.7, "Import de-boost should be <= 0.7, got {}", boost);
 }
 
 /// Test: Use statement entities get de-boosted
 #[test]
 fn test_use_deboost() {
     let boost = compute_entity_type_boost("Use");
-    assert!(
-        boost < 1.0,
-        "Use should get negative boost (de-boost), got {}",
-        boost
-    );
+    assert!(boost < 1.0, "Use should get negative boost (de-boost), got {}", boost);
     assert!(boost <= 0.7, "Use de-boost should be <= 0.7, got {}", boost);
 }
 
@@ -122,33 +82,21 @@ fn test_use_deboost() {
 #[test]
 fn test_module_neutral() {
     let boost = compute_entity_type_boost("Module");
-    assert!(
-        (boost - 1.0).abs() < 0.1,
-        "Module should be neutral (1.0 ± 0.1), got {}",
-        boost
-    );
+    assert!((boost - 1.0).abs() < 0.1, "Module should be neutral (1.0 ± 0.1), got {}", boost);
 }
 
 /// Test: Unknown entity types are neutral
 #[test]
 fn test_unknown_neutral() {
     let boost = compute_entity_type_boost("SomeUnknownType");
-    assert!(
-        (boost - 1.0).abs() < 0.01,
-        "Unknown types should be neutral (1.0), got {}",
-        boost
-    );
+    assert!((boost - 1.0).abs() < 0.01, "Unknown types should be neutral (1.0), got {}", boost);
 }
 
 /// Test: Empty string is neutral
 #[test]
 fn test_empty_neutral() {
     let boost = compute_entity_type_boost("");
-    assert!(
-        (boost - 1.0).abs() < 0.01,
-        "Empty string should be neutral (1.0), got {}",
-        boost
-    );
+    assert!((boost - 1.0).abs() < 0.01, "Empty string should be neutral (1.0), got {}", boost);
 }
 
 /// Test: Case insensitivity
@@ -158,31 +106,16 @@ fn test_case_insensitive() {
     let boost_upper = compute_entity_type_boost("FUNCTION");
     let boost_mixed = compute_entity_type_boost("Function");
 
-    assert!(
-        (boost_lower - boost_upper).abs() < 0.01,
-        "Should be case insensitive"
-    );
-    assert!(
-        (boost_lower - boost_mixed).abs() < 0.01,
-        "Should be case insensitive"
-    );
+    assert!((boost_lower - boost_upper).abs() < 0.01, "Should be case insensitive");
+    assert!((boost_lower - boost_mixed).abs() < 0.01, "Should be case insensitive");
 }
 
 /// Test: EntityCategory classification
 #[test]
 fn test_entity_category_implementation() {
-    assert_eq!(
-        EntityCategory::from_kind("Function"),
-        EntityCategory::Implementation
-    );
-    assert_eq!(
-        EntityCategory::from_kind("Struct"),
-        EntityCategory::Implementation
-    );
-    assert_eq!(
-        EntityCategory::from_kind("Class"),
-        EntityCategory::Implementation
-    );
+    assert_eq!(EntityCategory::from_kind("Function"), EntityCategory::Implementation);
+    assert_eq!(EntityCategory::from_kind("Struct"), EntityCategory::Implementation);
+    assert_eq!(EntityCategory::from_kind("Class"), EntityCategory::Implementation);
 }
 
 #[test]
@@ -193,24 +126,15 @@ fn test_entity_category_import() {
 
 #[test]
 fn test_entity_category_secondary() {
-    assert_eq!(
-        EntityCategory::from_kind("Trait"),
-        EntityCategory::Secondary
-    );
+    assert_eq!(EntityCategory::from_kind("Trait"), EntityCategory::Secondary);
     assert_eq!(EntityCategory::from_kind("Enum"), EntityCategory::Secondary);
-    assert_eq!(
-        EntityCategory::from_kind("TypeAlias"),
-        EntityCategory::Secondary
-    );
+    assert_eq!(EntityCategory::from_kind("TypeAlias"), EntityCategory::Secondary);
 }
 
 #[test]
 fn test_entity_category_neutral() {
     assert_eq!(EntityCategory::from_kind("Module"), EntityCategory::Neutral);
-    assert_eq!(
-        EntityCategory::from_kind("SomethingElse"),
-        EntityCategory::Neutral
-    );
+    assert_eq!(EntityCategory::from_kind("SomethingElse"), EntityCategory::Neutral);
 }
 
 /// Test: Boosted score is higher than base score for implementations

@@ -25,23 +25,19 @@ fn test_multiple_inserts_no_rebuild_on_search() {
     // Insert multiple vectors
     for i in 0..10 {
         let text = format!("test document {}", i);
-        store
-            .insert_text(i as i64, None, &text, "test")
-            .expect("Insert should succeed");
+        store.insert_text(i as i64, None, &text, "test").expect("Insert should succeed");
     }
 
     // First search - might build index
     let start1 = Instant::now();
-    let _results1 = store
-        .search("test query", 5, SearchScope::Global)
-        .expect("Search should succeed");
+    let _results1 =
+        store.search("test query", 5, SearchScope::Global).expect("Search should succeed");
     let duration1 = start1.elapsed();
 
     // Second search - should NOT rebuild
     let start2 = Instant::now();
-    let _results2 = store
-        .search("test query", 5, SearchScope::Global)
-        .expect("Search should succeed");
+    let _results2 =
+        store.search("test query", 5, SearchScope::Global).expect("Search should succeed");
     let duration2 = start2.elapsed();
 
     // Second search should be faster (no rebuild)
@@ -70,32 +66,20 @@ fn test_search_respects_incremental_updates() {
     let mut store = VectorStore::new(embeddings);
 
     // Insert initial vectors
-    store
-        .insert_text(1, None, "apple fruit red", "test")
-        .expect("Insert failed");
-    store
-        .insert_text(2, None, "banana fruit yellow", "test")
-        .expect("Insert failed");
+    store.insert_text(1, None, "apple fruit red", "test").expect("Insert failed");
+    store.insert_text(2, None, "banana fruit yellow", "test").expect("Insert failed");
 
     // Search should find 2 results
-    let results1 = store
-        .search("fruit", 10, SearchScope::Global)
-        .expect("Search failed");
+    let results1 = store.search("fruit", 10, SearchScope::Global).expect("Search failed");
     assert_eq!(results1.len(), 2, "Should find 2 fruit documents");
 
     // Insert more vectors
-    store
-        .insert_text(3, None, "orange fruit citrus", "test")
-        .expect("Insert failed");
-    store
-        .insert_text(4, None, "grape fruit purple", "test")
-        .expect("Insert failed");
+    store.insert_text(3, None, "orange fruit citrus", "test").expect("Insert failed");
+    store.insert_text(4, None, "grape fruit purple", "test").expect("Insert failed");
 
     // Search should now find 4 results WITHOUT full rebuild
     let start = Instant::now();
-    let results2 = store
-        .search("fruit", 10, SearchScope::Global)
-        .expect("Search failed");
+    let results2 = store.search("fruit", 10, SearchScope::Global).expect("Search failed");
     let duration = start.elapsed();
 
     assert_eq!(results2.len(), 4, "Should find all 4 fruit documents");
@@ -128,9 +112,7 @@ fn test_hnsw_loads_once_per_lifecycle() {
     let mut search_times = Vec::new();
     for _ in 0..5 {
         let start = Instant::now();
-        let _results = store
-            .search("document", 5, SearchScope::Global)
-            .expect("Search failed");
+        let _results = store.search("document", 5, SearchScope::Global).expect("Search failed");
         search_times.push(start.elapsed());
     }
 
@@ -194,9 +176,7 @@ fn test_index_persists_no_rebuild_on_load() {
 
         // Search should work immediately without rebuild
         let start = Instant::now();
-        let results = store
-            .search("test", 5, SearchScope::Global)
-            .expect("Search failed");
+        let results = store.search("test", 5, SearchScope::Global).expect("Search failed");
         let duration = start.elapsed();
 
         assert!(!results.is_empty(), "Should find results from loaded index");
@@ -220,21 +200,13 @@ fn test_large_dataset_no_linear_scan() {
 
     // Insert 1000 vectors
     for i in 0..1000 {
-        let text = format!(
-            "document number {} with some content about topic {}",
-            i,
-            i % 10
-        );
-        store
-            .insert_text(i as i64, None, &text, "test")
-            .expect("Insert failed");
+        let text = format!("document number {} with some content about topic {}", i, i % 10);
+        store.insert_text(i as i64, None, &text, "test").expect("Insert failed");
     }
 
     // Search should use HNSW index, not linear scan
     let start = Instant::now();
-    let results = store
-        .search("document", 10, SearchScope::Global)
-        .expect("Search failed");
+    let results = store.search("document", 10, SearchScope::Global).expect("Search failed");
     let duration = start.elapsed();
 
     assert!(!results.is_empty(), "Should find results");
@@ -259,16 +231,12 @@ fn test_memory_usage_reasonable() {
 
     // Insert vectors
     for i in 0..100 {
-        store
-            .insert_text(i as i64, None, &format!("test {}", i), "test")
-            .expect("Insert failed");
+        store.insert_text(i as i64, None, &format!("test {}", i), "test").expect("Insert failed");
     }
 
     // Multiple searches shouldn't leak memory
     for _ in 0..10 {
-        let _results = store
-            .search("test", 5, SearchScope::Global)
-            .expect("Search failed");
+        let _results = store.search("test", 5, SearchScope::Global).expect("Search failed");
     }
 
     // This test passes if no panic/OOM occurs

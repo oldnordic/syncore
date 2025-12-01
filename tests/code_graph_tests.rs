@@ -7,10 +7,7 @@ use syncore::vector::VectorStore;
 #[test]
 fn test_entity_type_conversion() {
     assert_eq!(EntityType::Function.as_str(), "function");
-    assert_eq!(
-        EntityType::try_parse("function"),
-        Some(EntityType::Function)
-    );
+    assert_eq!(EntityType::try_parse("function"), Some(EntityType::Function));
     assert_eq!(EntityType::try_parse("invalid"), None);
 }
 
@@ -45,11 +42,7 @@ fn test_index_file_no_deadlock() {
     use tempfile::Builder;
 
     // Create a temporary Rust source file to index (with .rs extension)
-    let mut temp_file = Builder::new()
-        .prefix("test_")
-        .suffix(".rs")
-        .tempfile()
-        .unwrap();
+    let mut temp_file = Builder::new().prefix("test_").suffix(".rs").tempfile().unwrap();
     writeln!(temp_file, "fn test_function(x: i32) -> i32 {{").unwrap();
     writeln!(temp_file, "    x + 1").unwrap();
     writeln!(temp_file, "}}").unwrap();
@@ -87,11 +80,7 @@ fn test_search_code_no_deadlock() {
     use tempfile::Builder;
 
     // Create and index a test file (with .rs extension)
-    let mut temp_file = Builder::new()
-        .prefix("test_")
-        .suffix(".rs")
-        .tempfile()
-        .unwrap();
+    let mut temp_file = Builder::new().prefix("test_").suffix(".rs").tempfile().unwrap();
     writeln!(temp_file, "fn calculate_sum(a: i32, b: i32) -> i32 {{").unwrap();
     writeln!(temp_file, "    a + b").unwrap();
     writeln!(temp_file, "}}").unwrap();
@@ -105,10 +94,7 @@ fn test_search_code_no_deadlock() {
     // Test that search doesn't deadlock
     let result = code_graph.search_code("sum calculation", 5);
 
-    assert!(
-        result.is_ok(),
-        "search_code should complete without deadlock"
-    );
+    assert!(result.is_ok(), "search_code should complete without deadlock");
     let matches = result.unwrap();
     assert!(!matches.is_empty(), "Should find indexed function");
 }

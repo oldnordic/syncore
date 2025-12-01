@@ -226,19 +226,13 @@ mod tests {
     #[test]
     fn test_classify_path_code_domain() {
         let path = PathBuf::from("src/main.rs");
-        assert!(matches!(
-            EmbeddingRefreshDaemon::classify_path(&path),
-            EmbeddingDomain::Code
-        ));
+        assert!(matches!(EmbeddingRefreshDaemon::classify_path(&path), EmbeddingDomain::Code));
     }
 
     #[test]
     fn test_classify_path_general_domain() {
         let path = PathBuf::from("docs/README.md");
-        assert!(matches!(
-            EmbeddingRefreshDaemon::classify_path(&path),
-            EmbeddingDomain::General
-        ));
+        assert!(matches!(EmbeddingRefreshDaemon::classify_path(&path), EmbeddingDomain::General));
     }
 
     #[test]

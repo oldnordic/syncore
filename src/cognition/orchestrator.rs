@@ -14,7 +14,9 @@ use super::plan_engine::{generate_plan, Plan};
 use super::plan_executor::ExecutionResult;
 use super::reasoning_ledger::fetch_recent_episodes_sql;
 use super::router_logic::{route_query, RoutingDecision};
-use super::self_consistency::{evaluate_self_consistency, SelfConsistencyResult};
+use super::self_consistency::{
+    evaluate_self_consistency, SelfConsistencyConfig, SelfConsistencyResult,
+};
 use crate::code_graph::CodeGraph;
 use crate::graph::Neo4jClient;
 use crate::memory::Memory;
@@ -110,9 +112,7 @@ pub async fn enrich_query_with_raggraph(
                 enriched.debug_info.push_str(" | RAGGraph: SUCCESS");
             }
             Err(e) => {
-                enriched
-                    .debug_info
-                    .push_str(&format!(" | RAGGraph: FAILED ({})", e));
+                enriched.debug_info.push_str(&format!(" | RAGGraph: FAILED ({})", e));
             }
         }
     }
@@ -203,9 +203,7 @@ pub async fn enrich_query_with_context_bundle(
     let composer = ContextComposer::new();
 
     // Step 4: Compose unified ContextBundle
-    let context_bundle = composer
-        .compose(query, &decision, code_graph, memory, neo4j)
-        .await?;
+    let context_bundle = composer.compose(query, &decision, code_graph, memory, neo4j).await?;
 
     // Step 5: Build reasoning continuity (Phase R3.3)
     // Decide continuity route based on intent and context
@@ -239,11 +237,9 @@ pub async fn enrich_query_with_context_bundle(
     };
 
     // Step 5c: Self-consistency check (Phase R4.2 - advanced cognitive constraint)
-    let self_consistency = if let (Some(ref bundle), Some(ref mode), Some(ref cont)) = (
-        &Some(context_bundle.clone()),
-        &decision.mode_hint,
-        &reasoning_continuity,
-    ) {
+    let self_consistency = if let (Some(ref bundle), Some(ref mode), Some(ref cont)) =
+        (&Some(context_bundle.clone()), &decision.mode_hint, &reasoning_continuity)
+    {
         // Fetch recent episodes for consistency check
         let episodes = fetch_recent_episodes_sql(memory, query, 10).unwrap_or_default();
 
@@ -251,16 +247,16 @@ pub async fn enrich_query_with_context_bundle(
         let planned_tools = Vec::new(); // Will be populated by actual planner in future
 
         // Evaluate self-consistency
-        let result = evaluate_self_consistency(
-            query,
-            &intent,
-            mode,
-            &planned_tools,
-            bundle,
-            cont,
-            recommended_patterns.as_deref().unwrap_or(&[]),
-            &episodes,
-        );
+        let config = SelfConsistencyConfig {
+            intent: &intent,
+            selected_mode: mode,
+            planned_tools: &planned_tools,
+            context_bundle: bundle,
+            continuity: cont,
+            recommended_patterns: recommended_patterns.as_deref().unwrap_or(&[]),
+            ledger_episodes: &episodes,
+        };
+        let result = evaluate_self_consistency(query, config);
 
         Some(result)
     } else {
@@ -268,11 +264,9 @@ pub async fn enrich_query_with_context_bundle(
     };
 
     // Step 6: Generate execution plan (Phase R5.0)
-    let plan = if let (Some(ref bundle), Some(ref mode), Some(ref consistency)) = (
-        &Some(context_bundle.clone()),
-        &decision.mode_hint,
-        &self_consistency,
-    ) {
+    let plan = if let (Some(ref bundle), Some(ref mode), Some(ref consistency)) =
+        (&Some(context_bundle.clone()), &decision.mode_hint, &self_consistency)
+    {
         generate_plan(
             query,
             &intent,

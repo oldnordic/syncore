@@ -88,10 +88,7 @@ def calculate_area(radius: float) -> float:
     assert_eq!(add_func.language, "python");
     assert_eq!(add_func.line_start, 2);
     assert_eq!(add_func.line_end, 4);
-    assert_eq!(
-        add_func.docstring,
-        Some("Add two numbers together.".to_string())
-    );
+    assert_eq!(add_func.docstring, Some("Add two numbers together.".to_string()));
     assert!(add_func.signature.as_ref().unwrap().contains("add(a, b)"));
 
     // Check second function
@@ -99,16 +96,10 @@ def calculate_area(radius: float) -> float:
     assert_eq!(mult_func.entity_type, EntityType::Function);
     assert_eq!(mult_func.line_start, 6);
     assert_eq!(mult_func.line_end, 8);
-    assert_eq!(
-        mult_func.docstring,
-        Some("Multiply two numbers.".to_string())
-    );
+    assert_eq!(mult_func.docstring, Some("Multiply two numbers.".to_string()));
 
     // Check function with type hints
-    let area_func = entities
-        .iter()
-        .find(|e| e.name == "calculate_area")
-        .unwrap();
+    let area_func = entities.iter().find(|e| e.name == "calculate_area").unwrap();
     assert!(area_func.signature.as_ref().unwrap().contains("-> float"));
 
     Ok(())
@@ -158,15 +149,10 @@ class Admin(User):
     assert_eq!(entities.len(), 7); // 2 classes + 5 methods
 
     // Check User class
-    let user_class = entities
-        .iter()
-        .find(|e| e.name == "User" && e.entity_type == EntityType::Class)
-        .unwrap();
+    let user_class =
+        entities.iter().find(|e| e.name == "User" && e.entity_type == EntityType::Class).unwrap();
     assert_eq!(user_class.line_start, 2);
-    assert_eq!(
-        user_class.docstring,
-        Some("Represents a user account.".to_string())
-    );
+    assert_eq!(user_class.docstring, Some("Represents a user account.".to_string()));
 
     // Check User methods
     let user_init = entities
@@ -184,14 +170,9 @@ class Admin(User):
     assert!(user_display.signature.is_some());
 
     // Check Admin class
-    let admin_class = entities
-        .iter()
-        .find(|e| e.name == "Admin" && e.entity_type == EntityType::Class)
-        .unwrap();
-    assert_eq!(
-        admin_class.docstring,
-        Some("Admin user with elevated privileges.".to_string())
-    );
+    let admin_class =
+        entities.iter().find(|e| e.name == "Admin" && e.entity_type == EntityType::Class).unwrap();
+    assert_eq!(admin_class.docstring, Some("Admin user with elevated privileges.".to_string()));
 
     Ok(())
 }
@@ -216,10 +197,8 @@ from ..parent_module import ParentClass
 
     // Should have import entities - exact count depends on parser's handling of grouped imports
     // Parser may not expand `from typing import List, Dict, Optional` into multiple entities
-    let import_entities: Vec<_> = entities
-        .iter()
-        .filter(|e| e.entity_type == EntityType::Import)
-        .collect();
+    let import_entities: Vec<_> =
+        entities.iter().filter(|e| e.entity_type == EntityType::Import).collect();
     assert!(
         import_entities.len() >= 4,
         "Should detect at least 4 imports, got {}",

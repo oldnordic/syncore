@@ -45,11 +45,7 @@ async fn test_empty_changed_ranges_no_reindex() -> Result<()> {
     let ast_delta = delta_engine.compute_ast_delta(&file_path, &parse_delta)?;
 
     // Empty changed_ranges should result in no-op delta
-    assert_eq!(
-        ast_delta.changed_ranges.len(),
-        0,
-        "Should have no changed ranges"
-    );
+    assert_eq!(ast_delta.changed_ranges.len(), 0, "Should have no changed ranges");
     assert!(!ast_delta.deleted, "Should not be marked as deleted");
     assert!(ast_delta.renamed.is_none(), "Should not be renamed");
 
@@ -69,8 +65,14 @@ async fn test_single_changed_range_selective_reindex() -> Result<()> {
     let changed_range = Range {
         start_byte: 100,
         end_byte: 200,
-        start_point: tree_sitter::Point { row: 5, column: 0 },
-        end_point: tree_sitter::Point { row: 10, column: 0 },
+        start_point: tree_sitter::Point {
+            row: 5,
+            column: 0,
+        },
+        end_point: tree_sitter::Point {
+            row: 10,
+            column: 0,
+        },
     };
 
     let parse_delta = ParseDelta {
@@ -82,11 +84,7 @@ async fn test_single_changed_range_selective_reindex() -> Result<()> {
     let ast_delta = delta_engine.compute_ast_delta(&file_path, &parse_delta)?;
 
     // Should have exactly one changed range
-    assert_eq!(
-        ast_delta.changed_ranges.len(),
-        1,
-        "Should have one changed range"
-    );
+    assert_eq!(ast_delta.changed_ranges.len(), 1, "Should have one changed range");
     assert_eq!(ast_delta.file_path, file_path, "File path should match");
 
     Ok(())
@@ -105,14 +103,26 @@ async fn test_multiple_changed_ranges_preserved() -> Result<()> {
     let range1 = Range {
         start_byte: 100,
         end_byte: 150,
-        start_point: tree_sitter::Point { row: 5, column: 0 },
-        end_point: tree_sitter::Point { row: 7, column: 0 },
+        start_point: tree_sitter::Point {
+            row: 5,
+            column: 0,
+        },
+        end_point: tree_sitter::Point {
+            row: 7,
+            column: 0,
+        },
     };
     let range2 = Range {
         start_byte: 300,
         end_byte: 400,
-        start_point: tree_sitter::Point { row: 15, column: 0 },
-        end_point: tree_sitter::Point { row: 20, column: 0 },
+        start_point: tree_sitter::Point {
+            row: 15,
+            column: 0,
+        },
+        end_point: tree_sitter::Point {
+            row: 20,
+            column: 0,
+        },
     };
 
     let parse_delta = ParseDelta {
@@ -124,11 +134,7 @@ async fn test_multiple_changed_ranges_preserved() -> Result<()> {
     let ast_delta = delta_engine.compute_ast_delta(&file_path, &parse_delta)?;
 
     // Should preserve both ranges
-    assert_eq!(
-        ast_delta.changed_ranges.len(),
-        2,
-        "Should have two changed ranges"
-    );
+    assert_eq!(ast_delta.changed_ranges.len(), 2, "Should have two changed ranges");
 
     Ok(())
 }

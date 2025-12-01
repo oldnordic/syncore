@@ -73,7 +73,9 @@ pub struct DiagnosticsManager {
 impl DiagnosticsManager {
     /// Create new diagnostics manager
     pub fn new(db_manager: Arc<crate::db::DbManager>) -> Self {
-        Self { db_manager }
+        Self {
+            db_manager,
+        }
     }
 
     /// Store diagnostics from external tools using DiagnosticInput format
@@ -87,10 +89,8 @@ impl DiagnosticsManager {
         let code_diagnostics: Vec<CodeDiagnostic> = diagnostics
             .iter()
             .map(|diag| {
-                let diagnostic_type = diag
-                    .code
-                    .clone()
-                    .unwrap_or_else(|| format!("{}::unknown", diag.tool));
+                let diagnostic_type =
+                    diag.code.clone().unwrap_or_else(|| format!("{}::unknown", diag.tool));
 
                 CodeDiagnostic::new(
                     diag.file_path.clone(),
@@ -301,19 +301,16 @@ impl DiagnosticsManager {
         )?;
 
         let diagnostics = stmt
-            .query_map(
-                [file_path, &line_start.to_string(), &line_end.to_string()],
-                |row| {
-                    Ok(CodeDiagnostic {
-                        file_path: row.get(0)?,
-                        line_start: row.get(1)?,
-                        severity: row.get(2)?,
-                        diagnostic_type: row.get(3)?,
-                        message: row.get(4)?,
-                        tool: row.get(5)?,
-                    })
-                },
-            )?
+            .query_map([file_path, &line_start.to_string(), &line_end.to_string()], |row| {
+                Ok(CodeDiagnostic {
+                    file_path: row.get(0)?,
+                    line_start: row.get(1)?,
+                    severity: row.get(2)?,
+                    diagnostic_type: row.get(3)?,
+                    message: row.get(4)?,
+                    tool: row.get(5)?,
+                })
+            })?
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(diagnostics)
@@ -379,10 +376,7 @@ impl DiagnosticsManager {
         let tx = conn_guard.transaction()?;
 
         // Clear existing macro expansions for this file
-        tx.execute(
-            "DELETE FROM code_macro_expansions WHERE file_path = ?",
-            [file_path],
-        )?;
+        tx.execute("DELETE FROM code_macro_expansions WHERE file_path = ?", [file_path])?;
 
         // Insert new macro expansions
         let mut stmt = tx.prepare(

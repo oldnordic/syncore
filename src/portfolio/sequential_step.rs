@@ -34,7 +34,9 @@ impl SequentialStep {
     /// Create a new sequential step tracker
     pub fn new(state: SynCoreState) -> Self {
         Self::initialize_schema(&state).expect("Failed to initialize sequential step schema");
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Initialize SQLite schema for thought steps
@@ -70,9 +72,7 @@ impl SequentialStep {
 
     /// Record a thought step
     pub fn record_step(&self, step: &ThoughtStep) -> Result<i64> {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs() as i64;
 
         // Persist to SQLite
         let step_id: i64 = self.state.tasks.with_db(|conn| {

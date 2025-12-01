@@ -164,9 +164,7 @@ impl ProjectAnalysisEngine {
         // Get total Clippy warning count
         let clippy_warning_count = {
             let diagnostics = DiagnosticsManager::new(Arc::clone(self.db_manager()));
-            diagnostics
-                .count_diagnostics_for_tool("clippy")
-                .unwrap_or(0) as u32
+            diagnostics.count_diagnostics_for_tool("clippy").unwrap_or(0) as u32
         };
 
         let summary = RefactorActionSummary {

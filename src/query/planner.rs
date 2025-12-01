@@ -232,10 +232,7 @@ impl QueryPlanner {
             }
             _ => {
                 // Unknown scope: default to project behavior
-                metadata.insert(
-                    "planning_rule".to_string(),
-                    "unknown_scope_fallback".to_string(),
-                );
+                metadata.insert("planning_rule".to_string(), "unknown_scope_fallback".to_string());
                 if constraints.allow_hopgraph {
                     steps.push(PlannerStep::HopGraph);
                 }
@@ -279,10 +276,7 @@ impl QueryPlanner {
         // Rule 4: Ensure plan ends with Fusion (unless empty)
         if !steps.is_empty() && steps.last() != Some(&PlannerStep::Fusion) {
             steps.push(PlannerStep::Fusion);
-            metadata.insert(
-                "fusion_added".to_string(),
-                "Added Fusion as final step".to_string(),
-            );
+            metadata.insert("fusion_added".to_string(), "Added Fusion as final step".to_string());
         }
 
         // Record final plan
@@ -347,30 +341,15 @@ impl QueryPlanner {
 
     /// Check if query contains causal reasoning keywords
     fn has_causal_keywords(&self, query_lower: &str) -> bool {
-        let causal_keywords = [
-            "trace",
-            "dependency",
-            "from",
-            "to",
-            "path",
-            "chain",
-            "cause",
-            "effect",
-        ];
+        let causal_keywords =
+            ["trace", "dependency", "from", "to", "path", "chain", "cause", "effect"];
         causal_keywords.iter().any(|kw| query_lower.contains(kw))
     }
 
     /// Check if query contains semantic/explanation keywords
     fn has_semantic_keywords(&self, query_lower: &str) -> bool {
-        let semantic_keywords = [
-            "why",
-            "explain",
-            "how",
-            "what",
-            "understand",
-            "describe",
-            "meaning",
-        ];
+        let semantic_keywords =
+            ["why", "explain", "how", "what", "understand", "describe", "meaning"];
         semantic_keywords.iter().any(|kw| query_lower.contains(kw))
     }
 }
@@ -413,19 +392,14 @@ mod tests {
             ..Default::default()
         };
 
-        let plan = planner
-            .plan_with_constraints("std::fmt::Display", constraints)
-            .unwrap();
+        let plan = planner.plan_with_constraints("std::fmt::Display", constraints).unwrap();
 
         // Should be: [HopGraph, VectorRefine, Fusion]
         assert_eq!(plan.steps.len(), 3);
         assert_eq!(plan.steps[0], PlannerStep::HopGraph);
         assert_eq!(plan.steps[1], PlannerStep::VectorRefine);
         assert_eq!(plan.steps[2], PlannerStep::Fusion);
-        assert_eq!(
-            plan.metadata.get("rationale").unwrap(),
-            "File query with structural hints"
-        );
+        assert_eq!(plan.metadata.get("rationale").unwrap(), "File query with structural hints");
     }
 
     #[test]
@@ -436,9 +410,7 @@ mod tests {
             ..Default::default()
         };
 
-        let plan = planner
-            .plan_with_constraints("test function", constraints)
-            .unwrap();
+        let plan = planner.plan_with_constraints("test function", constraints).unwrap();
 
         // Should be: [HopGraph, VectorRefine, Fusion]
         assert_eq!(plan.steps.len(), 3);
@@ -455,9 +427,7 @@ mod tests {
             ..Default::default()
         };
 
-        let plan = planner
-            .plan_with_constraints("search query", constraints)
-            .unwrap();
+        let plan = planner.plan_with_constraints("search query", constraints).unwrap();
 
         // Should be: [VectorRefine, Fusion]
         assert_eq!(plan.steps.len(), 2);
@@ -474,9 +444,8 @@ mod tests {
             ..Default::default()
         };
 
-        let plan = planner
-            .plan_with_constraints("trace dependency from A to B", constraints)
-            .unwrap();
+        let plan =
+            planner.plan_with_constraints("trace dependency from A to B", constraints).unwrap();
 
         // Should include RAGGraph: [HopGraph, RAGGraph, VectorRefine, Fusion]
         assert!(plan.steps.contains(&PlannerStep::RAGGraph));
@@ -496,9 +465,7 @@ mod tests {
             ..Default::default()
         };
 
-        let plan = planner
-            .plan_with_constraints("test query", constraints)
-            .unwrap();
+        let plan = planner.plan_with_constraints("test query", constraints).unwrap();
 
         // Should not include HopGraph: [VectorRefine, Fusion]
         assert!(!plan.steps.contains(&PlannerStep::HopGraph));
@@ -514,9 +481,7 @@ mod tests {
             ..Default::default()
         };
 
-        let plan = planner
-            .plan_with_constraints("explain why this fails", constraints)
-            .unwrap();
+        let plan = planner.plan_with_constraints("explain why this fails", constraints).unwrap();
 
         // Should detect semantic pattern: [VectorRefine, Fusion]
         assert!(plan.steps.contains(&PlannerStep::VectorRefine));
@@ -529,12 +494,8 @@ mod tests {
         let planner = QueryPlanner::new();
         let constraints = QueryConstraints::default();
 
-        let plan1 = planner
-            .plan_with_constraints("test query", constraints.clone())
-            .unwrap();
-        let plan2 = planner
-            .plan_with_constraints("test query", constraints)
-            .unwrap();
+        let plan1 = planner.plan_with_constraints("test query", constraints.clone()).unwrap();
+        let plan2 = planner.plan_with_constraints("test query", constraints).unwrap();
 
         // Same input should produce same plan
         assert_eq!(plan1.steps, plan2.steps);

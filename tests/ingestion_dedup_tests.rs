@@ -84,12 +84,8 @@ async fn test_immediate_deduplication() {
     std::fs::write(&test_file, "fn main() {}").unwrap();
 
     // Submit the same job twice quickly
-    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
-    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
+    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher).await.unwrap();
+    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher).await.unwrap();
 
     let stats = gic.get_stats().await;
     // Should have created 2 jobs but deduped 1
@@ -111,17 +107,13 @@ async fn test_deduplication_timeout() {
     std::fs::write(&test_file, "fn main() {}").unwrap();
 
     // Submit first job
-    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
+    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher).await.unwrap();
 
     // Wait longer than dedup window (5 seconds in current implementation)
     sleep(Duration::from_secs(6)).await;
 
     // Submit same job again - should not be deduped
-    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
+    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher).await.unwrap();
 
     let stats = gic.get_stats().await;
     // Should have created 2 jobs with no deduplication due to timeout
@@ -143,12 +135,8 @@ async fn test_different_sources_not_deduped() {
     std::fs::write(&test_file, "fn main() {}").unwrap();
 
     // Submit same file from different sources
-    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
-    gic.submit_file_changed(&test_file, IngestionSource::Cli)
-        .await
-        .unwrap();
+    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher).await.unwrap();
+    gic.submit_file_changed(&test_file, IngestionSource::Cli).await.unwrap();
 
     let stats = gic.get_stats().await;
     // Should be deduped since dedup key doesn't include source
@@ -173,12 +161,8 @@ async fn test_priority_based_deduplication() {
     std::fs::write(&doc_file, "# README").unwrap();
 
     // Submit code file (normal priority) and doc file (low priority)
-    gic.submit_file_changed(&code_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
-    gic.submit_file_changed(&doc_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
+    gic.submit_file_changed(&code_file, IngestionSource::FsWatcher).await.unwrap();
+    gic.submit_file_changed(&doc_file, IngestionSource::FsWatcher).await.unwrap();
 
     let stats = gic.get_stats().await;
     // Both should be processed, no deduplication since different files
@@ -200,14 +184,10 @@ async fn test_manual_index_deduplication() {
     std::fs::write(&test_file, "fn main() {}").unwrap();
 
     // Submit manual index request
-    gic.submit_manual_index(&test_file, IngestionKind::CodeFile)
-        .await
-        .unwrap();
+    gic.submit_manual_index(&test_file, IngestionKind::CodeFile).await.unwrap();
 
     // Submit same file as FS event
-    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher)
-        .await
-        .unwrap();
+    gic.submit_file_changed(&test_file, IngestionSource::FsWatcher).await.unwrap();
 
     let stats = gic.get_stats().await;
     // Should be deduped since same path and kind
@@ -270,13 +250,7 @@ async fn test_queue_overflow_handling() {
     );
 
     // With active consumers, all jobs should be accepted
-    assert_eq!(
-        success_count, 3,
-        "All jobs should be accepted with active consumer"
-    );
+    assert_eq!(success_count, 3, "All jobs should be accepted with active consumer");
     assert_eq!(stats.jobs_created, 3, "Should have created 3 jobs");
-    assert_eq!(
-        stats.jobs_deduped, 0,
-        "No deduplication expected for different files"
-    );
+    assert_eq!(stats.jobs_deduped, 0, "No deduplication expected for different files");
 }

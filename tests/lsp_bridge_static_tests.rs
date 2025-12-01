@@ -52,11 +52,7 @@ async fn test_lsp_status_ready_when_server_present() {
 
     let result = LspBridge::try_start(root, "rust").await;
 
-    assert!(
-        result.is_ok(),
-        "Should successfully start rust-analyzer: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should successfully start rust-analyzer: {:?}", result.err());
 
     let bridge = result.unwrap();
     assert_eq!(

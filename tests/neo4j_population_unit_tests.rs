@@ -67,25 +67,15 @@ async fn test_single_entity_indexes_to_neo4j_node() -> Result<()> {
     let params = vec![("ns", serde_json::json!("syncore_default"))];
 
     let entities = neo4j
-        .execute_query(
-            "MATCH (e:Function {namespace: $ns}) RETURN e.name as name",
-            params,
-        )
+        .execute_query("MATCH (e:Function {namespace: $ns}) RETURN e.name as name", params)
         .await?;
 
-    assert!(
-        !entities.is_empty(),
-        "Neo4j should contain the indexed function node"
-    );
+    assert!(!entities.is_empty(), "Neo4j should contain the indexed function node");
 
     // Verify the function name is "hello"
     let first = entities.first().unwrap();
     let name = first.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    assert!(
-        name.contains("hello"),
-        "Function should be named 'hello', got '{}'",
-        name
-    );
+    assert!(name.contains("hello"), "Function should be named 'hello', got '{}'", name);
 
     Ok(())
 }
@@ -123,10 +113,7 @@ fn third() { }
     let params = vec![("ns", serde_json::json!("default"))];
 
     let entities = neo4j
-        .execute_query(
-            "MATCH (e:Function {namespace: $ns}) RETURN count(e) as count",
-            params,
-        )
+        .execute_query("MATCH (e:Function {namespace: $ns}) RETURN count(e) as count", params)
         .await?;
 
     // Extract count from result
@@ -160,10 +147,8 @@ async fn test_entity_update_replaces_node_no_duplicates() -> Result<()> {
     sleep(Duration::from_millis(100)).await;
 
     // Verify only ONE node exists (no duplicates)
-    let params = vec![
-        ("ns", serde_json::json!("default")),
-        ("name", serde_json::json!("original")),
-    ];
+    let params =
+        vec![("ns", serde_json::json!("default")), ("name", serde_json::json!("original"))];
 
     let entities = neo4j
         .execute_query(
@@ -202,22 +187,13 @@ async fn test_deleted_entity_removes_node() -> Result<()> {
     sleep(Duration::from_millis(100)).await;
 
     // Verify "remove" function node is gone
-    let params = vec![
-        ("ns", serde_json::json!("default")),
-        ("name", serde_json::json!("remove")),
-    ];
+    let params = vec![("ns", serde_json::json!("default")), ("name", serde_json::json!("remove"))];
 
     let entities = neo4j
-        .execute_query(
-            "MATCH (e:Function {namespace: $ns}) WHERE e.name = $name RETURN e",
-            params,
-        )
+        .execute_query("MATCH (e:Function {namespace: $ns}) WHERE e.name = $name RETURN e", params)
         .await?;
 
-    assert!(
-        entities.is_empty(),
-        "Deleted entity node should be removed from Neo4j"
-    );
+    assert!(entities.is_empty(), "Deleted entity node should be removed from Neo4j");
 
     Ok(())
 }
@@ -264,10 +240,7 @@ fn callee() { }
         // Edge extraction might not be working for this simple case
         // Check if at least the nodes were created
         let nodes = neo4j
-            .execute_query(
-                "MATCH (e:Function {namespace: $ns}) RETURN count(e) as count",
-                params,
-            )
+            .execute_query("MATCH (e:Function {namespace: $ns}) RETURN count(e) as count", params)
             .await?;
         assert!(!nodes.is_empty(), "At minimum, function nodes should exist");
     } else {
@@ -325,10 +298,7 @@ fn third() { }
         )
         .await?;
 
-    assert!(
-        !edges.is_empty(),
-        "Should have multiple CALLS relationships"
-    );
+    assert!(!edges.is_empty(), "Should have multiple CALLS relationships");
 
     Ok(())
 }

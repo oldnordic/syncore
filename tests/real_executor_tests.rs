@@ -19,10 +19,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create a RealExecutor with fresh state
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_real_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(":memory:").expect("Failed to create tasks");
@@ -47,11 +44,8 @@ fn test_memory_store_real_execution() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_store", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("memory_store", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "Real memory_store should succeed");
@@ -70,11 +64,8 @@ fn test_memory_store_real_execution() {
         "dry_run": false
     });
 
-    let verify_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_query", &verify_params)
-            .await
-    });
+    let verify_result = rt
+        .block_on(async { executor.execute_real_tool_async("memory_query", &verify_params).await });
 
     assert!(verify_result.is_ok());
     let verify_envelope = verify_result.unwrap();
@@ -94,11 +85,8 @@ fn test_memory_store_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_store", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("memory_store", &params).await });
 
     // Should succeed but not persist
     assert!(result.is_ok());
@@ -117,11 +105,8 @@ fn test_memory_store_dry_run() {
         "dry_run": false
     });
 
-    let verify_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_query", &verify_params)
-            .await
-    });
+    let verify_result = rt
+        .block_on(async { executor.execute_real_tool_async("memory_query", &verify_params).await });
 
     assert!(verify_result.is_ok());
     let verify_envelope = verify_result.unwrap();
@@ -146,11 +131,8 @@ fn test_memory_query_real_execution() {
         "dry_run": false
     });
 
-    let store_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_store", &store_params)
-            .await
-    });
+    let store_result = rt
+        .block_on(async { executor.execute_real_tool_async("memory_store", &store_params).await });
     assert!(store_result.is_ok(), "Store should succeed");
 
     // Now query it
@@ -159,11 +141,8 @@ fn test_memory_query_real_execution() {
         "dry_run": false
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_query", &query_params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("memory_query", &query_params).await });
 
     assert!(result.is_ok());
     let envelope = result.unwrap();
@@ -186,11 +165,8 @@ fn test_memory_query_not_found() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_query", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("memory_query", &params).await });
 
     assert!(result.is_ok());
     let envelope = result.unwrap();
@@ -213,17 +189,11 @@ fn test_memory_store_error_handling() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_store", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("memory_store", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);

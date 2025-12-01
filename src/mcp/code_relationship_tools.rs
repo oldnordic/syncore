@@ -55,9 +55,8 @@ impl CodeRelationshipTools {
 
     /// Index a Rust source file, extracting imports, calls, impls, and functions
     pub async fn handle_code_relationship_index(&self, params: Value) -> Result<Value> {
-        let file_path = params["file_path"]
-            .as_str()
-            .ok_or_else(|| anyhow!("Missing file_path parameter"))?;
+        let file_path =
+            params["file_path"].as_str().ok_or_else(|| anyhow!("Missing file_path parameter"))?;
 
         let path = PathBuf::from(file_path);
         if !path.exists() {
@@ -84,9 +83,7 @@ impl CodeRelationshipTools {
 
         // Store trait implementations
         for (struct_name, trait_name) in &deps.implements {
-            self.store
-                .store_impl(file_path, struct_name, trait_name)
-                .await?;
+            self.store.store_impl(file_path, struct_name, trait_name).await?;
         }
 
         // Index function bodies for semantic search
@@ -126,9 +123,7 @@ impl CodeRelationshipTools {
             .set_language(tree_sitter_rust::language())
             .map_err(|e| anyhow!("Failed to set language: {}", e))?;
 
-        let tree = parser
-            .parse(source, None)
-            .ok_or_else(|| anyhow!("Failed to parse source"))?;
+        let tree = parser.parse(source, None).ok_or_else(|| anyhow!("Failed to parse source"))?;
 
         let query_str = r#"
             (function_item
@@ -140,9 +135,7 @@ impl CodeRelationshipTools {
             .map_err(|e| anyhow!("Query error: {}", e))?;
         let mut cursor = QueryCursor::new();
         let source_bytes = source.as_bytes();
-        let matches: Vec<_> = cursor
-            .matches(&query, tree.root_node(), source_bytes)
-            .collect();
+        let matches: Vec<_> = cursor.matches(&query, tree.root_node(), source_bytes).collect();
 
         for m in matches {
             let mut fn_name = String::new();
@@ -163,9 +156,7 @@ impl CodeRelationshipTools {
             }
 
             if !fn_name.is_empty() && !fn_body.is_empty() {
-                self.store
-                    .index_function(file_path, &fn_name, &fn_body)
-                    .await?;
+                self.store.index_function(file_path, &fn_name, &fn_body).await?;
             }
         }
 
@@ -174,9 +165,8 @@ impl CodeRelationshipTools {
 
     /// Query code relationships (imports, calls, implementors)
     pub async fn handle_code_relationship_query(&self, params: Value) -> Result<Value> {
-        let query_type = params["query_type"]
-            .as_str()
-            .ok_or_else(|| anyhow!("Missing query_type parameter"))?;
+        let query_type =
+            params["query_type"].as_str().ok_or_else(|| anyhow!("Missing query_type parameter"))?;
 
         match query_type {
             "imports" => {
@@ -233,9 +223,7 @@ impl CodeRelationshipTools {
 
     /// Search for semantically similar functions
     pub async fn handle_code_similarity_search(&self, params: Value) -> Result<Value> {
-        let query = params["query"]
-            .as_str()
-            .ok_or_else(|| anyhow!("Missing query parameter"))?;
+        let query = params["query"].as_str().ok_or_else(|| anyhow!("Missing query parameter"))?;
 
         let limit = params["limit"].as_u64().unwrap_or(10) as usize;
 

@@ -66,11 +66,7 @@ pub fn calculate_product(a: i32, b: i32) -> i32 {
 
     // Collect all chunks
     let mut chunks = Vec::new();
-    while let Some(chunk) = timeout(Duration::from_secs(2), rx.recv())
-        .await
-        .ok()
-        .flatten()
-    {
+    while let Some(chunk) = timeout(Duration::from_secs(2), rx.recv()).await.ok().flatten() {
         let is_final = chunk.is_final;
         chunks.push(chunk);
         if is_final {
@@ -79,10 +75,7 @@ pub fn calculate_product(a: i32, b: i32) -> i32 {
     }
 
     // Verify we got multiple chunks
-    assert!(
-        chunks.len() >= 2,
-        "Should receive at least 2 chunks (intermediate + final)"
-    );
+    assert!(chunks.len() >= 2, "Should receive at least 2 chunks (intermediate + final)");
 
     // Verify final chunk has consolidated results
     let final_chunk = chunks.last().unwrap();
@@ -154,11 +147,7 @@ async fn test_streaming_integration_with_live_indexer() -> Result<()> {
 
     // Verify stream works with initially indexed data
     let mut received_chunks = false;
-    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv())
-        .await
-        .ok()
-        .flatten()
-    {
+    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv()).await.ok().flatten() {
         received_chunks = true;
         if chunk.is_final {
             break;

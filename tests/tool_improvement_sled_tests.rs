@@ -76,10 +76,7 @@ fn test_sled_unclean_shutdown_recovery() {
     if let Ok(db) = recovery_result {
         // Either data is recovered OR we get empty state (both acceptable)
         let key_count = db.len();
-        assert!(
-            key_count <= 1,
-            "Recovered state should be valid (0 or 1 keys)"
-        );
+        assert!(key_count <= 1, "Recovered state should be valid (0 or 1 keys)");
     }
 }
 
@@ -153,11 +150,7 @@ fn test_sled_flush_on_drop_config() {
     {
         let db = sled::open(&db_path).expect("Failed to reopen");
         let val = db.get(b"test").expect("Get failed");
-        assert_eq!(
-            val.as_deref(),
-            Some(&b"data"[..]),
-            "Data should persist with flush on drop"
-        );
+        assert_eq!(val.as_deref(), Some(&b"data"[..]), "Data should persist with flush on drop");
     }
 }
 
@@ -184,9 +177,7 @@ fn test_sled_concurrent_access_safe() {
                 for j in 0..10 {
                     let key = format!("key_{}_{}", i, j);
                     let val = format!("value_{}_{}", i, j);
-                    db_clone
-                        .insert(key.as_bytes(), val.as_bytes())
-                        .expect("Insert failed");
+                    db_clone.insert(key.as_bytes(), val.as_bytes()).expect("Insert failed");
                 }
             })
         })
@@ -220,11 +211,7 @@ fn test_sled_lock_file_recovery() {
     // Lock should be released on drop
     // Second open should succeed
     let result = sled::open(&db_path);
-    assert!(
-        result.is_ok(),
-        "Should reopen after lock release, got: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Should reopen after lock release, got: {:?}", result.err());
 }
 
 // ============================================================================
@@ -240,8 +227,7 @@ fn test_sled_memory_cache_flush() {
     {
         let db = sled::open(&db_path).expect("Failed to open sled");
         for i in 0..100 {
-            db.insert(format!("key{}", i).as_bytes(), b"value")
-                .expect("Insert failed");
+            db.insert(format!("key{}", i).as_bytes(), b"value").expect("Insert failed");
         }
         // Explicit flush
         db.flush().expect("Flush failed");

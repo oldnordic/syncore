@@ -56,16 +56,12 @@ impl ProjectAnalysisEngine {
         let excluded_dirs = request.excluded_dirs.unwrap_or_else(get_excluded_dirs);
 
         // Build LIKE patterns for each excluded directory
-        let like_patterns: Vec<String> = excluded_dirs
-            .iter()
-            .map(|dir| format!("%/{}/%", dir))
-            .collect();
+        let like_patterns: Vec<String> =
+            excluded_dirs.iter().map(|dir| format!("%/{}/%", dir)).collect();
 
         // Also match patterns at the start of path
-        let like_patterns_start: Vec<String> = excluded_dirs
-            .iter()
-            .map(|dir| format!("{}/%", dir))
-            .collect();
+        let like_patterns_start: Vec<String> =
+            excluded_dirs.iter().map(|dir| format!("{}/%", dir)).collect();
 
         // Perform SQLite cleanup (scoped to drop guard before async)
         let (entities_deleted, edges_deleted, files_affected, sample_paths) = {
@@ -108,10 +104,8 @@ impl ProjectAnalysisEngine {
                     .map(|s| s.as_str())
                     .collect();
 
-                let param_refs: Vec<&dyn rusqlite::ToSql> = all_patterns
-                    .iter()
-                    .map(|s| s as &dyn rusqlite::ToSql)
-                    .collect();
+                let param_refs: Vec<&dyn rusqlite::ToSql> =
+                    all_patterns.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
 
                 let rows = stmt.query_map(&param_refs[..], |row| row.get::<_, String>(0))?;
 
@@ -155,22 +149,15 @@ impl ProjectAnalysisEngine {
                 &like_patterns_start,
             )?;
 
-            (
-                entities_deleted,
-                edges_deleted,
-                files_affected,
-                sample_paths,
-            )
+            (entities_deleted, edges_deleted, files_affected, sample_paths)
         };
         // Guard dropped here
 
         // Also clean up Neo4j if available
         if let Some(neo4j) = self.neo4j() {
             for dir in &excluded_dirs {
-                let cypher = format!(
-                    "MATCH (n) WHERE n.file_path CONTAINS '/{}/' DETACH DELETE n",
-                    dir
-                );
+                let cypher =
+                    format!("MATCH (n) WHERE n.file_path CONTAINS '/{}/' DETACH DELETE n", dir);
                 let _ = neo4j.execute_query(&cypher, vec![]).await;
             }
         }
@@ -208,15 +195,10 @@ impl ProjectAnalysisEngine {
         query.push_str(&conditions.join(" OR "));
 
         let mut stmt = conn.prepare(&query)?;
-        let all_patterns: Vec<&str> = like_patterns
-            .iter()
-            .chain(like_patterns_start.iter())
-            .map(|s| s.as_str())
-            .collect();
-        let param_refs: Vec<&dyn rusqlite::ToSql> = all_patterns
-            .iter()
-            .map(|s| s as &dyn rusqlite::ToSql)
-            .collect();
+        let all_patterns: Vec<&str> =
+            like_patterns.iter().chain(like_patterns_start.iter()).map(|s| s.as_str()).collect();
+        let param_refs: Vec<&dyn rusqlite::ToSql> =
+            all_patterns.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
 
         let count: i64 = stmt.query_row(&param_refs[..], |row| row.get(0))?;
         Ok(count as u64)
@@ -251,11 +233,8 @@ impl ProjectAnalysisEngine {
         query.push_str(&conditions.join(" OR "));
 
         let mut stmt = conn.prepare(&query)?;
-        let all_patterns: Vec<&str> = like_patterns
-            .iter()
-            .chain(like_patterns_start.iter())
-            .map(|s| s.as_str())
-            .collect();
+        let all_patterns: Vec<&str> =
+            like_patterns.iter().chain(like_patterns_start.iter()).map(|s| s.as_str()).collect();
 
         // Duplicate patterns for src and dst matching
         let mut expanded_params: Vec<&str> = Vec::new();
@@ -263,14 +242,10 @@ impl ProjectAnalysisEngine {
             expanded_params.push(pattern);
         }
 
-        let param_refs: Vec<&dyn rusqlite::ToSql> = all_patterns
-            .iter()
-            .map(|s| s as &dyn rusqlite::ToSql)
-            .collect();
+        let param_refs: Vec<&dyn rusqlite::ToSql> =
+            all_patterns.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
 
-        let count: i64 = stmt
-            .query_row(&param_refs[..], |row| row.get(0))
-            .unwrap_or(0);
+        let count: i64 = stmt.query_row(&param_refs[..], |row| row.get(0)).unwrap_or(0);
         Ok(count as u64)
     }
 
@@ -297,15 +272,10 @@ impl ProjectAnalysisEngine {
         query.push_str(&conditions.join(" OR "));
 
         let mut stmt = conn.prepare(&query)?;
-        let all_patterns: Vec<&str> = like_patterns
-            .iter()
-            .chain(like_patterns_start.iter())
-            .map(|s| s.as_str())
-            .collect();
-        let param_refs: Vec<&dyn rusqlite::ToSql> = all_patterns
-            .iter()
-            .map(|s| s as &dyn rusqlite::ToSql)
-            .collect();
+        let all_patterns: Vec<&str> =
+            like_patterns.iter().chain(like_patterns_start.iter()).map(|s| s.as_str()).collect();
+        let param_refs: Vec<&dyn rusqlite::ToSql> =
+            all_patterns.iter().map(|s| s as &dyn rusqlite::ToSql).collect();
 
         let deleted = stmt.execute(&param_refs[..])?;
         Ok(deleted as u64)
@@ -341,11 +311,8 @@ impl ProjectAnalysisEngine {
         query.push(')');
 
         let mut stmt = conn.prepare(&query)?;
-        let all_patterns: Vec<&str> = like_patterns
-            .iter()
-            .chain(like_patterns_start.iter())
-            .map(|s| s.as_str())
-            .collect();
+        let all_patterns: Vec<&str> =
+            like_patterns.iter().chain(like_patterns_start.iter()).map(|s| s.as_str()).collect();
 
         // Need to duplicate for the two subqueries
         let mut doubled: Vec<&str> = all_patterns.clone();

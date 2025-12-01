@@ -74,10 +74,7 @@ pub async fn execute_plan(
         // Check if step requires write permission
         if is_write_operation(&step.tool) && !allow_write {
             result.status = ExecutionStatus::PartialSuccess;
-            result.outputs.push(format!(
-                "Skipped (requires write permission): {}",
-                step.tool
-            ));
+            result.outputs.push(format!("Skipped (requires write permission): {}", step.tool));
             continue;
         }
 
@@ -95,9 +92,7 @@ pub async fn execute_plan(
                     ExecutionStatus::Failed
                 };
                 result.error = Some(format!("Step {} failed: {}", step.tool, e));
-                result
-                    .outputs
-                    .push(format!("Error in {}: {}", step.tool, e));
+                result.outputs.push(format!("Error in {}: {}", step.tool, e));
                 // Continue with remaining steps (best-effort execution)
             }
         }
@@ -141,30 +136,21 @@ async fn execute_step(step: &PlanStep, state: &SynCoreState) -> Result<String> {
 
 /// Check if a tool requires write permission
 fn is_write_operation(tool: &str) -> bool {
-    matches!(
-        tool,
-        "memory_store" | "vector_insert" | "code_index" | "file_update" | "task_create"
-    )
+    matches!(tool, "memory_store" | "vector_insert" | "code_index" | "file_update" | "task_create")
 }
 
 // Tool execution functions
 
 fn execute_memory_store(args: &serde_json::Value, state: &SynCoreState) -> Result<String> {
-    let key = args["key"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing key"))?;
-    let value = args["value"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing value"))?;
+    let key = args["key"].as_str().ok_or_else(|| anyhow::anyhow!("Missing key"))?;
+    let value = args["value"].as_str().ok_or_else(|| anyhow::anyhow!("Missing value"))?;
 
     state.memory.store(key, value)?;
     Ok(format!("Stored: {} = {}", key, value))
 }
 
 fn execute_memory_query(args: &serde_json::Value, state: &SynCoreState) -> Result<String> {
-    let key = args["key"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing key"))?;
+    let key = args["key"].as_str().ok_or_else(|| anyhow::anyhow!("Missing key"))?;
 
     match state.memory.query(key) {
         Ok(value) => {
@@ -176,9 +162,7 @@ fn execute_memory_query(args: &serde_json::Value, state: &SynCoreState) -> Resul
 }
 
 fn execute_vector_search(args: &serde_json::Value, state: &SynCoreState) -> Result<String> {
-    let query = args["query"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing query"))?;
+    let query = args["query"].as_str().ok_or_else(|| anyhow::anyhow!("Missing query"))?;
     let limit = args["limit"].as_u64().unwrap_or(10) as usize;
 
     // Use GENERAL domain store for plan documents
@@ -189,9 +173,7 @@ fn execute_vector_search(args: &serde_json::Value, state: &SynCoreState) -> Resu
 }
 
 fn execute_vector_insert(args: &serde_json::Value, state: &SynCoreState) -> Result<String> {
-    let text = args["text"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing text"))?;
+    let text = args["text"].as_str().ok_or_else(|| anyhow::anyhow!("Missing text"))?;
     let id = args["id"].as_i64().unwrap_or(0);
 
     let mut store = state.general_store.lock().unwrap();
@@ -206,9 +188,7 @@ async fn execute_code_index(_args: &serde_json::Value, _state: &SynCoreState) ->
 }
 
 async fn execute_code_search(args: &serde_json::Value, _state: &SynCoreState) -> Result<String> {
-    let query = args["query"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing query"))?;
+    let query = args["query"].as_str().ok_or_else(|| anyhow::anyhow!("Missing query"))?;
 
     // Placeholder - would call actual code_graph search
     Ok(format!("Code search for: {}", query))
@@ -218,22 +198,16 @@ async fn execute_code_graph_fusion(
     args: &serde_json::Value,
     _state: &SynCoreState,
 ) -> Result<String> {
-    let query = args["query"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing query"))?;
+    let query = args["query"].as_str().ok_or_else(|| anyhow::anyhow!("Missing query"))?;
     let mode_hint = args["mode_hint"].as_str().unwrap_or("simple");
 
     // Placeholder - would call actual code_graph_fusion_query
-    Ok(format!(
-        "CodeGraph fusion query: {} (mode: {})",
-        query, mode_hint
-    ))
+    Ok(format!("CodeGraph fusion query: {} (mode: {})", query, mode_hint))
 }
 
 fn execute_parser_analyze(args: &serde_json::Value, _state: &SynCoreState) -> Result<String> {
-    let file_path = args["file_path"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing file_path"))?;
+    let file_path =
+        args["file_path"].as_str().ok_or_else(|| anyhow::anyhow!("Missing file_path"))?;
 
     // Use actual parser
     let parser = crate::parser::Parser::new()?;
@@ -247,9 +221,7 @@ fn execute_parser_analyze(args: &serde_json::Value, _state: &SynCoreState) -> Re
 }
 
 fn execute_parser_search(args: &serde_json::Value, _state: &SynCoreState) -> Result<String> {
-    let pattern = args["pattern"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Missing pattern"))?;
+    let pattern = args["pattern"].as_str().ok_or_else(|| anyhow::anyhow!("Missing pattern"))?;
 
     // Use ripgrep via std::process
     use std::process::Command;
@@ -258,10 +230,7 @@ fn execute_parser_search(args: &serde_json::Value, _state: &SynCoreState) -> Res
     match output {
         Ok(out) if out.status.success() => {
             let count = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            Ok(format!(
-                "Found pattern '{}' in {} locations",
-                pattern, count
-            ))
+            Ok(format!("Found pattern '{}' in {} locations", pattern, count))
         }
         _ => Ok(format!("Pattern search for: {}", pattern)),
     }
@@ -271,9 +240,8 @@ async fn execute_raggraph_multihop(
     args: &serde_json::Value,
     _state: &SynCoreState,
 ) -> Result<String> {
-    let seed_nodes = args["seed_nodes"]
-        .as_array()
-        .ok_or_else(|| anyhow::anyhow!("Missing seed_nodes"))?;
+    let seed_nodes =
+        args["seed_nodes"].as_array().ok_or_else(|| anyhow::anyhow!("Missing seed_nodes"))?;
 
     // Placeholder - would call actual raggraph_multihop
     Ok(format!("RAGGraph multihop from {} seeds", seed_nodes.len()))
@@ -302,6 +270,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(deprecated)]
     async fn test_execute_plan_empty() {
         let embeddings = Box::new(crate::vector::HuggingFaceEmbeddings::new().unwrap());
         let vector_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(embeddings)));

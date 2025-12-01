@@ -126,14 +126,36 @@ impl RagGraphAPI {
         top_k: Option<u32>,
     ) -> Result<RagGraphQueryResponse> {
         // Default to Global scope for backward compatibility
+        self.query_with_scope(query, namespace, mode_hint, top_k, QueryScope::Global, None, None)
+            .await
+    }
+
+    /// Execute a RAGGraph query using a request struct
+    pub async fn query_with_request(
+        &self,
+        request: &RagGraphQueryRequest,
+    ) -> Result<RagGraphQueryResponse> {
+        let scope = if let Some(scope_str) = &request.scope {
+            match scope_str.as_str() {
+                "local" => QueryScope::Local,
+                "project" => QueryScope::Project,
+                "workspace" => QueryScope::Workspace,
+                "global" => QueryScope::Global,
+                "auto" => QueryScope::Auto,
+                _ => QueryScope::Project,
+            }
+        } else {
+            QueryScope::Project
+        };
+
         self.query_with_scope(
-            query,
-            namespace,
-            mode_hint,
-            top_k,
-            QueryScope::Global,
-            None,
-            None,
+            &request.query,
+            request.namespace.as_deref(),
+            request.mode_hint.as_deref(),
+            request.top_k,
+            scope,
+            request.project_label.as_deref(),
+            request.local_root.as_deref(),
         )
         .await
     }
@@ -151,6 +173,7 @@ impl RagGraphAPI {
     ///
     /// # Returns
     /// RagGraphQueryResponse with ranked entities and debug info
+    #[allow(clippy::too_many_arguments)]
     pub async fn query_with_scope(
         &self,
         query: &str,
@@ -257,14 +280,9 @@ impl RagGraphAPI {
 
         // Add global debug info
         debug_info.insert("query_length".to_string(), serde_json::json!(query.len()));
-        debug_info.insert(
-            "total_matches".to_string(),
-            serde_json::json!(filtered_matches.len()),
-        );
-        debug_info.insert(
-            "pre_filter_matches".to_string(),
-            serde_json::json!(k * fetch_multiplier),
-        );
+        debug_info.insert("total_matches".to_string(), serde_json::json!(filtered_matches.len()));
+        debug_info
+            .insert("pre_filter_matches".to_string(), serde_json::json!(k * fetch_multiplier));
         if let Some(ns) = namespace {
             debug_info.insert("namespace".to_string(), serde_json::json!(ns));
         }
@@ -325,10 +343,7 @@ impl RagGraphAPI {
             QueryScope::Local => {
                 // Filter by local root path
                 if let Some(root) = local_root {
-                    matches
-                        .into_iter()
-                        .filter(|m| m.entity.file_path.contains(root))
-                        .collect()
+                    matches.into_iter().filter(|m| m.entity.file_path.contains(root)).collect()
                 } else if let Some(label) = project_label {
                     // Fall back to project filtering if no local root
                     matches
@@ -381,12 +396,8 @@ impl RagGraphAPI {
         let multi_hop_result = super::multi_hop::multi_hop_sqlite(&db, entity_id, 20)?;
 
         // Find minimum depth (excluding self at depth 0)
-        let min_depth = multi_hop_result
-            .nodes
-            .iter()
-            .filter(|n| n.depth > 0)
-            .map(|n| n.depth)
-            .min();
+        let min_depth =
+            multi_hop_result.nodes.iter().filter(|n| n.depth > 0).map(|n| n.depth).min();
 
         // Convert depth to score using Phase 5 formula
         let graph_score = super::fusion_simple::compute_graph_score(min_depth);
@@ -404,24 +415,15 @@ impl RagGraphAPI {
     ) -> Result<f32> {
         // PHASE 5: Use default 4-component weights (α=0.5, β=0.2, τ=0.1, γ=0.2)
         let fusion = FusionSimple::default();
-        let result = fusion.combine(
-            vector_score,
-            graph_score,
-            temporal_score,
-            graph_embedding_score,
-        );
+        let result =
+            fusion.combine(vector_score, graph_score, temporal_score, graph_embedding_score);
 
         // Add debug info
         debug_info.insert("vector_score".to_string(), serde_json::json!(vector_score));
         debug_info.insert("graph_score".to_string(), serde_json::json!(graph_score));
-        debug_info.insert(
-            "temporal_score".to_string(),
-            serde_json::json!(temporal_score),
-        );
-        debug_info.insert(
-            "graph_embedding_score".to_string(),
-            serde_json::json!(graph_embedding_score),
-        );
+        debug_info.insert("temporal_score".to_string(), serde_json::json!(temporal_score));
+        debug_info
+            .insert("graph_embedding_score".to_string(), serde_json::json!(graph_embedding_score));
         debug_info.insert("alpha".to_string(), serde_json::json!(0.5));
         debug_info.insert("beta".to_string(), serde_json::json!(0.2));
         debug_info.insert("tau".to_string(), serde_json::json!(0.1));
@@ -456,10 +458,7 @@ impl RagGraphAPI {
         let alpha = (0.3 + complexity / 5.0).clamp(0.3, 0.7);
 
         debug_info.insert("attention_alpha".to_string(), serde_json::json!(alpha));
-        debug_info.insert(
-            "context_complexity".to_string(),
-            serde_json::json!(complexity),
-        );
+        debug_info.insert("context_complexity".to_string(), serde_json::json!(complexity));
 
         Ok(result)
     }

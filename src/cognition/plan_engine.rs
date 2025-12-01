@@ -45,7 +45,10 @@ impl Plan {
 
     /// Add a step to the plan
     pub fn add_step(&mut self, tool: String, args: serde_json::Value) {
-        self.steps.push(PlanStep { tool, args });
+        self.steps.push(PlanStep {
+            tool,
+            args,
+        });
     }
 }
 
@@ -167,9 +170,7 @@ fn find_best_pattern<'a>(
                 && p.selected_mode == selected_mode
         })
         .max_by(|a, b| {
-            a.success_rate
-                .partial_cmp(&b.success_rate)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            a.success_rate.partial_cmp(&b.success_rate).unwrap_or(std::cmp::Ordering::Equal)
         })
 }
 
@@ -201,10 +202,7 @@ fn build_index_search_plan(
         }
     }
 
-    plan.add_step(
-        "code_search".to_string(),
-        serde_json::json!({"query": query, "limit": 10}),
-    );
+    plan.add_step("code_search".to_string(), serde_json::json!({"query": query, "limit": 10}));
 }
 
 /// Build graph traversal plan
@@ -225,10 +223,7 @@ fn build_graph_traversal_plan(
     }
 
     // Default: code_graph_fusion_query
-    let mode_hint = if matches!(
-        pattern.map(|p| &p.graph_usage),
-        Some(PatternGraphUsage::Heavy)
-    ) {
+    let mode_hint = if matches!(pattern.map(|p| &p.graph_usage), Some(PatternGraphUsage::Heavy)) {
         "reasoning"
     } else {
         "attention"
@@ -245,12 +240,8 @@ fn build_graph_traversal_plan(
 
     // Add multi-hop if entities present
     if !bundle.raggraph_entities.is_empty() {
-        let entity_ids: Vec<i64> = bundle
-            .raggraph_entities
-            .iter()
-            .filter_map(|e| e.entity_id)
-            .take(3)
-            .collect();
+        let entity_ids: Vec<i64> =
+            bundle.raggraph_entities.iter().filter_map(|e| e.entity_id).take(3).collect();
 
         plan.add_step(
             "raggraph_multihop".to_string(),
@@ -272,10 +263,7 @@ fn build_memory_retrieval_plan(plan: &mut Plan, query: &str, pattern: Option<&Re
     }
 
     // Default: vector_search + memory_query
-    plan.add_step(
-        "vector_search".to_string(),
-        serde_json::json!({"query": query, "limit": 5}),
-    );
+    plan.add_step("vector_search".to_string(), serde_json::json!({"query": query, "limit": 5}));
 
     // Extract key terms for memory query
     let key = query.split_whitespace().next().unwrap_or("query");
@@ -285,10 +273,7 @@ fn build_memory_retrieval_plan(plan: &mut Plan, query: &str, pattern: Option<&Re
 /// Build symbolic plan (simple string operations)
 fn build_symbolic_plan(plan: &mut Plan, query: &str) {
     // Symbolic queries typically need parser analysis
-    plan.add_step(
-        "parser_search".to_string(),
-        serde_json::json!({"pattern": query}),
-    );
+    plan.add_step("parser_search".to_string(), serde_json::json!({"pattern": query}));
 }
 
 /// Limit plan size to 3-8 steps
@@ -297,10 +282,7 @@ fn limit_plan_size(plan: &mut Plan) {
 
     if plan.steps.is_empty() {
         // Add default fallback step
-        plan.add_step(
-            "memory_query".to_string(),
-            serde_json::json!({"key": "default"}),
-        );
+        plan.add_step("memory_query".to_string(), serde_json::json!({"key": "default"}));
     }
 
     if plan.steps.len() > MAX_STEPS {
@@ -314,15 +296,11 @@ fn limit_plan_size(plan: &mut Plan) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cognition::pattern_engine::ReasoningPatternId;
 
     #[test]
     fn test_plan_creation() {
         let mut plan = Plan::new();
-        plan.add_step(
-            "code_index".to_string(),
-            serde_json::json!({"file_path": "test.rs"}),
-        );
+        plan.add_step("code_index".to_string(), serde_json::json!({"file_path": "test.rs"}));
 
         assert_eq!(plan.steps.len(), 1);
         assert_eq!(plan.steps[0].tool, "code_index");

@@ -36,10 +36,7 @@ pub fn execute_code_macro<R: ExecutionRecorder>(params: &Value, recorder: &R) ->
                 .get("file_path")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("Missing required field: file_path"))?;
-            recorder.record_step(
-                "parser_analyze",
-                serde_json::json!({ "file_path": file_path }),
-            );
+            recorder.record_step("parser_analyze", serde_json::json!({ "file_path": file_path }));
             Ok(())
         }
         "search" => {
@@ -58,10 +55,7 @@ pub fn execute_code_macro<R: ExecutionRecorder>(params: &Value, recorder: &R) ->
             recorder.record_step("code_index", serde_json::json!({ "file_path": file_path }));
             Ok(())
         }
-        _ => Err(anyhow::anyhow!(
-            "Invalid action for syncore.code: {}",
-            action
-        )),
+        _ => Err(anyhow::anyhow!("Invalid action for syncore.code: {}", action)),
     }
 }
 
@@ -89,10 +83,7 @@ mod tests {
 
     impl ExecutionRecorder for TestRecorder {
         fn record_step(&self, tool_name: &str, params: Value) {
-            self.calls
-                .lock()
-                .unwrap()
-                .push((tool_name.to_string(), params));
+            self.calls.lock().unwrap().push((tool_name.to_string(), params));
         }
 
         fn wrap_success(&self, _tool: &str, data: Value) -> Value {

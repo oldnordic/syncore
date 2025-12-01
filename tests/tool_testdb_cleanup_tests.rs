@@ -31,10 +31,7 @@ fn test_each_test_own_temp_dir() {
     let db_path2 = temp_dir2.path().join("test.db");
 
     // Verify they're different directories
-    assert_ne!(
-        db_path1, db_path2,
-        "Each test should get unique temp directory"
-    );
+    assert_ne!(db_path1, db_path2, "Each test should get unique temp directory");
 
     // Both should exist
     assert!(temp_dir1.path().exists());
@@ -63,11 +60,7 @@ fn test_db_file_removed_after_test() {
     }
 
     // After drop, file should be gone
-    assert!(
-        !db_path.exists(),
-        "DB file should be removed after test: {:?}",
-        db_path
-    );
+    assert!(!db_path.exists(), "DB file should be removed after test: {:?}", db_path);
 }
 
 // ============================================================================
@@ -165,10 +158,7 @@ fn test_helper_creates_unique_dbs() {
         let db_path = temp_dir.path().join("test.db");
 
         // All paths should be unique
-        assert!(
-            paths.insert(db_path.clone()),
-            "Each test DB should have unique path"
-        );
+        assert!(paths.insert(db_path.clone()), "Each test DB should have unique path");
 
         // Keep temp_dir alive
         std::mem::forget(temp_dir); // Note: leaks in test, but proves uniqueness

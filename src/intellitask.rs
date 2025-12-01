@@ -183,11 +183,7 @@ impl IntelliTask {
         // Parse JSON response (strip markdown wrapper if present)
         let cleaned_response = Self::strip_markdown_json(&response);
         let breakdown: TaskBreakdown = serde_json::from_str(&cleaned_response).map_err(|e| {
-            anyhow!(
-                "Failed to parse AI response as JSON: {}. Response was: {}",
-                e,
-                response
-            )
+            anyhow!("Failed to parse AI response as JSON: {}. Response was: {}", e, response)
         })?;
 
         Ok(breakdown)
@@ -268,11 +264,7 @@ impl IntelliTask {
         // Parse JSON response (strip markdown wrapper if present)
         let cleaned_response = Self::strip_markdown_json(&response);
         let subtasks: Vec<Subtask> = serde_json::from_str(&cleaned_response).map_err(|e| {
-            anyhow!(
-                "Failed to parse subtasks JSON: {}. Response was: {}",
-                e,
-                response
-            )
+            anyhow!("Failed to parse subtasks JSON: {}. Response was: {}", e, response)
         })?;
 
         Ok(subtasks)
@@ -311,11 +303,7 @@ impl IntelliTask {
         }
 
         let analysis: DependencyAnalysis = serde_json::from_str(json_str).map_err(|e| {
-            anyhow!(
-                "Failed to parse dependency analysis: {}. Response was: {}",
-                e,
-                json_str
-            )
+            anyhow!("Failed to parse dependency analysis: {}. Response was: {}", e, json_str)
         })?;
 
         Ok(analysis.execution_order)
@@ -364,11 +352,7 @@ impl IntelliTask {
         }
 
         let result: PriorityResult = serde_json::from_str(json_str).map_err(|e| {
-            anyhow!(
-                "Failed to parse priority analysis: {}. Response was: {}",
-                e,
-                json_str
-            )
+            anyhow!("Failed to parse priority analysis: {}. Response was: {}", e, json_str)
         })?;
 
         Ok(result
@@ -426,17 +410,10 @@ impl IntelliTask {
         }
 
         let suggestion: NextTaskSuggestion = serde_json::from_str(json_str).map_err(|e| {
-            anyhow!(
-                "Failed to parse next task suggestion: {}. Response was: {}",
-                e,
-                json_str
-            )
+            anyhow!("Failed to parse next task suggestion: {}. Response was: {}", e, json_str)
         })?;
 
-        Ok(format!(
-            "Suggested: {} - {}",
-            suggestion.suggested_task_id, suggestion.reasoning
-        ))
+        Ok(format!("Suggested: {} - {}", suggestion.suggested_task_id, suggestion.reasoning))
     }
 
     /// Extract balanced JSON from AI response (handles markdown blocks and extra text)
@@ -500,10 +477,8 @@ impl IntelliTask {
         prompt: &str,
         schema: Option<serde_json::Value>,
     ) -> Result<String> {
-        let ollama = self
-            .ollama
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock Ollama client: {}", e))?;
+        let ollama =
+            self.ollama.lock().map_err(|e| anyhow!("Failed to lock Ollama client: {}", e))?;
 
         ollama.generate_with_schema(prompt, schema)
     }
@@ -625,11 +600,7 @@ mod tests {
     fn test_ollama_connection() {
         // Test that we can connect to Ollama
         let result = OllamaClient::new(OllamaConfig::default());
-        assert!(
-            result.is_ok(),
-            "Failed to create Ollama client: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to create Ollama client: {:?}", result.err());
     }
 
     #[test]
@@ -645,35 +616,19 @@ mod tests {
                    - Password reset functionality";
 
         let result = intellitask.generate_tasks_from_prd(prd);
-        assert!(
-            result.is_ok(),
-            "Failed to generate tasks: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to generate tasks: {:?}", result.err());
 
         let breakdown = result.unwrap();
-        assert!(
-            !breakdown.parent_tasks.is_empty(),
-            "No parent tasks generated"
-        );
-        assert!(
-            !breakdown.relevant_files.is_empty(),
-            "No relevant files identified"
-        );
+        assert!(!breakdown.parent_tasks.is_empty(), "No parent tasks generated");
+        assert!(!breakdown.relevant_files.is_empty(), "No relevant files identified");
         assert!(!breakdown.prd_title.is_empty(), "No PRD title generated");
 
         // Verify at least one task has proper structure
         let first_task = &breakdown.parent_tasks[0];
         assert!(!first_task.id.is_empty(), "Task ID is empty");
         assert!(!first_task.title.is_empty(), "Task title is empty");
-        assert!(
-            !first_task.description.is_empty(),
-            "Task description is empty"
-        );
-        assert!(
-            first_task.estimated_hours > 0.0,
-            "Estimated hours should be positive"
-        );
+        assert!(!first_task.description.is_empty(), "Task description is empty");
+        assert!(first_task.estimated_hours > 0.0, "Estimated hours should be positive");
     }
 
     #[test]
@@ -685,11 +640,7 @@ mod tests {
         let codebase_context = "Project: Rust async web service using Axum and PostgreSQL";
 
         let result = intellitask.generate_subtasks(&parent_task, codebase_context);
-        assert!(
-            result.is_ok(),
-            "Failed to generate subtasks: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to generate subtasks: {:?}", result.err());
 
         let subtasks = result.unwrap();
         assert!(!subtasks.is_empty(), "No subtasks generated");
@@ -701,28 +652,19 @@ mod tests {
 
         // Verify subtask structure
         for subtask in &subtasks {
-            println!(
-                "Generated subtask ID: {}, Expected prefix: {}.",
-                subtask.id, parent_task.id
-            );
+            println!("Generated subtask ID: {}, Expected prefix: {}.", subtask.id, parent_task.id);
             assert!(
                 subtask.id.starts_with(&format!("{}.", parent_task.id)),
                 "Subtask ID should start with parent ID. Got: {}, Expected prefix: {}.",
                 subtask.id,
                 parent_task.id
             );
-            assert!(
-                !subtask.description.is_empty(),
-                "Subtask description is empty"
-            );
+            assert!(!subtask.description.is_empty(), "Subtask description is empty");
             assert!(
                 !subtask.acceptance_criteria.is_empty(),
                 "Subtask should have acceptance criteria"
             );
-            assert!(
-                subtask.estimated_hours > 0.0,
-                "Estimated hours should be positive"
-            );
+            assert!(subtask.estimated_hours > 0.0, "Estimated hours should be positive");
         }
     }
 
@@ -753,11 +695,7 @@ mod tests {
         ];
 
         let result = intellitask.analyze_dependencies(&tasks);
-        assert!(
-            result.is_ok(),
-            "Failed to analyze dependencies: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to analyze dependencies: {:?}", result.err());
 
         let execution_order = result.unwrap();
         assert!(!execution_order.is_empty(), "No execution order generated");
@@ -792,18 +730,10 @@ mod tests {
         let business_context = "MVP launch in 4 weeks. Authentication is critical for security.";
 
         let result = intellitask.prioritize_tasks(&tasks, business_context);
-        assert!(
-            result.is_ok(),
-            "Failed to prioritize tasks: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to prioritize tasks: {:?}", result.err());
 
         let priorities = result.unwrap();
-        assert_eq!(
-            priorities.len(),
-            tasks.len(),
-            "Should have priority for each task"
-        );
+        assert_eq!(priorities.len(), tasks.len(), "Should have priority for each task");
 
         // Verify priorities are valid
         for (task_id, priority) in &priorities {
@@ -848,18 +778,11 @@ mod tests {
         ];
 
         let result = intellitask.suggest_next_task(&completed, &remaining);
-        assert!(
-            result.is_ok(),
-            "Failed to suggest next task: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "Failed to suggest next task: {:?}", result.err());
 
         let suggestion = result.unwrap();
         assert!(!suggestion.is_empty(), "Suggestion should not be empty");
-        assert!(
-            suggestion.contains("Suggested:"),
-            "Should contain 'Suggested:' prefix"
-        );
+        assert!(suggestion.contains("Suggested:"), "Should contain 'Suggested:' prefix");
 
         // Should suggest task 2.0 since 1.0 is complete and 2.0 depends on it
         assert!(
@@ -986,10 +909,7 @@ mod tests {
             "Should report missing estimated_complexity field"
         );
 
-        println!(
-            "Comprehensive validation found {} errors (good!):",
-            errors.len()
-        );
+        println!("Comprehensive validation found {} errors (good!):", errors.len());
         for (i, e) in errors.iter().enumerate() {
             println!("  {}. {}", i + 1, e);
         }

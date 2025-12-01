@@ -97,7 +97,9 @@ fn test_toon_graph_can_update_existing_node() {
     // Should have updated version
     let retrieved = graph.get_node("node1").unwrap();
     match &retrieved.instr {
-        ToonInstr::EmitPointer { id } => {
+        ToonInstr::EmitPointer {
+            id,
+        } => {
             assert_eq!(id, "P456");
         }
         _ => panic!("Expected EmitPointer instruction"),
@@ -125,19 +127,27 @@ fn test_toon_instr_variants() {
 
     // Just verify they compile and can be pattern matched
     match instr1 {
-        ToonInstr::LoadMemory { .. } => {}
+        ToonInstr::LoadMemory {
+            ..
+        } => {}
         _ => panic!("Expected LoadMemory"),
     }
     match instr2 {
-        ToonInstr::Retrieve { .. } => {}
+        ToonInstr::Retrieve {
+            ..
+        } => {}
         _ => panic!("Expected Retrieve"),
     }
     match instr3 {
-        ToonInstr::FoldContext { .. } => {}
+        ToonInstr::FoldContext {
+            ..
+        } => {}
         _ => panic!("Expected FoldContext"),
     }
     match instr4 {
-        ToonInstr::EmitPointer { .. } => {}
+        ToonInstr::EmitPointer {
+            ..
+        } => {}
         _ => panic!("Expected EmitPointer"),
     }
     match instr5 {
@@ -170,9 +180,5 @@ fn test_toon_graph_empty_next_list() {
     graph.add_node(terminal_node);
 
     let retrieved = graph.get_node("terminal").unwrap();
-    assert_eq!(
-        retrieved.next.len(),
-        0,
-        "Terminal node should have empty next list"
-    );
+    assert_eq!(retrieved.next.len(), 0, "Terminal node should have empty next list");
 }

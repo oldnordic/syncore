@@ -121,13 +121,8 @@ async fn test_sequential_core_real_implementation() -> Result<()> {
     let logger = Arc::new(TestLogger::new());
 
     // Create SequentialCore with real components
-    let core = SequentialCore::new(
-        tasks.clone(),
-        vector_store,
-        memory.clone(),
-        model,
-        logger.clone(),
-    );
+    let core =
+        SequentialCore::new(tasks.clone(), vector_store, memory.clone(), model, logger.clone());
 
     // Create a test task
     let goal = "Implement sequential thinking functionality";
@@ -152,11 +147,7 @@ async fn test_sequential_core_real_implementation() -> Result<()> {
     let db = tasks.get_db();
     let db_guard = db.lock().unwrap();
     let steps = syncore::cognitive_db::recent_steps(&db_guard, completed_task.id, 10)?;
-    assert_eq!(
-        steps.len(),
-        4,
-        "Should have Think, Decide, Act, Reflect steps"
-    );
+    assert_eq!(steps.len(), 4, "Should have Think, Decide, Act, Reflect steps");
 
     let step_types: Vec<String> = steps.iter().map(|s| s.state.clone()).collect();
     assert!(step_types.contains(&"Think".to_string()));

@@ -21,57 +21,62 @@ pub use super::self_consistency_types::{
     SuggestedPlan,
 };
 
+/// Configuration for self-consistency evaluation
+pub struct SelfConsistencyConfig<'a> {
+    pub intent: &'a QueryIntent,
+    pub selected_mode: &'a str,
+    pub planned_tools: &'a [String],
+    pub context_bundle: &'a ContextBundle,
+    pub continuity: &'a ReasoningContinuity,
+    pub recommended_patterns: &'a [ReasoningPattern],
+    pub ledger_episodes: &'a [ReasoningEpisode],
+}
+
 /// Evaluate self-consistency of a reasoning plan
 pub fn evaluate_self_consistency(
     _query: &str,
-    intent: &QueryIntent,
-    selected_mode: &str,
-    planned_tools: &[String],
-    context_bundle: &ContextBundle,
-    continuity: &ReasoningContinuity,
-    recommended_patterns: &[ReasoningPattern],
-    ledger_episodes: &[ReasoningEpisode],
+    config: SelfConsistencyConfig,
 ) -> SelfConsistencyResult {
     let mut issues = Vec::new();
 
     // Check 1: Repeated failed sequence
-    detect_repeated_failed_sequence(planned_tools, ledger_episodes, &mut issues);
+    detect_repeated_failed_sequence(config.planned_tools, config.ledger_episodes, &mut issues);
 
     // Check 2: Conflicting pattern
     detect_conflicting_pattern(
-        intent,
-        selected_mode,
-        planned_tools,
-        recommended_patterns,
+        config.intent,
+        config.selected_mode,
+        config.planned_tools,
+        config.recommended_patterns,
         &mut issues,
     );
 
     // Check 3: Graph inconsistency
-    detect_graph_inconsistency(planned_tools, context_bundle, &mut issues);
+    detect_graph_inconsistency(config.planned_tools, config.context_bundle, &mut issues);
 
     // Check 4: Namespace mismatch
-    detect_namespace_mismatch(context_bundle, &mut issues);
+    detect_namespace_mismatch(config.context_bundle, &mut issues);
 
     // Check 5: Tool order suspicious
     detect_tool_order_suspicious(
-        intent,
-        selected_mode,
-        planned_tools,
-        recommended_patterns,
+        config.intent,
+        config.selected_mode,
+        config.planned_tools,
+        config.recommended_patterns,
         &mut issues,
     );
 
     // Check 6: Missing required step
-    detect_missing_required_step(planned_tools, recommended_patterns, &mut issues);
+    detect_missing_required_step(config.planned_tools, config.recommended_patterns, &mut issues);
 
     // Check 7: Potential loop
-    detect_potential_loop(planned_tools, continuity, &mut issues);
+    detect_potential_loop(config.planned_tools, config.continuity, &mut issues);
 
     // Compute score based on issues
     let score = compute_score(&issues);
 
     // Generate suggested plan if needed
-    let suggested_plan = generate_suggested_plan(recommended_patterns, &issues);
+    let suggested_plan = generate_suggested_plan(config.recommended_patterns, &issues);
 
     SelfConsistencyResult {
         score,
@@ -145,16 +150,10 @@ fn detect_graph_inconsistency(
     context_bundle: &ContextBundle,
     issues: &mut Vec<SelfConsistencyIssue>,
 ) {
-    let graph_tools = [
-        "code_graph_fusion_query",
-        "raggraph_query",
-        "raggraph_multihop",
-        "graph_query",
-    ];
+    let graph_tools =
+        ["code_graph_fusion_query", "raggraph_query", "raggraph_multihop", "graph_query"];
 
-    let has_graph_tools = planned_tools
-        .iter()
-        .any(|t| graph_tools.iter().any(|gt| t.contains(gt)));
+    let has_graph_tools = planned_tools.iter().any(|t| graph_tools.iter().any(|gt| t.contains(gt)));
 
     let has_graph_entities =
         !context_bundle.raggraph_entities.is_empty() || !context_bundle.memory_graph.is_empty();
@@ -244,9 +243,7 @@ fn detect_missing_required_step(
                 if first_tool.contains("code_index") || first_tool.contains("document_index") {
                     // Check if planned tools skip this step
                     if !planned_tools.iter().any(|t| t.contains("index"))
-                        && planned_tools
-                            .iter()
-                            .any(|t| t.contains("graph") || t.contains("query"))
+                        && planned_tools.iter().any(|t| t.contains("graph") || t.contains("query"))
                     {
                         issues.push(SelfConsistencyIssue {
                             kind: SelfConsistencyIssueKind::MissingRequiredStep,

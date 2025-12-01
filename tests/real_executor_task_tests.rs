@@ -30,10 +30,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create a RealExecutor with fresh state
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_task_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -59,18 +56,11 @@ fn test_task_create_real_basic() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("task_create", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("task_create", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real task_create should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real task_create should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -78,11 +68,7 @@ fn test_task_create_real_basic() {
 
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
-    assert!(
-        data.get("task_id").is_some(),
-        "Data should have task_id: {:?}",
-        data
-    );
+    assert!(data.get("task_id").is_some(), "Data should have task_id: {:?}", data);
 
     let task_id = data["task_id"].as_i64().expect("task_id should be i64");
     assert!(task_id > 0, "task_id should be positive");
@@ -93,16 +79,10 @@ fn test_task_create_real_basic() {
         "dry_run": false
     });
 
-    let get_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_get", &get_params)
-            .await
-    });
+    let get_result = rt
+        .block_on(async { executor.execute_real_tool_async("intellitask_get", &get_params).await });
 
-    assert!(
-        get_result.is_ok(),
-        "Should be able to retrieve created task"
-    );
+    assert!(get_result.is_ok(), "Should be able to retrieve created task");
     let get_envelope = get_result.unwrap();
     assert_success_envelope(&get_envelope);
     let task_data = unwrap_data(&get_envelope);
@@ -128,11 +108,8 @@ fn test_task_create_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("task_create", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("task_create", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "Dry run should succeed");
@@ -155,9 +132,7 @@ fn test_task_create_respects_dry_run() {
     });
 
     let list_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_list", &list_params)
-            .await
+        executor.execute_real_tool_async("intellitask_list", &list_params).await
     });
 
     if let Ok(list_envelope) = list_result {
@@ -193,11 +168,8 @@ fn test_intellitask_list_real() {
         "dry_run": false
     });
 
-    let create_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("task_create", &create_params)
-            .await
-    });
+    let create_result = rt
+        .block_on(async { executor.execute_real_tool_async("task_create", &create_params).await });
     assert!(create_result.is_ok(), "Create should succeed");
 
     // Now list tasks
@@ -206,9 +178,7 @@ fn test_intellitask_list_real() {
     });
 
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_list", &list_params)
-            .await
+        executor.execute_real_tool_async("intellitask_list", &list_params).await
     });
 
     assert!(result.is_ok(), "List should succeed");
@@ -219,11 +189,7 @@ fn test_intellitask_list_real() {
 
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
-    assert!(
-        data.get("tasks").is_some(),
-        "Data should have tasks field: {:?}",
-        data
-    );
+    assert!(data.get("tasks").is_some(), "Data should have tasks field: {:?}", data);
 
     let tasks = data["tasks"].as_array().expect("tasks should be array");
     assert!(!tasks.is_empty(), "Should have at least one task");
@@ -245,19 +211,14 @@ fn test_intellitask_get_real() {
         "dry_run": false
     });
 
-    let create_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("task_create", &create_params)
-            .await
-    });
+    let create_result = rt
+        .block_on(async { executor.execute_real_tool_async("task_create", &create_params).await });
     assert!(create_result.is_ok(), "Create should succeed");
     let create_envelope = create_result.unwrap();
     assert_success_envelope(&create_envelope);
     let create_data = unwrap_data(&create_envelope);
 
-    let task_id = create_data["task_id"]
-        .as_i64()
-        .expect("Should have task_id");
+    let task_id = create_data["task_id"].as_i64().expect("Should have task_id");
 
     // Get the task
     let get_params = json!({
@@ -265,11 +226,8 @@ fn test_intellitask_get_real() {
         "dry_run": false
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_get", &get_params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("intellitask_get", &get_params).await });
 
     assert!(result.is_ok(), "Get should succeed");
     let envelope = result.unwrap();
@@ -302,19 +260,14 @@ fn test_intellitask_update_status_real() {
         "dry_run": false
     });
 
-    let create_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("task_create", &create_params)
-            .await
-    });
+    let create_result = rt
+        .block_on(async { executor.execute_real_tool_async("task_create", &create_params).await });
     assert!(create_result.is_ok(), "Create should succeed");
     let create_envelope = create_result.unwrap();
     assert_success_envelope(&create_envelope);
     let create_data = unwrap_data(&create_envelope);
 
-    let task_id = create_data["task_id"]
-        .as_i64()
-        .expect("Should have task_id");
+    let task_id = create_data["task_id"].as_i64().expect("Should have task_id");
 
     // Update status
     let update_params = json!({
@@ -324,9 +277,7 @@ fn test_intellitask_update_status_real() {
     });
 
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_update_status", &update_params)
-            .await
+        executor.execute_real_tool_async("intellitask_update_status", &update_params).await
     });
 
     assert!(result.is_ok(), "Update should succeed: {:?}", result.err());
@@ -338,13 +289,8 @@ fn test_intellitask_update_status_real() {
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
     assert!(
-        data.get("updated")
-            .and_then(|u| u.as_bool())
-            .unwrap_or(false)
-            || data
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false),
+        data.get("updated").and_then(|u| u.as_bool()).unwrap_or(false)
+            || data.get("success").and_then(|s| s.as_bool()).unwrap_or(false),
         "Data should indicate update success: {:?}",
         data
     );
@@ -355,11 +301,8 @@ fn test_intellitask_update_status_real() {
         "dry_run": false
     });
 
-    let get_result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_get", &get_params)
-            .await
-    });
+    let get_result = rt
+        .block_on(async { executor.execute_real_tool_async("intellitask_get", &get_params).await });
 
     if let Ok(get_envelope) = get_result {
         assert_success_envelope(&get_envelope);
@@ -384,9 +327,7 @@ fn test_intellitask_next_ready_real() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_next_ready", &params)
-            .await
+        executor.execute_real_tool_async("intellitask_next_ready", &params).await
     });
 
     // Should succeed even if no tasks
@@ -421,9 +362,7 @@ fn test_intellitask_get_subtasks_real() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_get_subtasks", &params)
-            .await
+        executor.execute_real_tool_async("intellitask_get_subtasks", &params).await
     });
 
     assert!(result.is_ok(), "get_subtasks should succeed");
@@ -434,11 +373,7 @@ fn test_intellitask_get_subtasks_real() {
 
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
-    assert!(
-        data.get("subtasks").is_some(),
-        "Data should have subtasks field: {:?}",
-        data
-    );
+    assert!(data.get("subtasks").is_some(), "Data should have subtasks field: {:?}", data);
 
     if let Some(subtasks) = data["subtasks"].as_array() {
         // Array should be valid (may be empty if no subtasks)
@@ -461,9 +396,7 @@ fn test_intellitask_subtask_stats_real() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_subtask_stats", &params)
-            .await
+        executor.execute_real_tool_async("intellitask_subtask_stats", &params).await
     });
 
     assert!(result.is_ok(), "subtask_stats should succeed");
@@ -495,9 +428,7 @@ fn test_intellitask_task_statistics_real() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_task_statistics", &params)
-            .await
+        executor.execute_real_tool_async("intellitask_task_statistics", &params).await
     });
 
     assert!(result.is_ok(), "task_statistics should succeed");
@@ -530,9 +461,7 @@ fn test_intellitask_prd_statistics_real() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_prd_statistics", &params)
-            .await
+        executor.execute_real_tool_async("intellitask_prd_statistics", &params).await
     });
 
     assert!(result.is_ok(), "prd_statistics should succeed");
@@ -565,17 +494,11 @@ fn test_task_tools_error_handling() {
         // Missing 'goal' - should error
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("task_create", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("task_create", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -587,16 +510,10 @@ fn test_task_tools_error_handling() {
         // Missing 'task_id' - should error
     });
 
-    let result2 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("intellitask_get", &params2)
-            .await
-    });
+    let result2 =
+        rt.block_on(async { executor.execute_real_tool_async("intellitask_get", &params2).await });
 
-    assert!(
-        result2.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result2.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope2 = result2.unwrap();
     assert_error_envelope(&envelope2);
     let error2 = unwrap_error(&envelope2);

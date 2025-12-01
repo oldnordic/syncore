@@ -52,11 +52,7 @@ async fn test_streaming_does_not_break_sync_query() -> Result<()> {
     let mut rx = api.query_streaming("test query", 10, config).await?;
 
     let mut received_streaming = false;
-    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv())
-        .await
-        .ok()
-        .flatten()
-    {
+    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv()).await.ok().flatten() {
         received_streaming = true;
         if chunk.is_final {
             break;
@@ -67,10 +63,7 @@ async fn test_streaming_does_not_break_sync_query() -> Result<()> {
 
     // Finally, verify sync query still works after streaming
     let sync_result_after = api.query("test query", None, None, Some(10)).await?;
-    assert!(
-        sync_result_after.entities.len() >= 0,
-        "Sync query should still work after streaming"
-    );
+    assert!(sync_result_after.entities.len() >= 0, "Sync query should still work after streaming");
 
     Ok(())
 }
@@ -91,11 +84,7 @@ async fn test_streaming_works_if_graph_empty() -> Result<()> {
 
     // Collect all chunks until we get the final one
     let mut final_chunk = None;
-    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv())
-        .await
-        .ok()
-        .flatten()
-    {
+    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv()).await.ok().flatten() {
         if chunk.is_final {
             final_chunk = Some(chunk);
             break;
@@ -104,10 +93,7 @@ async fn test_streaming_works_if_graph_empty() -> Result<()> {
 
     let chunk = final_chunk.expect("Should receive final chunk");
     assert!(chunk.is_final, "Should receive final chunk");
-    assert!(
-        chunk.ranked_entities.is_empty(),
-        "Empty graph should have no entities"
-    );
+    assert!(chunk.ranked_entities.is_empty(), "Empty graph should have no entities");
 
     Ok(())
 }
@@ -130,11 +116,7 @@ async fn test_streaming_yields_deterministic_results() -> Result<()> {
 
     // Collect final chunks from both streams
     let mut final1 = None;
-    while let Some(chunk) = timeout(Duration::from_millis(500), rx1.recv())
-        .await
-        .ok()
-        .flatten()
-    {
+    while let Some(chunk) = timeout(Duration::from_millis(500), rx1.recv()).await.ok().flatten() {
         if chunk.is_final {
             final1 = Some(chunk);
             break;
@@ -142,11 +124,7 @@ async fn test_streaming_yields_deterministic_results() -> Result<()> {
     }
 
     let mut final2 = None;
-    while let Some(chunk) = timeout(Duration::from_millis(500), rx2.recv())
-        .await
-        .ok()
-        .flatten()
-    {
+    while let Some(chunk) = timeout(Duration::from_millis(500), rx2.recv()).await.ok().flatten() {
         if chunk.is_final {
             final2 = Some(chunk);
             break;
@@ -165,15 +143,8 @@ async fn test_streaming_yields_deterministic_results() -> Result<()> {
 
     // If there are entities, verify scores match
     if !final1.ranked_entities.is_empty() {
-        for (e1, e2) in final1
-            .ranked_entities
-            .iter()
-            .zip(final2.ranked_entities.iter())
-        {
-            assert_eq!(
-                e1.combined_score, e2.combined_score,
-                "Scores should be deterministic"
-            );
+        for (e1, e2) in final1.ranked_entities.iter().zip(final2.ranked_entities.iter()) {
+            assert_eq!(e1.combined_score, e2.combined_score, "Scores should be deterministic");
         }
     }
 

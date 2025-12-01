@@ -16,11 +16,8 @@ mod hang_isolation_tests {
         let code_graph_db_path = temp_dir.path().join("code_graph.db");
 
         let db_manager = Arc::new(
-            DbManager::new(
-                main_db_path.to_str().unwrap(),
-                code_graph_db_path.to_str().unwrap(),
-            )
-            .unwrap(),
+            DbManager::new(main_db_path.to_str().unwrap(), code_graph_db_path.to_str().unwrap())
+                .unwrap(),
         );
 
         // Create minimal schema

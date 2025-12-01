@@ -46,7 +46,10 @@ pub struct RefragPipeline {
 impl RefragPipeline {
     /// Create new pipeline with configuration
     pub fn new(state: SynCoreState, config: RefragConfig) -> Self {
-        Self { state, config }
+        Self {
+            state,
+            config,
+        }
     }
 
     /// Create pipeline with default configuration
@@ -79,16 +82,8 @@ impl RefragPipeline {
         // Step 3: Expand selected as RAW, rejected as COMPRESSED
         let expand_stage = ExpandStage::with_limit(self.state.clone(), self.config.max_tokens);
 
-        let selected_ids: Vec<i64> = selection_result
-            .selected
-            .iter()
-            .map(|c| c.chunk_id)
-            .collect();
-        let rejected_ids: Vec<i64> = selection_result
-            .rejected
-            .iter()
-            .map(|c| c.chunk_id)
-            .collect();
+        let selected_ids: Vec<i64> = selection_result.selected.iter().map(|c| c.chunk_id).collect();
+        let rejected_ids: Vec<i64> = selection_result.rejected.iter().map(|c| c.chunk_id).collect();
 
         let raw_chunks = expand_stage.expand_selected(&selected_ids)?;
         let compressed_chunks = expand_stage.expand_rejected(&rejected_ids)?;
@@ -109,14 +104,8 @@ impl RefragPipeline {
             "selection_policy".to_string(),
             serde_json::to_value(&self.config.selection_policy)?,
         );
-        metadata.insert(
-            "top_k_raw".to_string(),
-            serde_json::to_value(self.config.top_k_raw)?,
-        );
-        metadata.insert(
-            "max_tokens".to_string(),
-            serde_json::to_value(self.config.max_tokens)?,
-        );
+        metadata.insert("top_k_raw".to_string(), serde_json::to_value(self.config.top_k_raw)?);
+        metadata.insert("max_tokens".to_string(), serde_json::to_value(self.config.max_tokens)?);
         metadata.insert(
             "candidates_retrieved".to_string(),
             serde_json::to_value(
@@ -199,10 +188,7 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
 
         std::env::set_var("DB_PATH", format!("{}/pipeline_test.db", temp_path));
-        std::env::set_var(
-            "CODE_GRAPH_DB",
-            format!("{}/code_graph_pipeline.db", temp_path),
-        );
+        std::env::set_var("CODE_GRAPH_DB", format!("{}/code_graph_pipeline.db", temp_path));
 
         let code_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
         let mut code_store = VectorStore::new(code_embeddings);

@@ -68,17 +68,11 @@ fn test_diagnostics_insert_and_query_by_file() -> Result<()> {
 
     // Verify content
     assert_eq!(main_rs_diagnostics[0].diagnostic_type, "clippy::dead_code");
-    assert_eq!(
-        main_rs_diagnostics[1].diagnostic_type,
-        "clippy::unimplemented"
-    );
+    assert_eq!(main_rs_diagnostics[1].diagnostic_type, "clippy::unimplemented");
 
     let lib_rs_diagnostics = diagnostics.query_diagnostics_by_file("src/lib.rs")?;
     assert_eq!(lib_rs_diagnostics.len(), 1);
-    assert_eq!(
-        lib_rs_diagnostics[0].diagnostic_type,
-        "clippy::unused_import"
-    );
+    assert_eq!(lib_rs_diagnostics[0].diagnostic_type, "clippy::unused_import");
 
     Ok(())
 }
@@ -141,18 +135,9 @@ fn test_diagnostics_query_by_severity() -> Result<()> {
     assert_eq!(all_diagnostics.len(), 4);
 
     // Count by severity
-    let error_count = all_diagnostics
-        .iter()
-        .filter(|d| d.severity == "error")
-        .count();
-    let warning_count = all_diagnostics
-        .iter()
-        .filter(|d| d.severity == "warning")
-        .count();
-    let note_count = all_diagnostics
-        .iter()
-        .filter(|d| d.severity == "note")
-        .count();
+    let error_count = all_diagnostics.iter().filter(|d| d.severity == "error").count();
+    let warning_count = all_diagnostics.iter().filter(|d| d.severity == "warning").count();
+    let note_count = all_diagnostics.iter().filter(|d| d.severity == "note").count();
 
     assert_eq!(error_count, 1);
     assert_eq!(warning_count, 2);
@@ -219,18 +204,12 @@ fn test_diagnostics_query_by_diagnostic_type() -> Result<()> {
     assert_eq!(all_diagnostics.len(), 4);
 
     // Count by diagnostic type
-    let dead_code_count = all_diagnostics
-        .iter()
-        .filter(|d| d.diagnostic_type == "clippy::dead_code")
-        .count();
-    let unimplemented_count = all_diagnostics
-        .iter()
-        .filter(|d| d.diagnostic_type == "clippy::unimplemented")
-        .count();
-    let unused_import_count = all_diagnostics
-        .iter()
-        .filter(|d| d.diagnostic_type == "clippy::unused_import")
-        .count();
+    let dead_code_count =
+        all_diagnostics.iter().filter(|d| d.diagnostic_type == "clippy::dead_code").count();
+    let unimplemented_count =
+        all_diagnostics.iter().filter(|d| d.diagnostic_type == "clippy::unimplemented").count();
+    let unused_import_count =
+        all_diagnostics.iter().filter(|d| d.diagnostic_type == "clippy::unused_import").count();
 
     assert_eq!(dead_code_count, 2);
     assert_eq!(unimplemented_count, 1);
@@ -310,18 +289,9 @@ fn test_diagnostics_multiple_for_same_file() -> Result<()> {
     }
 
     // Verify grouping by severity
-    let error_count = file_diagnostics
-        .iter()
-        .filter(|d| d.severity == "error")
-        .count();
-    let warning_count = file_diagnostics
-        .iter()
-        .filter(|d| d.severity == "warning")
-        .count();
-    let note_count = file_diagnostics
-        .iter()
-        .filter(|d| d.severity == "note")
-        .count();
+    let error_count = file_diagnostics.iter().filter(|d| d.severity == "error").count();
+    let warning_count = file_diagnostics.iter().filter(|d| d.severity == "warning").count();
+    let note_count = file_diagnostics.iter().filter(|d| d.severity == "note").count();
 
     assert_eq!(error_count, 2);
     assert_eq!(warning_count, 2);

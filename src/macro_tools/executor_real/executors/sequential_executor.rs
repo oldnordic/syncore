@@ -18,10 +18,7 @@ use std::sync::Arc;
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
         Some(v) if !v.is_empty() => Ok(v),
-        _ => Err(wrap_error_static(
-            tool,
-            &format!("Missing '{}' parameter", key),
-        )),
+        _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
 
@@ -65,10 +62,7 @@ pub async fn execute_sequential_record(
     let step_number = match params.get("step_number").and_then(|v| v.as_i64()) {
         Some(v) => v as i32,
         None => {
-            return Ok(wrap_error_static(
-                "sequential_record",
-                "Missing 'step_number' parameter",
-            ))
+            return Ok(wrap_error_static("sequential_record", "Missing 'step_number' parameter"))
         }
     };
     let thought = match param_str("sequential_record", params, "thought") {
@@ -130,12 +124,7 @@ pub async fn execute_sequential_get(
     // PARAMETER VALIDATION - MUST BE FIRST
     let task_id = match params.get("task_id").and_then(|v| v.as_i64()) {
         Some(v) => v,
-        None => {
-            return Ok(wrap_error_static(
-                "sequential_get",
-                "Missing 'task_id' parameter",
-            ))
-        }
+        None => return Ok(wrap_error_static("sequential_get", "Missing 'task_id' parameter")),
     };
 
     if dry_run {
@@ -210,16 +199,10 @@ pub async fn execute_sequential_search(
     {
         Ok(Ok(Ok(steps))) => steps,
         Ok(Ok(Err(e))) => {
-            return Ok(wrap_error(
-                "sequential_search",
-                &format!("IoError: Search failed: {}", e),
-            ))
+            return Ok(wrap_error("sequential_search", &format!("IoError: Search failed: {}", e)))
         }
         Ok(Err(e)) => {
-            return Ok(wrap_error(
-                "sequential_search",
-                &format!("Internal: Task failed: {}", e),
-            ))
+            return Ok(wrap_error("sequential_search", &format!("Internal: Task failed: {}", e)))
         }
         Err(_) => {
             return Ok(wrap_error(
@@ -245,11 +228,8 @@ pub async fn execute_sequential_cycle(
     params: &Value,
     dry_run: bool,
 ) -> anyhow::Result<Value> {
-    let max_cycles = params
-        .get("max_cycles")
-        .and_then(|m| m.as_u64())
-        .map(|m| m as usize)
-        .unwrap_or(1);
+    let max_cycles =
+        params.get("max_cycles").and_then(|m| m.as_u64()).map(|m| m as usize).unwrap_or(1);
 
     if dry_run {
         let result = wrap_success(
@@ -338,9 +318,8 @@ pub async fn execute_sequential_cycle(
                 )),
             }
         }
-        Err(e) => Ok(wrap_error(
-            "sequential_cycle",
-            &format!("Sequential reasoning cycle failed: {}", e),
-        )),
+        Err(e) => {
+            Ok(wrap_error("sequential_cycle", &format!("Sequential reasoning cycle failed: {}", e)))
+        }
     }
 }

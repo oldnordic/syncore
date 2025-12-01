@@ -75,10 +75,7 @@ impl SynCoreState {
         let code_graph_db_path = db_paths::code_graph_db_path();
 
         // Initialize DbManager with long-lived connections
-        let db_manager = Arc::new(crate::db::DbManager::new(
-            &main_db_path,
-            &code_graph_db_path,
-        )?);
+        let db_manager = Arc::new(crate::db::DbManager::new(&main_db_path, &code_graph_db_path)?);
 
         // Create DualEmbeddingService from pre-existing stores
         let embeddings = Arc::new(DualEmbeddingService::from_stores(
@@ -141,10 +138,7 @@ impl SynCoreState {
         let code_graph_db_path = db_paths::code_graph_db_path();
 
         // Initialize DbManager with long-lived connections
-        let db_manager = Arc::new(crate::db::DbManager::new(
-            &main_db_path,
-            &code_graph_db_path,
-        )?);
+        let db_manager = Arc::new(crate::db::DbManager::new(&main_db_path, &code_graph_db_path)?);
 
         // Create Memory using DbManager's main connection
         let main_cache_path = format!("{}_cache", main_db_path);
@@ -397,9 +391,8 @@ impl SynCoreState {
         // Query entry count directly from database
         let conn = self.db_manager.main_conn();
         let conn_lock = conn.lock().unwrap();
-        let entry_count: i64 = conn_lock
-            .query_row("SELECT COUNT(*) FROM memory", [], |row| row.get(0))
-            .unwrap_or(0);
+        let entry_count: i64 =
+            conn_lock.query_row("SELECT COUNT(*) FROM memory", [], |row| row.get(0)).unwrap_or(0);
 
         let version = self.memory.current_version();
 
@@ -414,10 +407,8 @@ impl SynCoreState {
     pub fn faiss_only(path: &str) -> Self {
         // Use unique temp paths to avoid lock conflicts in tests
         let id = std::process::id();
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        let ts =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
         let mem_path = format!("/tmp/syncore_test_mem_{}_{}.db", id, ts);
         let task_path = format!("/tmp/syncore_test_task_{}_{}.db", id, ts);
 
@@ -554,9 +545,8 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
         }
         SynCoreTool::GraphQuery => {
             let (task_id, direction): (i64, String) = rmp_serde::from_slice(&msg.args)?;
-            let links = state
-                .tasks
-                .with_db(|db| crate::tasks::get_task_links(db, task_id, &direction))?;
+            let links =
+                state.tasks.with_db(|db| crate::tasks::get_task_links(db, task_id, &direction))?;
             let response =
                 serde_json::json!({"task_id": task_id, "direction": direction, "links": links});
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
@@ -597,13 +587,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
 
             use std::process::Command;
             let output = Command::new("rg")
-                .args([
-                    "--json",
-                    "-C",
-                    &context_lines.to_string(),
-                    &pattern,
-                    &search_path,
-                ])
+                .args(["--json", "-C", &context_lines.to_string(), &pattern, &search_path])
                 .output()?;
 
             if output.status.success() {

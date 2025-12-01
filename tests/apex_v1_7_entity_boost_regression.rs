@@ -42,13 +42,9 @@ fn parse_config() -> HashMap<String, String> {
     assert!(!results.is_empty(), "Should return search results");
 
     // Find function and import in results
-    let function_result = results
-        .iter()
-        .find(|m| m.entity.entity_type.as_str() == "function");
+    let function_result = results.iter().find(|m| m.entity.entity_type.as_str() == "function");
 
-    let import_result = results
-        .iter()
-        .find(|m| m.entity.entity_type.as_str() == "import");
+    let import_result = results.iter().find(|m| m.entity.entity_type.as_str() == "import");
 
     // If both exist, function should score higher than import
     // (function boost = 1.35, import boost = 0.65)
@@ -98,16 +94,11 @@ fn calculate_timeout() -> u64 {
     assert!(!results.is_empty(), "Should return search results");
 
     // Verify the function with body_snippet has boosted score
-    let func_match = results
-        .iter()
-        .find(|m| m.entity.name == "calculate_timeout");
+    let func_match = results.iter().find(|m| m.entity.name == "calculate_timeout");
 
     if let Some(func) = func_match {
         // Entity should have body_snippet populated
-        assert!(
-            func.entity.body_snippet.is_some(),
-            "Function should have body_snippet"
-        );
+        assert!(func.entity.body_snippet.is_some(), "Function should have body_snippet");
 
         // Score should be boosted (base * 1.35 function * 1.15 body)
         // Without boost, semantic score would be lower

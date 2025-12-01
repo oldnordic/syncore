@@ -26,7 +26,9 @@ impl Manager for FaissManager {
             // Ok(FaissIndexWrapper { index })
 
             // Placeholder: create wrapper with path
-            Ok(FaissIndexWrapper { path })
+            Ok(FaissIndexWrapper {
+                path,
+            })
         })
         .await?
     }
@@ -46,7 +48,9 @@ pub struct FaissPool {
 
 impl FaissPool {
     pub fn new(path: impl Into<String>, size: usize) -> Arc<Self> {
-        let mgr = FaissManager { path: path.into() };
+        let mgr = FaissManager {
+            path: path.into(),
+        };
         Arc::new(Self {
             pool: Pool::builder(mgr).max_size(size).build().unwrap(),
         })

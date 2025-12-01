@@ -59,14 +59,8 @@ async fn test_indexer_never_calls_full_reindex_unnecessarily() -> Result<()> {
     };
 
     // Start LiveIndexer
-    let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        vector_store.clone(),
-        lsp_bridge,
-        config,
-    )?;
+    let indexer =
+        LiveIndexer::new(fs_rx, parser, update_service, vector_store.clone(), lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -162,14 +156,8 @@ async fn test_indexer_never_blocks_main_thread() -> Result<()> {
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        vector_store.clone(),
-        lsp_bridge,
-        config,
-    )?;
+    let indexer =
+        LiveIndexer::new(fs_rx, parser, update_service, vector_store.clone(), lsp_bridge, config)?;
 
     // Start should return immediately (spawns background task)
     let start_time = std::time::Instant::now();
@@ -246,14 +234,8 @@ async fn test_indexer_never_interferes_with_fusion_query() -> Result<()> {
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        vector_store.clone(),
-        lsp_bridge,
-        config,
-    )?;
+    let indexer =
+        LiveIndexer::new(fs_rx, parser, update_service, vector_store.clone(), lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -280,10 +262,7 @@ async fn test_indexer_never_interferes_with_fusion_query() -> Result<()> {
     );
 
     // Verify search worked
-    assert!(
-        search_result.is_ok(),
-        "Fusion query should succeed with indexer running"
-    );
+    assert!(search_result.is_ok(), "Fusion query should succeed with indexer running");
 
     // Modify file while performing another query (stress test)
     std::fs::write(&test_file, "pub fn fusion_func_modified() {}")?;
@@ -296,10 +275,7 @@ async fn test_indexer_never_interferes_with_fusion_query() -> Result<()> {
         vs.search("fusion", 10, SearchScope::Global)
     };
 
-    assert!(
-        search_result_2.is_ok(),
-        "Fusion query should succeed even during reindexing"
-    );
+    assert!(search_result_2.is_ok(), "Fusion query should succeed even during reindexing");
 
     indexer.shutdown().await?;
 

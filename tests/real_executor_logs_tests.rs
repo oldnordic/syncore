@@ -23,12 +23,10 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 use tempfile::TempDir;
 
 /// Helper to create a RealExecutor with fresh state
+#[allow(deprecated)]
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_logs_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -80,11 +78,7 @@ fn test_logs_tail_real() {
         rt.block_on(async { executor.execute_real_tool_async("logs_tail", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real logs_tail should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real logs_tail should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -199,10 +193,7 @@ fn test_logs_tail_nonexistent_file() {
         rt.block_on(async { executor.execute_real_tool_async("logs_tail", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -264,10 +255,7 @@ fn test_logs_tail_missing_file_path() {
         rt.block_on(async { executor.execute_real_tool_async("logs_tail", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);

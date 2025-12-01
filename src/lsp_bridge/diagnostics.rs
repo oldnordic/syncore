@@ -60,7 +60,6 @@ impl LspDiagnosticEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     #[test]
     fn test_diagnostic_severity_helpers() {

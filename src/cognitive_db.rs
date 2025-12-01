@@ -42,7 +42,9 @@ impl CognitiveEngine {
         let db = crate::db::open_db_with_wal(db_path)?;
         crate::db::ensure_schema(db_path)?;
 
-        Ok(Self { db })
+        Ok(Self {
+            db,
+        })
     }
 
     pub fn store_step(
@@ -52,10 +54,9 @@ impl CognitiveEngine {
         content: &str,
         meta_json: &str,
     ) -> Result<i64> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         self.db.execute(
             "INSERT INTO steps (task_id, state, content, meta_json, created_at)
@@ -170,10 +171,8 @@ pub fn store_step(
     content: &str,
     meta_json: &str,
 ) -> Result<i64> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
 
     db.execute(
         "INSERT INTO steps (task_id, state, content, meta_json, created_at)

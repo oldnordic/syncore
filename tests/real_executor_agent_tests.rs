@@ -29,10 +29,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create a RealExecutor with fresh state (message_bus = None by default)
 fn create_test_executor_without_bus(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_agent_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -47,10 +44,7 @@ fn create_test_executor_without_bus(suffix: &str) -> RealExecutor {
 /// Helper to create a RealExecutor with MessageBus enabled
 fn create_test_executor_with_bus(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_agent_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -79,17 +73,11 @@ fn test_agent_send_real_when_bus_unavailable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_send", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_send", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
 
     // Validate error envelope structure
@@ -126,11 +114,8 @@ fn test_agent_send_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_send", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_send", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -169,18 +154,11 @@ fn test_agent_send_real_message_sent() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_send", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_send", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real send should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real send should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -190,10 +168,7 @@ fn test_agent_send_real_message_sent() {
     let data = unwrap_data(&envelope);
     assert!(
         data.get("sent").and_then(|s| s.as_bool()).unwrap_or(false)
-            || data
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false),
+            || data.get("success").and_then(|s| s.as_bool()).unwrap_or(false),
         "Result should indicate message sent: {:?}",
         data
     );
@@ -213,17 +188,11 @@ fn test_agent_recv_real_when_bus_unavailable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_recv", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_recv", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
 
     // Validate error envelope structure
@@ -259,11 +228,8 @@ fn test_agent_recv_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_recv", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_recv", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -302,18 +268,11 @@ fn test_agent_register_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_register", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_register", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real register should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real register should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -322,13 +281,8 @@ fn test_agent_register_real() {
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
     assert!(
-        data.get("registered")
-            .and_then(|r| r.as_bool())
-            .unwrap_or(false)
-            || data
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false),
+        data.get("registered").and_then(|r| r.as_bool()).unwrap_or(false)
+            || data.get("success").and_then(|s| s.as_bool()).unwrap_or(false),
         "Result should indicate registration success: {:?}",
         data
     );
@@ -349,11 +303,8 @@ fn test_agent_register_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_register", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_register", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -389,18 +340,11 @@ fn test_agent_list_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_list", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_list", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real list should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real list should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -408,11 +352,7 @@ fn test_agent_list_real() {
 
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
-    assert!(
-        data.get("agents").is_some(),
-        "Result should have agents field: {:?}",
-        data
-    );
+    assert!(data.get("agents").is_some(), "Result should have agents field: {:?}", data);
 }
 
 // ============================================================================
@@ -430,18 +370,11 @@ fn test_agent_status_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_status", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_status", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real status update should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real status update should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -450,13 +383,8 @@ fn test_agent_status_real() {
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
     assert!(
-        data.get("updated")
-            .and_then(|u| u.as_bool())
-            .unwrap_or(false)
-            || data
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false),
+        data.get("updated").and_then(|u| u.as_bool()).unwrap_or(false)
+            || data.get("success").and_then(|s| s.as_bool()).unwrap_or(false),
         "Result should indicate status updated: {:?}",
         data
     );
@@ -477,11 +405,8 @@ fn test_agent_status_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_status", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_status", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -521,18 +446,11 @@ fn test_agent_task_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_task", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_task", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real task send should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real task send should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -542,10 +460,7 @@ fn test_agent_task_real() {
     let data = unwrap_data(&envelope);
     assert!(
         data.get("sent").and_then(|s| s.as_bool()).unwrap_or(false)
-            || data
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false),
+            || data.get("success").and_then(|s| s.as_bool()).unwrap_or(false),
         "Result should indicate task sent: {:?}",
         data
     );
@@ -566,16 +481,10 @@ fn test_agent_tools_error_handling() {
         // Missing 'to' - should error
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_send", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("agent_send", &params).await });
 
-    assert!(
-        result.is_ok(),
-        "RealExecutor returns Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor returns Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
 
@@ -585,16 +494,10 @@ fn test_agent_tools_error_handling() {
         // Missing 'agent' - should error
     });
 
-    let result2 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_recv", &params2)
-            .await
-    });
+    let result2 =
+        rt.block_on(async { executor.execute_real_tool_async("agent_recv", &params2).await });
 
-    assert!(
-        result2.is_ok(),
-        "RealExecutor returns Ok(Value) even for errors"
-    );
+    assert!(result2.is_ok(), "RealExecutor returns Ok(Value) even for errors");
     let envelope2 = result2.unwrap();
     assert_error_envelope(&envelope2);
 
@@ -604,16 +507,10 @@ fn test_agent_tools_error_handling() {
         // Missing 'id' - should error
     });
 
-    let result3 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_register", &params3)
-            .await
-    });
+    let result3 =
+        rt.block_on(async { executor.execute_real_tool_async("agent_register", &params3).await });
 
-    assert!(
-        result3.is_ok(),
-        "RealExecutor returns Ok(Value) even for errors"
-    );
+    assert!(result3.is_ok(), "RealExecutor returns Ok(Value) even for errors");
     let envelope3 = result3.unwrap();
     assert_error_envelope(&envelope3);
 
@@ -623,16 +520,10 @@ fn test_agent_tools_error_handling() {
         // Missing 'id' - should error
     });
 
-    let result4 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_status", &params4)
-            .await
-    });
+    let result4 =
+        rt.block_on(async { executor.execute_real_tool_async("agent_status", &params4).await });
 
-    assert!(
-        result4.is_ok(),
-        "RealExecutor returns Ok(Value) even for errors"
-    );
+    assert!(result4.is_ok(), "RealExecutor returns Ok(Value) even for errors");
     let envelope4 = result4.unwrap();
     assert_error_envelope(&envelope4);
 
@@ -644,16 +535,10 @@ fn test_agent_tools_error_handling() {
         // Missing 'to' - should error
     });
 
-    let result5 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("agent_task", &params5)
-            .await
-    });
+    let result5 =
+        rt.block_on(async { executor.execute_real_tool_async("agent_task", &params5).await });
 
-    assert!(
-        result5.is_ok(),
-        "RealExecutor returns Ok(Value) even for errors"
-    );
+    assert!(result5.is_ok(), "RealExecutor returns Ok(Value) even for errors");
     let envelope5 = result5.unwrap();
     assert_error_envelope(&envelope5);
 }

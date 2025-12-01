@@ -198,27 +198,22 @@ async fn test_warm_start_does_not_delete_existing_data() -> Result<()> {
 
     // Get the entity ID before bootstrap
     let conn = Connection::open(&config.paths.code_graph_db)?;
-    let entity_id_before: i64 = conn.query_row(
-        "SELECT id FROM code_entities WHERE name = 'fake_function'",
-        [],
-        |row| row.get(0),
-    )?;
+    let entity_id_before: i64 =
+        conn.query_row("SELECT id FROM code_entities WHERE name = 'fake_function'", [], |row| {
+            row.get(0)
+        })?;
 
     // Act: Run bootstrap
     run_startup_bootstrap_for_tests(&config).await?;
 
     // Assert: Same entity ID should still exist (no DELETE happened)
-    let entity_id_after: Result<i64, _> = conn.query_row(
-        "SELECT id FROM code_entities WHERE name = 'fake_function'",
-        [],
-        |row| row.get(0),
-    );
+    let entity_id_after: Result<i64, _> =
+        conn.query_row("SELECT id FROM code_entities WHERE name = 'fake_function'", [], |row| {
+            row.get(0)
+        });
 
     // THIS WILL FAIL IN PHASE 1
-    assert!(
-        entity_id_after.is_ok(),
-        "EXPECTED FAILURE: Original entity should not be deleted"
-    );
+    assert!(entity_id_after.is_ok(), "EXPECTED FAILURE: Original entity should not be deleted");
 
     assert_eq!(
         entity_id_after.unwrap(),

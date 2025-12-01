@@ -26,10 +26,7 @@ impl ProjectAnalysisEngine {
         &self,
         request: ModuleMapRequest,
     ) -> Result<PAEResponse<ModuleMapData>> {
-        match self
-            .generate_module_map(request.root, request.max_modules)
-            .await
-        {
+        match self.generate_module_map(request.root, request.max_modules).await {
             Ok(data) => Ok(PAEResponse::success(data)),
             Err(e) => Ok(PAEResponse::error(e.to_string())),
         }
@@ -49,7 +46,10 @@ impl ProjectAnalysisEngine {
         // Get relationships between modules
         let edges = self.get_module_edges(&conn_guard, &modules)?;
 
-        Ok(ModuleMapData { modules, edges })
+        Ok(ModuleMapData {
+            modules,
+            edges,
+        })
     }
 
     fn get_module_info(
@@ -134,10 +134,7 @@ impl ProjectAnalysisEngine {
             modules.iter().map(|m| m.file_path.as_str()).collect();
 
         // Build placeholders for IN clause
-        let placeholders = (0..modules.len())
-            .map(|_| "?")
-            .collect::<Vec<_>>()
-            .join(",");
+        let placeholders = (0..modules.len()).map(|_| "?").collect::<Vec<_>>().join(",");
 
         let query = format!(
             r#"

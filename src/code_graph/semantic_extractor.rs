@@ -33,7 +33,9 @@ impl SemanticExtractor {
     pub fn new() -> Result<Self> {
         let mut parser = Parser::new();
         parser.set_language(tree_sitter_rust::language())?;
-        Ok(Self { parser })
+        Ok(Self {
+            parser,
+        })
     }
 
     /// Extract all semantic edges from Rust source code

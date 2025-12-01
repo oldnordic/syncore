@@ -151,10 +151,8 @@ impl CogLogger for MarkdownLogger {
 
     fn log_summary(&self, task: &Task, reflection: &str) -> std::io::Result<()> {
         let time_str = Self::format_time(
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as i64,
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64,
         );
         let escaped_reflection = Self::escape_backticks(reflection);
 
@@ -170,10 +168,7 @@ impl CogLogger for MarkdownLogger {
             time_str,
             task.id,
             task.id,
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
             escaped_reflection
         );
 

@@ -114,9 +114,8 @@ impl ProjectAnalysisEngine {
         > = std::collections::HashMap::new();
 
         for diagnostic in diagnostics {
-            let file_diagnostics = diagnostics_by_file
-                .entry(diagnostic.file_path.clone())
-                .or_default();
+            let file_diagnostics =
+                diagnostics_by_file.entry(diagnostic.file_path.clone()).or_default();
 
             let severity = crate::project_analysis::diagnostics_severity::normalize_severity(
                 &diagnostic.severity,
@@ -126,10 +125,8 @@ impl ProjectAnalysisEngine {
 
         // Medium risk hotspots
         for hotspot in hotspots {
-            let file_diagnostics = diagnostics_by_file
-                .get(&hotspot.file_path)
-                .cloned()
-                .unwrap_or_default();
+            let file_diagnostics =
+                diagnostics_by_file.get(&hotspot.file_path).cloned().unwrap_or_default();
 
             let risk_inputs = FileRiskInputs {
                 file_path: hotspot.file_path.clone(),

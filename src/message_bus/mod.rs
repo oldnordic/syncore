@@ -111,10 +111,7 @@ impl MessageBus {
 
     /// Get list of registered agents
     pub fn list_agents(&self) -> Vec<AgentId> {
-        self.agents
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect()
+        self.agents.iter().map(|entry| entry.key().clone()).collect()
     }
 
     /// Get next unique message ID (monotonically increasing)
@@ -143,9 +140,8 @@ impl MessageBus {
     /// and removes them from history.
     pub fn drain_for(&self, agent_id: &AgentId) -> Vec<Msg> {
         let mut history = self.history.write();
-        let (matching, remaining): (Vec<Msg>, Vec<Msg>) = history
-            .drain(..)
-            .partition(|msg| msg.to.as_ref() == Some(agent_id));
+        let (matching, remaining): (Vec<Msg>, Vec<Msg>) =
+            history.drain(..).partition(|msg| msg.to.as_ref() == Some(agent_id));
         *history = remaining;
         matching
     }
@@ -156,10 +152,7 @@ impl MessageBus {
     /// removing it from history.
     pub fn try_recv_for(&self, agent_id: &AgentId) -> Option<Msg> {
         let mut history = self.history.write();
-        if let Some(pos) = history
-            .iter()
-            .position(|msg| msg.to.as_ref() == Some(agent_id))
-        {
+        if let Some(pos) = history.iter().position(|msg| msg.to.as_ref() == Some(agent_id)) {
             Some(history.remove(pos))
         } else {
             None
@@ -211,34 +204,23 @@ impl MessageBus {
 
         // Update capability index
         for cap in &capabilities {
-            self.capability_index
-                .entry(cap.clone())
-                .or_default()
-                .push(name.clone());
+            self.capability_index.entry(cap.clone()).or_default().push(name.clone());
         }
     }
 
     /// Get list of registered agent names
     pub fn list_registered_agents(&self) -> Vec<String> {
-        self.agent_registry
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect()
+        self.agent_registry.iter().map(|entry| entry.key().clone()).collect()
     }
 
     /// Get agent info by name
     pub fn get_agent_info(&self, name: &str) -> Option<AgentInfo> {
-        self.agent_registry
-            .get(name)
-            .map(|entry| entry.value().clone())
+        self.agent_registry.get(name).map(|entry| entry.value().clone())
     }
 
     /// Get list of agent names that have a specific capability
     pub fn agents_with_capability(&self, cap: &str) -> Vec<String> {
-        self.capability_index
-            .get(cap)
-            .map(|entry| entry.value().clone())
-            .unwrap_or_default()
+        self.capability_index.get(cap).map(|entry| entry.value().clone()).unwrap_or_default()
     }
 
     /// Update the runtime status of an agent
@@ -248,9 +230,7 @@ impl MessageBus {
 
     /// Get the runtime status of an agent
     pub fn get_agent_status(&self, name: &str) -> Option<serde_json::Value> {
-        self.agent_status
-            .get(name)
-            .map(|entry| entry.value().clone())
+        self.agent_status.get(name).map(|entry| entry.value().clone())
     }
 }
 

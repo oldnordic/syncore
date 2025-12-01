@@ -24,10 +24,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create a RealExecutor with fresh state (neo4j = None)
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_graph_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -54,17 +51,11 @@ fn test_graph_query_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_query", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("graph_query", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -96,11 +87,8 @@ fn test_graph_query_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_query", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("graph_query", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -135,17 +123,11 @@ fn test_graph_insert_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_insert", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("graph_insert", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -177,11 +159,8 @@ fn test_graph_insert_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_insert", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("graph_insert", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -217,17 +196,11 @@ fn test_graph_relate_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_relate", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("graph_relate", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -260,11 +233,8 @@ fn test_graph_relate_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_relate", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("graph_relate", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -299,17 +269,11 @@ fn test_graph_tools_error_handling() {
         // Missing 'cypher' - should error
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_query", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("graph_query", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -321,16 +285,10 @@ fn test_graph_tools_error_handling() {
         // Missing 'cypher' - should error
     });
 
-    let result2 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_insert", &params2)
-            .await
-    });
+    let result2 =
+        rt.block_on(async { executor.execute_real_tool_async("graph_insert", &params2).await });
 
-    assert!(
-        result2.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result2.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope2 = result2.unwrap();
     assert_error_envelope(&envelope2);
     let error2 = unwrap_error(&envelope2);
@@ -343,16 +301,10 @@ fn test_graph_tools_error_handling() {
         // Missing 'from_id' - should error
     });
 
-    let result3 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_relate", &params3)
-            .await
-    });
+    let result3 =
+        rt.block_on(async { executor.execute_real_tool_async("graph_relate", &params3).await });
 
-    assert!(
-        result3.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result3.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope3 = result3.unwrap();
     assert_error_envelope(&envelope3);
     let error3 = unwrap_error(&envelope3);
@@ -365,16 +317,10 @@ fn test_graph_tools_error_handling() {
         // Missing 'rel_type' - should error
     });
 
-    let result4 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("graph_relate", &params4)
-            .await
-    });
+    let result4 =
+        rt.block_on(async { executor.execute_real_tool_async("graph_relate", &params4).await });
 
-    assert!(
-        result4.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result4.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope4 = result4.unwrap();
     assert_error_envelope(&envelope4);
     let error4 = unwrap_error(&envelope4);

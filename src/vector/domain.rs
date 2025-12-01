@@ -186,38 +186,20 @@ mod tests {
 
     #[test]
     fn test_domain_from_namespace_code() {
-        assert_eq!(
-            EmbeddingDomain::from_namespace("code_entity"),
-            EmbeddingDomain::Code
-        );
+        assert_eq!(EmbeddingDomain::from_namespace("code_entity"), EmbeddingDomain::Code);
     }
 
     #[test]
     fn test_domain_from_namespace_general() {
-        assert_eq!(
-            EmbeddingDomain::from_namespace("documents"),
-            EmbeddingDomain::General
-        );
-        assert_eq!(
-            EmbeddingDomain::from_namespace("plan"),
-            EmbeddingDomain::General
-        );
-        assert_eq!(
-            EmbeddingDomain::from_namespace("sequential_cycle"),
-            EmbeddingDomain::General
-        );
-        assert_eq!(
-            EmbeddingDomain::from_namespace("thought_step"),
-            EmbeddingDomain::General
-        );
+        assert_eq!(EmbeddingDomain::from_namespace("documents"), EmbeddingDomain::General);
+        assert_eq!(EmbeddingDomain::from_namespace("plan"), EmbeddingDomain::General);
+        assert_eq!(EmbeddingDomain::from_namespace("sequential_cycle"), EmbeddingDomain::General);
+        assert_eq!(EmbeddingDomain::from_namespace("thought_step"), EmbeddingDomain::General);
     }
 
     #[test]
     fn test_domain_from_namespace_unknown_defaults_to_general() {
-        assert_eq!(
-            EmbeddingDomain::from_namespace("unknown_namespace"),
-            EmbeddingDomain::General
-        );
+        assert_eq!(EmbeddingDomain::from_namespace("unknown_namespace"), EmbeddingDomain::General);
     }
 
     #[test]
@@ -231,10 +213,7 @@ mod tests {
         let code_path = EmbeddingDomain::Code.default_index_path();
         let general_path = EmbeddingDomain::General.default_index_path();
 
-        assert_ne!(
-            code_path, general_path,
-            "Domains must have separate indices"
-        );
+        assert_ne!(code_path, general_path, "Domains must have separate indices");
         assert!(code_path.contains("code"));
         assert!(general_path.contains("general"));
     }
@@ -440,12 +419,8 @@ mod tests {
     fn test_embedding_service_domain_routing() {
         let service = MockEmbeddingService::new();
 
-        let code_vec = service
-            .embed("fn main() {}", EmbeddingDomain::Code)
-            .unwrap();
-        let general_vec = service
-            .embed("fn main() {}", EmbeddingDomain::General)
-            .unwrap();
+        let code_vec = service.embed("fn main() {}", EmbeddingDomain::Code).unwrap();
+        let general_vec = service.embed("fn main() {}", EmbeddingDomain::General).unwrap();
 
         // Different domains produce different embeddings for same text
         assert_ne!(code_vec[0], general_vec[0]);

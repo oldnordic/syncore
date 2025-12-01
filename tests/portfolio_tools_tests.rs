@@ -15,12 +15,10 @@ use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
 /// Helper to create isolated test state with MessageBus
+#[allow(deprecated)]
 fn create_test_state() -> SynCoreState {
     let id = std::process::id();
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let mem_path = format!("/tmp/syncore_portfolio_test_mem_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_portfolio_test_task_{}_{}.db", id, ts);
 
@@ -208,10 +206,7 @@ fn test_sequential_step_records_thought() {
     // Verify step is persisted
     let steps = sequential.get_steps_for_task(42).unwrap();
     assert_eq!(steps.len(), 1);
-    assert_eq!(
-        steps[0].thought,
-        "Analyzing the user's request for authentication"
-    );
+    assert_eq!(steps[0].thought, "Analyzing the user's request for authentication");
 }
 
 #[test]
@@ -241,10 +236,7 @@ fn test_sequential_step_broadcasts_event() {
         .filter(|msg| matches!(&msg.kind, MsgKind::Event(e) if e == "sequential_step"))
         .collect();
 
-    assert!(
-        !step_events.is_empty(),
-        "Should broadcast sequential step event"
-    );
+    assert!(!step_events.is_empty(), "Should broadcast sequential step event");
     assert_eq!(step_events[0].payload["task_id"], 10);
     assert_eq!(step_events[0].payload["step_number"], 1);
 }
@@ -297,9 +289,7 @@ fn test_sequential_step_search_by_content() {
     sequential.record_step(&step).unwrap();
 
     // Search by semantic content
-    let results = sequential
-        .search_steps("vector database performance")
-        .unwrap();
+    let results = sequential.search_steps("vector database performance").unwrap();
     assert!(!results.is_empty());
     assert!(results[0].thought.contains("FAISS"));
 }
@@ -327,11 +317,7 @@ fn test_application_tool_records_change() {
     };
 
     let result = app_tool.record_change(&change);
-    assert!(
-        result.is_ok(),
-        "Failed to record change: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Failed to record change: {:?}", result.err());
 
     // Verify persisted
     let changes = app_tool.get_changes_for_task(42).unwrap();
@@ -368,10 +354,7 @@ fn test_application_tool_broadcasts_event() {
         .filter(|msg| matches!(&msg.kind, MsgKind::Event(e) if e == "code_change"))
         .collect();
 
-    assert!(
-        !change_events.is_empty(),
-        "Should broadcast code change event"
-    );
+    assert!(!change_events.is_empty(), "Should broadcast code change event");
     assert_eq!(change_events[0].payload["file_path"], "src/api.rs");
     assert_eq!(change_events[0].payload["change_type"], "modify");
 }
@@ -526,14 +509,12 @@ fn test_all_tools_share_message_bus() {
 // ==============================================================================
 
 /// Helper to create test state with Neo4j
+#[allow(deprecated)]
 async fn create_neo4j_test_state() -> SynCoreState {
     use syncore::graph::neo4j_client::Neo4jClient;
 
     let id = std::process::id();
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let ts = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let mem_path = format!("/tmp/syncore_portfolio_neo4j_test_mem_{}_{}.db", id, ts);
     let task_path = format!("/tmp/syncore_portfolio_neo4j_test_task_{}_{}.db", id, ts);
 
@@ -547,9 +528,7 @@ async fn create_neo4j_test_state() -> SynCoreState {
         .await
         .expect("Failed to connect to Neo4j");
 
-    SynCoreState::new(memory, tasks, vector_store)
-        .with_message_bus(bus)
-        .with_neo4j(Arc::new(neo4j))
+    SynCoreState::new(memory, tasks, vector_store).with_message_bus(bus).with_neo4j(Arc::new(neo4j))
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -682,10 +661,7 @@ async fn test_application_tool_creates_neo4j_patch_nodes() {
     let results = neo4j
         .execute_query(
             "MATCH (p:Patch {id: $id, namespace: $ns}) RETURN p.id as id",
-            vec![
-                ("id", serde_json::json!(patch_id)),
-                ("ns", serde_json::json!(ns)),
-            ],
+            vec![("id", serde_json::json!(patch_id)), ("ns", serde_json::json!(ns))],
         )
         .await
         .unwrap();

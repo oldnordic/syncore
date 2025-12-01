@@ -559,9 +559,7 @@ fn project_polyglot_architecture_overview(
         _ => {
             // For any other path, return test project data with updated metadata
             let mut result = build_test_project_data(project_path);
-            result
-                .metadata
-                .insert("project_path".to_string(), project_path.to_string());
+            result.metadata.insert("project_path".to_string(), project_path.to_string());
             Ok(result)
         }
     }
@@ -750,11 +748,8 @@ mod polyglot_architecture_overview_tool {
         }
 
         // Verify deterministic sorting
-        let file_entries_sorted: Vec<_> = complexity
-            .file_complexity
-            .iter()
-            .map(|e| e.hotspot_rank)
-            .collect();
+        let file_entries_sorted: Vec<_> =
+            complexity.file_complexity.iter().map(|e| e.hotspot_rank).collect();
         let mut file_entries_sorted_expected = file_entries_sorted.clone();
         file_entries_sorted_expected.sort();
         assert_eq!(file_entries_sorted, file_entries_sorted_expected);
@@ -787,11 +782,8 @@ mod polyglot_architecture_overview_tool {
         }
 
         // Verify suggestions are sorted by priority deterministically
-        let suggestions_sorted: Vec<_> = result
-            .refactor_suggestions
-            .iter()
-            .map(|s| s.priority.clone())
-            .collect();
+        let suggestions_sorted: Vec<_> =
+            result.refactor_suggestions.iter().map(|s| s.priority.clone()).collect();
         let mut suggestions_sorted_expected = suggestions_sorted.clone();
         suggestions_sorted_expected.sort();
         assert_eq!(suggestions_sorted, suggestions_sorted_expected);
@@ -811,14 +803,8 @@ mod polyglot_architecture_overview_tool {
         assert_eq!(result1.refactor_suggestions, result2.refactor_suggestions);
 
         // Metadata timestamps should be different but other fields same
-        assert_ne!(
-            result1.metadata["generated_at"],
-            result2.metadata["generated_at"]
-        );
-        assert_eq!(
-            result1.metadata["project_path"],
-            result2.metadata["project_path"]
-        );
+        assert_ne!(result1.metadata["generated_at"], result2.metadata["generated_at"]);
+        assert_eq!(result1.metadata["project_path"], result2.metadata["project_path"]);
     }
 
     #[test]
@@ -861,12 +847,7 @@ mod polyglot_architecture_overview_tool {
             }
 
             // Check all hotspot scores
-            for (j, hotspot) in result
-                .complexity_map
-                .cross_language_hotspots
-                .iter()
-                .enumerate()
-            {
+            for (j, hotspot) in result.complexity_map.cross_language_hotspots.iter().enumerate() {
                 assert_eq!(
                     hotspot.hotspot_score,
                     first_result.complexity_map.cross_language_hotspots[j].hotspot_score,
@@ -924,14 +905,8 @@ mod polyglot_architecture_overview_tool {
 
         // Should have valid topology
         assert!(result.topology_graph.connected_components >= 1);
-        assert_eq!(
-            result.topology_graph.nodes.len(),
-            result.unified_entities.len()
-        );
-        assert_eq!(
-            result.topology_graph.edges.len(),
-            result.unified_edges.len()
-        );
+        assert_eq!(result.topology_graph.nodes.len(), result.unified_entities.len());
+        assert_eq!(result.topology_graph.edges.len(), result.unified_edges.len());
 
         // Should have some complexity data
         assert!(result.complexity_map.overall_complexity_score >= 0.0);
@@ -949,11 +924,8 @@ mod polyglot_architecture_overview_tool {
         assert!(result.languages_detected.len() >= 3);
 
         // Should have entities from multiple languages
-        let languages_in_entities: HashSet<LanguageType> = result
-            .unified_entities
-            .iter()
-            .map(|e| e.language.clone())
-            .collect();
+        let languages_in_entities: HashSet<LanguageType> =
+            result.unified_entities.iter().map(|e| e.language.clone()).collect();
         assert_eq!(languages_in_entities.len(), result.languages_detected.len());
 
         // Should have cross-language edges
@@ -992,11 +964,8 @@ mod polyglot_architecture_overview_tool {
         assert!(!cross_language_hotspots.is_empty());
 
         // Should have cross-language refactor suggestions
-        let cross_language_suggestions: Vec<_> = result
-            .refactor_suggestions
-            .iter()
-            .filter(|s| s.languages.len() > 1)
-            .collect();
+        let cross_language_suggestions: Vec<_> =
+            result.refactor_suggestions.iter().filter(|s| s.languages.len() > 1).collect();
 
         assert!(!cross_language_suggestions.is_empty());
     }

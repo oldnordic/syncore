@@ -49,23 +49,14 @@ fn test_mapping_file_is_well_formed() {
 #[test]
 fn test_all_suites_are_valid() {
     let mapping = load_mapping();
-    let valid_suites: HashSet<&str> = [
-        "memory_suite",
-        "code_suite",
-        "graph_suite",
-        "mapping_suite",
-        "debug_suite",
-    ]
-    .into_iter()
-    .collect();
+    let valid_suites: HashSet<&str> =
+        ["memory_suite", "code_suite", "graph_suite", "mapping_suite", "debug_suite"]
+            .into_iter()
+            .collect();
 
     // All declared suites must be in the valid set
     for suite in &mapping.suites {
-        assert!(
-            valid_suites.contains(suite.as_str()),
-            "Invalid suite declared: {}",
-            suite
-        );
+        assert!(valid_suites.contains(suite.as_str()), "Invalid suite declared: {}", suite);
     }
 
     // All mappings must reference valid suites
@@ -85,11 +76,7 @@ fn test_no_duplicate_legacy_tools() {
     let mut seen: HashSet<&str> = HashSet::new();
 
     for m in &mapping.mappings {
-        assert!(
-            seen.insert(&m.legacy_name),
-            "Duplicate legacy tool in mapping: {}",
-            m.legacy_name
-        );
+        assert!(seen.insert(&m.legacy_name), "Duplicate legacy tool in mapping: {}", m.legacy_name);
     }
 }
 
@@ -113,29 +100,15 @@ fn test_statistics_match_mappings() {
     let mapping = load_mapping();
 
     let total = mapping.mappings.len();
-    let exact_parity = mapping
-        .mappings
-        .iter()
-        .filter(|m| m.status == "exact_parity")
-        .count();
-    let missing = mapping
-        .mappings
-        .iter()
-        .filter(|m| m.status == "missing")
-        .count();
+    let exact_parity = mapping.mappings.iter().filter(|m| m.status == "exact_parity").count();
+    let missing = mapping.mappings.iter().filter(|m| m.status == "missing").count();
 
     assert_eq!(
         mapping.statistics.total_legacy_tools, total,
         "Statistics total_legacy_tools mismatch"
     );
-    assert_eq!(
-        mapping.statistics.exact_parity, exact_parity,
-        "Statistics exact_parity mismatch"
-    );
-    assert_eq!(
-        mapping.statistics.missing, missing,
-        "Statistics missing mismatch"
-    );
+    assert_eq!(mapping.statistics.exact_parity, exact_parity, "Statistics exact_parity mismatch");
+    assert_eq!(mapping.statistics.missing, missing, "Statistics missing mismatch");
     assert_eq!(
         mapping.statistics.suites_count,
         mapping.suites.len(),
@@ -164,11 +137,7 @@ fn test_exact_parity_tools_are_deprecated() {
 
     for m in &mapping.mappings {
         if m.status == "exact_parity" {
-            assert!(
-                m.deprecated,
-                "Tool {} with exact_parity should be deprecated",
-                m.legacy_name
-            );
+            assert!(m.deprecated, "Tool {} with exact_parity should be deprecated", m.legacy_name);
         }
     }
 }
@@ -178,22 +147,15 @@ fn test_suite_command_not_empty() {
     let mapping = load_mapping();
 
     for m in &mapping.mappings {
-        assert!(
-            !m.suite_command.is_empty(),
-            "Tool {} has empty suite_command",
-            m.legacy_name
-        );
+        assert!(!m.suite_command.is_empty(), "Tool {} has empty suite_command", m.legacy_name);
     }
 }
 
 #[test]
 fn test_known_legacy_tools_are_mapped() {
     let mapping = load_mapping();
-    let mapped_tools: HashSet<&str> = mapping
-        .mappings
-        .iter()
-        .map(|m| m.legacy_name.as_str())
-        .collect();
+    let mapped_tools: HashSet<&str> =
+        mapping.mappings.iter().map(|m| m.legacy_name.as_str()).collect();
 
     // Critical tools that MUST be mapped
     let required_tools = [
@@ -216,11 +178,7 @@ fn test_known_legacy_tools_are_mapped() {
     ];
 
     for tool in required_tools {
-        assert!(
-            mapped_tools.contains(tool),
-            "Required tool {} is not in mapping",
-            tool
-        );
+        assert!(mapped_tools.contains(tool), "Required tool {} is not in mapping", tool);
     }
 }
 
@@ -256,14 +214,7 @@ fn test_migration_progress() {
 
     // Currently at ~26% parity (17/65)
     // This test will fail when we complete migration and need to update
-    assert!(
-        progress >= 25.0,
-        "Migration progress too low: {:.1}%",
-        progress
-    );
+    assert!(progress >= 25.0, "Migration progress too low: {:.1}%", progress);
 
-    println!(
-        "Migration progress: {:.1}% ({}/{})",
-        progress, exact_parity, total
-    );
+    println!("Migration progress: {:.1}% ({}/{})", progress, exact_parity, total);
 }

@@ -155,9 +155,7 @@ impl ProjectAnalysisEngine {
         // 5. Calculate summary
         let total_clippy_warnings = {
             let diagnostics = DiagnosticsManager::new(Arc::clone(self.db_manager()));
-            diagnostics
-                .count_diagnostics_for_tool("clippy")
-                .unwrap_or(0) as u32
+            diagnostics.count_diagnostics_for_tool("clippy").unwrap_or(0) as u32
         };
 
         let summary = ComplexitySummary {
@@ -196,11 +194,10 @@ impl ProjectAnalysisEngine {
 
     /// Get basic project metrics
     fn get_basic_metrics(&self, conn: &rusqlite::Connection) -> Result<(u32, u32, u32)> {
-        let total_files: u32 = conn.query_row(
-            "SELECT COUNT(DISTINCT file_path) FROM code_entities",
-            [],
-            |row| row.get(0),
-        )?;
+        let total_files: u32 =
+            conn.query_row("SELECT COUNT(DISTINCT file_path) FROM code_entities", [], |row| {
+                row.get(0)
+            })?;
 
         let total_entities: u32 =
             conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
@@ -262,16 +259,12 @@ impl ProjectAnalysisEngine {
             )?;
 
             // Count dead entities in this file
-            let dead_entities = dead_entities
-                .iter()
-                .filter(|entity| entity.file_path == file_path)
-                .count() as u32;
+            let dead_entities =
+                dead_entities.iter().filter(|entity| entity.file_path == file_path).count() as u32;
 
             // Count unused imports in this file
-            let unused_imports = unused_imports
-                .iter()
-                .filter(|import| import.file_path == file_path)
-                .count() as u32;
+            let unused_imports =
+                unused_imports.iter().filter(|import| import.file_path == file_path).count() as u32;
 
             // Count Clippy warnings in this file (use connection-based method to avoid deadlock)
             let clippy_warning_count = DiagnosticsManager::count_diagnostics_for_file_with_conn(
@@ -292,11 +285,8 @@ impl ProjectAnalysisEngine {
             }
 
             // Calculate risk score using new utilities
-            let hotspot_score = hotspots
-                .iter()
-                .find(|h| h.file_path == file_path)
-                .map(|h| h.score)
-                .unwrap_or(0.0);
+            let hotspot_score =
+                hotspots.iter().find(|h| h.file_path == file_path).map(|h| h.score).unwrap_or(0.0);
 
             let risk_inputs = FileRiskInputs {
                 file_path: file_path.clone(),
@@ -353,10 +343,7 @@ impl ProjectAnalysisEngine {
             };
         }
 
-        let loc_values: Vec<f32> = files
-            .iter()
-            .filter_map(|f| f.loc.map(|x| x as f32))
-            .collect();
+        let loc_values: Vec<f32> = files.iter().filter_map(|f| f.loc.map(|x| x as f32)).collect();
         let fan_in_values: Vec<f32> = files.iter().map(|f| f.fan_in as f32).collect();
         let fan_out_values: Vec<f32> = files.iter().map(|f| f.fan_out as f32).collect();
 
@@ -389,6 +376,10 @@ impl ProjectAnalysisEngine {
         let min = values.iter().copied().fold(f32::INFINITY, f32::min);
         let max = values.iter().copied().fold(f32::NEG_INFINITY, f32::max);
         let mean = values.iter().sum::<f32>() / values.len() as f32;
-        DistributionStats { min, max, mean }
+        DistributionStats {
+            min,
+            max,
+            mean,
+        }
     }
 }

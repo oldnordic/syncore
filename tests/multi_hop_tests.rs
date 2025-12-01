@@ -254,11 +254,8 @@ fn test_multi_hop_cycle_detection() -> Result<()> {
     assert!(node_ids.contains(&entity_ids[2]));
 
     // Verify A is visited only once (at depth 0)
-    let a_visits: Vec<&MultiHopNode> = result
-        .nodes
-        .iter()
-        .filter(|n| n.id == entity_ids[0])
-        .collect();
+    let a_visits: Vec<&MultiHopNode> =
+        result.nodes.iter().filter(|n| n.id == entity_ids[0]).collect();
     assert_eq!(a_visits.len(), 1);
     assert_eq!(a_visits[0].depth, 0);
 

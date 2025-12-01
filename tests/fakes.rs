@@ -23,7 +23,9 @@ pub struct FakeEmbeddings {
 
 impl FakeEmbeddings {
     pub fn new(dim: usize) -> Result<Self> {
-        Ok(Self { dim })
+        Ok(Self {
+            dim,
+        })
     }
 }
 
@@ -101,10 +103,7 @@ impl FakeParser {
 
     pub fn parse_file(&mut self, file_path: &std::path::Path) -> Result<CodeStructure> {
         // Return minimal structure without parsing
-        let file_name = file_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("test.rs");
+        let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("test.rs");
 
         Ok(CodeStructure {
             file_path: file_path.to_string_lossy().to_string(),

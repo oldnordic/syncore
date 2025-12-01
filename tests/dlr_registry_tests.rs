@@ -10,10 +10,7 @@ mod dlr_registry_tests {
             version: "0.1.0".to_string(),
             path: format!("/fake/path/{}", name),
             status,
-            capabilities: vec![
-                PluginCapability::IndexDirectory,
-                PluginCapability::LspIngest,
-            ],
+            capabilities: vec![PluginCapability::IndexDirectory, PluginCapability::LspIngest],
             process_id: None,
         }
     }
@@ -27,10 +24,7 @@ mod dlr_registry_tests {
         assert!(result.is_ok(), "Should register plugin successfully");
 
         let retrieved_plugin = registry.get_plugin("test_plugin");
-        assert!(
-            retrieved_plugin.is_some(),
-            "Should retrieve registered plugin"
-        );
+        assert!(retrieved_plugin.is_some(), "Should retrieve registered plugin");
         assert_eq!(retrieved_plugin.unwrap().name, "test_plugin");
     }
 
@@ -58,10 +52,7 @@ mod dlr_registry_tests {
         assert!(result.is_ok(), "Should unregister plugin successfully");
 
         let retrieved_plugin = registry.get_plugin("test_plugin");
-        assert!(
-            retrieved_plugin.is_none(),
-            "Plugin should be removed after unregistration"
-        );
+        assert!(retrieved_plugin.is_none(), "Plugin should be removed after unregistration");
     }
 
     #[test]
@@ -69,10 +60,7 @@ mod dlr_registry_tests {
         let mut registry = PluginRegistry::new();
 
         let result = registry.unregister_plugin("nonexistent_plugin");
-        assert!(
-            result.is_err(),
-            "Should fail to unregister nonexistent plugin"
-        );
+        assert!(result.is_err(), "Should fail to unregister nonexistent plugin");
         assert!(matches!(result.unwrap_err(), DlrError::RegistryError(_)));
     }
 
@@ -105,35 +93,20 @@ mod dlr_registry_tests {
         plugin2.capabilities = vec![PluginCapability::LspIngest];
 
         let mut plugin3 = create_test_plugin("plugin3", PluginStatus::Ready);
-        plugin3.capabilities = vec![
-            PluginCapability::IndexDirectory,
-            PluginCapability::LspIngest,
-        ];
+        plugin3.capabilities = vec![PluginCapability::IndexDirectory, PluginCapability::LspIngest];
 
         registry.register_plugin(plugin1).unwrap();
         registry.register_plugin(plugin2).unwrap();
         registry.register_plugin(plugin3).unwrap();
 
         let index_plugins = registry.find_plugins_by_capability("IndexDirectory");
-        assert_eq!(
-            index_plugins.len(),
-            2,
-            "Should find 2 plugins with IndexDirectory capability"
-        );
+        assert_eq!(index_plugins.len(), 2, "Should find 2 plugins with IndexDirectory capability");
 
         let lsp_plugins = registry.find_plugins_by_capability("LspIngest");
-        assert_eq!(
-            lsp_plugins.len(),
-            2,
-            "Should find 2 plugins with LspIngest capability"
-        );
+        assert_eq!(lsp_plugins.len(), 2, "Should find 2 plugins with LspIngest capability");
 
         let lint_plugins = registry.find_plugins_by_capability("LintIngest");
-        assert_eq!(
-            lint_plugins.len(),
-            0,
-            "Should find 0 plugins with LintIngest capability"
-        );
+        assert_eq!(lint_plugins.len(), 0, "Should find 0 plugins with LintIngest capability");
     }
 
     #[test]
@@ -179,10 +152,7 @@ mod dlr_registry_tests {
         let mut registry = PluginRegistry::new();
 
         let result = registry.update_plugin_status("nonexistent_plugin", PluginStatus::Ready);
-        assert!(
-            result.is_err(),
-            "Should fail to update nonexistent plugin status"
-        );
+        assert!(result.is_err(), "Should fail to update nonexistent plugin status");
         assert!(matches!(result.unwrap_err(), DlrError::RegistryError(_)));
     }
 
@@ -197,10 +167,7 @@ mod dlr_registry_tests {
         );
 
         registry.register_plugin(plugin).unwrap();
-        assert!(
-            registry.plugin_exists("test_plugin"),
-            "Plugin should exist after registration"
-        );
+        assert!(registry.plugin_exists("test_plugin"), "Plugin should exist after registration");
 
         assert!(
             !registry.plugin_exists("nonexistent_plugin"),
@@ -212,34 +179,18 @@ mod dlr_registry_tests {
     fn test_registry_count_plugins() {
         let mut registry = PluginRegistry::new();
 
-        assert_eq!(
-            registry.count_plugins(),
-            0,
-            "Should have 0 plugins initially"
-        );
+        assert_eq!(registry.count_plugins(), 0, "Should have 0 plugins initially");
 
         let plugin1 = create_test_plugin("plugin1", PluginStatus::Unloaded);
         registry.register_plugin(plugin1).unwrap();
-        assert_eq!(
-            registry.count_plugins(),
-            1,
-            "Should have 1 plugin after first registration"
-        );
+        assert_eq!(registry.count_plugins(), 1, "Should have 1 plugin after first registration");
 
         let plugin2 = create_test_plugin("plugin2", PluginStatus::Unloaded);
         registry.register_plugin(plugin2).unwrap();
-        assert_eq!(
-            registry.count_plugins(),
-            2,
-            "Should have 2 plugins after second registration"
-        );
+        assert_eq!(registry.count_plugins(), 2, "Should have 2 plugins after second registration");
 
         registry.unregister_plugin("plugin1").unwrap();
-        assert_eq!(
-            registry.count_plugins(),
-            1,
-            "Should have 1 plugin after unregistration"
-        );
+        assert_eq!(registry.count_plugins(), 1, "Should have 1 plugin after unregistration");
     }
 
     #[test]
@@ -251,22 +202,11 @@ mod dlr_registry_tests {
 
         registry.register_plugin(plugin1).unwrap();
         registry.register_plugin(plugin2).unwrap();
-        assert_eq!(
-            registry.count_plugins(),
-            2,
-            "Should have 2 plugins before clear"
-        );
+        assert_eq!(registry.count_plugins(), 2, "Should have 2 plugins before clear");
 
         registry.clear();
-        assert_eq!(
-            registry.count_plugins(),
-            0,
-            "Should have 0 plugins after clear"
-        );
-        assert!(
-            registry.list_plugins().is_empty(),
-            "Should have no plugins after clear"
-        );
+        assert_eq!(registry.count_plugins(), 0, "Should have 0 plugins after clear");
+        assert!(registry.list_plugins().is_empty(), "Should have no plugins after clear");
     }
 
     #[test]
@@ -277,18 +217,12 @@ mod dlr_registry_tests {
         registry.register_plugin(plugin).unwrap();
 
         let plugin_mut = registry.get_plugin_mut("test_plugin");
-        assert!(
-            plugin_mut.is_some(),
-            "Should get mutable reference to plugin"
-        );
+        assert!(plugin_mut.is_some(), "Should get mutable reference to plugin");
 
         let plugin_ref = plugin_mut.unwrap();
         plugin_ref.version = "0.2.0".to_string();
 
         let updated_plugin = registry.get_plugin("test_plugin").unwrap();
-        assert_eq!(
-            updated_plugin.version, "0.2.0",
-            "Should have updated version"
-        );
+        assert_eq!(updated_plugin.version, "0.2.0", "Should have updated version");
     }
 }

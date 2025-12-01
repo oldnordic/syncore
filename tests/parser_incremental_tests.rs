@@ -35,9 +35,7 @@ fn hello() {
     // Initial parse
     let event = syncore::fs_watcher::FsEvent::Created(test_file.clone());
 
-    let deltas = service
-        .apply_fs_event(event)
-        .expect("Failed to apply create event");
+    let deltas = service.apply_fs_event(event).expect("Failed to apply create event");
 
     assert_eq!(deltas.len(), 1);
     assert_eq!(deltas[0].path, test_file);
@@ -54,22 +52,14 @@ fn hello() {
 
     let event = syncore::fs_watcher::FsEvent::Modified(test_file.clone());
 
-    let deltas = service
-        .apply_fs_event(event)
-        .expect("Failed to apply modify event");
+    let deltas = service.apply_fs_event(event).expect("Failed to apply modify event");
 
     assert_eq!(deltas.len(), 1);
-    assert!(
-        !deltas[0].changed_ranges.is_empty(),
-        "Should have changed ranges"
-    );
+    assert!(!deltas[0].changed_ranges.is_empty(), "Should have changed ranges");
 
     // Verify changed ranges are localized (not entire file)
-    let total_changed_bytes: usize = deltas[0]
-        .changed_ranges
-        .iter()
-        .map(|r| r.end_byte - r.start_byte)
-        .sum();
+    let total_changed_bytes: usize =
+        deltas[0].changed_ranges.iter().map(|r| r.end_byte - r.start_byte).sum();
 
     let file_size = modified_code.len();
     assert!(
@@ -97,16 +87,11 @@ fn test_incremental_parse_handles_new_file() {
 
     let event = syncore::fs_watcher::FsEvent::Created(test_file.clone());
 
-    let deltas = service
-        .apply_fs_event(event)
-        .expect("Failed to apply create event");
+    let deltas = service.apply_fs_event(event).expect("Failed to apply create event");
 
     assert_eq!(deltas.len(), 1);
     assert_eq!(deltas[0].path, test_file);
-    assert!(
-        !deltas[0].had_errors,
-        "New file parse should have no errors"
-    );
+    assert!(!deltas[0].had_errors, "New file parse should have no errors");
 }
 
 // ============================================================================
@@ -127,18 +112,14 @@ fn test_incremental_parse_handles_delete() {
 
     let create_event = syncore::fs_watcher::FsEvent::Created(test_file.clone());
 
-    service
-        .apply_fs_event(create_event)
-        .expect("Failed to create");
+    service.apply_fs_event(create_event).expect("Failed to create");
 
     // Delete file
     std::fs::remove_file(&test_file).expect("Failed to delete file");
 
     let delete_event = syncore::fs_watcher::FsEvent::Removed(test_file.clone());
 
-    let deltas = service
-        .apply_fs_event(delete_event)
-        .expect("Failed to apply delete event");
+    let deltas = service.apply_fs_event(delete_event).expect("Failed to apply delete event");
 
     // Should return empty deltas or single delta indicating removal
     assert!(
@@ -150,10 +131,7 @@ fn test_incremental_parse_handles_delete() {
     let modify_event = syncore::fs_watcher::FsEvent::Modified(test_file.clone());
 
     let result = service.apply_fs_event(modify_event);
-    assert!(
-        result.is_ok() && result.unwrap().is_empty(),
-        "Modifying deleted file should be no-op"
-    );
+    assert!(result.is_ok() && result.unwrap().is_empty(), "Modifying deleted file should be no-op");
 }
 
 // ============================================================================
@@ -174,13 +152,8 @@ fn test_incremental_parse_error_flag() {
 
     let create_event = syncore::fs_watcher::FsEvent::Created(test_file.clone());
 
-    let deltas = service
-        .apply_fs_event(create_event)
-        .expect("Failed to create");
-    assert!(
-        !deltas[0].had_errors,
-        "Initial valid code should have no errors"
-    );
+    let deltas = service.apply_fs_event(create_event).expect("Failed to create");
+    assert!(!deltas[0].had_errors, "Initial valid code should have no errors");
 
     // Introduce syntax error (missing brace)
     let invalid_code = r#"
@@ -192,15 +165,10 @@ fn broken() {
 
     let modify_event = syncore::fs_watcher::FsEvent::Modified(test_file.clone());
 
-    let deltas = service
-        .apply_fs_event(modify_event)
-        .expect("Failed to modify");
+    let deltas = service.apply_fs_event(modify_event).expect("Failed to modify");
 
     assert_eq!(deltas.len(), 1);
-    assert!(
-        deltas[0].had_errors,
-        "Syntax error should set had_errors flag"
-    );
+    assert!(deltas[0].had_errors, "Syntax error should set had_errors flag");
 }
 
 // ============================================================================
@@ -221,9 +189,7 @@ fn test_parse_delta_for_rename() {
 
     let create_event = syncore::fs_watcher::FsEvent::Created(old_path.clone());
 
-    service
-        .apply_fs_event(create_event)
-        .expect("Failed to create");
+    service.apply_fs_event(create_event).expect("Failed to create");
 
     // Rename file
     let new_path = root.join("new_name.rs");
@@ -234,19 +200,12 @@ fn test_parse_delta_for_rename() {
     let remove_event = syncore::fs_watcher::FsEvent::Removed(old_path.clone());
     let create_event = syncore::fs_watcher::FsEvent::Created(new_path.clone());
 
-    let deltas1 = service
-        .apply_fs_event(remove_event)
-        .expect("Failed to apply remove");
-    let deltas2 = service
-        .apply_fs_event(create_event)
-        .expect("Failed to apply create");
+    let deltas1 = service.apply_fs_event(remove_event).expect("Failed to apply remove");
+    let deltas2 = service.apply_fs_event(create_event).expect("Failed to apply create");
 
     // Should produce deltas for both old (removed) and new (created)
     // Or at least handle the rename gracefully
-    let all_deltas = vec![deltas1, deltas2]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
+    let all_deltas = vec![deltas1, deltas2].into_iter().flatten().collect::<Vec<_>>();
     assert!(!all_deltas.is_empty(), "Rename should produce parse deltas");
 
     // Verify new file is now tracked
@@ -254,9 +213,7 @@ fn test_parse_delta_for_rename() {
 
     let modify_event = syncore::fs_watcher::FsEvent::Modified(new_path.clone());
 
-    let deltas = service
-        .apply_fs_event(modify_event)
-        .expect("Failed to modify renamed file");
+    let deltas = service.apply_fs_event(modify_event).expect("Failed to modify renamed file");
 
     assert_eq!(deltas.len(), 1);
     assert_eq!(deltas[0].path, new_path);

@@ -45,19 +45,12 @@ impl PluginRegistry {
     pub fn find_plugins_by_capability(&self, capability: &str) -> Vec<&Plugin> {
         self.plugins
             .values()
-            .filter(|p| {
-                p.capabilities
-                    .iter()
-                    .any(|c| format!("{:?}", c) == capability)
-            })
+            .filter(|p| p.capabilities.iter().any(|c| format!("{:?}", c) == capability))
             .collect()
     }
 
     pub fn get_ready_plugins(&self) -> Vec<&Plugin> {
-        self.plugins
-            .values()
-            .filter(|p| matches!(p.status, PluginStatus::Ready))
-            .collect()
+        self.plugins.values().filter(|p| matches!(p.status, PluginStatus::Ready)).collect()
     }
 
     pub fn update_plugin_status(

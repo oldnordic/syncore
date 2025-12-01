@@ -102,8 +102,7 @@ impl MemoryService {
 
         // Search LTM if available
         let ltm_results = if let Some(ref ltm) = self.ltm {
-            ltm.ltm_query(query_embedding, k * 2)
-                .unwrap_or_else(|_| vec![])
+            ltm.ltm_query(query_embedding, k * 2).unwrap_or_else(|_| vec![])
         } else {
             vec![]
         };
@@ -132,17 +131,11 @@ impl MemoryService {
             .collect();
 
         scored.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.0.cmp(&b.0))
+            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.cmp(&b.0))
         });
 
         // Take top-k results
-        scored
-            .into_iter()
-            .take(k)
-            .map(|(_, _, entry)| entry)
-            .collect()
+        scored.into_iter().take(k).map(|(_, _, entry)| entry).collect()
     }
 
     /// Get the embedding dimension used by this memory service

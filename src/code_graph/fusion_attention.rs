@@ -26,7 +26,9 @@ impl FusionAttention {
     /// # Returns
     /// New FusionAttention instance
     pub fn new(embeddings: Box<dyn Embeddings>) -> Self {
-        Self { embeddings }
+        Self {
+            embeddings,
+        }
     }
 
     /// Combine scores using attention-based dynamic weighting

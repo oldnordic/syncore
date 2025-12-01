@@ -39,7 +39,9 @@ impl PythonLanguageParser {
     /// Create new Python language parser
     pub fn new() -> Result<Self> {
         let parser = Parser::new()?;
-        Ok(Self { parser })
+        Ok(Self {
+            parser,
+        })
     }
 
     /// Convert FunctionInfo to CodeEntity
@@ -289,11 +291,7 @@ class TestClass:
             .iter()
             .find(|e| e.name == "TestClass.__init__" && e.entity_type == EntityType::Method)
             .unwrap();
-        assert!(method_entity
-            .signature
-            .as_ref()
-            .unwrap()
-            .contains("__init__(self, value)"));
+        assert!(method_entity.signature.as_ref().unwrap().contains("__init__(self, value)"));
 
         Ok(())
     }
@@ -314,10 +312,8 @@ from typing import List, Dict
         let entities = parser.parse_entities(&file_path)?;
 
         // Should have 4 import entities
-        let import_entities: Vec<_> = entities
-            .iter()
-            .filter(|e| e.entity_type == EntityType::Import)
-            .collect();
+        let import_entities: Vec<_> =
+            entities.iter().filter(|e| e.entity_type == EntityType::Import).collect();
         assert_eq!(import_entities.len(), 4);
 
         let os_import = import_entities.iter().find(|e| e.name == "os").unwrap();

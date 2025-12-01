@@ -31,7 +31,9 @@ impl WriteQueue {
             }
         });
 
-        Self { tx }
+        Self {
+            tx,
+        }
     }
 
     pub async fn execute<F>(&self, func: F) -> anyhow::Result<serde_json::Value>
@@ -43,10 +45,7 @@ impl WriteQueue {
             func: Box::new(func),
             reply: reply_tx,
         };
-        self.tx
-            .send(job)
-            .await
-            .map_err(|_| anyhow::anyhow!("Write queue channel closed"))?;
+        self.tx.send(job).await.map_err(|_| anyhow::anyhow!("Write queue channel closed"))?;
         reply_rx.await?
     }
 }

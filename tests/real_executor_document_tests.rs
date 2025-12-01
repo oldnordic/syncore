@@ -23,12 +23,10 @@ use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
 /// Helper to create a RealExecutor with fresh state
+#[allow(deprecated)]
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_doc_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -45,8 +43,7 @@ fn create_temp_text_file(suffix: &str, content: &str) -> (String, tempfile::Temp
     let file_path = temp_dir.path().join(format!("doc_{}.txt", suffix));
 
     let mut file = fs::File::create(&file_path).expect("Failed to create file");
-    file.write_all(content.as_bytes())
-        .expect("Failed to write file");
+    file.write_all(content.as_bytes()).expect("Failed to write file");
 
     (file_path.to_string_lossy().to_string(), temp_dir)
 }
@@ -64,11 +61,7 @@ fn test_document_index_file_real() {
     );
 
     // Get parent directory
-    let dir_path = std::path::Path::new(&file_path)
-        .parent()
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
+    let dir_path = std::path::Path::new(&file_path).parent().unwrap().to_string_lossy().to_string();
 
     let params = json!({
         "directory": dir_path,
@@ -76,18 +69,11 @@ fn test_document_index_file_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_index", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("document_index", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real document_index should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real document_index should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -127,17 +113,10 @@ fn test_document_index_directory_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_index", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("document_index", &params).await });
 
-    assert!(
-        result.is_ok(),
-        "Real document_index_directory should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real document_index_directory should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -173,12 +152,8 @@ fn test_document_search_real() {
         "dry_run": false
     });
 
-    rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_index", &index_params)
-            .await
-    })
-    .expect("Index should succeed");
+    rt.block_on(async { executor.execute_real_tool_async("document_index", &index_params).await })
+        .expect("Index should succeed");
 
     // Now search
     let search_params = json!({
@@ -188,9 +163,7 @@ fn test_document_search_real() {
     });
 
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_search", &search_params)
-            .await
+        executor.execute_real_tool_async("document_search", &search_params).await
     });
 
     assert!(result.is_ok(), "Real document_search should succeed");
@@ -223,11 +196,8 @@ fn test_document_index_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_index", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("document_index", &params).await });
 
     assert!(result.is_ok(), "Dry run should succeed");
     let envelope = result.unwrap();
@@ -259,11 +229,8 @@ fn test_document_search_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("document_search", &params).await });
 
     assert!(result.is_ok(), "Dry run should succeed");
     let envelope = result.unwrap();
@@ -297,17 +264,11 @@ fn test_document_tools_error_handling() {
         // Missing 'directory' - should error
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_index", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("document_index", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -319,16 +280,10 @@ fn test_document_tools_error_handling() {
         // Missing 'query' - should error
     });
 
-    let result2 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("document_search", &params2)
-            .await
-    });
+    let result2 =
+        rt.block_on(async { executor.execute_real_tool_async("document_search", &params2).await });
 
-    assert!(
-        result2.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result2.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope2 = result2.unwrap();
     assert_error_envelope(&envelope2);
     let error2 = unwrap_error(&envelope2);

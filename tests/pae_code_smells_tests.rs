@@ -168,10 +168,8 @@ async fn test_god_file_detection() -> Result<()> {
     let smells = engine.detect_file_smells(10)?;
 
     // Should detect GOD_FILE
-    let god_file_smells: Vec<_> = smells
-        .iter()
-        .filter(|s| s.smell_type == "GOD_FILE" && s.file_path == file_path)
-        .collect();
+    let god_file_smells: Vec<_> =
+        smells.iter().filter(|s| s.smell_type == "GOD_FILE" && s.file_path == file_path).collect();
 
     assert!(!god_file_smells.is_empty(), "Should detect GOD_FILE smell");
     let smell = &god_file_smells[0];
@@ -238,10 +236,7 @@ async fn test_hotspot_god_file_detection() -> Result<()> {
         .filter(|s| s.smell_type == "HOTSPOT_GOD_FILE" && s.file_path == file_path)
         .collect();
 
-    assert!(
-        !hotspot_smells.is_empty(),
-        "Should detect HOTSPOT_GOD_FILE smell"
-    );
+    assert!(!hotspot_smells.is_empty(), "Should detect HOTSPOT_GOD_FILE smell");
     let smell = &hotspot_smells[0];
     assert_eq!(smell.file_path, file_path);
     assert_eq!(smell.smell_type, "HOTSPOT_GOD_FILE");
@@ -340,10 +335,7 @@ async fn test_import_jungle_detection() -> Result<()> {
         .filter(|s| s.smell_type == "IMPORT_JUNGLE" && s.file_path == file_path)
         .collect();
 
-    assert!(
-        !import_jungle_smells.is_empty(),
-        "Should detect IMPORT_JUNGLE smell"
-    );
+    assert!(!import_jungle_smells.is_empty(), "Should detect IMPORT_JUNGLE smell");
     let smell = &import_jungle_smells[0];
     assert_eq!(smell.file_path, file_path);
     assert_eq!(smell.smell_type, "IMPORT_JUNGLE");
@@ -388,10 +380,7 @@ async fn test_long_function_detection() -> Result<()> {
         .filter(|s| s.smell_type == "LONG_FUNCTION" && s.file_path == file_path)
         .collect();
 
-    assert!(
-        !long_function_smells.is_empty(),
-        "Should detect LONG_FUNCTION smell"
-    );
+    assert!(!long_function_smells.is_empty(), "Should detect LONG_FUNCTION smell");
     let smell = &long_function_smells[0];
     assert_eq!(smell.file_path, file_path);
     assert_eq!(smell.smell_type, "LONG_FUNCTION");
@@ -438,10 +427,7 @@ async fn test_long_parameter_list_detection() -> Result<()> {
         .filter(|s| s.smell_type == "LONG_PARAMETER_LIST" && s.file_path == file_path)
         .collect();
 
-    assert!(
-        !long_param_smells.is_empty(),
-        "Should detect LONG_PARAMETER_LIST smell"
-    );
+    assert!(!long_param_smells.is_empty(), "Should detect LONG_PARAMETER_LIST smell");
     let smell = &long_param_smells[0];
     assert_eq!(smell.file_path, file_path);
     assert_eq!(smell.smell_type, "LONG_PARAMETER_LIST");

@@ -74,10 +74,7 @@ metrics_port = 9090
     assert!(config.neo4j.enabled);
 
     // Indexing
-    assert_eq!(
-        config.indexing.excluded_dirs,
-        vec!["target", "node_modules"]
-    );
+    assert_eq!(config.indexing.excluded_dirs, vec!["target", "node_modules"]);
     assert_eq!(config.indexing.include_extensions, vec!["rs", "py"]);
     assert_eq!(config.indexing.max_file_size, 2097152);
 
@@ -124,18 +121,9 @@ db_path = "syncore.db"
     assert!(config.neo4j.enabled);
 
     // Indexing defaults
-    assert!(config
-        .indexing
-        .excluded_dirs
-        .contains(&"target".to_string()));
-    assert!(config
-        .indexing
-        .excluded_dirs
-        .contains(&"node_modules".to_string()));
-    assert!(config
-        .indexing
-        .include_extensions
-        .contains(&"rs".to_string()));
+    assert!(config.indexing.excluded_dirs.contains(&"target".to_string()));
+    assert!(config.indexing.excluded_dirs.contains(&"node_modules".to_string()));
+    assert!(config.indexing.include_extensions.contains(&"rs".to_string()));
     assert_eq!(config.indexing.max_file_size, 1048576);
 
     // Embeddings defaults
@@ -156,10 +144,7 @@ fn test_empty_config_uses_defaults() {
     let config = SyncoreConfig::default();
 
     assert_eq!(config.paths.db_path, "syncore.db");
-    assert!(config
-        .indexing
-        .excluded_dirs
-        .contains(&"target".to_string()));
+    assert!(config.indexing.excluded_dirs.contains(&"target".to_string()));
     assert_eq!(config.neo4j.uri, "bolt://127.0.0.1:7687");
     assert_eq!(config.embeddings.dimensions, 384);
 }
@@ -172,10 +157,7 @@ fn test_config_roundtrip() {
     let parsed: SyncoreConfig = toml::from_str(&toml_str).expect("Failed to parse");
 
     assert_eq!(original.paths.db_path, parsed.paths.db_path);
-    assert_eq!(
-        original.indexing.excluded_dirs,
-        parsed.indexing.excluded_dirs
-    );
+    assert_eq!(original.indexing.excluded_dirs, parsed.indexing.excluded_dirs);
     assert_eq!(original.neo4j.uri, parsed.neo4j.uri);
 }
 
@@ -187,15 +169,9 @@ fn test_default_excluded_dirs() {
 
     // Must include these common build/dependency directories
     assert!(excluded.contains(&"target".to_string()), "missing target");
-    assert!(
-        excluded.contains(&"node_modules".to_string()),
-        "missing node_modules"
-    );
+    assert!(excluded.contains(&"node_modules".to_string()), "missing node_modules");
     assert!(excluded.contains(&".git".to_string()), "missing .git");
-    assert!(
-        excluded.contains(&"__pycache__".to_string()),
-        "missing __pycache__"
-    );
+    assert!(excluded.contains(&"__pycache__".to_string()), "missing __pycache__");
     assert!(excluded.contains(&".venv".to_string()), "missing .venv");
     assert!(excluded.contains(&"vendor".to_string()), "missing vendor");
     assert!(excluded.contains(&"dist".to_string()), "missing dist");
@@ -221,11 +197,7 @@ fn test_hotspot_weights_sum() {
     let config = SyncoreConfig::default();
     let weights = &config.project_analysis.hotspot_weights;
     let sum = weights.fan_in + weights.fan_out + weights.entity_count + weights.loc;
-    assert!(
-        (sum - 1.0).abs() < 0.001,
-        "Hotspot weights should sum to 1.0, got {}",
-        sum
-    );
+    assert!((sum - 1.0).abs() < 0.001, "Hotspot weights should sum to 1.0, got {}", sum);
 }
 
 /// Test: Config load from file

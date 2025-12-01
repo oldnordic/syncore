@@ -25,10 +25,7 @@ use std::sync::Arc;
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
         Some(v) if !v.is_empty() => Ok(v),
-        _ => Err(wrap_error_static(
-            tool,
-            &format!("Missing '{}' parameter", key),
-        )),
+        _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
 
@@ -151,12 +148,7 @@ pub async fn execute_intellitask_get(
 ) -> anyhow::Result<Value> {
     let task_id = match params.get("task_id").and_then(|v| v.as_i64()) {
         Some(v) => v,
-        None => {
-            return Ok(wrap_error_static(
-                "intellitask_get",
-                "Missing 'task_id' parameter",
-            ))
-        }
+        None => return Ok(wrap_error_static("intellitask_get", "Missing 'task_id' parameter")),
     };
 
     if dry_run {
@@ -174,19 +166,12 @@ pub async fn execute_intellitask_get(
     match state.tasks.get_task(task_id) {
         Ok(Some(task)) => match serde_json::to_value(&task) {
             Ok(v) => Ok(v),
-            Err(e) => Ok(wrap_error(
-                "intellitask_get",
-                &format!("Failed to serialize task: {}", e),
-            )),
+            Err(e) => {
+                Ok(wrap_error("intellitask_get", &format!("Failed to serialize task: {}", e)))
+            }
         },
-        Ok(None) => Ok(wrap_error(
-            "intellitask_get",
-            &format!("Task {} not found", task_id),
-        )),
-        Err(e) => Ok(wrap_error(
-            "intellitask_get",
-            &format!("Database error: {}", e),
-        )),
+        Ok(None) => Ok(wrap_error("intellitask_get", &format!("Task {} not found", task_id))),
+        Err(e) => Ok(wrap_error("intellitask_get", &format!("Database error: {}", e))),
     }
 }
 

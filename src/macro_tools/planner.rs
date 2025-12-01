@@ -14,11 +14,20 @@ use serde_json::{json, Value};
 #[derive(Debug, Clone, PartialEq)]
 pub enum CodeMacroPlan {
     /// Semantic search: mapping_search → code_search → vector_search
-    SemanticSearch { query: String, limit: i64 },
+    SemanticSearch {
+        query: String,
+        limit: i64,
+    },
     /// Module analysis: parser_analyze → mapping_deps → code_search
-    AnalyzeModule { file_path: String, focus: String },
+    AnalyzeModule {
+        file_path: String,
+        focus: String,
+    },
     /// Directory indexing: code_index_directory → mapping_record (per file)
-    IndexDirectory { directory: String, pattern: String },
+    IndexDirectory {
+        directory: String,
+        pattern: String,
+    },
 }
 
 impl CodeMacroPlan {
@@ -38,7 +47,10 @@ impl CodeMacroPlan {
                     .to_string();
                 let limit = params.get("limit").and_then(|v| v.as_i64()).unwrap_or(10);
 
-                Ok(CodeMacroPlan::SemanticSearch { query, limit })
+                Ok(CodeMacroPlan::SemanticSearch {
+                    query,
+                    limit,
+                })
             }
             "analyze_module" => {
                 let file_path = params
@@ -52,7 +64,10 @@ impl CodeMacroPlan {
                     .ok_or_else(|| anyhow::anyhow!("Missing required field: focus"))?
                     .to_string();
 
-                Ok(CodeMacroPlan::AnalyzeModule { file_path, focus })
+                Ok(CodeMacroPlan::AnalyzeModule {
+                    file_path,
+                    focus,
+                })
             }
             "index_directory" => {
                 let directory = params
@@ -66,39 +81,42 @@ impl CodeMacroPlan {
                     .ok_or_else(|| anyhow::anyhow!("Missing required field: pattern"))?
                     .to_string();
 
-                Ok(CodeMacroPlan::IndexDirectory { directory, pattern })
+                Ok(CodeMacroPlan::IndexDirectory {
+                    directory,
+                    pattern,
+                })
             }
-            _ => Err(anyhow::anyhow!(
-                "Invalid action for syncore.code: {}",
-                action
-            )),
+            _ => Err(anyhow::anyhow!("Invalid action for syncore.code: {}", action)),
         }
     }
 
     /// Get the execution steps for this plan
     pub fn get_steps(&self) -> Vec<(String, Value)> {
         match self {
-            CodeMacroPlan::SemanticSearch { query, limit } => {
+            CodeMacroPlan::SemanticSearch {
+                query,
+                limit,
+            } => {
                 vec![
                     ("mapping_search".to_string(), json!({ "query": query })),
                     ("code_search".to_string(), json!({ "query": query })),
-                    (
-                        "vector_search".to_string(),
-                        json!({ "query": query, "limit": limit }),
-                    ),
+                    ("vector_search".to_string(), json!({ "query": query, "limit": limit })),
                 ]
             }
-            CodeMacroPlan::AnalyzeModule { file_path, focus } => {
+            CodeMacroPlan::AnalyzeModule {
+                file_path,
+                focus,
+            } => {
                 vec![
-                    (
-                        "parser_analyze".to_string(),
-                        json!({ "file_path": file_path }),
-                    ),
+                    ("parser_analyze".to_string(), json!({ "file_path": file_path })),
                     ("mapping_deps".to_string(), json!({ "path": file_path })),
                     ("code_search".to_string(), json!({ "query": focus })),
                 ]
             }
-            CodeMacroPlan::IndexDirectory { directory, pattern } => {
+            CodeMacroPlan::IndexDirectory {
+                directory,
+                pattern,
+            } => {
                 vec![
                     (
                         "code_index_directory".to_string(),
@@ -133,9 +151,15 @@ pub enum TaskMacroPlan {
         strategy: String,
     },
     /// Bootstrap from PRD: generate → save → subtasks
-    BootstrapFromPRD { prd_text: String, auto_expand: bool },
+    BootstrapFromPRD {
+        prd_text: String,
+        auto_expand: bool,
+    },
     /// Complete task: update_status → subtask_stats → next_ready
-    Complete { task_id: i64, suggest_next: bool },
+    Complete {
+        task_id: i64,
+        suggest_next: bool,
+    },
 }
 
 impl TaskMacroPlan {
@@ -148,10 +172,8 @@ impl TaskMacroPlan {
 
         match action {
             "next" => {
-                let prd_title = params
-                    .get("prd_title")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
+                let prd_title =
+                    params.get("prd_title").and_then(|v| v.as_str()).map(|s| s.to_string());
                 let strategy = params
                     .get("strategy")
                     .and_then(|v| v.as_str())
@@ -169,10 +191,8 @@ impl TaskMacroPlan {
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow::anyhow!("Missing required field: prd_text"))?
                     .to_string();
-                let auto_expand = params
-                    .get("auto_expand")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
+                let auto_expand =
+                    params.get("auto_expand").and_then(|v| v.as_bool()).unwrap_or(false);
 
                 Ok(TaskMacroPlan::BootstrapFromPRD {
                     prd_text,
@@ -184,53 +204,45 @@ impl TaskMacroPlan {
                     .get("task_id")
                     .and_then(|v| v.as_i64())
                     .ok_or_else(|| anyhow::anyhow!("Missing required field: task_id"))?;
-                let suggest_next = params
-                    .get("suggest_next")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
+                let suggest_next =
+                    params.get("suggest_next").and_then(|v| v.as_bool()).unwrap_or(false);
 
                 Ok(TaskMacroPlan::Complete {
                     task_id,
                     suggest_next,
                 })
             }
-            _ => Err(anyhow::anyhow!(
-                "Invalid action for syncore.task: {}",
-                action
-            )),
+            _ => Err(anyhow::anyhow!("Invalid action for syncore.task: {}", action)),
         }
     }
 
     /// Get the execution steps for this plan
     pub fn get_steps(&self) -> Vec<(String, Value)> {
         match self {
-            TaskMacroPlan::Next { strategy, .. } => {
+            TaskMacroPlan::Next {
+                strategy,
+                ..
+            } => {
                 vec![
                     ("intellitask_task_statistics".to_string(), json!({})),
                     ("intellitask_next_ready".to_string(), json!({})),
-                    (
-                        "intellitask_prioritize".to_string(),
-                        json!({ "strategy": strategy }),
-                    ),
+                    ("intellitask_prioritize".to_string(), json!({ "strategy": strategy })),
                 ]
             }
-            TaskMacroPlan::BootstrapFromPRD { prd_text, .. } => {
+            TaskMacroPlan::BootstrapFromPRD {
+                prd_text,
+                ..
+            } => {
                 vec![
-                    (
-                        "intellitask_generate".to_string(),
-                        json!({ "prd_content": prd_text }),
-                    ),
-                    (
-                        "intellitask_save".to_string(),
-                        json!({ "breakdown_json": "{}" }),
-                    ),
-                    (
-                        "intellitask_subtasks".to_string(),
-                        json!({ "parent_task_id": "1" }),
-                    ),
+                    ("intellitask_generate".to_string(), json!({ "prd_content": prd_text })),
+                    ("intellitask_save".to_string(), json!({ "breakdown_json": "{}" })),
+                    ("intellitask_subtasks".to_string(), json!({ "parent_task_id": "1" })),
                 ]
             }
-            TaskMacroPlan::Complete { task_id, .. } => {
+            TaskMacroPlan::Complete {
+                task_id,
+                ..
+            } => {
                 vec![
                     (
                         "intellitask_update_status".to_string(),
@@ -239,10 +251,7 @@ impl TaskMacroPlan {
                             "status": "completed"
                         }),
                     ),
-                    (
-                        "intellitask_subtask_stats".to_string(),
-                        json!({ "parent_id": task_id }),
-                    ),
+                    ("intellitask_subtask_stats".to_string(), json!({ "parent_id": task_id })),
                     ("intellitask_next_ready".to_string(), json!({})),
                 ]
             }
@@ -299,7 +308,10 @@ mod tests {
         let plan = CodeMacroPlan::from_request(&params).unwrap();
 
         match plan {
-            CodeMacroPlan::SemanticSearch { query, limit } => {
+            CodeMacroPlan::SemanticSearch {
+                query,
+                limit,
+            } => {
                 assert_eq!(query, "find async message bus implementation");
                 assert_eq!(limit, 5);
             }

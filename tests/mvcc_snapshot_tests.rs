@@ -25,12 +25,10 @@ fn test_snapshot_consistency_across_domains() -> Result<()> {
     let db_path = temp_dir.path().join("test.db");
 
     // Initialize state with dual stores
-    let code_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
-    let general_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
+    let code_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
+    let general_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
 
     let state = SynCoreState::with_dual_stores(code_store, general_store)?;
 
@@ -60,12 +58,10 @@ fn test_snapshot_swap_is_atomic() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("test.db");
 
-    let code_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
-    let general_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
+    let code_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
+    let general_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
 
     let state = Arc::new(SynCoreState::with_dual_stores(code_store, general_store)?);
 
@@ -130,12 +126,10 @@ fn test_snapshot_prevents_cross_domain_skew() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("test.db");
 
-    let code_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
-    let general_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
+    let code_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
+    let general_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
 
     let state = SynCoreState::with_dual_stores(code_store, general_store)?;
 
@@ -162,20 +156,11 @@ fn test_snapshot_prevents_cross_domain_skew() -> Result<()> {
 
     // Old snapshot must not mix new metadata with old metadata
     // When implemented, this should verify atomic consistency
-    assert_ne!(
-        Arc::as_ptr(&old_snapshot) as usize,
-        Arc::as_ptr(&new_snapshot) as usize
-    );
+    assert_ne!(Arc::as_ptr(&old_snapshot) as usize, Arc::as_ptr(&new_snapshot) as usize);
 
     // Verify versions have changed
-    assert_ne!(
-        old_snapshot.memory_meta.version,
-        new_snapshot.memory_meta.version
-    );
-    assert_ne!(
-        old_snapshot.vector_meta.version,
-        new_snapshot.vector_meta.version
-    );
+    assert_ne!(old_snapshot.memory_meta.version, new_snapshot.memory_meta.version);
+    assert_ne!(old_snapshot.vector_meta.version, new_snapshot.vector_meta.version);
 
     Ok(())
 }
@@ -186,12 +171,10 @@ fn test_snapshot_does_not_block_readers() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("test.db");
 
-    let code_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
-    let general_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
+    let code_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
+    let general_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
 
     let state = Arc::new(SynCoreState::with_dual_stores(code_store, general_store)?);
 
@@ -217,12 +200,7 @@ fn test_snapshot_does_not_block_readers() -> Result<()> {
 
             let elapsed = start.elapsed();
             // Readers should complete quickly (no blocking)
-            assert!(
-                elapsed < Duration::from_secs(5),
-                "Reader {} took too long: {:?}",
-                i,
-                elapsed
-            );
+            assert!(elapsed < Duration::from_secs(5), "Reader {} took too long: {:?}", i, elapsed);
         });
 
         handles.push(handle);
@@ -245,11 +223,7 @@ fn test_snapshot_does_not_block_readers() -> Result<()> {
 
         let elapsed = start.elapsed();
         // Writer should also complete reasonably
-        assert!(
-            elapsed < Duration::from_secs(5),
-            "Writer took too long: {:?}",
-            elapsed
-        );
+        assert!(elapsed < Duration::from_secs(5), "Writer took too long: {:?}", elapsed);
     });
 
     // Wait for all threads
@@ -267,12 +241,10 @@ fn test_snapshot_handle_does_not_leak() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("test.db");
 
-    let code_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
-    let general_store = Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(
-        StubEmbeddings::new(384)?,
-    ))));
+    let code_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
+    let general_store =
+        Arc::new(std::sync::Mutex::new(VectorStore::new(Box::new(StubEmbeddings::new(384)?))));
 
     let state = SynCoreState::with_dual_stores(code_store, general_store)?;
 

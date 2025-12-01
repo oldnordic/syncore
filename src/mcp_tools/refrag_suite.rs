@@ -48,7 +48,9 @@ pub struct RefragSuite {
 
 impl RefragSuite {
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     fn handle_query(&self, args: serde_json::Value) -> SuiteResult {
@@ -138,10 +140,7 @@ impl SuiteDispatcher for RefragSuite {
             "help" => self.handle_help(),
             _ => SuiteResult::err(
                 command,
-                format!(
-                    "Unknown command: {}. Use 'help' to see available commands.",
-                    command
-                ),
+                format!("Unknown command: {}. Use 'help' to see available commands.", command),
             ),
         }
     }

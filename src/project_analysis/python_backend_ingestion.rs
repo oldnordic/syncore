@@ -115,9 +115,7 @@ impl PythonBackendIngestion {
                 }
             } else if path.is_dir() {
                 // Recursively check subdirectories (but limit depth to avoid infinite loops)
-                if path
-                    .file_name()
-                    .map_or(false, |name| name != "target" && name != "node_modules")
+                if path.file_name().map_or(false, |name| name != "target" && name != "node_modules")
                     && self.has_python_files(&path)?
                 {
                     return Ok(true);
@@ -237,16 +235,10 @@ impl PythonBackendIngestion {
             .and_then(|v| v.as_u64())
             .unwrap_or(1) as u32;
 
-        let message = json
-            .get("message")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Unknown message")
-            .to_string();
+        let message =
+            json.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown message").to_string();
 
-        let code = json
-            .get("code")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let code = json.get("code").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         let severity = match json.get("level").and_then(|v| v.as_str()) {
             Some("error") => "error",
@@ -363,14 +355,10 @@ mod tests {
         "#;
 
         let json: Value = serde_json::from_str(json_str)?;
-        let diagnostic = ingestion
-            .parse_ruff_diagnostic(json, project_root)?
-            .expect("Should parse diagnostic");
+        let diagnostic =
+            ingestion.parse_ruff_diagnostic(json, project_root)?.expect("Should parse diagnostic");
 
-        assert_eq!(
-            diagnostic.file_path,
-            project_root.join("src/main.py").to_string_lossy()
-        );
+        assert_eq!(diagnostic.file_path, project_root.join("src/main.py").to_string_lossy());
         assert_eq!(diagnostic.line, 10);
         assert_eq!(diagnostic.column, 5);
         assert_eq!(diagnostic.severity, "error");
@@ -394,10 +382,7 @@ mod tests {
             .parse_mypy_diagnostic_line(line, project_root)?
             .expect("Should parse diagnostic");
 
-        assert_eq!(
-            diagnostic.file_path,
-            project_root.join("main.py").to_string_lossy()
-        );
+        assert_eq!(diagnostic.file_path, project_root.join("main.py").to_string_lossy());
         assert_eq!(diagnostic.line, 15);
         assert_eq!(diagnostic.column, 1);
         assert_eq!(diagnostic.severity, "error");
@@ -446,11 +431,9 @@ mod tests {
         Ok(())
     }
 
-    fn create_test_database() -> Result<(
-        TempDir,
-        Arc<DbManager>,
-        crate::project_analysis::diagnostics::DiagnosticsManager,
-    )> {
+    fn create_test_database(
+    ) -> Result<(TempDir, Arc<DbManager>, crate::project_analysis::diagnostics::DiagnosticsManager)>
+    {
         let temp_dir = TempDir::new()?;
         let main_db_path = temp_dir.path().join("main.db");
         let code_graph_db_path = temp_dir.path().join("code_graph.db");

@@ -44,9 +44,8 @@ async fn test_fs_event_triggers_incremental_parse() {
     assert_eq!(fs_event.path(), &test_file);
 
     // Apply fs_event to parser
-    let deltas = parser_service
-        .apply_fs_event(fs_event)
-        .expect("Failed to apply fs event to parser");
+    let deltas =
+        parser_service.apply_fs_event(fs_event).expect("Failed to apply fs event to parser");
 
     assert_eq!(deltas.len(), 1, "Should produce one parse delta");
     assert_eq!(deltas[0].path, test_file);
@@ -65,9 +64,7 @@ async fn test_fs_event_triggers_incremental_parse() {
     };
 
     // Apply modify event
-    let deltas = parser_service
-        .apply_fs_event(fs_event)
-        .expect("Failed to apply modify event");
+    let deltas = parser_service.apply_fs_event(fs_event).expect("Failed to apply modify event");
 
     assert_eq!(deltas.len(), 1);
     assert!(
@@ -76,11 +73,8 @@ async fn test_fs_event_triggers_incremental_parse() {
     );
 
     // Verify changed_ranges are reasonable
-    let total_changed = deltas[0]
-        .changed_ranges
-        .iter()
-        .map(|r| r.end_byte - r.start_byte)
-        .sum::<usize>();
+    let total_changed =
+        deltas[0].changed_ranges.iter().map(|r| r.end_byte - r.start_byte).sum::<usize>();
 
     assert!(
         total_changed > 0 && total_changed < 500,
@@ -122,14 +116,10 @@ async fn test_ignore_non_rust_files() {
     assert_eq!(fs_event.path(), &txt_file);
 
     // Apply to parser - should produce no deltas for unsupported extension
-    let deltas = parser_service
-        .apply_fs_event(fs_event)
-        .expect("Should handle non-Rust files gracefully");
+    let deltas =
+        parser_service.apply_fs_event(fs_event).expect("Should handle non-Rust files gracefully");
 
-    assert!(
-        deltas.is_empty(),
-        "Non-Rust files should produce no parse deltas"
-    );
+    assert!(deltas.is_empty(), "Non-Rust files should produce no parse deltas");
 
     // Create Rust file - should produce delta
     let rs_file = root.join("test.rs");
@@ -140,9 +130,7 @@ async fn test_ignore_non_rust_files() {
             .await
             .expect("Task panicked");
 
-    let deltas = parser_service
-        .apply_fs_event(fs_event)
-        .expect("Should parse Rust file");
+    let deltas = parser_service.apply_fs_event(fs_event).expect("Should parse Rust file");
 
     assert_eq!(deltas.len(), 1, "Rust files should produce parse deltas");
     assert_eq!(deltas[0].path, rs_file);

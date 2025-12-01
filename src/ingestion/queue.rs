@@ -71,13 +71,7 @@ impl IngestionQueue {
         {
             if let Some(existing_time) = self.dedup_map.get(&dedup_key) {
                 // If we've seen this job recently, skip it
-                if job
-                    .ts_created
-                    .duration_since(*existing_time)
-                    .unwrap_or_default()
-                    .as_secs()
-                    < 5
-                {
+                if job.ts_created.duration_since(*existing_time).unwrap_or_default().as_secs() < 5 {
                     let mut stats = self.stats.lock();
                     stats.jobs_deduped += 1;
                     return Ok(());

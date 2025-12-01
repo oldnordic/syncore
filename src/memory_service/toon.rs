@@ -15,10 +15,15 @@ pub enum ToonMemoryOp {
     },
 
     /// Retrieve memory entries by query
-    Retrieve { query: String, k: usize },
+    Retrieve {
+        query: String,
+        k: usize,
+    },
 
     /// Reference a memory node by ID (pointer)
-    Pointer { id: String },
+    Pointer {
+        id: String,
+    },
 }
 
 impl ToonMemoryOp {

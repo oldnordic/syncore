@@ -58,10 +58,7 @@ impl LatencyHistogram {
 
     pub fn get_metrics(&self) -> HashMap<String, u64> {
         let buckets = self.buckets.lock().unwrap();
-        buckets
-            .iter()
-            .map(|(k, v)| (k.clone(), v.load(Ordering::Relaxed)))
-            .collect()
+        buckets.iter().map(|(k, v)| (k.clone(), v.load(Ordering::Relaxed))).collect()
     }
 }
 
@@ -143,10 +140,7 @@ mod tests {
 
         // Check that metrics were recorded
         let metrics = hist.get_metrics();
-        assert!(
-            metrics.contains_key("test_operation_lt_10ms"),
-            "Should record in <10ms bucket"
-        );
+        assert!(metrics.contains_key("test_operation_lt_10ms"), "Should record in <10ms bucket");
     }
 
     #[test]
@@ -206,11 +200,7 @@ mod tests {
 
         // Should not record any metrics
         let metrics = hist.get_metrics();
-        assert_eq!(
-            metrics.len(),
-            0,
-            "Should not record metrics for nonexistent operation"
-        );
+        assert_eq!(metrics.len(), 0, "Should not record metrics for nonexistent operation");
     }
 
     #[test]
@@ -301,10 +291,7 @@ mod tests {
         );
 
         // Check that latency buckets are included
-        assert!(
-            metrics["latency_buckets"].is_object(),
-            "Should include latency buckets"
-        );
+        assert!(metrics["latency_buckets"].is_object(), "Should include latency buckets");
     }
 
     #[tokio::test]
@@ -312,10 +299,7 @@ mod tests {
         // Test that metrics server can be created (binds to random port)
         let result = start_metrics_server("127.0.0.1:0").await;
 
-        assert!(
-            result.is_ok(),
-            "Should be able to start metrics server on random port"
-        );
+        assert!(result.is_ok(), "Should be able to start metrics server on random port");
         Ok(())
     }
 }

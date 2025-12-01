@@ -263,10 +263,7 @@ mod tests {
 
         let suggestion = enhancer.validate_reflection(reflect_content, Some(observe_content));
 
-        assert!(
-            suggestion.is_none(),
-            "Should not suggest anything for consistent reflection"
-        );
+        assert!(suggestion.is_none(), "Should not suggest anything for consistent reflection");
     }
 
     #[test]
@@ -283,10 +280,7 @@ mod tests {
         let reflect_content = "I made some progress";
         let suggestion = enhancer.validate_reflection(reflect_content, None);
 
-        assert!(
-            suggestion.is_none(),
-            "Should not suggest anything without observe content"
-        );
+        assert!(suggestion.is_none(), "Should not suggest anything without observe content");
     }
 
     #[test]
@@ -306,10 +300,7 @@ mod tests {
 
         let nudge = enhancer.generate_nudge(state_text, tool_used);
 
-        assert!(
-            nudge.is_some(),
-            "Should generate nudge for high confidence state"
-        );
+        assert!(nudge.is_some(), "Should generate nudge for high confidence state");
         assert!(nudge.unwrap().contains("high confidence"));
     }
 
@@ -332,10 +323,7 @@ mod tests {
         let nudge = enhancer.generate_nudge(state_text, tool_used);
 
         // Should not generate nudge for medium confidence (0.5)
-        assert!(
-            nudge.is_none(),
-            "Should not generate nudge for medium confidence state"
-        );
+        assert!(nudge.is_none(), "Should not generate nudge for medium confidence state");
     }
 
     #[test]
@@ -355,10 +343,7 @@ mod tests {
         let nudge = enhancer.generate_nudge(state_text, tool_used);
 
         // Medium confidence should not generate a nudge
-        assert!(
-            nudge.is_none(),
-            "Should not generate nudge for medium confidence"
-        );
+        assert!(nudge.is_none(), "Should not generate nudge for medium confidence");
     }
 
     #[test]
@@ -387,9 +372,6 @@ mod tests {
         let initial_count = get_nudge_count();
 
         // Nudge counter should be atomic and start at 0 or higher
-        assert!(
-            initial_count == 0 || initial_count > 0,
-            "Nudge count should be a valid number"
-        );
+        assert!(initial_count == 0 || initial_count > 0, "Nudge count should be a valid number");
     }
 }

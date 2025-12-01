@@ -194,10 +194,7 @@ fn test_vector_store_performance() -> Result<()> {
     let insert_duration = start.elapsed();
 
     println!("Inserted {} items in {:?}", items.len(), insert_duration);
-    println!(
-        "Average insert time: {:?}",
-        insert_duration / items.len() as u32
-    );
+    println!("Average insert time: {:?}", insert_duration / items.len() as u32);
 
     // Should be reasonably fast (<100ms per item on average)
     assert!(
@@ -256,12 +253,7 @@ fn test_vector_store_semantic_quality() -> Result<()> {
         "File system operation to read configuration file",
         "operation",
     )?;
-    vector_store.insert_text(
-        4,
-        None,
-        "WebSocket connection for real-time chat",
-        "operation",
-    )?;
+    vector_store.insert_text(4, None, "WebSocket connection for real-time chat", "operation")?;
     vector_store.insert_text(5, None, "Redis cache lookup for session data", "operation")?;
 
     println!("Inserted 5 domain-specific operations\n");

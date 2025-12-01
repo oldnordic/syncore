@@ -156,19 +156,14 @@ impl CodeRelationshipStore {
     }
 
     pub async fn sync_to_neo4j(&self) -> Result<()> {
-        let graph = self
-            .neo4j
-            .as_ref()
-            .ok_or_else(|| anyhow!("Neo4j not connected"))?;
+        let graph = self.neo4j.as_ref().ok_or_else(|| anyhow!("Neo4j not connected"))?;
 
         // Sync imports
         let imports: Vec<(String, String)> = {
             let db = self.db.lock().await;
             let mut stmt = db.prepare("SELECT file, imports FROM code_imports")?;
             let result = stmt
-                .query_map([], |row| {
-                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-                })?
+                .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             result
         };
@@ -189,9 +184,7 @@ impl CodeRelationshipStore {
             let db = self.db.lock().await;
             let mut stmt = db.prepare("SELECT caller, callee FROM code_calls")?;
             let result = stmt
-                .query_map([], |row| {
-                    Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-                })?
+                .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             result
         };
@@ -211,10 +204,7 @@ impl CodeRelationshipStore {
     }
 
     pub async fn query_neo4j_imports(&self, file: &str) -> Result<Vec<String>> {
-        let graph = self
-            .neo4j
-            .as_ref()
-            .ok_or_else(|| anyhow!("Neo4j not connected"))?;
+        let graph = self.neo4j.as_ref().ok_or_else(|| anyhow!("Neo4j not connected"))?;
 
         let q = query(
             "MATCH (f:File {path: $file})-[:IMPORTS]->(i:Module)
@@ -235,10 +225,7 @@ impl CodeRelationshipStore {
     }
 
     pub async fn query_neo4j_calls(&self, function: &str) -> Result<Vec<String>> {
-        let graph = self
-            .neo4j
-            .as_ref()
-            .ok_or_else(|| anyhow!("Neo4j not connected"))?;
+        let graph = self.neo4j.as_ref().ok_or_else(|| anyhow!("Neo4j not connected"))?;
 
         let q = query(
             "MATCH (c:Function {name: $function})-[:CALLS]->(e:Function)
@@ -260,10 +247,8 @@ impl CodeRelationshipStore {
 
     pub async fn index_function(&self, file: &str, function_name: &str, body: &str) -> Result<()> {
         let embeddings = self.embedder.embed(vec![body], None)?;
-        let embedding = embeddings
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow!("No embedding generated"))?;
+        let embedding =
+            embeddings.into_iter().next().ok_or_else(|| anyhow!("No embedding generated"))?;
 
         let mut vectors = self.function_vectors.lock().await;
         vectors.push(FunctionVector {

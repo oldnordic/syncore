@@ -21,10 +21,7 @@ impl EmbeddingResult {
         Some(EmbeddingResult {
             id: value.get("id")?.as_i64()?,
             text: value.get("text")?.as_str()?.to_string(),
-            metadata: value
-                .get("metadata")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            metadata: value.get("metadata").and_then(|v| v.as_str()).map(|s| s.to_string()),
         })
     }
 }
@@ -49,10 +46,7 @@ pub async fn get_embedding_by_id(client: &Neo4jClient, id: i64) -> Result<Option
     let results = client
         .execute_query(
             query,
-            vec![
-                ("id", serde_json::json!(id)),
-                ("ns", serde_json::json!(rag_namespace(client))),
-            ],
+            vec![("id", serde_json::json!(id)), ("ns", serde_json::json!(rag_namespace(client)))],
         )
         .await?;
 
@@ -87,14 +81,9 @@ pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<N
         .iter()
         .filter_map(|record| {
             let id = record.get("neighbor_id")?.as_i64()?;
-            let weight = record
-                .get("weight")
-                .and_then(|v| v.as_f64())
-                .map(|w| w as f32);
-            let rel_type = record
-                .get("rel_type")
-                .and_then(|v| v.as_str())
-                .and_then(RelationType::try_parse);
+            let weight = record.get("weight").and_then(|v| v.as_f64()).map(|w| w as f32);
+            let rel_type =
+                record.get("rel_type").and_then(|v| v.as_str()).and_then(RelationType::try_parse);
 
             Some(NeighborResult {
                 id,
@@ -117,18 +106,11 @@ pub async fn get_embedding_text(client: &Neo4jClient, id: i64) -> Result<Option<
     let results = client
         .execute_query(
             query,
-            vec![
-                ("id", serde_json::json!(id)),
-                ("ns", serde_json::json!(rag_namespace(client))),
-            ],
+            vec![("id", serde_json::json!(id)), ("ns", serde_json::json!(rag_namespace(client)))],
         )
         .await?;
 
-    Ok(results
-        .first()
-        .and_then(|r| r.get("text"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string()))
+    Ok(results.first().and_then(|r| r.get("text")).and_then(|v| v.as_str()).map(|s| s.to_string()))
 }
 
 /// Count embeddings in the graph
@@ -138,18 +120,10 @@ pub async fn count_embeddings(client: &Neo4jClient) -> Result<i64> {
         RETURN count(e) as count
     "#;
 
-    let results = client
-        .execute_query(
-            query,
-            vec![("ns", serde_json::json!(rag_namespace(client)))],
-        )
-        .await?;
+    let results =
+        client.execute_query(query, vec![("ns", serde_json::json!(rag_namespace(client)))]).await?;
 
-    Ok(results
-        .first()
-        .and_then(|r| r.get("count"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0))
+    Ok(results.first().and_then(|r| r.get("count")).and_then(|v| v.as_i64()).unwrap_or(0))
 }
 
 #[cfg(test)]

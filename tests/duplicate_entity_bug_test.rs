@@ -38,10 +38,7 @@ fn test_duplicate_entity_rejection() -> Result<()> {
     writeln!(file, "pub struct MyStruct {{}}")?;
     writeln!(file)?;
     writeln!(file, "impl Debug for MyStruct {{")?;
-    writeln!(
-        file,
-        "    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{"
-    )?;
+    writeln!(file, "    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{")?;
     writeln!(file, "        write!(f, \"MyStruct\")")?;
     writeln!(file, "    }}")?;
     writeln!(file, "}}")?;
@@ -124,10 +121,7 @@ fn test_edge_extractor_file_no_duplicates() -> Result<()> {
     // Assert: Should succeed
     match result {
         Ok(count) => {
-            eprintln!(
-                "Successfully indexed {} entities from edge_extractor.rs",
-                count
-            );
+            eprintln!("Successfully indexed {} entities from edge_extractor.rs", count);
 
             // Verify no duplicates
             let conn = Connection::open(&db_path)?;

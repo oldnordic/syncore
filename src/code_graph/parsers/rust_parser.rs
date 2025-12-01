@@ -114,8 +114,7 @@ impl RustLanguageParser {
     /// Parse macro expansions from source code
     pub fn parse_macro_expansions(&self, file_path: &Path) -> Result<MacroExpansionContext> {
         let source_code = std::fs::read_to_string(file_path)?;
-        self.macro_expander
-            .expand_simple_macro_invocations(&source_code)
+        self.macro_expander.expand_simple_macro_invocations(&source_code)
     }
 
     /// Extract function calls from source code for edge creation
@@ -323,16 +322,11 @@ use crate::utils::helper;
         let entities = parser.parse_entities(&file_path)?;
 
         // Should have 2 import entities
-        let import_entities: Vec<_> = entities
-            .iter()
-            .filter(|e| e.entity_type == EntityType::Import)
-            .collect();
+        let import_entities: Vec<_> =
+            entities.iter().filter(|e| e.entity_type == EntityType::Import).collect();
         assert_eq!(import_entities.len(), 2);
 
-        let std_import = import_entities
-            .iter()
-            .find(|e| e.name.contains("HashMap"))
-            .unwrap();
+        let std_import = import_entities.iter().find(|e| e.name.contains("HashMap")).unwrap();
         assert_eq!(std_import.line_start, 2);
 
         Ok(())

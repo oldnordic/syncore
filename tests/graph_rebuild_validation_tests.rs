@@ -90,10 +90,8 @@ async fn test_no_orphan_path_clusters() -> Result<()> {
     let orphan_clusters = validator.find_orphan_clusters().await?;
 
     // Filter to only clusters within our project (ignore /tmp/, other projects)
-    let project_orphans: Vec<_> = orphan_clusters
-        .iter()
-        .filter(|c| c.starts_with(PROJECT_PATH))
-        .collect();
+    let project_orphans: Vec<_> =
+        orphan_clusters.iter().filter(|c| c.starts_with(PROJECT_PATH)).collect();
 
     println!("All orphan clusters: {}", orphan_clusters.len());
     println!("Project orphan clusters: {:?}", project_orphans);
@@ -173,10 +171,7 @@ pub fn helper() {
     println!("Edge types found: {:?}", edge_types);
 
     // Must find at least imports
-    assert!(
-        edges.iter().any(|e| e.edge_type == "imports"),
-        "Should extract import edges"
-    );
+    assert!(edges.iter().any(|e| e.edge_type == "imports"), "Should extract import edges");
 
     Ok(())
 }
@@ -232,10 +227,7 @@ async fn test_full_validation_report() -> Result<()> {
         report.connectivity_ratio * 100.0,
         report.connectivity_ok
     );
-    println!(
-        "Duplicate edges: {} (OK: {})",
-        report.duplicate_edges, report.duplicates_ok
-    );
+    println!("Duplicate edges: {} (OK: {})", report.duplicate_edges, report.duplicates_ok);
     println!(
         "Orphan clusters: {} (OK: {})",
         report.orphan_clusters.len(),

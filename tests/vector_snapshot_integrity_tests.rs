@@ -58,11 +58,7 @@ fn test_vector_snapshot_with_invalid_ids_triggers_rebuild() {
     let result = vector_store2.load_snapshot_with_validation(&db_conn);
 
     // Should succeed but trigger rebuild (clear vectors)
-    assert!(
-        result.is_ok(),
-        "load_snapshot_with_validation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "load_snapshot_with_validation should succeed: {:?}", result.err());
 
     // Vectors should be empty after rebuild
     assert_eq!(
@@ -127,18 +123,10 @@ fn test_vector_snapshot_with_valid_ids_loads_normally() {
     let result = vector_store2.load_snapshot_with_validation(&db_conn);
 
     // Should succeed and keep vectors
-    assert!(
-        result.is_ok(),
-        "load_snapshot_with_validation should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "load_snapshot_with_validation should succeed: {:?}", result.err());
 
     // Vectors should be preserved
-    assert_eq!(
-        vector_store2.len(),
-        1,
-        "Vector store should keep valid vectors after loading"
-    );
+    assert_eq!(vector_store2.len(), 1, "Vector store should keep valid vectors after loading");
 
     // Cleanup
     let _ = std::fs::remove_file(temp_db);
@@ -166,9 +154,7 @@ fn test_after_rebuild_reindexing_works() {
     std::fs::write(test_file, "fn test_function() { println!(\"test\"); }").unwrap();
 
     // Index the file
-    let entity_count = code_graph
-        .index_file(std::path::Path::new(test_file))
-        .unwrap();
+    let entity_count = code_graph.index_file(std::path::Path::new(test_file)).unwrap();
 
     assert!(entity_count > 0, "Should index at least one entity");
 

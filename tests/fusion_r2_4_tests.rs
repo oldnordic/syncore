@@ -35,18 +35,9 @@ fn test_simple_fusion_linear_weights() {
 
     // Expected: 0.5*0.8 + 0.2*0.4 + 0.1*0.0 + 0.2*0.0 = 0.40 + 0.08 + 0.0 + 0.0 = 0.48
     let graph_embedding_score = 0.0;
-    let result = fusion.combine(
-        vector_score,
-        graph_score,
-        temporal_score,
-        graph_embedding_score,
-    );
+    let result = fusion.combine(vector_score, graph_score, temporal_score, graph_embedding_score);
 
-    assert!(
-        (result - 0.48).abs() < 0.001,
-        "Linear fusion should be 0.48, got {}",
-        result
-    );
+    assert!((result - 0.48).abs() < 0.001, "Linear fusion should be 0.48, got {}", result);
 }
 
 #[tokio::test]
@@ -67,10 +58,7 @@ async fn test_attention_fusion_dynamic_weights() -> Result<()> {
     let result2 = fusion.combine(score_v, score_g, context2)?;
 
     // Attention should produce different results for different contexts
-    assert_ne!(
-        result1, result2,
-        "Attention fusion should vary with context"
-    );
+    assert_ne!(result1, result2, "Attention fusion should vary with context");
 
     // Results should be in valid range
     assert!(result1 >= 0.0 && result1 <= 1.0);
@@ -98,11 +86,7 @@ async fn test_reasoning_fusion_higher_order() -> Result<()> {
     // = 0.24 + 0.32 + 0.128 = 0.688
     let result = fusion.combine_higher_order(score_v, score_g);
 
-    assert!(
-        (result - 0.688).abs() < 0.01,
-        "Higher-order fusion failed, got {}",
-        result
-    );
+    assert!((result - 0.688).abs() < 0.01, "Higher-order fusion failed, got {}", result);
 
     Ok(())
 }
@@ -115,11 +99,7 @@ fn test_router_selects_simple_for_short_query() {
 
     let mode = router.select_mode("fmt");
 
-    assert_eq!(
-        mode,
-        FusionMode::Simple,
-        "Short query should use Simple mode"
-    );
+    assert_eq!(mode, FusionMode::Simple, "Short query should use Simple mode");
 }
 
 #[test]
@@ -130,11 +110,7 @@ fn test_router_selects_attention_for_semantic_query() {
 
     let mode = router.select_mode("explain why function A fails on B");
 
-    assert_eq!(
-        mode,
-        FusionMode::Attention,
-        "Semantic query should use Attention mode"
-    );
+    assert_eq!(mode, FusionMode::Attention, "Semantic query should use Attention mode");
 }
 
 #[test]
@@ -145,11 +121,7 @@ fn test_router_selects_reasoning_for_causal_tracing() {
 
     let mode = router.select_mode("trace dependency from A to D");
 
-    assert_eq!(
-        mode,
-        FusionMode::Reasoning,
-        "Causal query should use Reasoning mode"
-    );
+    assert_eq!(mode, FusionMode::Reasoning, "Causal query should use Reasoning mode");
 }
 
 #[tokio::test]

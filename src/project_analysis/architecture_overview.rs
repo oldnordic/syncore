@@ -206,11 +206,9 @@ impl ProjectAnalysisEngine {
                 .unwrap_or(0);
 
             let total_files_indexed: u32 = conn_guard
-                .query_row(
-                    "SELECT COUNT(DISTINCT file_path) FROM code_entities",
-                    [],
-                    |row| row.get(0),
-                )
+                .query_row("SELECT COUNT(DISTINCT file_path) FROM code_entities", [], |row| {
+                    row.get(0)
+                })
                 .unwrap_or(0);
 
             let max_loc: u32 = conn_guard.query_row(
@@ -255,10 +253,8 @@ impl ProjectAnalysisEngine {
         let conn = self.code_graph_conn();
         let conn_guard = conn.lock().unwrap();
         // Create lookup maps for faster aggregation
-        let hotspot_map: HashMap<String, f32> = hotspots
-            .iter()
-            .map(|h| (h.file_path.clone(), h.score))
-            .collect();
+        let hotspot_map: HashMap<String, f32> =
+            hotspots.iter().map(|h| (h.file_path.clone(), h.score)).collect();
 
         let dead_entities_by_file: HashMap<String, u32> = {
             let mut map = HashMap::new();

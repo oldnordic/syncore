@@ -93,17 +93,10 @@ fn main() {
             .expect("Failed to build test plugin");
 
         if !output.status.success() {
-            panic!(
-                "Failed to build test plugin: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            panic!("Failed to build test plugin: {}", String::from_utf8_lossy(&output.stderr));
         }
 
-        plugin_dir
-            .join("target/release")
-            .join(plugin_name)
-            .to_string_lossy()
-            .to_string()
+        plugin_dir.join("target/release").join(plugin_name).to_string_lossy().to_string()
     }
 
     #[test]
@@ -114,10 +107,7 @@ fn main() {
         let mut manager = DlrManager::new(temp_dir.path());
 
         let result = manager.discover_and_register_plugins();
-        assert!(
-            result.is_ok(),
-            "Should discover and register plugins successfully"
-        );
+        assert!(result.is_ok(), "Should discover and register plugins successfully");
 
         let count = result.unwrap();
         assert_eq!(count, 1, "Should discover and register 1 plugin");
@@ -143,23 +133,12 @@ fn main() {
 
         let plugin = manager.get_plugin("test_plugin").unwrap();
         assert_eq!(plugin.status, PluginStatus::Ready);
-        assert!(
-            plugin.process_id.is_some(),
-            "Plugin should have a process ID"
-        );
-        assert_eq!(
-            plugin.capabilities.len(),
-            4,
-            "Plugin should have 4 capabilities"
-        );
-        assert!(plugin
-            .capabilities
-            .contains(&PluginCapability::IndexDirectory));
+        assert!(plugin.process_id.is_some(), "Plugin should have a process ID");
+        assert_eq!(plugin.capabilities.len(), 4, "Plugin should have 4 capabilities");
+        assert!(plugin.capabilities.contains(&PluginCapability::IndexDirectory));
         assert!(plugin.capabilities.contains(&PluginCapability::LspIngest));
         assert!(plugin.capabilities.contains(&PluginCapability::LintIngest));
-        assert!(plugin
-            .capabilities
-            .contains(&PluginCapability::DiagnosticsExport));
+        assert!(plugin.capabilities.contains(&PluginCapability::DiagnosticsExport));
     }
 
     #[test]
@@ -238,32 +217,16 @@ fn main() {
         manager.load_plugin("test_plugin").unwrap();
 
         let index_plugins = manager.find_plugins_by_capability(&PluginCapability::IndexDirectory);
-        assert_eq!(
-            index_plugins.len(),
-            1,
-            "Should find 1 plugin with IndexDirectory capability"
-        );
+        assert_eq!(index_plugins.len(), 1, "Should find 1 plugin with IndexDirectory capability");
 
         let lsp_plugins = manager.find_plugins_by_capability(&PluginCapability::LspIngest);
-        assert_eq!(
-            lsp_plugins.len(),
-            1,
-            "Should find 1 plugin with LspIngest capability"
-        );
+        assert_eq!(lsp_plugins.len(), 1, "Should find 1 plugin with LspIngest capability");
 
         let lint_plugins = manager.find_plugins_by_capability(&PluginCapability::LintIngest);
-        assert_eq!(
-            lint_plugins.len(),
-            1,
-            "Should find 1 plugin with LintIngest capability"
-        );
+        assert_eq!(lint_plugins.len(), 1, "Should find 1 plugin with LintIngest capability");
 
         let diag_plugins = manager.find_plugins_by_capability(&PluginCapability::DiagnosticsExport);
-        assert_eq!(
-            diag_plugins.len(),
-            1,
-            "Should find 1 plugin with DiagnosticsExport capability"
-        );
+        assert_eq!(diag_plugins.len(), 1, "Should find 1 plugin with DiagnosticsExport capability");
     }
 
     #[test]

@@ -35,10 +35,7 @@ async fn simulate_index_file_with_tracking(
 
     // If prev > 0, another operation is already running (BAD!)
     if prev > 0 {
-        eprintln!(
-            "[TEST] ❌ CONCURRENCY DETECTED: {} operations running",
-            prev + 1
-        );
+        eprintln!("[TEST] ❌ CONCURRENCY DETECTED: {} operations running", prev + 1);
     }
 
     // Simulate DELETE phase
@@ -212,10 +209,7 @@ async fn test_sequential_operations_succeed_without_mutex() -> Result<()> {
 
     // No UNIQUE errors should occur
     let has_unique_errors = check_for_unique_constraint_errors();
-    assert!(
-        !has_unique_errors,
-        "Sequential operations should not cause UNIQUE errors"
-    );
+    assert!(!has_unique_errors, "Sequential operations should not cause UNIQUE errors");
 
     Ok(())
 }

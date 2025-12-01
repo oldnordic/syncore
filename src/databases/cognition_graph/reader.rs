@@ -51,25 +51,10 @@ pub async fn get_reasoning_episode_by_id(
     Ok(Some(ReasoningEpisodeResult {
         id: row.get("id").and_then(|v| v.as_i64()).unwrap_or(episode_id),
         timestamp: row.get("timestamp").and_then(|v| v.as_i64()).unwrap_or(0),
-        user_query: row
-            .get("user_query")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        selected_mode: row
-            .get("selected_mode")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        outcome: row
-            .get("outcome")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string(),
-        notes: row
-            .get("notes")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()),
+        user_query: row.get("user_query").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        selected_mode: row.get("selected_mode").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        outcome: row.get("outcome").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        notes: row.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string()),
     }))
 }
 
@@ -113,10 +98,8 @@ pub async fn fetch_related_episodes(
         )
         .await?;
 
-    let episode_ids = results
-        .iter()
-        .filter_map(|row| row.get("id").and_then(|v| v.as_i64()))
-        .collect();
+    let episode_ids =
+        results.iter().filter_map(|row| row.get("id").and_then(|v| v.as_i64())).collect();
 
     Ok(episode_ids)
 }
@@ -142,11 +125,7 @@ pub async fn count_reasoning_episodes(client: &Neo4jClient) -> Result<i64> {
         )
         .await?;
 
-    let count = results
-        .first()
-        .and_then(|r| r.get("count"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let count = results.first().and_then(|r| r.get("count")).and_then(|v| v.as_i64()).unwrap_or(0);
 
     Ok(count)
 }

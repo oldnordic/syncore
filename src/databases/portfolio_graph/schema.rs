@@ -117,14 +117,8 @@ mod tests {
     #[test]
     fn test_relation_type_roundtrip() {
         assert_eq!(RelationType::ForTask.as_str(), "FOR_TASK");
-        assert_eq!(
-            RelationType::try_parse("FOR_TASK"),
-            Some(RelationType::ForTask)
-        );
-        assert_eq!(
-            RelationType::try_parse("APPLIES_TO"),
-            Some(RelationType::AppliesTo)
-        );
+        assert_eq!(RelationType::try_parse("FOR_TASK"), Some(RelationType::ForTask));
+        assert_eq!(RelationType::try_parse("APPLIES_TO"), Some(RelationType::AppliesTo));
         assert_eq!(RelationType::try_parse("UNKNOWN"), None);
     }
 

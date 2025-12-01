@@ -25,7 +25,9 @@ pub struct GraphValidator {
 impl GraphValidator {
     /// Create a new GraphValidator with Neo4j client
     pub fn new(neo4j: Neo4jClient) -> Self {
-        Self { neo4j }
+        Self {
+            neo4j,
+        }
     }
 
     /// Validate node connectivity - returns stats on nodes with relationships
@@ -60,17 +62,11 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(
-                query,
-                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
-            )
+            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
             .await?;
 
-        let duplicates: u64 = result
-            .first()
-            .and_then(|r| r.get("duplicates"))
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        let duplicates: u64 =
+            result.first().and_then(|r| r.get("duplicates")).and_then(|v| v.as_u64()).unwrap_or(0);
 
         Ok(duplicates)
     }
@@ -122,10 +118,7 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(
-                query,
-                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
-            )
+            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
             .await?;
 
         let scores: Vec<f64> = result
@@ -155,17 +148,11 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(
-                query,
-                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
-            )
+            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
             .await?;
 
-        let coverage: f64 = result
-            .first()
-            .and_then(|r| r.get("coverage"))
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
+        let coverage: f64 =
+            result.first().and_then(|r| r.get("coverage")).and_then(|v| v.as_f64()).unwrap_or(0.0);
 
         Ok(coverage)
     }
@@ -184,10 +171,7 @@ impl GraphValidator {
 
         let result = self
             .neo4j
-            .execute_query(
-                query,
-                vec![("ns", serde_json::json!(self.neo4j.namespace()))],
-            )
+            .execute_query(query, vec![("ns", serde_json::json!(self.neo4j.namespace()))])
             .await?;
 
         let count: u64 = result

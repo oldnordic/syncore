@@ -96,9 +96,7 @@ impl SynCoreMCPServer {
                     .and_then(|m| m.as_str())
                     .unwrap_or("Unknown error");
 
-                Ok(CallToolResult::error(vec![Content::text(
-                    error.to_string(),
-                )]))
+                Ok(CallToolResult::error(vec![Content::text(error.to_string())]))
             }
         }
     }
@@ -610,13 +608,7 @@ impl SynCoreMCPServer {
 
         // Use FunctionExplainer to analyze the function
         let explainer = FunctionExplainer::new();
-        match explainer.explain(
-            &params.function_name,
-            &params.file_path,
-            &code,
-            callers,
-            callees,
-        ) {
+        match explainer.explain(&params.function_name, &params.file_path, &code, callers, callees) {
             Some(response) => {
                 let json_output = serde_json::to_string_pretty(&response)
                     .unwrap_or_else(|_| "Failed to serialize response".to_string());
@@ -638,9 +630,8 @@ impl SynCoreMCPServer {
                 function_name
             );
 
-            if let Ok(result) = self
-                .mcp_delegate("graph_query", serde_json::json!({"cypher": query}))
-                .await
+            if let Ok(result) =
+                self.mcp_delegate("graph_query", serde_json::json!({"cypher": query})).await
             {
                 let names = Self::extract_names_from_result(result);
                 if !names.is_empty() {
@@ -662,9 +653,8 @@ impl SynCoreMCPServer {
                 function_name
             );
 
-            if let Ok(result) = self
-                .mcp_delegate("graph_query", serde_json::json!({"cypher": query}))
-                .await
+            if let Ok(result) =
+                self.mcp_delegate("graph_query", serde_json::json!({"cypher": query})).await
             {
                 let names = Self::extract_names_from_result(result);
                 if !names.is_empty() {
@@ -757,9 +747,7 @@ impl SynCoreMCPServer {
     fn get_text_from_content(content: &Content) -> Option<String> {
         // Use serde to extract text - Content is serializable
         let json = serde_json::to_value(content).ok()?;
-        json.get("text")
-            .and_then(|t| t.as_str())
-            .map(|s| s.to_string())
+        json.get("text").and_then(|t| t.as_str()).map(|s| s.to_string())
     }
 
     #[tool(description = "Index documents from a directory into global knowledge store")]
@@ -851,10 +839,9 @@ impl SynCoreMCPServer {
                     ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Ollama unavailable: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("Ollama unavailable: {}", e))]))
+            }
         }
     }
 
@@ -891,10 +878,9 @@ impl SynCoreMCPServer {
                     ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Ollama unavailable: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("Ollama unavailable: {}", e))]))
+            }
         }
     }
 
@@ -926,10 +912,9 @@ impl SynCoreMCPServer {
                     ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Ollama unavailable: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("Ollama unavailable: {}", e))]))
+            }
         }
     }
 
@@ -1074,8 +1059,7 @@ impl SynCoreMCPServer {
 
     #[tool(description = "Get next task ready to work on (dependencies satisfied)")]
     async fn intellitask_next_ready(&self) -> Result<CallToolResult, McpError> {
-        self.mcp_delegate("intellitask_next_ready", serde_json::json!({}))
-            .await
+        self.mcp_delegate("intellitask_next_ready", serde_json::json!({})).await
     }
 
     #[tool(description = "Get subtasks for a parent task")]
@@ -1111,8 +1095,7 @@ impl SynCoreMCPServer {
         &self,
         Parameters(_params): Parameters<TaskStatisticsRequest>,
     ) -> Result<CallToolResult, McpError> {
-        self.mcp_delegate("intellitask_task_statistics", serde_json::json!({}))
-            .await
+        self.mcp_delegate("intellitask_task_statistics", serde_json::json!({})).await
     }
 
     #[tool(description = "Get task statistics for a specific PRD")]
@@ -1518,10 +1501,9 @@ impl SynCoreMCPServer {
                         .unwrap_or_else(|_| response.to_string()),
                 )]))
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Search failed: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("Search failed: {}", e))]))
+            }
         }
     }
 
@@ -1581,11 +1563,8 @@ impl SynCoreMCPServer {
                 }
 
                 // Create Real storage adapter
-                let storage = Arc::new(RealStorageAdapter::new(
-                    vector_index,
-                    (**neo4j).clone(),
-                    dimension,
-                ));
+                let storage =
+                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
 
                 RagQuery::with_storage(config.clone(), storage)
             } else {
@@ -1613,10 +1592,9 @@ impl SynCoreMCPServer {
                         .unwrap_or_else(|_| response.to_string()),
                 )]))
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "RAG query failed: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("RAG query failed: {}", e))]))
+            }
         }
     }
 
@@ -1672,11 +1650,8 @@ impl SynCoreMCPServer {
                 }
 
                 // Create Real storage adapter
-                let storage = Arc::new(RealStorageAdapter::new(
-                    vector_index,
-                    (**neo4j).clone(),
-                    dimension,
-                ));
+                let storage =
+                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
 
                 HopGraphTransformer::with_storage(config.clone(), storage)
             } else {
@@ -1721,11 +1696,8 @@ impl SynCoreMCPServer {
         use crate::code_graph::{QueryScope, RagGraphAPI};
 
         // Parse scope from string if provided
-        let scope = params
-            .scope
-            .as_ref()
-            .map(|s| QueryScope::parse(s))
-            .unwrap_or(QueryScope::Global);
+        let scope =
+            params.scope.as_ref().map(|s| QueryScope::parse(s)).unwrap_or(QueryScope::Global);
 
         eprintln!(
             "[CodeGraph] fusion_query: query_len={}, mode_hint={:?}, top_k={:?}, scope={:?}, project={:?}",
@@ -2002,10 +1974,9 @@ impl SynCoreMCPServer {
                     .unwrap_or_else(|_| "Failed to serialize response".to_string());
                 Ok(CallToolResult::success(vec![Content::text(json)]))
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "File report failed: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("File report failed: {}", e))]))
+            }
         }
     }
 
@@ -2029,10 +2000,9 @@ impl SynCoreMCPServer {
                     .unwrap_or_else(|_| "Failed to serialize response".to_string());
                 Ok(CallToolResult::success(vec![Content::text(json)]))
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Module map failed: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("Module map failed: {}", e))]))
+            }
         }
     }
 
@@ -2243,10 +2213,9 @@ impl SynCoreMCPServer {
                     .unwrap_or_else(|_| "Failed to serialize response".to_string());
                 Ok(CallToolResult::success(vec![Content::text(json)]))
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Cleanup failed: {}",
-                e
-            ))])),
+            Err(e) => {
+                Ok(CallToolResult::error(vec![Content::text(format!("Cleanup failed: {}", e))]))
+            }
         }
     }
 }
@@ -2302,11 +2271,7 @@ async fn router_loop(state: SynCoreState) {
         let msg = msg.unwrap();
 
         // Extract task_type from envelope payload
-        let task_type = msg
-            .payload
-            .get("task_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("nlp");
+        let task_type = msg.payload.get("task_type").and_then(|v| v.as_str()).unwrap_or("nlp");
 
         // Map task_type to capability
         let cap = match task_type {
@@ -2336,10 +2301,7 @@ async fn router_loop(state: SynCoreState) {
                     // Extract simple metrics
                     let load = status.get("load").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
-                    let busy = status
-                        .get("busy")
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false);
+                    let busy = status.get("busy").and_then(|v| v.as_bool()).unwrap_or(false);
 
                     let errors = status.get("errors").and_then(|v| v.as_u64()).unwrap_or(0);
 
@@ -2347,7 +2309,13 @@ async fn router_loop(state: SynCoreState) {
                     // lower load = better
                     // not busy = better
                     // fewer errors = better
-                    let score = load * 1.0 + if busy { 5.0 } else { 0.0 } + (errors as f64) * 3.0;
+                    let score = load * 1.0
+                        + if busy {
+                            5.0
+                        } else {
+                            0.0
+                        }
+                        + (errors as f64) * 3.0;
 
                     match &mut best {
                         None => best = Some((name.clone(), score)),

@@ -40,7 +40,10 @@ fn test_code_semantic_search_e2e() {
     // Validate: Plan was created correctly
     let plan = CodeMacroPlan::from_request(&request).expect("should create plan");
     match plan {
-        CodeMacroPlan::SemanticSearch { query, limit } => {
+        CodeMacroPlan::SemanticSearch {
+            query,
+            limit,
+        } => {
             assert_eq!(query, "find async message bus implementation");
             assert_eq!(limit, 5);
         }
@@ -55,31 +58,16 @@ fn test_code_semantic_search_e2e() {
     assert_eq!(steps[2].tool_name, "vector_search");
 
     // Validate: Arguments flow through actual MCP tool API types
-    assert_eq!(
-        steps[0].params["query"],
-        "find async message bus implementation"
-    );
-    assert_eq!(
-        steps[1].params["query"],
-        "find async message bus implementation"
-    );
-    assert_eq!(
-        steps[2].params["query"],
-        "find async message bus implementation"
-    );
+    assert_eq!(steps[0].params["query"], "find async message bus implementation");
+    assert_eq!(steps[1].params["query"], "find async message bus implementation");
+    assert_eq!(steps[2].params["query"], "find async message bus implementation");
     assert_eq!(steps[2].params["limit"], 5);
 
     // Validate: Synthetic results match expected structure
     assert!(steps[0].synthetic_result["results"].is_array());
     assert!(steps[1].synthetic_result["matches"].is_array());
     assert!(steps[2].synthetic_result["results"].is_array());
-    assert_eq!(
-        steps[2].synthetic_result["results"]
-            .as_array()
-            .unwrap()
-            .len(),
-        5
-    );
+    assert_eq!(steps[2].synthetic_result["results"].as_array().unwrap().len(), 5);
 }
 
 // ============================================================================
@@ -103,7 +91,10 @@ fn test_code_analyze_module_e2e() {
     // Validate plan creation
     let plan = CodeMacroPlan::from_request(&request).expect("should create plan");
     match plan {
-        CodeMacroPlan::AnalyzeModule { file_path, focus } => {
+        CodeMacroPlan::AnalyzeModule {
+            file_path,
+            focus,
+        } => {
             assert_eq!(file_path, "/src/message_bus.rs");
             assert_eq!(focus, "agent communication patterns");
         }
@@ -218,14 +209,8 @@ fn test_task_bootstrap_from_prd_e2e() {
     assert_eq!(steps[2].tool_name, "intellitask_subtasks");
 
     // Validate argument normalization
-    assert!(steps[0].params["prd_content"]
-        .as_str()
-        .unwrap()
-        .contains("authentication"));
-    assert!(steps[0].params["prd_content"]
-        .as_str()
-        .unwrap()
-        .contains("OAuth2"));
+    assert!(steps[0].params["prd_content"].as_str().unwrap().contains("authentication"));
+    assert!(steps[0].params["prd_content"].as_str().unwrap().contains("OAuth2"));
 
     // Validate stable synthetic outputs
     assert!(steps[0].synthetic_result["tasks"].is_array());
@@ -252,15 +237,9 @@ fn test_error_handling_e2e() {
     });
 
     let result1 = execute_code_macro(&request1, &stub);
-    assert!(
-        result1.is_err(),
-        "Should produce macro-level error, not panic"
-    );
+    assert!(result1.is_err(), "Should produce macro-level error, not panic");
     let error1 = result1.unwrap_err().to_string();
-    assert!(
-        error1.contains("query"),
-        "Error should mention missing field"
-    );
+    assert!(error1.contains("query"), "Error should mention missing field");
 
     // Test 2: Missing required field (file_path)
     let request2 = json!({
@@ -272,10 +251,7 @@ fn test_error_handling_e2e() {
     let result2 = execute_code_macro(&request2, &stub);
     assert!(result2.is_err(), "Should produce macro-level error");
     let error2 = result2.unwrap_err().to_string();
-    assert!(
-        error2.contains("file_path"),
-        "Error should mention missing field"
-    );
+    assert!(error2.contains("file_path"), "Error should mention missing field");
 
     // Test 3: Invalid action
     let request3 = json!({
@@ -293,10 +269,7 @@ fn test_error_handling_e2e() {
     let result4 = execute_code_macro(&request4, &stub);
     assert!(result4.is_err(), "Should require action field");
     let error4 = result4.unwrap_err().to_string();
-    assert!(
-        error4.contains("action"),
-        "Error should mention missing action"
-    );
+    assert!(error4.contains("action"), "Error should mention missing action");
 }
 
 // ============================================================================
@@ -350,9 +323,6 @@ fn test_deterministic_behavior_e2e() {
     for i in 0..task_steps1.len() {
         assert_eq!(task_steps1[i].tool_name, task_steps2[i].tool_name);
         assert_eq!(task_steps1[i].params, task_steps2[i].params);
-        assert_eq!(
-            task_steps1[i].synthetic_result,
-            task_steps2[i].synthetic_result
-        );
+        assert_eq!(task_steps1[i].synthetic_result, task_steps2[i].synthetic_result);
     }
 }

@@ -51,9 +51,7 @@ fn test_hnsw_insert_and_search() -> Result<()> {
     // Insert 100 vectors with dense random-like patterns
     // Using deterministic pseudo-random values for reproducibility
     for i in 0..100 {
-        let vec: Vec<f32> = (0..384)
-            .map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0)
-            .collect();
+        let vec: Vec<f32> = (0..384).map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0).collect();
         index.add(i as i64, vec)?;
     }
 
@@ -61,9 +59,7 @@ fn test_hnsw_insert_and_search() -> Result<()> {
     assert_eq!(index.dimension(), Some(384));
 
     // Search for similar vector (matching vector 50's pattern)
-    let query: Vec<f32> = (0..384)
-        .map(|j| ((50 * 7 + j * 13) % 100) as f32 / 100.0)
-        .collect();
+    let query: Vec<f32> = (0..384).map(|j| ((50 * 7 + j * 13) % 100) as f32 / 100.0).collect();
 
     let results = index.search(&query, 5)?;
     assert_eq!(results.len(), 5);
@@ -85,9 +81,7 @@ fn test_hnsw_persistence_roundtrip() -> Result<()> {
 
     // Insert test vectors with dense random-like patterns
     for i in 0..50 {
-        let vec: Vec<f32> = (0..384)
-            .map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0)
-            .collect();
+        let vec: Vec<f32> = (0..384).map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0).collect();
         index.add(i as i64, vec)?;
     }
 
@@ -103,9 +97,7 @@ fn test_hnsw_persistence_roundtrip() -> Result<()> {
     // Note: dimension is inferred lazily on first search, check it after
 
     // Verify search results match
-    let query: Vec<f32> = (0..384)
-        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
-        .collect();
+    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
     let results1 = index.search(&query, 5)?;
     let results2 = index2.search(&query, 5)?;
 
@@ -135,9 +127,7 @@ fn test_hnsw_rebuild_from_vectors_if_file_missing() -> Result<()> {
     // Simulate vectors loaded from SQLite with dense random-like patterns
     let vectors: Vec<(i64, Vec<f32>)> = (0..30)
         .map(|i| {
-            let vec: Vec<f32> = (0..384)
-                .map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0)
-                .collect();
+            let vec: Vec<f32> = (0..384).map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0).collect();
             (i as i64, vec)
         })
         .collect();
@@ -149,9 +139,7 @@ fn test_hnsw_rebuild_from_vectors_if_file_missing() -> Result<()> {
     assert_eq!(index.dimension(), Some(384));
 
     // Search should work immediately after rebuild
-    let query: Vec<f32> = (0..384)
-        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
-        .collect();
+    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
     let results = index.search(&query, 5)?;
     assert_eq!(results.len(), 5);
 
@@ -168,9 +156,7 @@ fn test_hnsw_delete_requires_rebuild() -> Result<()> {
 
     // Insert 20 vectors with dense random-like patterns
     for i in 0..20 {
-        let vec: Vec<f32> = (0..384)
-            .map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0)
-            .collect();
+        let vec: Vec<f32> = (0..384).map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0).collect();
         index.add(i as i64, vec)?;
     }
 
@@ -185,9 +171,7 @@ fn test_hnsw_delete_requires_rebuild() -> Result<()> {
     let vectors: Vec<(i64, Vec<f32>)> = (0..20)
         .filter(|i| *i != 10) // Exclude ID 10
         .map(|i| {
-            let vec: Vec<f32> = (0..384)
-                .map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0)
-                .collect();
+            let vec: Vec<f32> = (0..384).map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0).collect();
             (i as i64, vec)
         })
         .collect();
@@ -197,9 +181,7 @@ fn test_hnsw_delete_requires_rebuild() -> Result<()> {
     assert_eq!(index.len(), 19);
 
     // Verify deleted vector not in search results
-    let query: Vec<f32> = (0..384)
-        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
-        .collect();
+    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
     let results = index.search(&query, 20)?;
 
     for (id, _) in results {
@@ -224,9 +206,7 @@ fn test_hnsw_knn_accuracy_against_bruteforce() -> Result<()> {
 
     let vectors: Vec<(i64, Vec<f32>)> = (0..100)
         .map(|i| {
-            let vec: Vec<f32> = (0..384)
-                .map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0)
-                .collect();
+            let vec: Vec<f32> = (0..384).map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0).collect();
             (i as i64, vec)
         })
         .collect();
@@ -258,11 +238,7 @@ fn test_hnsw_knn_accuracy_against_bruteforce() -> Result<()> {
     let brute_ids: Vec<i64> = brute_results.iter().map(|(id, _)| *id).collect();
 
     let matches = hnsw_ids.iter().filter(|id| brute_ids.contains(id)).count();
-    assert!(
-        matches >= 8,
-        "HNSW recall too low: {}/10 (expected >= 8/10)",
-        matches
-    );
+    assert!(matches >= 8, "HNSW recall too low: {}/10 (expected >= 8/10)", matches);
 
     cleanup();
     Ok(())
@@ -283,9 +259,7 @@ fn test_hnsw_startup_loads_index_before_use() -> Result<()> {
 
     // Insert and save with dense random-like patterns
     for i in 0..50 {
-        let vec: Vec<f32> = (0..384)
-            .map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0)
-            .collect();
+        let vec: Vec<f32> = (0..384).map(|j| ((i * 7 + j * 13) % 100) as f32 / 100.0).collect();
         index.add(i as i64, vec)?;
     }
     index.save_to_disk(&test_index_path())?;
@@ -294,9 +268,7 @@ fn test_hnsw_startup_loads_index_before_use() -> Result<()> {
     let index2 = HnswVectorIndex::new(config, 42)?;
 
     // PHASE 5: This should auto-load on first search
-    let query: Vec<f32> = (0..384)
-        .map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0)
-        .collect();
+    let query: Vec<f32> = (0..384).map(|j| ((0 * 7 + j * 13) % 100) as f32 / 100.0).collect();
     let results = index2.search(&query, 5)?;
 
     assert_eq!(results.len(), 5);

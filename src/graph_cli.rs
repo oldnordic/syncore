@@ -44,10 +44,8 @@ pub async fn run_validate(config: &GraphCliConfig) -> Result<bool> {
 
     println!("\n=== Graph Validation Report ===\n");
 
-    let report = validator
-        .full_validation_report()
-        .await
-        .context("Failed to generate validation report")?;
+    let report =
+        validator.full_validation_report().await.context("Failed to generate validation report")?;
 
     // Print connectivity
     println!(
@@ -58,14 +56,22 @@ pub async fn run_validate(config: &GraphCliConfig) -> Result<bool> {
     );
     println!(
         "  Status: {} (target: >=95%)",
-        if report.connectivity_ok { "OK" } else { "FAIL" }
+        if report.connectivity_ok {
+            "OK"
+        } else {
+            "FAIL"
+        }
     );
 
     // Print duplicates
     println!("\nDuplicate Edges: {}", report.duplicate_edges);
     println!(
         "  Status: {} (target: 0)",
-        if report.duplicates_ok { "OK" } else { "FAIL" }
+        if report.duplicates_ok {
+            "OK"
+        } else {
+            "FAIL"
+        }
     );
 
     // Print orphan clusters
@@ -87,14 +93,22 @@ pub async fn run_validate(config: &GraphCliConfig) -> Result<bool> {
     // Print diffusion
     println!(
         "\nDiffusion Test: {}",
-        if report.diffusion_ok { "OK" } else { "FAIL" }
+        if report.diffusion_ok {
+            "OK"
+        } else {
+            "FAIL"
+        }
     );
 
     // Overall status
     let all_ok = report.all_ok();
     println!(
         "\n=== Overall: {} ===",
-        if all_ok { "PASS" } else { "FAIL" }
+        if all_ok {
+            "PASS"
+        } else {
+            "FAIL"
+        }
     );
 
     Ok(all_ok)
@@ -102,11 +116,8 @@ pub async fn run_validate(config: &GraphCliConfig) -> Result<bool> {
 
 /// Run graph rebuild - extract edges from source and push to Neo4j
 pub async fn run_rebuild(config: &GraphCliConfig) -> Result<()> {
-    let source_dir = config
-        .source_dir
-        .as_ref()
-        .map(|p| p.clone())
-        .unwrap_or_else(|| PathBuf::from("src"));
+    let source_dir =
+        config.source_dir.as_ref().map(|p| p.clone()).unwrap_or_else(|| PathBuf::from("src"));
 
     println!("Connecting to Neo4j at {}...", config.neo4j_uri);
 
@@ -187,11 +198,7 @@ pub async fn run_stats(config: &GraphCliConfig) -> Result<()> {
 pub async fn run_sync(config: &GraphCliConfig) -> Result<()> {
     use crate::code_graph::EdgeType;
 
-    let source_dir = config
-        .source_dir
-        .as_ref()
-        .cloned()
-        .unwrap_or_else(|| PathBuf::from("src"));
+    let source_dir = config.source_dir.as_ref().cloned().unwrap_or_else(|| PathBuf::from("src"));
 
     println!("=== Full Graph Sync with CONTAINS Edges ===\n");
 
@@ -263,10 +270,7 @@ pub async fn run_sync(config: &GraphCliConfig) -> Result<()> {
     if connectivity >= 0.95 {
         println!("Status: PASS (target >= 95%)");
     } else {
-        println!(
-            "Status: BELOW TARGET (got {:.1}%, need 95%)",
-            connectivity * 100.0
-        );
+        println!("Status: BELOW TARGET (got {:.1}%, need 95%)", connectivity * 100.0);
     }
 
     Ok(())

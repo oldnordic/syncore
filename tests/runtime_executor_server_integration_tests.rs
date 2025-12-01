@@ -14,10 +14,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create test state with unique database
 fn create_test_state(suffix: &str) -> SynCoreState {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_server_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -109,12 +106,8 @@ async fn test_executor_switching_does_not_break_existing_tools() {
     server.executor.record_step("memory_store", params.clone());
 
     // Test multiple tools work
-    server
-        .executor
-        .record_step("memory_query", json!({"key": "compatibility_test"}));
-    server
-        .executor
-        .record_step("task_create", json!({"goal": "test task", "priority": 3}));
+    server.executor.record_step("memory_query", json!({"key": "compatibility_test"}));
+    server.executor.record_step("task_create", json!({"goal": "test task", "priority": 3}));
 
     // No panics = success
 }

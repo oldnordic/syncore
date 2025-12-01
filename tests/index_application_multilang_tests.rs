@@ -66,19 +66,10 @@ fn test_language_detection_rust() -> Result<()> {
     let app = create_test_index_app(db_path.to_str().unwrap())?;
 
     // Test various Rust file extensions
-    assert_eq!(
-        app.detect_language(std::path::Path::new("test.rs"))?,
-        "rust"
-    );
+    assert_eq!(app.detect_language(std::path::Path::new("test.rs"))?, "rust");
     assert_eq!(app.detect_language(std::path::Path::new("lib.rs"))?, "rust");
-    assert_eq!(
-        app.detect_language(std::path::Path::new("main.rs"))?,
-        "rust"
-    );
-    assert_eq!(
-        app.detect_language(std::path::Path::new("/path/to/module.rs"))?,
-        "rust"
-    );
+    assert_eq!(app.detect_language(std::path::Path::new("main.rs"))?, "rust");
+    assert_eq!(app.detect_language(std::path::Path::new("/path/to/module.rs"))?, "rust");
 
     Ok(())
 }
@@ -90,22 +81,10 @@ fn test_language_detection_python() -> Result<()> {
     let app = create_test_index_app(db_path.to_str().unwrap())?;
 
     // Test various Python file extensions
-    assert_eq!(
-        app.detect_language(std::path::Path::new("test.py"))?,
-        "python"
-    );
-    assert_eq!(
-        app.detect_language(std::path::Path::new("main.py"))?,
-        "python"
-    );
-    assert_eq!(
-        app.detect_language(std::path::Path::new("script.py"))?,
-        "python"
-    );
-    assert_eq!(
-        app.detect_language(std::path::Path::new("/path/to/module.py"))?,
-        "python"
-    );
+    assert_eq!(app.detect_language(std::path::Path::new("test.py"))?, "python");
+    assert_eq!(app.detect_language(std::path::Path::new("main.py"))?, "python");
+    assert_eq!(app.detect_language(std::path::Path::new("script.py"))?, "python");
+    assert_eq!(app.detect_language(std::path::Path::new("/path/to/module.py"))?, "python");
 
     Ok(())
 }
@@ -117,18 +96,10 @@ fn test_language_detection_unsupported() -> Result<()> {
     let app = create_test_index_app(db_path.to_str().unwrap())?;
 
     // Test unsupported file extensions
-    assert!(app
-        .detect_language(std::path::Path::new("test.js"))
-        .is_err());
-    assert!(app
-        .detect_language(std::path::Path::new("test.ts"))
-        .is_err());
-    assert!(app
-        .detect_language(std::path::Path::new("test.java"))
-        .is_err());
-    assert!(app
-        .detect_language(std::path::Path::new("test.cpp"))
-        .is_err());
+    assert!(app.detect_language(std::path::Path::new("test.js")).is_err());
+    assert!(app.detect_language(std::path::Path::new("test.ts")).is_err());
+    assert!(app.detect_language(std::path::Path::new("test.java")).is_err());
+    assert!(app.detect_language(std::path::Path::new("test.cpp")).is_err());
     assert!(app.detect_language(std::path::Path::new("test")).is_err());
     assert!(app.detect_language(std::path::Path::new("")).is_err());
 
@@ -184,11 +155,10 @@ use std::collections::HashMap;
     )?;
     assert!(entity_count >= 5);
 
-    let rust_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities WHERE language = 'rust'",
-        [],
-        |row| row.get(0),
-    )?;
+    let rust_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM code_entities WHERE language = 'rust'", [], |row| {
+            row.get(0)
+        })?;
     assert!(rust_count >= 5);
 
     Ok(())
@@ -294,11 +264,10 @@ def python_function():
     let conn = rusqlite::Connection::open(&db_path)?;
     ensure_code_graph_schema(&conn)?;
 
-    let rust_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities WHERE language = 'rust'",
-        [],
-        |row| row.get(0),
-    )?;
+    let rust_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM code_entities WHERE language = 'rust'", [], |row| {
+            row.get(0)
+        })?;
     let python_count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM code_entities WHERE language = 'python'",
         [],
@@ -420,11 +389,10 @@ fn test_manual_database_seeding_verification() -> Result<()> {
     )?;
 
     // Verify data was inserted correctly
-    let rust_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities WHERE language = 'rust'",
-        [],
-        |row| row.get(0),
-    )?;
+    let rust_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM code_entities WHERE language = 'rust'", [], |row| {
+            row.get(0)
+        })?;
     assert_eq!(rust_count, 1);
 
     let python_count: i64 = conn.query_row(

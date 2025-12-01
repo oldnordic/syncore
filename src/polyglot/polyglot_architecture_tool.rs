@@ -10,10 +10,8 @@ pub fn generate_architecture_overview(
         .map(|e| json!({ "id": e.id, "label": e.name, "group": e.language.to_string() }))
         .collect();
 
-    let edges: Vec<Value> = edges
-        .into_iter()
-        .map(|e| json!({ "from": e.from_id, "to": e.to_id }))
-        .collect();
+    let edges: Vec<Value> =
+        edges.into_iter().map(|e| json!({ "from": e.from_id, "to": e.to_id })).collect();
 
     json!({
         "nodes": nodes,

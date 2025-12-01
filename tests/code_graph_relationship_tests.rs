@@ -98,11 +98,7 @@ async fn test_create_calls_relationship_neo4j() -> Result<()> {
         ],
     ).await?;
 
-    assert_eq!(
-        result[0]["count"].as_i64(),
-        Some(1),
-        "CALLS relationship should exist"
-    );
+    assert_eq!(result[0]["count"].as_i64(), Some(1), "CALLS relationship should exist");
 
     Ok(())
 }

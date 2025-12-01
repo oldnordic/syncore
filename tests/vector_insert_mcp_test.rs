@@ -7,7 +7,7 @@ use syncore::mcp::handle_mcp_request;
 use syncore::mcp::MCPRequest;
 use syncore::memory::Memory;
 use syncore::router::SynCoreState;
-use syncore::snapshots::SnapshotHandle;
+
 use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
@@ -73,18 +73,10 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
 
     let result = response.result.unwrap();
     assert!(
-        result
-            .get("success")
-            .unwrap_or(&json!(false))
-            .as_bool()
-            .unwrap(),
+        result.get("success").unwrap_or(&json!(false)).as_bool().unwrap(),
         "Should indicate successful insertion"
     );
-    assert_eq!(
-        result.get("id").unwrap().as_i64().unwrap(),
-        1,
-        "Should return the correct ID"
-    );
+    assert_eq!(result.get("id").unwrap().as_i64().unwrap(), 1, "Should return the correct ID");
 }
 
 #[tokio::test]
@@ -217,16 +209,8 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         let response = handle_mcp_request(request, &state).await;
 
         // Assert: Should succeed for valid scopes
-        assert!(
-            response.result.is_some(),
-            "Should return result for scope: {}",
-            scope
-        );
-        assert!(
-            response.error.is_none(),
-            "Should not error for scope: {}",
-            scope
-        );
+        assert!(response.result.is_some(), "Should return result for scope: {}", scope);
+        assert!(response.error.is_none(), "Should not error for scope: {}", scope);
     }
 }
 
@@ -306,18 +290,9 @@ async fn test_vector_insert_should_store_in_vector_store() {
     let search_response = handle_mcp_request(search_request, &state).await;
 
     // Assert: Should find the inserted document
-    assert!(
-        search_response.result.is_some(),
-        "Search should return result"
-    );
+    assert!(search_response.result.is_some(), "Search should return result");
 
     let search_result = search_response.result.unwrap();
-    let results = search_result
-        .get("results")
-        .and_then(|r| r.as_array())
-        .unwrap();
-    assert!(
-        !results.is_empty(),
-        "Should find the inserted document in search results"
-    );
+    let results = search_result.get("results").and_then(|r| r.as_array()).unwrap();
+    assert!(!results.is_empty(), "Should find the inserted document in search results");
 }

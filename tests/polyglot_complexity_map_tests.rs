@@ -10,7 +10,10 @@ fn test_file_level_complexity() {
             kind: EntityKind::Function,
             name: "my_function".to_string(),
             file_path: "src/main.rs".to_string(),
-            span: Span { start: 0, end: 10 },
+            span: Span {
+                start: 0,
+                end: 10,
+            },
             attributes: Default::default(),
         },
         UnifiedEntity {
@@ -19,7 +22,10 @@ fn test_file_level_complexity() {
             kind: EntityKind::Function,
             name: "my_other_function".to_string(),
             file_path: "src/main.rs".to_string(),
-            span: Span { start: 11, end: 20 },
+            span: Span {
+                start: 11,
+                end: 20,
+            },
             attributes: Default::default(),
         },
     ];

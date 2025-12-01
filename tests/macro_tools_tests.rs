@@ -41,10 +41,7 @@ impl MockRoutingTracker {
     }
 
     fn record_call(&self, tool_name: &str, params: serde_json::Value) {
-        self.calls
-            .lock()
-            .unwrap()
-            .push((tool_name.to_string(), params));
+        self.calls.lock().unwrap().push((tool_name.to_string(), params));
     }
 
     fn get_calls(&self) -> Vec<(String, serde_json::Value)> {
@@ -637,10 +634,7 @@ fn test_mapping_macro_search_action() {
         "query": "authentication module"
     });
 
-    tracker.record_call(
-        "mapping_search",
-        json!({ "query": "authentication module" }),
-    );
+    tracker.record_call("mapping_search", json!({ "query": "authentication module" }));
 
     let (tool, _) = tracker.last_call().unwrap();
     assert_eq!(tool, "mapping_search");
@@ -722,10 +716,7 @@ fn test_reasoning_macro_search_action() {
         "query": "vector search implementation"
     });
 
-    tracker.record_call(
-        "sequential_search",
-        json!({ "query": "vector search implementation" }),
-    );
+    tracker.record_call("sequential_search", json!({ "query": "vector search implementation" }));
 
     let (tool, _) = tracker.last_call().unwrap();
     assert_eq!(tool, "sequential_search");

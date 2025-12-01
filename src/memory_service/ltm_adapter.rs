@@ -147,13 +147,7 @@ impl LongTermStore for LtmAdapter {
             .execute(
                 "INSERT OR REPLACE INTO ltm_memory (id, summary, importance, tags, embedding)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    &entry.id,
-                    &entry.summary,
-                    entry.importance,
-                    &tags_json,
-                    &embedding_blob,
-                ],
+                params![&entry.id, &entry.summary, entry.importance, &tags_json, &embedding_blob,],
             )
             .map_err(|e| {
                 MemoryError::Internal(format!("Failed to insert into ltm_memory: {}", e))
@@ -203,17 +197,12 @@ impl LongTermStore for LtmAdapter {
 
         // Sort deterministically: similarity DESC, then ID ASC for tie-breaking
         scored.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.0.cmp(&b.0))
+            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then_with(|| a.0.cmp(&b.0))
         });
 
         // Take top-k results
-        let results: Vec<MemoryEntry> = scored
-            .into_iter()
-            .take(k)
-            .map(|(_, _, entry)| entry)
-            .collect();
+        let results: Vec<MemoryEntry> =
+            scored.into_iter().take(k).map(|(_, _, entry)| entry).collect();
 
         Ok(results)
     }

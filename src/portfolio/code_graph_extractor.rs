@@ -96,13 +96,9 @@ impl CodeGraphExtractor {
             .map_err(|e| anyhow!("Failed to read file {}: {}", path.display(), e))?;
 
         let mut parser = Parser::new();
-        parser
-            .set_language(tree_sitter_rust::language())
-            .expect("Failed to set Rust language");
+        parser.set_language(tree_sitter_rust::language()).expect("Failed to set Rust language");
 
-        let tree = parser
-            .parse(&source, None)
-            .ok_or_else(|| anyhow!("Failed to parse source"))?;
+        let tree = parser.parse(&source, None).ok_or_else(|| anyhow!("Failed to parse source"))?;
 
         let root = tree.root_node();
         let source_bytes = source.as_bytes();
@@ -141,15 +137,16 @@ impl CodeGraphExtractor {
         for m in matches {
             for capture in m.captures {
                 let node = capture.node;
-                let use_text = node
-                    .utf8_text(source)
-                    .map_err(|e| anyhow!("UTF8 error: {}", e))?;
+                let use_text = node.utf8_text(source).map_err(|e| anyhow!("UTF8 error: {}", e))?;
 
                 // Extract the path from the use statement
                 let path = self.extract_use_path(use_text);
                 let line = node.start_position().row + 1;
 
-                graph.imports.push(ImportNode { path, line });
+                graph.imports.push(ImportNode {
+                    path,
+                    line,
+                });
             }
         }
 
@@ -158,11 +155,7 @@ impl CodeGraphExtractor {
 
     fn extract_use_path(&self, use_text: &str) -> String {
         // Remove "use " prefix and trailing ";"
-        let trimmed = use_text
-            .trim()
-            .trim_start_matches("use ")
-            .trim_end_matches(';')
-            .trim();
+        let trimmed = use_text.trim().trim_start_matches("use ").trim_end_matches(';').trim();
         trimmed.to_string()
     }
 

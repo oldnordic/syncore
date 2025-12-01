@@ -80,10 +80,7 @@ pub fn execute_task_macro<R: ExecutionRecorder>(params: &Value, recorder: &R) ->
             recorder.record_step("intellitask_prd_statistics", params.clone());
             Ok(())
         }
-        _ => Err(anyhow::anyhow!(
-            "Invalid action for syncore.task: {}",
-            action
-        )),
+        _ => Err(anyhow::anyhow!("Invalid action for syncore.task: {}", action)),
     }
 }
 
@@ -111,10 +108,7 @@ mod tests {
 
     impl ExecutionRecorder for TestRecorder {
         fn record_step(&self, tool_name: &str, params: Value) {
-            self.calls
-                .lock()
-                .unwrap()
-                .push((tool_name.to_string(), params));
+            self.calls.lock().unwrap().push((tool_name.to_string(), params));
         }
 
         fn wrap_success(&self, _tool: &str, data: Value) -> Value {

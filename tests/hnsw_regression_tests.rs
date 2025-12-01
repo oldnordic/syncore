@@ -21,10 +21,7 @@ fn test_vector_embeddings_still_work() -> Result<()> {
 
     assert_eq!(vec1.len(), 384);
     assert_eq!(vec2.len(), 384);
-    assert_ne!(
-        vec1, vec2,
-        "Different text should have different embeddings"
-    );
+    assert_ne!(vec1, vec2, "Different text should have different embeddings");
 
     Ok(())
 }

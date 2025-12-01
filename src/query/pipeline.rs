@@ -410,10 +410,7 @@ impl PipelineExecutor {
             metadata: HashMap::from([
                 ("step".to_string(), serde_json::json!("VectorRefine")),
                 ("query".to_string(), serde_json::json!(context.query)),
-                (
-                    "search_scope".to_string(),
-                    serde_json::json!(context.constraints.scope),
-                ),
+                ("search_scope".to_string(), serde_json::json!(context.constraints.scope)),
             ]),
             has_matches,
         };
@@ -465,9 +462,7 @@ impl PipelineExecutor {
         // Sort by combined score (deterministic ordering)
         let mut ranked_entities = ranked_entities;
         ranked_entities.sort_by(|a, b| {
-            b.combined_score
-                .partial_cmp(&a.combined_score)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            b.combined_score.partial_cmp(&a.combined_score).unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Apply max_results limit
@@ -580,11 +575,7 @@ mod tests {
     async fn test_guardrail_short_circuit() {
         let executor = PipelineExecutor::new();
         let plan = QueryPlan {
-            steps: vec![
-                PlannerStep::HopGraph,
-                PlannerStep::VectorRefine,
-                PlannerStep::Fusion,
-            ],
+            steps: vec![PlannerStep::HopGraph, PlannerStep::VectorRefine, PlannerStep::Fusion],
             constraints: QueryConstraints {
                 graph_required: true,
                 ..Default::default()
@@ -650,10 +641,7 @@ mod tests {
             metadata: HashMap::new(),
             has_results: false,
         };
-        context.store_result(
-            PlannerStep::HopGraph,
-            PipelineStage::HopGraphResult(empty_hopgraph),
-        );
+        context.store_result(PlannerStep::HopGraph, PipelineStage::HopGraphResult(empty_hopgraph));
 
         // Should short-circuit before RAGGraph
         assert!(context.should_short_circuit(&PlannerStep::RAGGraph));

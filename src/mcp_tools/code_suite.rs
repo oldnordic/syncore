@@ -63,7 +63,9 @@ pub struct CodeSuite {
 
 impl CodeSuite {
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Execute the suite command
@@ -83,10 +85,7 @@ impl CodeSuite {
             "help" => self.cmd_help(),
             _ => SuiteResult::err(
                 &args.command,
-                format!(
-                    "Unknown command '{}'. Use 'help' for available commands.",
-                    args.command
-                ),
+                format!("Unknown command '{}'. Use 'help' for available commands.", args.command),
             ),
         }
     }
@@ -214,11 +213,8 @@ impl CodeSuite {
                     Ok(paths) => {
                         // APEX 2.15: Acquire reindex mutex to serialize DELETE+INSERT operations
                         // This prevents UNIQUE constraint collisions with concurrent LiveIndexer updates
-                        let _lock = self
-                            .state
-                            .reindex_mutex
-                            .lock()
-                            .expect("reindex mutex poisoned");
+                        let _lock =
+                            self.state.reindex_mutex.lock().expect("reindex mutex poisoned");
 
                         // BUGFIX: Load config to get excluded directories (same as bootstrap.rs)
                         // Use default config if load fails (will use default_excluded_dirs)
@@ -555,9 +551,9 @@ impl CodeSuite {
                     }
                 };
 
-                let rows = match stmt.query_map([limit], |row| {
-                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-                }) {
+                let rows = match stmt
+                    .query_map([limit], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))
+                {
                     Ok(r) => r,
                     Err(e) => {
                         return SuiteResult::err(
@@ -729,7 +725,6 @@ impl SuiteDispatcher for CodeSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     #[test]
     fn test_code_suite_args_deserialization() {

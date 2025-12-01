@@ -41,10 +41,7 @@ async fn test_missing_code_entities_but_vectors_exist() -> Result<()> {
 
     // Should detect orphan vector (vector without code entity)
     assert!(!report.orphan_vectors.is_empty());
-    assert!(report
-        .orphan_vectors
-        .iter()
-        .any(|n| n.contains("vector_id=1")));
+    assert!(report.orphan_vectors.iter().any(|n| n.contains("vector_id=1")));
 
     Ok(())
 }

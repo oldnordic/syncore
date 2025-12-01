@@ -115,10 +115,8 @@ pub fn compute_graph_score(depth: Option<usize>) -> f32 {
 /// - Recency: Normalized by 1 year window (entities modified within last year get higher scores)
 /// - Churn: log(1 + change_count) normalized by log(101) for [0.0, 1.0] range
 pub fn compute_temporal_score(last_modified_at: i64, change_count: i32, _author_count: i32) -> f32 {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
 
     // Recency score: 1.0 for recent (< 1 year), decays to 0.0 over time
     let seconds_since_mod = (now - last_modified_at).max(0) as f64;
@@ -237,11 +235,7 @@ mod tests {
         // Note: Gets some score from balance (0.3*1.0) but no degree or diversity
         let features = GraphFeatures::empty();
         let score = compute_graph_embedding_score(&features);
-        assert!(
-            score < 0.5,
-            "Isolated node should have low score (< 0.5), got {}",
-            score
-        );
+        assert!(score < 0.5, "Isolated node should have low score (< 0.5), got {}", score);
         assert!(score >= 0.0, "Score should be non-negative");
     }
 
@@ -258,11 +252,7 @@ mod tests {
         features.edge_types.insert("USES".to_string(), 5);
 
         let score = compute_graph_embedding_score(&features);
-        assert!(
-            score > 0.5,
-            "Hub node should have high score (> 0.5), got {}",
-            score
-        );
+        assert!(score > 0.5, "Hub node should have high score (> 0.5), got {}", score);
         assert!(score <= 1.0, "Score should not exceed 1.0");
     }
 
@@ -314,10 +304,7 @@ mod tests {
     fn test_compute_graph_score_self_node() {
         // Self node (depth 0) should have score 1.0
         let score = compute_graph_score(Some(0));
-        assert_eq!(
-            score, 1.0,
-            "Self node (depth=0) should have graph_score = 1.0"
-        );
+        assert_eq!(score, 1.0, "Self node (depth=0) should have graph_score = 1.0");
     }
 
     #[test]
@@ -336,10 +323,7 @@ mod tests {
         // Depth 2 neighbor should have score ~0.33
         // Formula: 1.0 / (1.0 + 2) = 0.333...
         let score = compute_graph_score(Some(2));
-        assert!(
-            (score - 0.333).abs() < 0.01,
-            "Depth-2 neighbor should have graph_score ≈ 0.33"
-        );
+        assert!((score - 0.333).abs() < 0.01, "Depth-2 neighbor should have graph_score ≈ 0.33");
     }
 
     #[test]
@@ -349,13 +333,7 @@ mod tests {
         let score_2 = compute_graph_score(Some(2));
         let score_3 = compute_graph_score(Some(3));
 
-        assert!(
-            score_1 > score_2,
-            "Depth 1 should score higher than depth 2"
-        );
-        assert!(
-            score_2 > score_3,
-            "Depth 2 should score higher than depth 3"
-        );
+        assert!(score_1 > score_2, "Depth 1 should score higher than depth 2");
+        assert!(score_2 > score_3, "Depth 2 should score higher than depth 3");
     }
 }

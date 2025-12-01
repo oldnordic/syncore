@@ -140,18 +140,9 @@ fn test_namespace_allows_duplicate_keys() -> Result<()> {
     memory.store_with_metadata("dup", "v3", "default", &[], 0.5)?;
 
     // All should be retrievable independently
-    assert_eq!(
-        memory.query_with_namespace("dup", Some("ns1"))?,
-        Some("v1".to_string())
-    );
-    assert_eq!(
-        memory.query_with_namespace("dup", Some("ns2"))?,
-        Some("v2".to_string())
-    );
-    assert_eq!(
-        memory.query_with_namespace("dup", Some("default"))?,
-        Some("v3".to_string())
-    );
+    assert_eq!(memory.query_with_namespace("dup", Some("ns1"))?, Some("v1".to_string()));
+    assert_eq!(memory.query_with_namespace("dup", Some("ns2"))?, Some("v2".to_string()));
+    assert_eq!(memory.query_with_namespace("dup", Some("default"))?, Some("v3".to_string()));
 
     Ok(())
 }

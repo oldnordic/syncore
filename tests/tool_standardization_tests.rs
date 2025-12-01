@@ -16,10 +16,7 @@ use syncore::mcp::types::{SynCoreError, SynCoreResult, ToolRequest};
 fn test_tool_metadata_registry() {
     // Verify metadata registry is populated
     let all_metadata = tool_metadata::list_all_metadata();
-    assert!(
-        !all_metadata.is_empty(),
-        "Tool registry should not be empty"
-    );
+    assert!(!all_metadata.is_empty(), "Tool registry should not be empty");
 
     // Check specific tools exist
     let memory_store = tool_metadata::get_tool_metadata("memory_store");
@@ -104,11 +101,8 @@ fn test_real_executor_async() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_store", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("memory_store", &params).await });
 
     // RealExecutor returns Ok(Value) with envelope
     assert!(result.is_ok(), "Async execution should succeed");
@@ -116,10 +110,7 @@ fn test_real_executor_async() {
 
     // Validate envelope structure
     assert_eq!(envelope["ok"], true, "Envelope should have ok=true");
-    assert!(
-        envelope.get("data").is_some(),
-        "Envelope should have data field"
-    );
+    assert!(envelope.get("data").is_some(), "Envelope should have data field");
 
     // Check data contents
     let data = &envelope["data"];
@@ -137,10 +128,7 @@ fn test_real_executor_async_fallback() {
     use syncore::vector::{RealEmbeddings, VectorStore};
 
     // Create executor with unique database path
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_test_fallback_{}", timestamp);
 
     let memory = Memory::new(&db_path).expect("Failed to create memory");
@@ -156,11 +144,8 @@ fn test_real_executor_async_fallback() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("vector_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("vector_search", &params).await });
 
     // RealExecutor returns Ok(Value) with envelope
     assert!(result.is_ok(), "Async fallback should succeed");
@@ -168,10 +153,7 @@ fn test_real_executor_async_fallback() {
 
     // Validate envelope structure
     assert_eq!(envelope["ok"], true, "Envelope should have ok=true");
-    assert!(
-        envelope.get("data").is_some(),
-        "Envelope should have data field"
-    );
+    assert!(envelope.get("data").is_some(), "Envelope should have data field");
 
     // Check data contents
     let data = &envelope["data"];
@@ -227,38 +209,20 @@ fn test_real_executor_async_error_handling() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("memory_store", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("memory_store", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
 
     // Validate error envelope structure
-    assert_eq!(
-        envelope["ok"], false,
-        "Envelope should have ok=false for errors"
-    );
-    assert!(
-        envelope.get("error").is_some(),
-        "Error envelope should have error field"
-    );
-    assert!(
-        envelope.get("data").is_none(),
-        "Error envelope should not have data field"
-    );
+    assert_eq!(envelope["ok"], false, "Envelope should have ok=false for errors");
+    assert!(envelope.get("error").is_some(), "Error envelope should have error field");
+    assert!(envelope.get("data").is_none(), "Error envelope should not have data field");
 
     // Validate error fields
     let error = &envelope["error"];
     assert!(error.get("type").is_some(), "Error should have type field");
-    assert!(
-        error.get("message").is_some(),
-        "Error should have message field"
-    );
+    assert!(error.get("message").is_some(), "Error should have message field");
 }

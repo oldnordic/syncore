@@ -74,10 +74,7 @@ fn test_graph_domain_simple_feature_combiner_unchanged() {
     // let graph_emb = combiner.embed_with_graph(&code_emb, &features);
     // assert_eq!(graph_emb.len(), 384); // Unchanged dimension
 
-    assert!(
-        true,
-        "GRAPH SimpleFeatureCombiner preservation not yet verified"
-    );
+    assert!(true, "GRAPH SimpleFeatureCombiner preservation not yet verified");
 }
 
 #[test]
@@ -90,10 +87,7 @@ fn test_graph_embeddings_module_unchanged() {
     // Verify GraphFeatures struct unchanged
     // Verify SimpleFeatureCombiner implementation unchanged
 
-    assert!(
-        true,
-        "Graph embeddings module preservation not yet verified"
-    );
+    assert!(true, "Graph embeddings module preservation not yet verified");
 }
 
 // ============================================================================
@@ -191,10 +185,7 @@ fn test_syncore_state_with_dual_stores() {
     // let state = SynCoreState::with_dual_stores(memory, tasks, code_store, general_store);
     // assert!(state is valid);
 
-    assert!(
-        true,
-        "SynCoreState constructor preservation not yet verified"
-    );
+    assert!(true, "SynCoreState constructor preservation not yet verified");
 }
 
 // ============================================================================

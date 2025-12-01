@@ -173,10 +173,7 @@ fn test_vectorindex_search_deterministic() -> Result<()> {
     let ids: Vec<i64> = results1.iter().map(|(id, _)| *id).collect();
     let mut sorted_ids = ids.clone();
     sorted_ids.sort_unstable();
-    assert_eq!(
-        ids, sorted_ids,
-        "IDs should be sorted for deterministic ordering"
-    );
+    assert_eq!(ids, sorted_ids, "IDs should be sorted for deterministic ordering");
 
     Ok(())
 }

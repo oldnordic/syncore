@@ -60,10 +60,8 @@ pub fn store_episode_sql(memory: &Memory, episode: &ReasoningEpisode) -> Result<
     memory.store(&key, &episode_json)?;
 
     // Also store in an index for query lookup
-    let query_index_key = format!(
-        "episode_query_index_{}",
-        episode.user_query.to_lowercase().replace(' ', "_")
-    );
+    let query_index_key =
+        format!("episode_query_index_{}", episode.user_query.to_lowercase().replace(' ', "_"));
     let existing_index = memory.query(&query_index_key)?;
 
     let mut episode_ids: Vec<i64> = if let Some(index_json) = existing_index {
@@ -96,10 +94,7 @@ pub fn fetch_recent_episodes_sql(
     let mut episodes = Vec::new();
 
     // Try to fetch from query index
-    let query_index_key = format!(
-        "episode_query_index_{}",
-        query.to_lowercase().replace(' ', "_")
-    );
+    let query_index_key = format!("episode_query_index_{}", query.to_lowercase().replace(' ', "_"));
     if let Some(index_json) = memory.query(&query_index_key)? {
         let episode_ids: Vec<i64> = serde_json::from_str(&index_json).unwrap_or_default();
 
@@ -122,11 +117,7 @@ pub fn fetch_recent_episodes_sql(
                     if let Some(episode_json) = memory.query(&key)? {
                         if let Ok(episode) = serde_json::from_str::<ReasoningEpisode>(&episode_json)
                         {
-                            if episode
-                                .user_query
-                                .to_lowercase()
-                                .contains(&query.to_lowercase())
-                            {
+                            if episode.user_query.to_lowercase().contains(&query.to_lowercase()) {
                                 episodes.push(episode);
                                 if episodes.len() >= limit {
                                     break;

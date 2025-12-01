@@ -130,7 +130,9 @@ pub struct MemorySuite {
 
 impl MemorySuite {
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Execute the suite command
@@ -200,10 +202,7 @@ impl MemorySuite {
             "help" => self.cmd_help(),
             _ => SuiteResult::err(
                 &args.command,
-                format!(
-                    "Unknown command '{}'. Use 'help' for available commands.",
-                    args.command
-                ),
+                format!("Unknown command '{}'. Use 'help' for available commands.", args.command),
             ),
         }
     }

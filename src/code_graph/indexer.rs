@@ -52,10 +52,8 @@ impl CodeGraph {
         file_path: &Path,
         neo4j_opt: Option<&Neo4jClient>,
     ) -> Result<usize> {
-        let file_path_str = file_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Invalid file path"))?
-            .to_string();
+        let file_path_str =
+            file_path.to_str().ok_or_else(|| anyhow!("Invalid file path"))?.to_string();
 
         // PHASE 5: Incremental indexing - check if file has changed
         // Early exit if unchanged to avoid unnecessary parsing and indexing
@@ -93,29 +91,22 @@ impl CodeGraph {
         let mut entities_indexed = 0;
 
         // Extract and store entities
-        let mut db = self
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+        let mut db = self.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
 
         // Use rusqlite Transaction API for proper RAII semantics
         let tx = db.transaction()?;
 
         // Delete existing entities for this file to allow re-indexing
         // file_path_str already set at function start
-        tx.execute(
-            "DELETE FROM code_entities WHERE file_path = ?",
-            [&file_path_str],
-        )?;
+        tx.execute("DELETE FROM code_entities WHERE file_path = ?", [&file_path_str])?;
 
         // Store functions
         let mut entity_ids = Vec::new();
         let mut edges = Vec::new();
         for func in &code_structure.functions {
             // APEX v1.7 Phase 3: Extract function body snippet
-            let body_snippet = extract_body_snippet(file_path, func.line_number, func.end_line)
-                .ok()
-                .flatten();
+            let body_snippet =
+                extract_body_snippet(file_path, func.line_number, func.end_line).ok().flatten();
 
             let entity = CodeEntity {
                 id: None,
@@ -344,9 +335,7 @@ impl CodeGraph {
         // This enables incremental indexing to skip unchanged files
         let sha256 = compute_file_sha256(file_path)?;
         let mtime = get_file_mtime(file_path)?;
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs() as i64;
         let state = FileIndexState {
             file_path: file_path_str.clone(),
             sha256,
@@ -360,10 +349,7 @@ impl CodeGraph {
         // This decouples persistence from embedding success
         for (entity_id, entity) in &entity_ids {
             if let Err(e) = self.create_entity_embedding(&db, *entity_id, entity) {
-                eprintln!(
-                    "[WARN] Failed to create embedding for entity {}: {}",
-                    entity.name, e
-                );
+                eprintln!("[WARN] Failed to create embedding for entity {}: {}", entity.name, e);
                 // Continue - embeddings are optional
             }
         }
@@ -467,11 +453,9 @@ impl CodeGraph {
             .and_then(|mut f| {
                 use std::io::Write;
                 match &insert_result {
-                    Ok(rows) => writeln!(
-                        f,
-                        "STEP 3: INSERT OK - {} rows, entity: {}",
-                        rows, entity.name
-                    )?,
+                    Ok(rows) => {
+                        writeln!(f, "STEP 3: INSERT OK - {} rows, entity: {}", rows, entity.name)?
+                    }
                     Err(e) => writeln!(
                         f,
                         "STEP 3: INSERT FAILED - entity: {}, error: {}",
@@ -486,11 +470,10 @@ impl CodeGraph {
         let entity_id = db.last_insert_rowid();
 
         // STEP 2: Verify INSERT visibility inside transaction
-        let count: i64 = db.query_row(
-            "SELECT COUNT(*) FROM code_entities WHERE id = ?",
-            [entity_id],
-            |row| row.get(0),
-        )?;
+        let count: i64 =
+            db.query_row("SELECT COUNT(*) FROM code_entities WHERE id = ?", [entity_id], |row| {
+                row.get(0)
+            })?;
 
         let _ = std::fs::OpenOptions::new()
             .create(true)
@@ -504,10 +487,7 @@ impl CodeGraph {
                     entity_id, count
                 )?;
                 if count == 0 {
-                    writeln!(
-                        f,
-                        "STEP 2: ❌ CRITICAL - INSERT not visible inside transaction!"
-                    )?;
+                    writeln!(f, "STEP 2: ❌ CRITICAL - INSERT not visible inside transaction!")?;
                 }
                 Ok(())
             });
@@ -594,10 +574,7 @@ impl CodeGraph {
         let tx = (*macro_db).transaction()?;
 
         // Clear existing macro expansions for this file
-        tx.execute(
-            "DELETE FROM code_macro_expansions WHERE file_path = ?",
-            [file_path_str],
-        )?;
+        tx.execute("DELETE FROM code_macro_expansions WHERE file_path = ?", [file_path_str])?;
 
         // Insert new macro expansions
         let mut stmt = tx.prepare(
@@ -651,10 +628,7 @@ impl CodeGraph {
         tx.commit()?;
 
         if inserted > 0 {
-            println!(
-                "[INFO] Stored {} macro expansions for {}",
-                inserted, file_path_str
-            );
+            println!("[INFO] Stored {} macro expansions for {}", inserted, file_path_str);
         }
 
         Ok(())

@@ -49,10 +49,7 @@ async fn test_embedding_refresh_does_not_break_sync_fusion_query() -> Result<()>
 
     // Run sync query before refresh
     let result_before = api.query("test", None, None, Some(10)).await?;
-    assert!(
-        result_before.entities.len() >= 0,
-        "Sync query should work before refresh"
-    );
+    assert!(result_before.entities.len() >= 0, "Sync query should work before refresh");
 
     // Start embedding refresh daemon
     let config = EmbeddingRefreshConfig::default();
@@ -67,10 +64,7 @@ async fn test_embedding_refresh_does_not_break_sync_fusion_query() -> Result<()>
 
     // Run sync query after refresh
     let result_after = api.query("test", None, None, Some(10)).await?;
-    assert!(
-        result_after.entities.len() >= 0,
-        "Sync query should work after refresh"
-    );
+    assert!(result_after.entities.len() >= 0, "Sync query should work after refresh");
 
     daemon.shutdown().await?;
     Ok(())
@@ -109,10 +103,8 @@ async fn test_embedding_refresh_does_not_break_streaming_fusion_query() -> Resul
 
     // Collect chunks
     let mut received = false;
-    while let Some(chunk) = tokio::time::timeout(Duration::from_millis(500), rx.recv())
-        .await
-        .ok()
-        .flatten()
+    while let Some(chunk) =
+        tokio::time::timeout(Duration::from_millis(500), rx.recv()).await.ok().flatten()
     {
         received = true;
         if chunk.is_final {
@@ -159,21 +151,12 @@ async fn test_embedding_refresh_does_not_corrupt_dual_domain_separation() -> Res
     let general_count = general_store.lock().unwrap().len();
 
     assert!(code_count > 0, "CODE store should have CODE embeddings");
-    assert!(
-        general_count > 0,
-        "GENERAL store should have GENERAL embeddings"
-    );
+    assert!(general_count > 0, "GENERAL store should have GENERAL embeddings");
 
     // Verify no cross-contamination (both stores updated independently)
     // Each should have exactly 1 embedding from their respective domain
-    assert_eq!(
-        code_count, 1,
-        "CODE store should have exactly 1 CODE embedding"
-    );
-    assert_eq!(
-        general_count, 1,
-        "GENERAL store should have exactly 1 GENERAL embedding"
-    );
+    assert_eq!(code_count, 1, "CODE store should have exactly 1 CODE embedding");
+    assert_eq!(general_count, 1, "GENERAL store should have exactly 1 GENERAL embedding");
 
     daemon.shutdown().await?;
     Ok(())

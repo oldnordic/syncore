@@ -27,15 +27,11 @@ async fn get_neo4j_client() -> Result<Neo4jClient> {
 
 /// Helper to clear all CodeEntity-related nodes in test namespace
 async fn clear_code_entities(neo4j: &Neo4jClient) -> Result<()> {
-    let labels = vec![
-        "Function", "Class", "Method", "Import", "Struct", "Enum", "Trait",
-    ];
+    let labels = vec!["Function", "Class", "Method", "Import", "Struct", "Enum", "Trait"];
 
     for label in labels {
         let cypher = format!("MATCH (n:{} {{namespace: $ns}}) DETACH DELETE n", label);
-        neo4j
-            .execute_query(&cypher, vec![("ns", serde_json::json!(neo4j.namespace()))])
-            .await?;
+        neo4j.execute_query(&cypher, vec![("ns", serde_json::json!(neo4j.namespace()))]).await?;
     }
 
     Ok(())
@@ -86,10 +82,7 @@ async fn test_index_rust_file_with_neo4j_sync() -> Result<()> {
 
     assert_eq!(func_result.len(), 1, "Function node not found in Neo4j");
     assert_eq!(func_result[0]["name"].as_str(), Some("my_function"));
-    assert!(
-        func_result[0]["signature"].as_str().is_some(),
-        "Function signature missing"
-    );
+    assert!(func_result[0]["signature"].as_str().is_some(), "Function signature missing");
 
     Ok(())
 }
@@ -166,11 +159,7 @@ async fn test_reindex_updates_neo4j_nodes() -> Result<()> {
         vec![("ns", serde_json::json!(neo4j.namespace()))],
     ).await?;
 
-    assert_eq!(
-        result2[0]["count"].as_i64(),
-        Some(1),
-        "updated_function should exist in Neo4j"
-    );
+    assert_eq!(result2[0]["count"].as_i64(), Some(1), "updated_function should exist in Neo4j");
 
     // Note: Original function nodes remain in Neo4j (garbage collection not implemented in R2.2)
     // This is expected behavior - we only CREATE nodes, not DELETE orphaned ones

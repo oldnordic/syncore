@@ -90,10 +90,7 @@ mod tests {
     #[test]
     fn test_relation_type_roundtrip() {
         assert_eq!(RelationType::SimilarTo.as_str(), "SIMILAR_TO");
-        assert_eq!(
-            RelationType::try_parse("SIMILAR_TO"),
-            Some(RelationType::SimilarTo)
-        );
+        assert_eq!(RelationType::try_parse("SIMILAR_TO"), Some(RelationType::SimilarTo));
         assert_eq!(RelationType::try_parse("UNKNOWN"), None);
     }
 

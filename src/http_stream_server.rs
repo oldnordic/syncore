@@ -28,7 +28,9 @@ pub struct HttpStreamServer {
 impl HttpStreamServer {
     /// Create new HTTP streaming server with unified MCP router
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Start HTTP streamable server with proper MCP protocol support
@@ -42,11 +44,7 @@ impl HttpStreamServer {
 
         let service = StreamableHttpService::new(
             // Service factory - creates a new SynCoreMCPServer for each session
-            move || {
-                Ok(SynCoreMCPServer::new(
-                    (*Arc::new(state_for_factory.clone())).clone(),
-                ))
-            },
+            move || Ok(SynCoreMCPServer::new((*Arc::new(state_for_factory.clone())).clone())),
             // Session manager for handling multiple clients
             Arc::new(LocalSessionManager::default()),
             // Default configuration
@@ -75,6 +73,7 @@ mod tests {
     use std::sync::Mutex;
 
     #[tokio::test]
+    #[allow(deprecated)]
     async fn test_http_stream_server_creation() {
         let memory = Memory::new(":memory:").unwrap();
         let tasks = Tasks::new(":memory:").unwrap();

@@ -82,34 +82,13 @@ mod tests {
 
     #[test]
     fn test_entity_type_to_node_label() {
-        assert_eq!(
-            entity_type_to_node_label(&EntityType::Function),
-            NodeLabel::Function
-        );
-        assert_eq!(
-            entity_type_to_node_label(&EntityType::Struct),
-            NodeLabel::Struct
-        );
-        assert_eq!(
-            entity_type_to_node_label(&EntityType::Function),
-            NodeLabel::Function
-        );
-        assert_eq!(
-            entity_type_to_node_label(&EntityType::Import),
-            NodeLabel::Import
-        );
-        assert_eq!(
-            entity_type_to_node_label(&EntityType::Struct),
-            NodeLabel::Struct
-        );
-        assert_eq!(
-            entity_type_to_node_label(&EntityType::Enum),
-            NodeLabel::Enum
-        );
-        assert_eq!(
-            entity_type_to_node_label(&EntityType::Trait),
-            NodeLabel::Trait
-        );
+        assert_eq!(entity_type_to_node_label(&EntityType::Function), NodeLabel::Function);
+        assert_eq!(entity_type_to_node_label(&EntityType::Struct), NodeLabel::Struct);
+        assert_eq!(entity_type_to_node_label(&EntityType::Function), NodeLabel::Function);
+        assert_eq!(entity_type_to_node_label(&EntityType::Import), NodeLabel::Import);
+        assert_eq!(entity_type_to_node_label(&EntityType::Struct), NodeLabel::Struct);
+        assert_eq!(entity_type_to_node_label(&EntityType::Enum), NodeLabel::Enum);
+        assert_eq!(entity_type_to_node_label(&EntityType::Trait), NodeLabel::Trait);
     }
 
     // TASK C: Verify that :SynCore label is included in MERGE query

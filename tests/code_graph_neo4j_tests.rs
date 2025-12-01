@@ -21,15 +21,11 @@ async fn get_neo4j_client() -> Result<Neo4jClient> {
 
 /// Helper to clear all CodeEntity-related nodes in test namespace
 async fn clear_code_entities(neo4j: &Neo4jClient) -> Result<()> {
-    let labels = vec![
-        "Function", "Class", "Method", "Import", "Struct", "Enum", "Trait",
-    ];
+    let labels = vec!["Function", "Class", "Method", "Import", "Struct", "Enum", "Trait"];
 
     for label in labels {
         let cypher = format!("MATCH (n:{} {{namespace: $ns}}) DETACH DELETE n", label);
-        neo4j
-            .execute_query(&cypher, vec![("ns", serde_json::json!(neo4j.namespace()))])
-            .await?;
+        neo4j.execute_query(&cypher, vec![("ns", serde_json::json!(neo4j.namespace()))]).await?;
     }
 
     Ok(())
@@ -74,10 +70,7 @@ async fn test_create_function_node() -> Result<()> {
     let node = &result[0];
     assert_eq!(node["name"].as_str(), Some("my_function"));
     assert_eq!(node["file_path"].as_str(), Some("/tmp/test.rs"));
-    assert_eq!(
-        node["signature"].as_str(),
-        Some("my_function(a: i32, b: i32)")
-    );
+    assert_eq!(node["signature"].as_str(), Some("my_function(a: i32, b: i32)"));
     assert_eq!(node["line_start"].as_i64(), Some(10));
     assert_eq!(node["line_end"].as_i64(), Some(15));
     assert_eq!(node["language"].as_str(), Some("rust"));
@@ -113,10 +106,7 @@ async fn test_create_class_node() -> Result<()> {
     let result = neo4j
         .execute_query(
             "MATCH (c:Class {id: $id, namespace: $ns}) RETURN c.name as name",
-            vec![
-                ("id", serde_json::json!(2)),
-                ("ns", serde_json::json!(neo4j.namespace())),
-            ],
+            vec![("id", serde_json::json!(2)), ("ns", serde_json::json!(neo4j.namespace()))],
         )
         .await?;
 
@@ -161,10 +151,7 @@ async fn test_create_method_node() -> Result<()> {
 
     assert_eq!(result.len(), 1);
     assert_eq!(result[0]["name"].as_str(), Some("MyClass.my_method"));
-    assert_eq!(
-        result[0]["signature"].as_str(),
-        Some("my_method(self, x: i32)")
-    );
+    assert_eq!(result[0]["signature"].as_str(), Some("my_method(self, x: i32)"));
 
     Ok(())
 }
@@ -208,16 +195,9 @@ async fn test_idempotency_merge() -> Result<()> {
         ],
     ).await?;
 
-    assert_eq!(
-        result.len(),
-        1,
-        "Should have exactly one node (MERGE idempotency)"
-    );
+    assert_eq!(result.len(), 1, "Should have exactly one node (MERGE idempotency)");
     assert_eq!(result[0]["name"].as_str(), Some("test_function"));
-    assert_eq!(
-        result[0]["docstring"].as_str(),
-        Some("/// Updated docstring")
-    );
+    assert_eq!(result[0]["docstring"].as_str(), Some("/// Updated docstring"));
 
     Ok(())
 }
@@ -261,10 +241,8 @@ async fn test_all_entity_types() -> Result<()> {
 
     // Verify all nodes exist with correct labels
     for (i, (_, label, name)) in entity_types.iter().enumerate() {
-        let cypher = format!(
-            "MATCH (n:{} {{id: $id, namespace: $ns}}) RETURN n.name as name",
-            label
-        );
+        let cypher =
+            format!("MATCH (n:{} {{id: $id, namespace: $ns}}) RETURN n.name as name", label);
         let result = neo4j
             .execute_query(
                 &cypher,
@@ -310,10 +288,7 @@ async fn test_namespace_isolation() -> Result<()> {
     let result1 = neo4j
         .execute_query(
             "MATCH (f:Function {id: $id, namespace: $ns}) RETURN f.name as name",
-            vec![
-                ("id", serde_json::json!(100)),
-                ("ns", serde_json::json!(neo4j.namespace())),
-            ],
+            vec![("id", serde_json::json!(100)), ("ns", serde_json::json!(neo4j.namespace()))],
         )
         .await?;
     assert_eq!(result1.len(), 1);
@@ -322,17 +297,10 @@ async fn test_namespace_isolation() -> Result<()> {
     let result2 = neo4j
         .execute_query(
             "MATCH (f:Function {id: $id, namespace: $ns}) RETURN f.name as name",
-            vec![
-                ("id", serde_json::json!(100)),
-                ("ns", serde_json::json!("wrong_namespace")),
-            ],
+            vec![("id", serde_json::json!(100)), ("ns", serde_json::json!("wrong_namespace"))],
         )
         .await?;
-    assert_eq!(
-        result2.len(),
-        0,
-        "Should not find node in different namespace"
-    );
+    assert_eq!(result2.len(), 0, "Should not find node in different namespace");
 
     Ok(())
 }

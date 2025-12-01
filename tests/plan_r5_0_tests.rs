@@ -123,32 +123,18 @@ fn test_generate_plan_avoids_inconsistent_sequences() -> Result<()> {
         &bundle,
         &ReasoningContinuity::new(),
         &[],
-        &[
-            failed_episode.clone(),
-            failed_episode.clone(),
-            failed_episode,
-        ],
+        &[failed_episode.clone(), failed_episode.clone(), failed_episode],
     );
 
     // Then: Consistency should detect repeated failures
-    assert!(
-        consistency.score < 0.8,
-        "Expected low consistency score for repeated failures"
-    );
+    assert!(consistency.score < 0.8, "Expected low consistency score for repeated failures");
     assert!(consistency
         .issues
         .iter()
         .any(|i| matches!(i.kind, SelfConsistencyIssueKind::RepeatedFailedSequence)));
 
     // When: Generate plan (should avoid failed sequence)
-    let plan = generate_plan(
-        "test query",
-        &intent,
-        selected_mode,
-        &[],
-        &consistency,
-        &bundle,
-    )?;
+    let plan = generate_plan("test query", &intent, selected_mode, &[], &consistency, &bundle)?;
 
     // Then: Plan should not include bad tools
     assert!(plan
@@ -347,26 +333,14 @@ async fn test_raggraph_is_used_to_map_project_if_query_mentions_entities() -> Re
     );
 
     // When: Generate plan
-    let plan = generate_plan(
-        query,
-        &intent,
-        selected_mode,
-        &patterns,
-        &consistency,
-        &bundle,
-    )?;
+    let plan = generate_plan(query, &intent, selected_mode, &patterns, &consistency, &bundle)?;
 
     // Then: Plan should include graph or search operations for mentioned entities
     assert!(plan.steps.len() > 0);
     // Should use code_graph_fusion_query or code_search when entities present
-    let has_graph_or_search = plan
-        .steps
-        .iter()
-        .any(|s| s.tool.contains("code_graph") || s.tool.contains("code_search"));
-    assert!(
-        has_graph_or_search,
-        "Plan should use graph/search when entities mentioned"
-    );
+    let has_graph_or_search =
+        plan.steps.iter().any(|s| s.tool.contains("code_graph") || s.tool.contains("code_search"));
+    assert!(has_graph_or_search, "Plan should use graph/search when entities mentioned");
 
     Ok(())
 }

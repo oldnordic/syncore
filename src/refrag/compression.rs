@@ -22,7 +22,9 @@ pub struct ChunkCompressionLayer {
 impl ChunkCompressionLayer {
     /// Create new compression layer with state
     pub fn new(state: SynCoreState) -> Result<Self> {
-        Ok(Self { state })
+        Ok(Self {
+            state,
+        })
     }
 
     /// Get chunk metadata for a single chunk ID
@@ -99,18 +101,14 @@ impl ChunkCompressionLayer {
         let mut symbols = Vec::new();
 
         // Simple regex-based extraction (can be improved with tree-sitter)
-        if let Some(caps) = regex::Regex::new(r"fn\s+(\w+)")
-            .ok()
-            .and_then(|re| re.captures(text))
-        {
+        if let Some(caps) = regex::Regex::new(r"fn\s+(\w+)").ok().and_then(|re| re.captures(text)) {
             if let Some(name) = caps.get(1) {
                 symbols.push(name.as_str().to_string());
             }
         }
 
-        if let Some(caps) = regex::Regex::new(r"struct\s+(\w+)")
-            .ok()
-            .and_then(|re| re.captures(text))
+        if let Some(caps) =
+            regex::Regex::new(r"struct\s+(\w+)").ok().and_then(|re| re.captures(text))
         {
             if let Some(name) = caps.get(1) {
                 symbols.push(name.as_str().to_string());
@@ -143,7 +141,6 @@ impl ChunkCompressionLayer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     // TDD: Tests will fail until integration is complete
 

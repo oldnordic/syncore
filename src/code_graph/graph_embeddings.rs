@@ -84,14 +84,7 @@ impl GraphFeatures {
         let uses_norm =
             (self.edge_types.get("USES").copied().unwrap_or(0) as f32 / max_degree).min(1.0);
 
-        vec![
-            degree_in_norm,
-            degree_out_norm,
-            calls_norm,
-            defines_norm,
-            imports_norm,
-            uses_norm,
-        ]
+        vec![degree_in_norm, degree_out_norm, calls_norm, defines_norm, imports_norm, uses_norm]
     }
 }
 
@@ -241,10 +234,7 @@ mod tests {
 
         // Check unit length (L2 norm ≈ 1.0)
         let norm: f32 = graph_emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!(
-            (norm - 1.0).abs() < 0.001,
-            "Embedding should be unit normalized"
-        );
+        assert!((norm - 1.0).abs() < 0.001, "Embedding should be unit normalized");
     }
 
     #[test]

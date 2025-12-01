@@ -14,12 +14,10 @@ use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
 /// Helper to create test state
+#[allow(deprecated)]
 fn create_test_state(suffix: &str) -> SynCoreState {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_envelope_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -71,17 +69,11 @@ async fn test_error_envelope_structure() {
 
     let result_value = result.unwrap();
     assert_eq!(result_value["ok"], false, "ok should be false");
-    assert!(
-        result_value.get("error").is_some(),
-        "Should have error field"
-    );
+    assert!(result_value.get("error").is_some(), "Should have error field");
     assert_eq!(result_value["error"]["type"], "MissingParameter");
     assert_eq!(result_value["error"]["tool"], "logs_tail");
     assert_eq!(result_value["error"]["executor"], "real");
-    assert!(result_value["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("file_path"));
+    assert!(result_value["error"]["message"].as_str().unwrap().contains("file_path"));
 }
 
 // ============================================================================
@@ -97,37 +89,19 @@ async fn test_real_executor_uses_envelope() {
 
     let params = json!({"key": "envelope_test", "value": "real_data", "dry_run": false});
 
-    let result = executor
-        .execute_real_tool_async("memory_store", &params)
-        .await;
+    let result = executor.execute_real_tool_async("memory_store", &params).await;
 
-    assert!(
-        result.is_ok(),
-        "Real executor should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real executor should succeed: {:?}", result.err());
     let result_value = result.unwrap();
 
     // Check envelope structure
     assert!(result_value.get("ok").is_some(), "Should have 'ok' field");
-    assert!(
-        result_value.get("tool").is_some(),
-        "Should have 'tool' field"
-    );
-    assert!(
-        result_value.get("executor").is_some(),
-        "Should have 'executor' field"
-    );
-    assert!(
-        result_value.get("data").is_some(),
-        "Should have 'data' field"
-    );
+    assert!(result_value.get("tool").is_some(), "Should have 'tool' field");
+    assert!(result_value.get("executor").is_some(), "Should have 'executor' field");
+    assert!(result_value.get("data").is_some(), "Should have 'data' field");
 
     assert_eq!(result_value["ok"], true, "ok should be true");
-    assert_eq!(
-        result_value["tool"], "memory_store",
-        "tool should be memory_store"
-    );
+    assert_eq!(result_value["tool"], "memory_store", "tool should be memory_store");
     assert_eq!(result_value["executor"], "real", "executor should be real");
 }
 
@@ -225,9 +199,7 @@ async fn test_error_types_are_categorized() {
     let executor = RealExecutor::new(Arc::new(state));
 
     // Test MissingParameter error
-    let result = executor
-        .execute_real_tool_async("memory_query", &json!({"dry_run": false}))
-        .await;
+    let result = executor.execute_real_tool_async("memory_query", &json!({"dry_run": false})).await;
     assert!(result.is_ok(), "Should return Ok with error envelope");
     // MissingParameter errors now return Ok with error envelope
     let result_value = result.unwrap();
@@ -235,23 +207,15 @@ async fn test_error_types_are_categorized() {
     assert_eq!(result_value["error"]["type"], "MissingParameter");
 
     // Test InvalidAction (unknown tool)
-    let result2 = executor
-        .execute_real_tool_async("unknown_tool_xyz", &json!({}))
-        .await;
+    let result2 = executor.execute_real_tool_async("unknown_tool_xyz", &json!({})).await;
 
     // Unknown tools fall through to generate_result() and return Ok with synthetic data (unwrapped)
-    assert!(
-        result2.is_ok(),
-        "Unknown tool returns Ok with synthetic result"
-    );
+    assert!(result2.is_ok(), "Unknown tool returns Ok with synthetic result");
 
     let result2_value = result2.unwrap();
     // Unknown tools return raw synthetic data without envelope wrapping
     // This is expected behavior for tools that fall through to the default case
-    assert!(
-        result2_value.is_object() || result2_value.is_null(),
-        "Should return some value"
-    );
+    assert!(result2_value.is_object() || result2_value.is_null(), "Should return some value");
     // The fact that it returns Ok confirms it's handled (not a hard error)
 }
 
@@ -280,10 +244,8 @@ async fn test_envelope_consistency_across_executors() {
 
     // Stub executor
     let stub_exec = RealExecutorStub::new();
-    stub_exec.record_step(
-        "memory_store",
-        json!({"key": "test", "value": "data", "dry_run": false}),
-    );
+    stub_exec
+        .record_step("memory_store", json!({"key": "test", "value": "data", "dry_run": false}));
     let stub_steps = stub_exec.get_executed_steps();
     let stub_result = &stub_steps[0].synthetic_result;
 

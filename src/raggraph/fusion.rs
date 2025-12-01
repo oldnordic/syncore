@@ -35,11 +35,8 @@ pub fn fuse_knowledge(
     }
 
     // Determine embedding dimension from first available embedding
-    let embedding_dim = embeddings
-        .values()
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("No embeddings available"))?
-        .len();
+    let embedding_dim =
+        embeddings.values().next().ok_or_else(|| anyhow::anyhow!("No embeddings available"))?.len();
 
     // Collect weighted nodes
     let mut weighted_nodes: Vec<(NodeId, f32)> = Vec::new();
@@ -75,10 +72,8 @@ pub fn fuse_knowledge(
 
     // Normalize weights to sum to 1.0
     let total_weight: f32 = weighted_nodes.iter().map(|(_, w)| w).sum();
-    let normalized_nodes: Vec<(NodeId, f32)> = weighted_nodes
-        .iter()
-        .map(|&(id, w)| (id, w / total_weight))
-        .collect();
+    let normalized_nodes: Vec<(NodeId, f32)> =
+        weighted_nodes.iter().map(|&(id, w)| (id, w / total_weight)).collect();
 
     // Compute weighted average of embeddings
     let mut fused = vec![0.0f32; embedding_dim];

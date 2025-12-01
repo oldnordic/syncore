@@ -124,11 +124,7 @@ public class JavaWithWarnings {
     }
 }
 "#;
-        fs::write(
-            package_dir.join("JavaWithWarnings.java"),
-            java_with_warnings,
-        )
-        .unwrap();
+        fs::write(package_dir.join("JavaWithWarnings.java"), java_with_warnings).unwrap();
 
         project_dir.to_string_lossy().to_string()
     }
@@ -239,13 +235,7 @@ public class JavaWithWarnings {
         let java_files: Vec<_> = fs::read_dir(&empty_project)
             .unwrap()
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .path()
-                    .extension()
-                    .map(|ext| ext == "java")
-                    .unwrap_or(false)
-            })
+            .filter(|entry| entry.path().extension().map(|ext| ext == "java").unwrap_or(false))
             .collect();
 
         assert_eq!(java_files.len(), 0);
@@ -306,13 +296,7 @@ public class File2 {
         let java_files: Vec<_> = fs::read_dir(&multi_file_dir)
             .unwrap()
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .path()
-                    .extension()
-                    .map(|ext| ext == "java")
-                    .unwrap_or(false)
-            })
+            .filter(|entry| entry.path().extension().map(|ext| ext == "java").unwrap_or(false))
             .collect();
 
         assert_eq!(java_files.len(), 2);

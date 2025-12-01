@@ -68,12 +68,7 @@ pub fn mine_patterns_from_episodes(episodes: &[ReasoningEpisode]) -> Vec<Reasoni
         let tools_key = tools.join(",");
 
         // Create group key
-        let key = format!(
-            "{}|{}|{}",
-            intent_to_string(&intent),
-            episode.selected_mode,
-            tools_key
-        );
+        let key = format!("{}|{}|{}", intent_to_string(&intent), episode.selected_mode, tools_key);
 
         let group = groups.entry(key.clone()).or_insert_with(|| PatternGroup {
             intent_type: intent,
@@ -299,10 +294,7 @@ mod tests {
         let tools2 = vec!["code_graph_fusion_query".to_string()];
         assert_eq!(compute_graph_usage_score(&tools2), 1);
 
-        let tools3 = vec![
-            "code_graph_fusion_query".to_string(),
-            "raggraph_query".to_string(),
-        ];
+        let tools3 = vec!["code_graph_fusion_query".to_string(), "raggraph_query".to_string()];
         assert_eq!(compute_graph_usage_score(&tools3), 2);
     }
 }

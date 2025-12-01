@@ -55,10 +55,7 @@ async fn main() -> Result<()> {
 
     // Initialize global config for path filtering and other config-aware tools
     SyncoreConfig::init_global(config.clone());
-    eprintln!(
-        "Global config initialized ({} excluded dirs)",
-        config.indexing.excluded_dirs.len()
-    );
+    eprintln!("Global config initialized ({} excluded dirs)", config.indexing.excluded_dirs.len());
 
     // Get configuration from environment (overrides config file)
     let db_path = env::var("DB_PATH").unwrap_or_else(|_| config.paths.db_path.clone());
@@ -90,10 +87,7 @@ async fn main() -> Result<()> {
     // BUGFIX #3: Load snapshot from disk to restore embeddings state
     // Without this, search_code() operates on empty vector store → poisoned locks
     if let Err(e) = code_store.load_snapshot() {
-        eprintln!(
-            "[syncore] Warning: Failed to load CODE vector snapshot: {}",
-            e
-        );
+        eprintln!("[syncore] Warning: Failed to load CODE vector snapshot: {}", e);
         eprintln!("[syncore] Will start with empty CODE vector store (bootstrap will rebuild)");
     } else {
         eprintln!(
@@ -109,18 +103,12 @@ async fn main() -> Result<()> {
     let general_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let mut general_store = VectorStore::new(general_embeddings);
     let general_index_path = db_paths::general_vector_index_path();
-    eprintln!(
-        "[syncore] GENERAL vector index path: {}",
-        general_index_path
-    );
+    eprintln!("[syncore] GENERAL vector index path: {}", general_index_path);
     general_store.set_index_path(general_index_path);
 
     // BUGFIX #3: Load snapshot from disk to restore embeddings state
     if let Err(e) = general_store.load_snapshot() {
-        eprintln!(
-            "[syncore] Warning: Failed to load GENERAL vector snapshot: {}",
-            e
-        );
+        eprintln!("[syncore] Warning: Failed to load GENERAL vector snapshot: {}", e);
         eprintln!("[syncore] Will start with empty GENERAL vector store");
     } else {
         eprintln!(
@@ -457,10 +445,7 @@ async fn main() -> Result<()> {
         let http_state = state.clone();
         tokio::spawn(async move {
             let server = HttpStreamServer::new(http_state);
-            eprintln!(
-                "HTTP Streamable MCP server listening on http://{}/mcp",
-                http_bind
-            );
+            eprintln!("HTTP Streamable MCP server listening on http://{}/mcp", http_bind);
             if let Err(e) = server.start(http_bind).await {
                 eprintln!("HTTP Streamable server error: {:?}", e);
             }

@@ -28,22 +28,15 @@ use syncore::vector::{StubEmbeddings, VectorStore};
 
 fn create_test_components(
     root: PathBuf,
-) -> Result<(
-    CodeGraphUpdateService,
-    ParserService,
-    Arc<Mutex<VectorStore>>,
-    Arc<Mutex<LspBridge>>,
-)> {
+) -> Result<(CodeGraphUpdateService, ParserService, Arc<Mutex<VectorStore>>, Arc<Mutex<LspBridge>>)>
+{
     let db_path = root.join("test_live.db");
     let embeddings = Box::new(StubEmbeddings::new(384)?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let update_service = CodeGraphUpdateService::new(
-        root.clone(),
-        code_graph,
-        Arc::new(std::sync::Mutex::new(())),
-    )?;
+    let update_service =
+        CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())))?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;

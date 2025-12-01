@@ -35,11 +35,7 @@ fn test_search_with_absolute_file_path() -> Result<()> {
     let results = RipgrepSearcher::search("HashSet", &test_file, 0)?;
 
     // Assert: Should find match
-    assert_eq!(
-        results.len(),
-        1,
-        "Should find 1 match for 'HashSet' in absolute file path"
-    );
+    assert_eq!(results.len(), 1, "Should find 1 match for 'HashSet' in absolute file path");
     assert_eq!(results[0].line_number, 2);
     assert!(results[0].line_content.contains("HashSet"));
 
@@ -63,11 +59,7 @@ fn test_search_with_relative_file_path() -> Result<()> {
     let results = RipgrepSearcher::search("HashSet", Path::new(test_file), 0)?;
 
     // Assert: Should find match
-    assert_eq!(
-        results.len(),
-        1,
-        "Should find 1 match for 'HashSet' in relative file path"
-    );
+    assert_eq!(results.len(), 1, "Should find 1 match for 'HashSet' in relative file path");
 
     // Cleanup
     fs::remove_file(test_file)?;
@@ -96,11 +88,7 @@ fn test_search_with_directory_path() -> Result<()> {
     let results = RipgrepSearcher::search("HashSet", temp_dir.path(), 0)?;
 
     // Assert: Should find matches from both files
-    assert_eq!(
-        results.len(),
-        2,
-        "Should find 2 matches for 'HashSet' across directory"
-    );
+    assert_eq!(results.len(), 2, "Should find 2 matches for 'HashSet' across directory");
 
     Ok(())
 }
@@ -119,11 +107,7 @@ fn test_search_with_nonexistent_file() -> Result<()> {
     // After fix: Should return Ok(Vec::new()) or clear error message
     match result {
         Ok(results) => {
-            assert_eq!(
-                results.len(),
-                0,
-                "Non-existent file should return empty results"
-            );
+            assert_eq!(results.len(), 0, "Non-existent file should return empty results");
         }
         Err(e) => {
             let msg = e.to_string();
@@ -154,11 +138,7 @@ fn test_search_with_no_matches() -> Result<()> {
     let results = RipgrepSearcher::search("NONEXISTENT_PATTERN", &test_file, 0)?;
 
     // Assert: Should return empty results (exit code 1)
-    assert_eq!(
-        results.len(),
-        0,
-        "File with no matches should return empty results"
-    );
+    assert_eq!(results.len(), 0, "File with no matches should return empty results");
 
     Ok(())
 }
@@ -179,10 +159,7 @@ fn test_integration_with_parser_search() -> Result<()> {
     let results = RipgrepSearcher::search("struct", &test_file, 0)?;
 
     // Assert: Should find the struct definition
-    assert!(
-        results.len() > 0,
-        "parser_search should find struct definitions in files"
-    );
+    assert!(results.len() > 0, "parser_search should find struct definitions in files");
     assert_eq!(results[0].line_number, 1);
 
     Ok(())
@@ -203,18 +180,11 @@ fn test_search_in_syncore_source() -> Result<()> {
     let results = RipgrepSearcher::search("RipgrepSearcher", parser_rs, 0)?;
 
     // Assert: Should find RipgrepSearcher struct definition
-    assert!(
-        results.len() > 0,
-        "Should find 'RipgrepSearcher' in parser.rs"
-    );
+    assert!(results.len() > 0, "Should find 'RipgrepSearcher' in parser.rs");
 
     // Verify we got actual line numbers
     for result in &results {
-        assert!(
-            result.line_number > 0,
-            "Line number should be positive: {}",
-            result.line_number
-        );
+        assert!(result.line_number > 0, "Line number should be positive: {}", result.line_number);
         assert!(
             result.line_content.contains("RipgrepSearcher"),
             "Line content should contain pattern: {}",

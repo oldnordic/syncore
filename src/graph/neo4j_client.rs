@@ -28,9 +28,8 @@ impl Neo4jClient {
     /// # Returns
     /// Connected Neo4jClient instance
     pub async fn connect(uri: &str, user: &str, pass: &str) -> Result<Self> {
-        let graph = Graph::new(uri, user, pass)
-            .await
-            .context("Failed to connect to Neo4j database")?;
+        let graph =
+            Graph::new(uri, user, pass).await.context("Failed to connect to Neo4j database")?;
 
         // Load namespace from environment for graph isolation across sessions/DBs
         let namespace =
@@ -75,11 +74,7 @@ impl Neo4jClient {
             q = self.add_param_to_query(q, key, value)?;
         }
 
-        let mut result = self
-            .graph
-            .execute(q)
-            .await
-            .context("Failed to execute Cypher query")?;
+        let mut result = self.graph.execute(q).await.context("Failed to execute Cypher query")?;
 
         // Extract column names from the RETURN clause
         let columns = self.extract_return_columns(cypher);
@@ -210,11 +205,8 @@ impl Neo4jClient {
             BoltType::Float(f) => serde_json::json!(f.value),
             BoltType::String(s) => serde_json::json!(s.value),
             BoltType::List(list) => {
-                let items: Vec<serde_json::Value> = list
-                    .value
-                    .iter()
-                    .filter_map(|item| self.bolt_to_json(item).ok())
-                    .collect();
+                let items: Vec<serde_json::Value> =
+                    list.value.iter().filter_map(|item| self.bolt_to_json(item).ok()).collect();
                 serde_json::json!(items)
             }
             BoltType::Map(map) => {
@@ -286,10 +278,8 @@ impl Neo4jClient {
                     let int_list: Vec<i64> = arr.into_iter().filter_map(|v| v.as_i64()).collect();
                     q = q.param(key, int_list);
                 } else {
-                    let str_list: Vec<String> = arr
-                        .into_iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect();
+                    let str_list: Vec<String> =
+                        arr.into_iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
                     q = q.param(key, str_list);
                 }
             }
@@ -352,10 +342,7 @@ impl Neo4jClient {
 
         self.execute_query(
             cypher,
-            vec![
-                ("key", serde_json::json!(key)),
-                ("value", serde_json::json!(value)),
-            ],
+            vec![("key", serde_json::json!(key)), ("value", serde_json::json!(value))],
         )
         .await?;
 
@@ -416,8 +403,7 @@ impl Neo4jClient {
 
     /// Link an embedding to a task
     pub async fn link_embedding_to_task(&self, embedding_id: i64, task_id: i64) -> Result<()> {
-        self.create_relationship("Embedding", embedding_id, "Task", task_id, "BELONGS_TO")
-            .await
+        self.create_relationship("Embedding", embedding_id, "Task", task_id, "BELONGS_TO").await
     }
 }
 

@@ -114,10 +114,7 @@ fn test_unsupported_file_extensions() -> Result<()> {
     assert!(result.is_err());
 
     let java_file = temp_dir.path().join("test.java");
-    fs::write(
-        &java_file,
-        "public class Test { public static void main(String[] args) {} }",
-    )?;
+    fs::write(&java_file, "public class Test { public static void main(String[] args) {} }")?;
     let result = app.index_file(&java_file);
     assert!(result.is_err());
 
@@ -175,15 +172,9 @@ fn test_malformed_rust_code() -> Result<()> {
     // Test various syntax errors
     let malformed_cases = vec![
         ("unclosed_brace.rs", "pub fn test() { println!(\"hello\");"),
-        (
-            "unclosed_paren.rs",
-            "pub fn test() { println!(\"hello\"); }",
-        ),
+        ("unclosed_paren.rs", "pub fn test() { println!(\"hello\"); }"),
         ("invalid_syntax.rs", "pub fn test() { let x = ; }"),
-        (
-            "mismatched_brackets.rs",
-            "pub fn test() { let x = [1, 2, 3; }",
-        ),
+        ("mismatched_brackets.rs", "pub fn test() { let x = [1, 2, 3; }"),
         ("invalid_characters.rs", "pub fn test() { let x = \x01; }"),
     ];
 
@@ -307,10 +298,7 @@ fn test_mixed_valid_and_invalid_files() -> Result<()> {
 
     // Create valid files
     let valid_rs = temp_dir.path().join("valid.rs");
-    fs::write(
-        &valid_rs,
-        "pub fn valid_function() { println!(\"hello\"); }",
-    )?;
+    fs::write(&valid_rs, "pub fn valid_function() { println!(\"hello\"); }")?;
 
     let valid_py = temp_dir.path().join("valid.py");
     fs::write(&valid_py, "def valid_function():\n    print(\"hello\")")?;

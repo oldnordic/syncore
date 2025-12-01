@@ -41,10 +41,7 @@ async fn test_enrich_temporal_metadata_populates_missing_fields() -> Result<()> 
     let enriched_count = code_graph.enrich_temporal_metadata_for_all().await?;
 
     // Verify enrichment occurred
-    assert!(
-        enriched_count > 0,
-        "Should have enriched at least one entity"
-    );
+    assert!(enriched_count > 0, "Should have enriched at least one entity");
 
     // Verify temporal fields are now non-null
     {
@@ -66,10 +63,7 @@ async fn test_enrich_temporal_metadata_populates_missing_fields() -> Result<()> 
         let (created_at, last_modified_at, change_count, author_count) = result;
 
         assert!(created_at.is_some(), "created_at should be non-null");
-        assert!(
-            last_modified_at.is_some(),
-            "last_modified_at should be non-null"
-        );
+        assert!(last_modified_at.is_some(), "last_modified_at should be non-null");
         assert!(change_count.is_some(), "change_count should be non-null");
         assert!(author_count.is_some(), "author_count should be non-null");
 

@@ -159,10 +159,7 @@ impl ProjectAnalysisEngine {
             // Warning: modules with > 1000 LOC
             if let Some(loc) = module.loc {
                 if loc > 1000 {
-                    warnings.push(format!(
-                        "Large module: {} has {} LOC",
-                        module.file_path, loc
-                    ));
+                    warnings.push(format!("Large module: {} has {} LOC", module.file_path, loc));
                 }
             }
         }

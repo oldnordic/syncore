@@ -16,10 +16,7 @@ fn test_codegraph_new_rejects_memory_db() {
     // Attempt to create CodeGraph with :memory: should fail
     let result = CodeGraph::new(":memory:", vector_store);
 
-    assert!(
-        result.is_err(),
-        "CodeGraph::new should reject :memory: database"
-    );
+    assert!(result.is_err(), "CodeGraph::new should reject :memory: database");
     if let Err(e) = result {
         let err_msg = format!("{}", e);
         assert!(
@@ -43,10 +40,7 @@ fn test_codegraph_with_connection_detects_memory_db() {
     // Attempt to create CodeGraph with :memory: connection should fail
     let result = CodeGraph::with_connection(db, vector_store);
 
-    assert!(
-        result.is_err(),
-        "CodeGraph::with_connection should reject :memory: database"
-    );
+    assert!(result.is_err(), "CodeGraph::with_connection should reject :memory: database");
     if let Err(e) = result {
         let err_msg = format!("{}", e);
         assert!(
@@ -68,11 +62,7 @@ fn test_codegraph_accepts_file_db() {
 
     let result = CodeGraph::new(temp_db, vector_store);
 
-    assert!(
-        result.is_ok(),
-        "CodeGraph::new should accept file database path: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "CodeGraph::new should accept file database path: {:?}", result.err());
 
     // Cleanup
     let _ = std::fs::remove_file(temp_db);

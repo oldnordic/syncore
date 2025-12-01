@@ -108,15 +108,9 @@ pub fn greeting(name: &str) -> String {
     let result = rag_api.query("hello", None, None, Some(10)).await?;
 
     // Should find entities regardless of Neo4j population status
+    assert!(!result.entities.is_empty(), "Fusion query should work and return results");
     assert!(
-        !result.entities.is_empty(),
-        "Fusion query should work and return results"
-    );
-    assert!(
-        result
-            .entities
-            .iter()
-            .any(|e| e.entity.name.contains("hello")),
+        result.entities.iter().any(|e| e.entity.name.contains("hello")),
         "Should find hello_world or greeting function"
     );
 

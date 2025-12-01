@@ -46,7 +46,9 @@ impl Tasks {
     /// let tasks = Tasks::with_connection(db_manager.main_conn())?;
     /// ```
     pub fn with_connection(db: Arc<Mutex<Connection>>) -> Result<Self> {
-        Ok(Self { db })
+        Ok(Self {
+            db,
+        })
     }
 
     /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
@@ -68,10 +70,9 @@ impl Tasks {
         parent: Option<i64>,
     ) -> Result<i64> {
         let db = self.db.lock().unwrap();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         db.execute(
             "INSERT INTO tasks (goal, description, status, priority, parent_id, created_at, updated_at)
@@ -89,10 +90,9 @@ impl Tasks {
         prio: Option<i32>,
         desc: Option<&str>,
     ) -> Result<()> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         let mut query_parts: Vec<String> = vec!["UPDATE tasks SET updated_at = ?1".to_string()];
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(now)];
@@ -142,11 +142,8 @@ impl Tasks {
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
 
         if let Some(statuses) = statuses {
-            let params_list: Vec<String> = statuses
-                .iter()
-                .enumerate()
-                .map(|(i, _)| format!("?{}", i + 1))
-                .collect();
+            let params_list: Vec<String> =
+                statuses.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
             query.push_str(&format!(" AND status IN ({})", params_list.join(", ")));
             for s in statuses {
                 params.push(Box::new(s.to_string()) as Box<dyn rusqlite::ToSql>);
@@ -259,10 +256,9 @@ impl Tasks {
 
     pub fn complete_task(&self, task_id: i64) -> Result<()> {
         let db = self.db.lock().unwrap();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         db.execute(
             "UPDATE tasks SET status = 'done', updated_at = ?1 WHERE id = ?2",
@@ -280,10 +276,8 @@ pub fn add_task(
     prio: i32,
     parent: Option<i64>,
 ) -> Result<i64> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
 
     db.execute(
         "INSERT INTO tasks (goal, description, status, priority, parent_id, created_at, updated_at)
@@ -301,10 +295,8 @@ pub fn update_task(
     prio: Option<i32>,
     desc: Option<&str>,
 ) -> Result<()> {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
 
     let mut query = "UPDATE tasks SET updated_at = ?1".to_string();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(now)];
@@ -348,11 +340,8 @@ pub fn next_task(
     ];
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
     if let Some(statuses) = statuses {
-        let params_list: Vec<String> = statuses
-            .iter()
-            .enumerate()
-            .map(|(i, _)| format!("?{}", i + 1))
-            .collect();
+        let params_list: Vec<String> =
+            statuses.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
         query_parts.push(format!("AND status IN ({})", params_list.join(", ")));
         for s in statuses {
             params.push(Box::new(s.to_string()) as Box<dyn rusqlite::ToSql>);
@@ -396,14 +385,12 @@ pub fn link_tasks(db: &Connection, src: i64, dst: i64, kind: &str) -> Result<()>
 
 pub fn get_task_links(db: &Connection, task_id: i64, direction: &str) -> Result<Vec<TaskLink>> {
     let (query, _field) = match direction {
-        "outgoing" => (
-            "SELECT dst_id as linked_id, kind FROM task_links WHERE src_id = ?1",
-            "dst_id",
-        ),
-        "incoming" => (
-            "SELECT src_id as linked_id, kind FROM task_links WHERE dst_id = ?1",
-            "src_id",
-        ),
+        "outgoing" => {
+            ("SELECT dst_id as linked_id, kind FROM task_links WHERE src_id = ?1", "dst_id")
+        }
+        "incoming" => {
+            ("SELECT src_id as linked_id, kind FROM task_links WHERE dst_id = ?1", "src_id")
+        }
         "both" => (
             "SELECT 
                 CASE WHEN src_id = ?1 THEN dst_id ELSE src_id END as linked_id, 

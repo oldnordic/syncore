@@ -24,10 +24,7 @@ use std::sync::Arc;
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
         Some(v) if !v.is_empty() => Ok(v),
-        _ => Err(wrap_error_static(
-            tool,
-            &format!("Missing '{}' parameter", key),
-        )),
+        _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
 
@@ -70,10 +67,7 @@ pub async fn execute_parser_analyze(
         Ok(v) => v,
         Err(e) => return Ok(e),
     };
-    let persist = params
-        .get("persist")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let persist = params.get("persist").and_then(|v| v.as_bool()).unwrap_or(false);
 
     if dry_run {
         let result = wrap_success(
@@ -91,10 +85,7 @@ pub async fn execute_parser_analyze(
     let parser = match Parser::new() {
         Ok(p) => p,
         Err(e) => {
-            return Ok(wrap_error(
-                "parser_analyze",
-                &format!("Failed to initialize parser: {}", e),
-            ))
+            return Ok(wrap_error("parser_analyze", &format!("Failed to initialize parser: {}", e)))
         }
     };
 
@@ -146,10 +137,7 @@ pub async fn execute_parser_analyze(
             }
             Ok(wrap_success("parser_analyze", v))
         }
-        Err(e) => Ok(wrap_error(
-            "parser_analyze",
-            &format!("Failed to serialize analysis: {}", e),
-        )),
+        Err(e) => Ok(wrap_error("parser_analyze", &format!("Failed to serialize analysis: {}", e))),
     }
 }
 
@@ -164,10 +152,7 @@ pub async fn execute_parser_search(
         Err(e) => return Ok(e),
     };
     let path = params.get("path").and_then(|p| p.as_str());
-    let context_lines = params
-        .get("context_lines")
-        .and_then(|c| c.as_u64())
-        .unwrap_or(0) as usize;
+    let context_lines = params.get("context_lines").and_then(|c| c.as_u64()).unwrap_or(0) as usize;
 
     if dry_run {
         let result = wrap_success(
@@ -188,10 +173,7 @@ pub async fn execute_parser_search(
         Err(e) => {
             return Ok(wrap_error(
                 "parser_search",
-                &format!(
-                    "Search failed for pattern '{}' in '{}': {}",
-                    pattern, search_path, e
-                ),
+                &format!("Search failed for pattern '{}' in '{}': {}", pattern, search_path, e),
             ))
         }
     };
@@ -249,10 +231,7 @@ pub async fn execute_code_index(
 
             // Opt-in diagnostic sleep for debugging SQLite persistence
             // Only enabled when SYNCORE_CODE_INDEX_DIAG_SLEEP=1
-            if std::env::var("SYNCORE_CODE_INDEX_DIAG_SLEEP")
-                .map(|v| v == "1")
-                .unwrap_or(false)
-            {
+            if std::env::var("SYNCORE_CODE_INDEX_DIAG_SLEEP").map(|v| v == "1").unwrap_or(false) {
                 let _ = std::fs::write("/tmp/code_graph_diagnostic.log.append",
                     format!("\n=== DIAGNOSTIC: Sleeping 3s for external validation ===\n\
                              Database: {}\n\
@@ -284,10 +263,9 @@ pub async fn execute_code_index(
                 }),
             ))
         }
-        Err(e) => Ok(wrap_error(
-            "code_index",
-            &format!("Failed to index file '{}': {}", file_path, e),
-        )),
+        Err(e) => {
+            Ok(wrap_error("code_index", &format!("Failed to index file '{}': {}", file_path, e)))
+        }
     }
 }
 
@@ -301,10 +279,7 @@ pub async fn execute_code_index_directory(
         Ok(v) => v,
         Err(e) => return Ok(e),
     };
-    let pattern = params
-        .get("pattern")
-        .and_then(|p| p.as_str())
-        .unwrap_or("*.rs");
+    let pattern = params.get("pattern").and_then(|p| p.as_str()).unwrap_or("*.rs");
 
     if dry_run {
         let result = wrap_success(
@@ -336,7 +311,8 @@ pub async fn execute_code_index_directory(
     let mut indexed_count = 0;
     let mut total_entities = 0;
 
-    for path in (glob(&search_pattern).map_err(|e| anyhow::anyhow!("Glob error: {}", e))?).flatten() {
+    for path in (glob(&search_pattern).map_err(|e| anyhow::anyhow!("Glob error: {}", e))?).flatten()
+    {
         if path.is_file() {
             if path.is_file() {
                 match code_graph.index_file(&path) {

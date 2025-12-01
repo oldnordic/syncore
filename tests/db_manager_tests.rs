@@ -49,38 +49,27 @@ fn test_db_manager_initializes_main_and_code_graph_dbs() {
 
     // Assert: Database files exist
     assert!(test_main_db.exists(), "Main DB file should exist");
-    assert!(
-        test_code_graph_db.exists(),
-        "Code graph DB file should exist"
-    );
+    assert!(test_code_graph_db.exists(), "Code graph DB file should exist");
 
     // Assert: PRAGMA database_list shows correct paths
     {
         let main_conn = db_manager.main_conn();
         let main_lock = main_conn.lock().unwrap();
         let db_path: String = main_lock
-            .query_row(
-                "SELECT file FROM pragma_database_list() WHERE name='main'",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT file FROM pragma_database_list() WHERE name='main'", [], |row| {
+                row.get(0)
+            })
             .expect("Failed to query main DB path");
-        assert!(
-            db_path.contains("syncore_test_main_"),
-            "Main DB path mismatch: {}",
-            db_path
-        );
+        assert!(db_path.contains("syncore_test_main_"), "Main DB path mismatch: {}", db_path);
     }
 
     {
         let code_graph_conn = db_manager.code_graph_conn();
         let code_graph_lock = code_graph_conn.lock().unwrap();
         let db_path: String = code_graph_lock
-            .query_row(
-                "SELECT file FROM pragma_database_list() WHERE name='main'",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT file FROM pragma_database_list() WHERE name='main'", [], |row| {
+                row.get(0)
+            })
             .expect("Failed to query code graph DB path");
         assert!(
             db_path.contains("syncore_test_code_graph_"),
@@ -96,11 +85,7 @@ fn test_db_manager_initializes_main_and_code_graph_dbs() {
         let journal_mode: String = main_lock
             .pragma_query_value(None, "journal_mode", |row| row.get(0))
             .expect("Failed to query journal_mode");
-        assert_eq!(
-            journal_mode.to_lowercase(),
-            "wal",
-            "Main DB should use WAL mode"
-        );
+        assert_eq!(journal_mode.to_lowercase(), "wal", "Main DB should use WAL mode");
     }
 
     {
@@ -109,11 +94,7 @@ fn test_db_manager_initializes_main_and_code_graph_dbs() {
         let journal_mode: String = code_graph_lock
             .pragma_query_value(None, "journal_mode", |row| row.get(0))
             .expect("Failed to query journal_mode");
-        assert_eq!(
-            journal_mode.to_lowercase(),
-            "wal",
-            "Code graph DB should use WAL mode"
-        );
+        assert_eq!(journal_mode.to_lowercase(), "wal", "Code graph DB should use WAL mode");
     }
 
     // Assert: Schema tables exist (via migrations)
@@ -124,19 +105,13 @@ fn test_db_manager_initializes_main_and_code_graph_dbs() {
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory'")
             .and_then(|mut stmt| stmt.exists([]))
             .expect("Failed to check memory table");
-        assert!(
-            has_memory,
-            "Main DB should have 'memory' table from migrations"
-        );
+        assert!(has_memory, "Main DB should have 'memory' table from migrations");
 
         let has_tasks: bool = main_lock
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")
             .and_then(|mut stmt| stmt.exists([]))
             .expect("Failed to check tasks table");
-        assert!(
-            has_tasks,
-            "Main DB should have 'tasks' table from migrations"
-        );
+        assert!(has_tasks, "Main DB should have 'tasks' table from migrations");
     }
 
     {
@@ -236,9 +211,7 @@ pub struct TestStruct {
     let mut code_graph = CodeGraph::with_connection(code_graph_conn, Arc::clone(&vector_store))
         .expect("Failed to create CodeGraph");
 
-    let indexed_count = code_graph
-        .index_file(&test_file)
-        .expect("Failed to index file");
+    let indexed_count = code_graph.index_file(&test_file).expect("Failed to index file");
 
     // Drop CodeGraph to ensure connection is released (but not closed, as it's managed by DbManager)
     drop(code_graph);
@@ -266,9 +239,8 @@ pub struct TestStruct {
         CodeGraph::with_connection(db_manager.code_graph_conn(), Arc::clone(&vector_store))
             .expect("Failed to create CodeGraph for second index");
 
-    let indexed_count2 = code_graph
-        .index_file(&test_file)
-        .expect("Failed to index file second time");
+    let indexed_count2 =
+        code_graph.index_file(&test_file).expect("Failed to index file second time");
 
     drop(code_graph);
 
@@ -327,11 +299,9 @@ fn test_embeddings_persist_in_main_db() {
         let conn_lock = main_conn.lock().unwrap();
 
         let count: i64 = conn_lock
-            .query_row(
-                "SELECT COUNT(*) FROM embeddings WHERE entity_id = ?",
-                [42],
-                |row| row.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM embeddings WHERE entity_id = ?", [42], |row| {
+                row.get(0)
+            })
             .expect("Failed to query embedding count");
 
         assert_eq!(count, 1, "Embedding should persist in main DB");
@@ -369,18 +339,9 @@ fn test_db_manager_allows_parallel_indexing_without_panic() {
     // Create multiple test files with unique names
     let uuid = uuid::Uuid::new_v4().to_string();
     let test_files = vec![
-        (
-            PathBuf::from(format!("/tmp/test_parallel1_{}.rs", uuid)),
-            "pub fn func1() {}",
-        ),
-        (
-            PathBuf::from(format!("/tmp/test_parallel2_{}.rs", uuid)),
-            "pub fn func2() {}",
-        ),
-        (
-            PathBuf::from(format!("/tmp/test_parallel3_{}.rs", uuid)),
-            "pub fn func3() {}",
-        ),
+        (PathBuf::from(format!("/tmp/test_parallel1_{}.rs", uuid)), "pub fn func1() {}"),
+        (PathBuf::from(format!("/tmp/test_parallel2_{}.rs", uuid)), "pub fn func2() {}"),
+        (PathBuf::from(format!("/tmp/test_parallel3_{}.rs", uuid)), "pub fn func3() {}"),
     ];
 
     for (path, content) in &test_files {
@@ -400,9 +361,7 @@ fn test_db_manager_allows_parallel_indexing_without_panic() {
                 CodeGraph::with_connection(db_manager_clone.code_graph_conn(), vector_store_clone)
                     .expect("Failed to create CodeGraph in thread");
 
-            code_graph
-                .index_file(&file_path_clone)
-                .expect("Failed to index file in parallel");
+            code_graph.index_file(&file_path_clone).expect("Failed to index file in parallel");
         });
 
         handles.push(handle);
@@ -410,9 +369,7 @@ fn test_db_manager_allows_parallel_indexing_without_panic() {
 
     // Assert: All threads complete without panics
     for handle in handles {
-        handle
-            .join()
-            .expect("Thread panicked during parallel indexing");
+        handle.join().expect("Thread panicked during parallel indexing");
     }
 
     // Assert: All entities persisted
@@ -428,11 +385,7 @@ fn test_db_manager_allows_parallel_indexing_without_panic() {
             )
             .expect("Failed to query entity count");
 
-        assert!(
-            count > 0,
-            "File {} should have indexed entities",
-            file_path.display()
-        );
+        assert!(count > 0, "File {} should have indexed entities", file_path.display());
     }
 
     // Cleanup

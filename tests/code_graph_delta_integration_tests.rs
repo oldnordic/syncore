@@ -183,10 +183,7 @@ pub fn new_function() {
         entities.iter().any(|e| e.name == "existing_function"),
         "Should still have existing function"
     );
-    assert!(
-        entities.iter().any(|e| e.name == "new_function"),
-        "Should have new function"
-    );
+    assert!(entities.iter().any(|e| e.name == "new_function"), "Should have new function");
 
     Ok(())
 }

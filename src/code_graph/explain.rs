@@ -78,9 +78,8 @@ fn compute_complexity(code: &str) -> (usize, usize) {
         }
 
         // Count decision points
-        let decision_patterns = [
-            "if ", "else if ", "match ", "for ", "while ", "loop ", "&&", "||", "?",
-        ];
+        let decision_patterns =
+            ["if ", "else if ", "match ", "for ", "while ", "loop ", "&&", "||", "?"];
 
         for pattern in &decision_patterns {
             let count = count_pattern(trimmed, pattern);

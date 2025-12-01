@@ -93,10 +93,7 @@ impl ExpandStage {
 
     /// Expand rejected chunks as COMPRESSED format
     pub fn expand_rejected(&self, chunk_ids: &[i64]) -> Result<Vec<ExpandedChunk>> {
-        chunk_ids
-            .iter()
-            .map(|&id| self.expand_compressed(id))
-            .collect()
+        chunk_ids.iter().map(|&id| self.expand_compressed(id)).collect()
     }
 
     /// Expand single chunk as RAW
@@ -176,10 +173,7 @@ impl ExpandStage {
 
         // Fallback: use metadata.text
         let token_count = self.estimate_tokens(&metadata.text);
-        let language = metadata
-            .file_path
-            .as_ref()
-            .map(|p| self.detect_language_from_path(p));
+        let language = metadata.file_path.as_ref().map(|p| self.detect_language_from_path(p));
 
         Ok(ExpandedChunk {
             chunk_id: metadata.chunk_id,
@@ -314,10 +308,7 @@ impl ExpandStage {
         let mut symbols = Vec::new();
 
         // Simple regex-based extraction
-        if let Some(caps) = regex::Regex::new(r"fn\s+(\w+)")
-            .ok()
-            .and_then(|re| re.captures(text))
-        {
+        if let Some(caps) = regex::Regex::new(r"fn\s+(\w+)").ok().and_then(|re| re.captures(text)) {
             if let Some(name) = caps.get(1) {
                 symbols.push(name.as_str().to_string());
             }
@@ -371,7 +362,6 @@ impl ExpandStage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_token_estimation() {

@@ -206,11 +206,8 @@ use syncore::macro_tools::import_extractor::resolve_import_to_file;
 #[test]
 fn test_resolve_crate_import_to_file() {
     // In a project with src/memory.rs, "crate::memory::MemoryStore" should resolve
-    let resolved = resolve_import_to_file(
-        "crate::memory::MemoryStore",
-        "/project/src/main.rs",
-        "/project",
-    );
+    let resolved =
+        resolve_import_to_file("crate::memory::MemoryStore", "/project/src/main.rs", "/project");
 
     // Could be src/memory.rs or src/memory/mod.rs
     assert!(
@@ -221,11 +218,8 @@ fn test_resolve_crate_import_to_file() {
 
 #[test]
 fn test_resolve_super_import() {
-    let resolved = resolve_import_to_file(
-        "super::sibling",
-        "/project/src/module/submodule.rs",
-        "/project",
-    );
+    let resolved =
+        resolve_import_to_file("super::sibling", "/project/src/module/submodule.rs", "/project");
 
     assert!(
         resolved == Some("src/module/sibling.rs".to_string())
@@ -244,11 +238,8 @@ fn test_resolve_external_crate_returns_none() {
 #[test]
 fn test_resolve_std_returns_none() {
     // Standard library imports don't have local files
-    let resolved = resolve_import_to_file(
-        "std::collections::HashMap",
-        "/project/src/main.rs",
-        "/project",
-    );
+    let resolved =
+        resolve_import_to_file("std::collections::HashMap", "/project/src/main.rs", "/project");
 
     assert!(resolved.is_none());
 }

@@ -45,20 +45,17 @@ impl GlobalIngestionCoordinator {
 
     /// Submit a file discovery event
     pub async fn submit_file_discovered(&self, path: &Path, source: IngestionSource) -> Result<()> {
-        self.submit_event(path, IngestionEventKind::Created, source)
-            .await
+        self.submit_event(path, IngestionEventKind::Created, source).await
     }
 
     /// Submit a file change event
     pub async fn submit_file_changed(&self, path: &Path, source: IngestionSource) -> Result<()> {
-        self.submit_event(path, IngestionEventKind::Modified, source)
-            .await
+        self.submit_event(path, IngestionEventKind::Modified, source).await
     }
 
     /// Submit a file deletion event
     pub async fn submit_file_deleted(&self, path: &Path, source: IngestionSource) -> Result<()> {
-        self.submit_event(path, IngestionEventKind::Deleted, source)
-            .await
+        self.submit_event(path, IngestionEventKind::Deleted, source).await
     }
 
     /// Submit a manual index request
@@ -70,10 +67,7 @@ impl GlobalIngestionCoordinator {
             BoundaryResult::Allowed => {}
             BoundaryResult::OutsideRoot => {
                 self.update_boundary_stats("outside_root").await;
-                return Err(anyhow::anyhow!(
-                    "Path {} is outside allowed roots",
-                    path.display()
-                ));
+                return Err(anyhow::anyhow!("Path {} is outside allowed roots", path.display()));
             }
             BoundaryResult::Ignored => {
                 self.update_boundary_stats("ignored").await;
@@ -81,10 +75,7 @@ impl GlobalIngestionCoordinator {
             }
             BoundaryResult::GeneratedFile => {
                 self.update_boundary_stats("generated").await;
-                return Err(anyhow::anyhow!(
-                    "Path {} is a generated file",
-                    path.display()
-                ));
+                return Err(anyhow::anyhow!("Path {} is a generated file", path.display()));
             }
         }
 
@@ -156,11 +147,7 @@ impl GlobalIngestionCoordinator {
     /// Check if a path is within allowed boundaries
     pub fn check_boundaries(&self, path: &Path) -> BoundaryResult {
         // Check if path is within allowed roots
-        let within_root = self
-            .config
-            .allowed_roots
-            .iter()
-            .any(|root| path.starts_with(root));
+        let within_root = self.config.allowed_roots.iter().any(|root| path.starts_with(root));
 
         if !within_root {
             return BoundaryResult::OutsideRoot;
@@ -290,16 +277,13 @@ impl GlobalIngestionCoordinator {
     pub async fn handle_fs_event(&self, event: FsEvent) -> Result<()> {
         match event {
             FsEvent::Created(path) => {
-                self.submit_file_discovered(&path, IngestionSource::FsWatcher)
-                    .await
+                self.submit_file_discovered(&path, IngestionSource::FsWatcher).await
             }
             FsEvent::Modified(path) => {
-                self.submit_file_changed(&path, IngestionSource::FsWatcher)
-                    .await
+                self.submit_file_changed(&path, IngestionSource::FsWatcher).await
             }
             FsEvent::Removed(path) => {
-                self.submit_file_deleted(&path, IngestionSource::FsWatcher)
-                    .await
+                self.submit_file_deleted(&path, IngestionSource::FsWatcher).await
             }
         }
     }

@@ -18,15 +18,8 @@ use serde_json::json;
 #[test]
 fn test_generate_works_with_any_model() {
     // Test with various model names
-    let model_names = vec![
-        "llama2",
-        "mistral",
-        "codellama",
-        "phi",
-        "gemma",
-        "qwen",
-        "custom-model",
-    ];
+    let model_names =
+        vec!["llama2", "mistral", "codellama", "phi", "gemma", "qwen", "custom-model"];
 
     for model_name in model_names {
         // Simulate intellitask_generate with different model
@@ -38,12 +31,7 @@ fn test_generate_works_with_any_model() {
         // Note: Will fail if code hard-codes model checks
         let result = simulate_intellitask_generate(prd_text, model_name);
 
-        assert!(
-            result.is_ok(),
-            "Should work with model '{}', got: {:?}",
-            model_name,
-            result.err()
-        );
+        assert!(result.is_ok(), "Should work with model '{}', got: {:?}", model_name, result.err());
 
         std::env::remove_var("OLLAMA_MODEL");
     }
@@ -82,17 +70,11 @@ fn test_prd_text_combined_logically() {
     let prompt = build_intellitask_prompt(prd_text);
 
     // Prompt should contain the PRD text
-    assert!(
-        prompt.contains("OAuth2"),
-        "Prompt should contain PRD keywords"
-    );
+    assert!(prompt.contains("OAuth2"), "Prompt should contain PRD keywords");
     assert!(prompt.contains("JWT"), "Prompt should contain PRD keywords");
 
     // Prompt should have task generation instructions
-    assert!(
-        prompt.contains("task") || prompt.contains("Task"),
-        "Prompt should mention tasks"
-    );
+    assert!(prompt.contains("task") || prompt.contains("Task"), "Prompt should mention tasks");
 
     // Prompt should not have model-specific instructions
     assert!(
@@ -113,20 +95,11 @@ fn test_prompt_format_model_agnostic() {
 
     // Should use standard prompt format (not model-specific)
     // No special tokens for specific models
-    assert!(
-        !prompt.contains("[INST]"),
-        "Should not use Llama2-specific tokens"
-    );
-    assert!(
-        !prompt.contains("<|im_start|>"),
-        "Should not use model-specific tokens"
-    );
+    assert!(!prompt.contains("[INST]"), "Should not use Llama2-specific tokens");
+    assert!(!prompt.contains("<|im_start|>"), "Should not use model-specific tokens");
 
     // Should be plain text instructions
-    assert!(
-        prompt.len() > prd_text.len(),
-        "Prompt should add instructions to PRD text"
-    );
+    assert!(prompt.len() > prd_text.len(), "Prompt should add instructions to PRD text");
 }
 
 // ============================================================================
@@ -206,11 +179,7 @@ fn test_next_task_no_model_dependency() {
 
     let result = simulate_next_task(completed, remaining_json);
 
-    assert!(
-        result.is_ok(),
-        "Next task should work without model dependency: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Next task should work without model dependency: {:?}", result.err());
 }
 
 // ============================================================================

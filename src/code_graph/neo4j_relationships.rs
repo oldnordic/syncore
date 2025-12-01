@@ -51,29 +51,11 @@ mod tests {
 
     #[test]
     fn test_edge_type_to_relation_type() {
-        assert_eq!(
-            edge_type_to_relation_type(&EdgeType::Calls),
-            RelationType::Calls
-        );
-        assert_eq!(
-            edge_type_to_relation_type(&EdgeType::Imports),
-            RelationType::Imports
-        );
-        assert_eq!(
-            edge_type_to_relation_type(&EdgeType::Inherits),
-            RelationType::Inherits
-        );
-        assert_eq!(
-            edge_type_to_relation_type(&EdgeType::References),
-            RelationType::References
-        );
-        assert_eq!(
-            edge_type_to_relation_type(&EdgeType::Uses),
-            RelationType::Uses
-        );
-        assert_eq!(
-            edge_type_to_relation_type(&EdgeType::Contains),
-            RelationType::Contains
-        );
+        assert_eq!(edge_type_to_relation_type(&EdgeType::Calls), RelationType::Calls);
+        assert_eq!(edge_type_to_relation_type(&EdgeType::Imports), RelationType::Imports);
+        assert_eq!(edge_type_to_relation_type(&EdgeType::Inherits), RelationType::Inherits);
+        assert_eq!(edge_type_to_relation_type(&EdgeType::References), RelationType::References);
+        assert_eq!(edge_type_to_relation_type(&EdgeType::Uses), RelationType::Uses);
+        assert_eq!(edge_type_to_relation_type(&EdgeType::Contains), RelationType::Contains);
     }
 }

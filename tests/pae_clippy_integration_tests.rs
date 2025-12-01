@@ -138,13 +138,7 @@ async fn test_dead_code_respects_clippy_confirmation() -> Result<()> {
 
     // Insert two entities with no incoming edges (both appear dead by graph heuristics)
     let entity1_id = insert_entity(&db_manager, "src/lib.rs", "function", "truly_dead_fn", 10)?;
-    let entity2_id = insert_entity(
-        &db_manager,
-        "src/lib.rs",
-        "function",
-        "false_positive_fn",
-        20,
-    )?;
+    let entity2_id = insert_entity(&db_manager, "src/lib.rs", "function", "false_positive_fn", 20)?;
 
     // Insert Clippy diagnostic ONLY for entity1 (truly_dead_fn)
     // This confirms entity1 is actually dead code
@@ -162,11 +156,7 @@ async fn test_dead_code_respects_clippy_confirmation() -> Result<()> {
         limit: None,
     };
     let response = engine.dead_code(request).await?;
-    assert!(
-        response.ok,
-        "Dead code analysis failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Dead code analysis failed: {:?}", response.error);
 
     let data = response.data.unwrap();
     let dead_names: Vec<&str> = data.dead_entities.iter().map(|e| e.name.as_str()).collect();
@@ -220,10 +210,7 @@ async fn test_dead_code_clippy_filters_false_positives() -> Result<()> {
     );
 
     // unused_helper should be detected
-    assert!(
-        dead_names.contains(&"unused_helper"),
-        "Clippy-confirmed dead code should be detected"
-    );
+    assert!(dead_names.contains(&"unused_helper"), "Clippy-confirmed dead code should be detected");
 
     Ok(())
 }
@@ -299,10 +286,7 @@ async fn test_dead_code_clippy_cross_validation_called() -> Result<()> {
     // The entity should be found - if validate_with_clippy_diagnostics is wired,
     // it would have been called during filtering
     let found = data.dead_entities.iter().any(|e| e.name == "maybe_dead");
-    assert!(
-        found,
-        "Entity with Clippy confirmation should be in results"
-    );
+    assert!(found, "Entity with Clippy confirmation should be in results");
 
     Ok(())
 }
@@ -336,18 +320,11 @@ async fn test_unused_imports_respects_clippy_confirmation() -> Result<()> {
         limit: None,
     };
     let response = engine.unused_imports(request).await?;
-    assert!(
-        response.ok,
-        "Unused imports analysis failed: {:?}",
-        response.error
-    );
+    assert!(response.ok, "Unused imports analysis failed: {:?}", response.error);
 
     let data = response.data.unwrap();
-    let unused_names: Vec<&str> = data
-        .unused_imports
-        .iter()
-        .map(|i| i.import_name.as_str())
-        .collect();
+    let unused_names: Vec<&str> =
+        data.unused_imports.iter().map(|i| i.import_name.as_str()).collect();
 
     // With proper Clippy integration, the Clippy-confirmed unused import should be found
     assert!(
@@ -368,13 +345,8 @@ async fn test_unused_imports_clippy_filters_false_positives() -> Result<()> {
     let _prelude_id = insert_entity(&db_manager, "src/lib.rs", "import", "std::prelude", 1)?;
 
     // Insert a truly unused import
-    let _unused_id = insert_entity(
-        &db_manager,
-        "src/lib.rs",
-        "import",
-        "unused_crate::Something",
-        2,
-    )?;
+    let _unused_id =
+        insert_entity(&db_manager, "src/lib.rs", "import", "unused_crate::Something", 2)?;
 
     // Clippy confirms ONLY unused_crate::Something is unused
     insert_clippy_diagnostic(
@@ -393,11 +365,8 @@ async fn test_unused_imports_clippy_filters_false_positives() -> Result<()> {
     assert!(response.ok);
 
     let data = response.data.unwrap();
-    let unused_names: Vec<&str> = data
-        .unused_imports
-        .iter()
-        .map(|i| i.import_name.as_str())
-        .collect();
+    let unused_names: Vec<&str> =
+        data.unused_imports.iter().map(|i| i.import_name.as_str()).collect();
 
     // unused_crate::Something should be detected (Clippy confirmed)
     assert!(
@@ -438,11 +407,8 @@ async fn test_unused_imports_fallback_when_no_clippy_data() -> Result<()> {
     assert!(response.ok);
 
     let data = response.data.unwrap();
-    let unused_names: Vec<&str> = data
-        .unused_imports
-        .iter()
-        .map(|i| i.import_name.as_str())
-        .collect();
+    let unused_names: Vec<&str> =
+        data.unused_imports.iter().map(|i| i.import_name.as_str()).collect();
 
     // orphan_module should be detected via graph heuristics when no Clippy data
     assert!(

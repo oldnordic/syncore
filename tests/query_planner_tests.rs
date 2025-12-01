@@ -20,10 +20,7 @@ fn test_planner_simple_file_query() -> Result<()> {
     assert_eq!(plan.steps.len(), 2);
     assert_eq!(plan.steps[0], PlannerStep::VectorRefine);
     assert_eq!(plan.steps[1], PlannerStep::Fusion);
-    assert_eq!(
-        plan.metadata.get("rationale").unwrap(),
-        "Short file query, no structural hints"
-    );
+    assert_eq!(plan.metadata.get("rationale").unwrap(), "Short file query, no structural hints");
     assert_eq!(plan.metadata.get("planning_rule").unwrap(), "file_scope");
 
     Ok(())
@@ -44,10 +41,7 @@ fn test_planner_structural_file_query() -> Result<()> {
     assert_eq!(plan.steps[0], PlannerStep::HopGraph);
     assert_eq!(plan.steps[1], PlannerStep::VectorRefine);
     assert_eq!(plan.steps[2], PlannerStep::Fusion);
-    assert_eq!(
-        plan.metadata.get("rationale").unwrap(),
-        "File query with structural hints"
-    );
+    assert_eq!(plan.metadata.get("rationale").unwrap(), "File query with structural hints");
 
     Ok(())
 }
@@ -67,10 +61,7 @@ fn test_planner_project_scope() -> Result<()> {
     assert_eq!(plan.steps[0], PlannerStep::HopGraph);
     assert_eq!(plan.steps[1], PlannerStep::VectorRefine);
     assert_eq!(plan.steps[2], PlannerStep::Fusion);
-    assert_eq!(
-        plan.metadata.get("rationale").unwrap(),
-        "Project scope requires graph restriction"
-    );
+    assert_eq!(plan.metadata.get("rationale").unwrap(), "Project scope requires graph restriction");
 
     Ok(())
 }
@@ -232,10 +223,7 @@ fn test_planner_unknown_scope_fallback() -> Result<()> {
     assert_eq!(plan.steps[0], PlannerStep::HopGraph);
     assert_eq!(plan.steps[1], PlannerStep::VectorRefine);
     assert_eq!(plan.steps[2], PlannerStep::Fusion);
-    assert_eq!(
-        plan.metadata.get("planning_rule").unwrap(),
-        "unknown_scope_fallback"
-    );
+    assert_eq!(plan.metadata.get("planning_rule").unwrap(), "unknown_scope_fallback");
 
     Ok(())
 }
@@ -315,10 +303,7 @@ fn test_planner_local_root_constraint() -> Result<()> {
     let plan = planner.plan_with_constraints("test query", constraints)?;
 
     // Local root should be preserved
-    assert_eq!(
-        plan.constraints.local_root,
-        Some("src/code_graph/".to_string())
-    );
+    assert_eq!(plan.constraints.local_root, Some("src/code_graph/".to_string()));
 
     Ok(())
 }
@@ -384,26 +369,11 @@ fn test_planner_custom_default_constraints() -> Result<()> {
     // Should use custom defaults
     assert_eq!(plan.constraints.scope, custom_constraints.scope);
     assert_eq!(plan.constraints.max_results, custom_constraints.max_results);
-    assert_eq!(
-        plan.constraints.graph_required,
-        custom_constraints.graph_required
-    );
-    assert_eq!(
-        plan.constraints.allow_hopgraph,
-        custom_constraints.allow_hopgraph
-    );
-    assert_eq!(
-        plan.constraints.allow_raggraph,
-        custom_constraints.allow_raggraph
-    );
-    assert_eq!(
-        plan.constraints.allow_vector,
-        custom_constraints.allow_vector
-    );
-    assert_eq!(
-        plan.constraints.project_label,
-        custom_constraints.project_label
-    );
+    assert_eq!(plan.constraints.graph_required, custom_constraints.graph_required);
+    assert_eq!(plan.constraints.allow_hopgraph, custom_constraints.allow_hopgraph);
+    assert_eq!(plan.constraints.allow_raggraph, custom_constraints.allow_raggraph);
+    assert_eq!(plan.constraints.allow_vector, custom_constraints.allow_vector);
+    assert_eq!(plan.constraints.project_label, custom_constraints.project_label);
     assert_eq!(plan.constraints.local_root, custom_constraints.local_root);
 
     Ok(())

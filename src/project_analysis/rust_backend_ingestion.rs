@@ -54,10 +54,8 @@ impl RustBackendIngestion {
         }
 
         // Check if cargo clippy is available
-        let check_output = Command::new("cargo")
-            .args(["clippy", "--version"])
-            .current_dir(project_root)
-            .output();
+        let check_output =
+            Command::new("cargo").args(["clippy", "--version"]).current_dir(project_root).output();
 
         match check_output {
             Ok(output) if output.status.success() => {
@@ -163,10 +161,7 @@ impl RustBackendIngestion {
 
         // Extract basic fields
         let message_obj = &json["message"];
-        let message = message_obj["message"]
-            .as_str()
-            .unwrap_or("Unknown message")
-            .to_string();
+        let message = message_obj["message"].as_str().unwrap_or("Unknown message").to_string();
 
         let level = json["level"].as_str().unwrap_or("warning");
 
@@ -197,10 +192,7 @@ impl RustBackendIngestion {
         let file_path = if file_path_raw.starts_with('/') {
             file_path_raw.to_string()
         } else {
-            project_root
-                .join(file_path_raw)
-                .to_string_lossy()
-                .to_string()
+            project_root.join(file_path_raw).to_string_lossy().to_string()
         };
 
         let line = span["line_start"].as_u64().unwrap_or(1) as u32;
@@ -234,7 +226,7 @@ impl RustBackendIngestion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+
     use tempfile::TempDir;
 
     #[test]
@@ -272,10 +264,7 @@ mod tests {
             .parse_clippy_diagnostic(json, project_root)?
             .expect("Should parse diagnostic");
 
-        assert_eq!(
-            diagnostic.file_path,
-            project_root.join("src/main.rs").to_string_lossy()
-        );
+        assert_eq!(diagnostic.file_path, project_root.join("src/main.rs").to_string_lossy());
         assert_eq!(diagnostic.line, 10);
         assert_eq!(diagnostic.column, 5);
         assert_eq!(diagnostic.severity, "warning");

@@ -9,7 +9,10 @@ fn create_dummy_entity(id: i64, name: &str, language: LanguageType) -> UnifiedEn
         kind: EntityKind::Function,
         name: name.to_string(),
         file_path: format!("src/{}.rs", name),
-        span: Span { start: 0, end: 10 },
+        span: Span {
+            start: 0,
+            end: 10,
+        },
         attributes: HashMap::new(),
     }
 }
@@ -21,11 +24,7 @@ fn test_merge_entities_from_multiple_languages() {
 
     let merged_entities = merge_entities(vec![rust_entity, python_entity]);
 
-    assert_eq!(
-        merged_entities.len(),
-        1,
-        "Should merge entities with the same name"
-    );
+    assert_eq!(merged_entities.len(), 1, "Should merge entities with the same name");
 }
 
 #[test]
@@ -61,9 +60,7 @@ fn test_derive_stable_deterministic_ids() {
 #[test]
 fn test_normalize_namespaces() {
     let mut entity = create_dummy_entity(1, "my_function", LanguageType::Rust);
-    entity
-        .attributes
-        .insert("namespace".to_string(), "crate::my_module".to_string());
+    entity.attributes.insert("namespace".to_string(), "crate::my_module".to_string());
 
     let merged_entities = merge_entities(vec![entity]);
     let merged_entity = merged_entities.first().unwrap();

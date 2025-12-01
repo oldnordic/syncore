@@ -65,11 +65,8 @@ fn test_index_directory_excludes_target() -> Result<()> {
 
         // THIS IS THE FIX WE'RE TESTING FOR:
         let config = SyncoreConfig::default();
-        let should_skip = config
-            .indexing
-            .excluded_dirs
-            .iter()
-            .any(|excluded| entry_str.contains(excluded));
+        let should_skip =
+            config.indexing.excluded_dirs.iter().any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
             continue; // Skip excluded directories
@@ -92,10 +89,7 @@ fn test_index_directory_excludes_target() -> Result<()> {
         indexed_files[0]
     );
 
-    assert!(
-        !indexed_files[0].contains("target"),
-        "Should not index files in target/ directory"
-    );
+    assert!(!indexed_files[0].contains("target"), "Should not index files in target/ directory");
 
     // Verify database has no target/ entries
     let conn = Connection::open(&db_path)?;
@@ -105,10 +99,7 @@ fn test_index_directory_excludes_target() -> Result<()> {
         |row| row.get(0),
     )?;
 
-    assert_eq!(
-        target_count, 0,
-        "Database should have ZERO entities from target/ directory"
-    );
+    assert_eq!(target_count, 0, "Database should have ZERO entities from target/ directory");
 
     Ok(())
 }
@@ -150,11 +141,8 @@ fn test_index_directory_excludes_node_modules() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config
-            .indexing
-            .excluded_dirs
-            .iter()
-            .any(|excluded| entry_str.contains(excluded));
+        let should_skip =
+            config.indexing.excluded_dirs.iter().any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
             continue;
@@ -174,10 +162,7 @@ fn test_index_directory_excludes_node_modules() -> Result<()> {
         |row| row.get(0),
     )?;
 
-    assert_eq!(
-        node_modules_count, 0,
-        "Database should have ZERO entities from node_modules/"
-    );
+    assert_eq!(node_modules_count, 0, "Database should have ZERO entities from node_modules/");
 
     Ok(())
 }
@@ -218,11 +203,8 @@ fn test_index_directory_excludes_git() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config
-            .indexing
-            .excluded_dirs
-            .iter()
-            .any(|excluded| entry_str.contains(excluded));
+        let should_skip =
+            config.indexing.excluded_dirs.iter().any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
             continue;
@@ -239,10 +221,7 @@ fn test_index_directory_excludes_git() -> Result<()> {
         |row| row.get(0),
     )?;
 
-    assert_eq!(
-        git_count, 0,
-        "Database should have ZERO entities from .git/"
-    );
+    assert_eq!(git_count, 0, "Database should have ZERO entities from .git/");
 
     Ok(())
 }
@@ -280,11 +259,8 @@ fn test_index_directory_includes_src() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config
-            .indexing
-            .excluded_dirs
-            .iter()
-            .any(|excluded| entry_str.contains(excluded));
+        let should_skip =
+            config.indexing.excluded_dirs.iter().any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
             continue;
@@ -301,10 +277,7 @@ fn test_index_directory_includes_src() -> Result<()> {
     let entity_count: i64 =
         conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
 
-    assert!(
-        entity_count >= 2,
-        "Should have at least 2 entities (main and lib functions)"
-    );
+    assert!(entity_count >= 2, "Should have at least 2 entities (main and lib functions)");
 
     Ok(())
 }
@@ -352,11 +325,8 @@ fn test_index_directory_multiple_exclusions() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config
-            .indexing
-            .excluded_dirs
-            .iter()
-            .any(|excluded| entry_str.contains(excluded));
+        let should_skip =
+            config.indexing.excluded_dirs.iter().any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
             continue;
@@ -367,21 +337,14 @@ fn test_index_directory_multiple_exclusions() -> Result<()> {
     }
 
     // Assert: Should only index src/main.rs
-    assert_eq!(
-        indexed_count, 1,
-        "Should index only 1 file from src/, not {} files",
-        indexed_count
-    );
+    assert_eq!(indexed_count, 1, "Should index only 1 file from src/, not {} files", indexed_count);
 
     let conn = Connection::open(&db_path)?;
     let total_entities: i64 =
         conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
 
     // Only main() function from src/main.rs
-    assert_eq!(
-        total_entities, 1,
-        "Should have only 1 entity (main function from src/)"
-    );
+    assert_eq!(total_entities, 1, "Should have only 1 entity (main function from src/)");
 
     Ok(())
 }

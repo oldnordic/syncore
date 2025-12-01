@@ -181,14 +181,8 @@ async fn test_stream_empty_query_returns_final_empty_chunk() -> Result<()> {
         .expect("Should receive final chunk quickly")
         .expect("Channel should not be closed");
 
-    assert!(
-        chunk.is_final,
-        "Empty query should return final chunk immediately"
-    );
-    assert!(
-        chunk.ranked_entities.is_empty(),
-        "Empty query should have no entities"
-    );
+    assert!(chunk.is_final, "Empty query should return final chunk immediately");
+    assert!(chunk.ranked_entities.is_empty(), "Empty query should have no entities");
 
     Ok(())
 }
@@ -208,17 +202,11 @@ async fn test_stream_does_not_block_when_no_results() -> Result<()> {
     let config = StreamingConfig::default();
 
     // Query should return immediately even with no indexed data
-    let mut rx = api
-        .query_streaming("nonexistent_function", 10, config)
-        .await?;
+    let mut rx = api.query_streaming("nonexistent_function", 10, config).await?;
 
     // Collect all chunks until we get the final one
     let mut final_chunk = None;
-    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv())
-        .await
-        .ok()
-        .flatten()
-    {
+    while let Some(chunk) = timeout(Duration::from_millis(500), rx.recv()).await.ok().flatten() {
         if chunk.is_final {
             final_chunk = Some(chunk);
             break;

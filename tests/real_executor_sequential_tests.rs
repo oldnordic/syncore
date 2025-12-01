@@ -25,10 +25,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create a RealExecutor with fresh state
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_sequential_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -58,18 +55,11 @@ fn test_sequential_record_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_record", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_record", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real sequential_record should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real sequential_record should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -79,10 +69,7 @@ fn test_sequential_record_real() {
     let data = unwrap_data(&envelope);
     assert!(
         data.get("step_id").is_some()
-            || data
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false),
+            || data.get("success").and_then(|s| s.as_bool()).unwrap_or(false),
         "Data should indicate recording success: {:?}",
         data
     );
@@ -105,11 +92,8 @@ fn test_sequential_record_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_record", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_record", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -147,9 +131,7 @@ fn test_sequential_get_real() {
         });
 
         let record_result = rt.block_on(async {
-            executor
-                .execute_real_tool_async("sequential_record", &record_params)
-                .await
+            executor.execute_real_tool_async("sequential_record", &record_params).await
         });
         assert!(record_result.is_ok(), "Record should succeed");
     }
@@ -160,18 +142,11 @@ fn test_sequential_get_real() {
         "dry_run": false
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_get", &get_params)
-            .await
-    });
+    let result = rt
+        .block_on(async { executor.execute_real_tool_async("sequential_get", &get_params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real sequential_get should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real sequential_get should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -200,11 +175,8 @@ fn test_sequential_get_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_get", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_get", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -248,9 +220,7 @@ fn test_sequential_search_real() {
         });
 
         let record_result = rt.block_on(async {
-            executor
-                .execute_real_tool_async("sequential_record", &record_params)
-                .await
+            executor.execute_real_tool_async("sequential_record", &record_params).await
         });
         assert!(record_result.is_ok(), "Record should succeed");
     }
@@ -262,17 +232,11 @@ fn test_sequential_search_real() {
     });
 
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_search", &search_params)
-            .await
+        executor.execute_real_tool_async("sequential_search", &search_params).await
     });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real sequential_search should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real sequential_search should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -301,11 +265,8 @@ fn test_sequential_search_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_search", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -337,18 +298,11 @@ fn test_sequential_cycle_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_cycle", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_cycle", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real sequential_cycle should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real sequential_cycle should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -377,11 +331,8 @@ fn test_sequential_cycle_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_cycle", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_cycle", &params).await });
 
     // Should succeed with synthetic response
     assert!(result.is_ok(), "Dry run should succeed");
@@ -416,17 +367,11 @@ fn test_sequential_tools_error_handling() {
         // Missing 'thought' - should error
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_record", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_record", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -440,16 +385,10 @@ fn test_sequential_tools_error_handling() {
         // Missing 'reasoning' - should error
     });
 
-    let result2 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_record", &params2)
-            .await
-    });
+    let result2 = rt
+        .block_on(async { executor.execute_real_tool_async("sequential_record", &params2).await });
 
-    assert!(
-        result2.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result2.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope2 = result2.unwrap();
     assert_error_envelope(&envelope2);
     let error2 = unwrap_error(&envelope2);
@@ -461,16 +400,10 @@ fn test_sequential_tools_error_handling() {
         // Missing 'task_id' - should error
     });
 
-    let result3 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_get", &params3)
-            .await
-    });
+    let result3 =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_get", &params3).await });
 
-    assert!(
-        result3.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result3.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope3 = result3.unwrap();
     assert_error_envelope(&envelope3);
     let error3 = unwrap_error(&envelope3);
@@ -482,16 +415,10 @@ fn test_sequential_tools_error_handling() {
         // Missing 'query' - should error
     });
 
-    let result4 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_search", &params4)
-            .await
-    });
+    let result4 = rt
+        .block_on(async { executor.execute_real_tool_async("sequential_search", &params4).await });
 
-    assert!(
-        result4.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result4.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope4 = result4.unwrap();
     assert_error_envelope(&envelope4);
     let error4 = unwrap_error(&envelope4);
@@ -518,9 +445,7 @@ fn test_sequential_search_timeout() {
         });
 
         rt.block_on(async {
-            executor
-                .execute_real_tool_async("sequential_record", &record_params)
-                .await
+            executor.execute_real_tool_async("sequential_record", &record_params).await
         })
         .ok();
     }
@@ -533,24 +458,15 @@ fn test_sequential_search_timeout() {
 
     let start = std::time::Instant::now();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("sequential_search", &search_params)
-            .await
+        executor.execute_real_tool_async("sequential_search", &search_params).await
     });
     let elapsed = start.elapsed();
 
     // Should complete within 4 seconds (3s timeout + 1s buffer)
-    assert!(
-        elapsed.as_secs() < 4,
-        "Search should timeout within 4 seconds, took {:?}",
-        elapsed
-    );
+    assert!(elapsed.as_secs() < 4, "Search should timeout within 4 seconds, took {:?}", elapsed);
 
     // RealExecutor always returns Ok(Value), even for timeout errors
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) for timeout"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) for timeout");
 
     // If search exceeded 3s, the envelope should contain a timeout error
     if elapsed.as_secs() >= 3 {

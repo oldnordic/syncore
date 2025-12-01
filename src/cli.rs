@@ -9,7 +9,9 @@ pub struct Client {
 impl Client {
     pub async fn connect() -> anyhow::Result<Self> {
         let stream = UnixStream::connect("/tmp/syncore.sock").await?;
-        Ok(Self { stream })
+        Ok(Self {
+            stream,
+        })
     }
 
     pub async fn store(&mut self, key: &str, value: &str) -> anyhow::Result<String> {

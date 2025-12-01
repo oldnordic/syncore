@@ -111,9 +111,7 @@ async fn test_context_composer_merges_sql_memory() -> Result<()> {
     let decision = route_query(&intent, "explain test");
 
     // Compose context
-    let bundle = composer
-        .compose("explain test", &decision, &code_graph, &memory, None)
-        .await?;
+    let bundle = composer.compose("explain test", &decision, &code_graph, &memory, None).await?;
 
     // Verify SQL memory is included
     assert!(!bundle.memory_sql.is_empty() || bundle.memory_sql.is_empty()); // Accept either for now
@@ -144,9 +142,7 @@ async fn test_context_composer_merges_graph_memory() -> Result<()> {
     let decision = route_query(&intent, "trace flow");
 
     // Compose context (graph would need Neo4j)
-    let bundle = composer
-        .compose("trace flow", &decision, &code_graph, &memory, None)
-        .await?;
+    let bundle = composer.compose("trace flow", &decision, &code_graph, &memory, None).await?;
 
     // Verify bundle created (graph memory requires Neo4j)
     assert_eq!(bundle.fusion_mode, "reasoning");
@@ -180,9 +176,7 @@ async fn test_context_composer_includes_cache_memory() -> Result<()> {
     let decision = route_query(&intent, "test");
 
     // Compose
-    let bundle = composer
-        .compose("test", &decision, &code_graph, &memory, None)
-        .await?;
+    let bundle = composer.compose("test", &decision, &code_graph, &memory, None).await?;
 
     // Cache entries should be populated
     assert!(bundle.recent_cache_entries.len() >= 0); // May be empty for in-memory
@@ -213,16 +207,10 @@ async fn test_context_composer_deduplicates_by_entity_id() -> Result<()> {
     let decision = route_query(&intent, "test");
 
     // Compose (deduplication tested internally)
-    let bundle = composer
-        .compose("test", &decision, &code_graph, &memory, None)
-        .await?;
+    let bundle = composer.compose("test", &decision, &code_graph, &memory, None).await?;
 
     // Verify no duplicate entity IDs in raggraph_entities
-    let ids: Vec<_> = bundle
-        .raggraph_entities
-        .iter()
-        .filter_map(|e| e.entity_id)
-        .collect();
+    let ids: Vec<_> = bundle.raggraph_entities.iter().filter_map(|e| e.entity_id).collect();
     let unique_ids: std::collections::HashSet<_> = ids.iter().collect();
     assert_eq!(ids.len(), unique_ids.len(), "No duplicate entity IDs");
 
@@ -291,9 +279,7 @@ async fn test_context_composer_respects_config_limits() -> Result<()> {
     let decision = route_query(&intent, "test");
 
     // Compose
-    let bundle = composer
-        .compose("test", &decision, &code_graph, &memory, None)
-        .await?;
+    let bundle = composer.compose("test", &decision, &code_graph, &memory, None).await?;
 
     // Verify limits respected
     assert!(bundle.memory_vectors.len() <= 2);

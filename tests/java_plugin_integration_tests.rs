@@ -212,11 +212,7 @@ public class ProblematicClass {
     }
 }
 "#;
-        fs::write(
-            base_package.join("ProblematicClass.java"),
-            problematic_class,
-        )
-        .unwrap();
+        fs::write(base_package.join("ProblematicClass.java"), problematic_class).unwrap();
 
         project_dir.to_string_lossy().to_string()
     }
@@ -235,13 +231,7 @@ public class ProblematicClass {
         let java_files: Vec<_> = fs::read_dir(&package_dir)
             .unwrap()
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .path()
-                    .extension()
-                    .map(|ext| ext == "java")
-                    .unwrap_or(false)
-            })
+            .filter(|entry| entry.path().extension().map(|ext| ext == "java").unwrap_or(false))
             .collect();
 
         assert_eq!(java_files.len(), 5);
@@ -383,9 +373,7 @@ public class ProblematicClass {
         ];
 
         for file in files {
-            let file_path = Path::new(&project_root)
-                .join("com/example/project")
-                .join(file);
+            let file_path = Path::new(&project_root).join("com/example/project").join(file);
             assert!(file_path.exists());
 
             let content = fs::read_to_string(&file_path).unwrap();

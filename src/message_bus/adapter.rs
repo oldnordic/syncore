@@ -108,7 +108,6 @@ impl AgentAdapter for InternalAdapter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_adapter_trait_object_safety() {

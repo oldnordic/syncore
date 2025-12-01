@@ -11,10 +11,8 @@ use tempfile::TempDir;
 async fn setup_test_db() -> Result<(Arc<DbManager>, TempDir)> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("test.db");
-    let db_manager = Arc::new(DbManager::new(
-        &db_path.to_string_lossy(),
-        &db_path.to_string_lossy(),
-    )?);
+    let db_manager =
+        Arc::new(DbManager::new(&db_path.to_string_lossy(), &db_path.to_string_lossy())?);
 
     // Initialize with sample data
     init_sample_data(&db_manager).await?;
@@ -142,10 +140,7 @@ async fn init_sample_data(db_manager: &Arc<DbManager>) -> Result<()> {
     // Insert sample relationships (TypeScript)
     if let (Some(&app_id), Some(&utils_id), Some(&types_id)) = (
         entity_map.get(&("frontend/src/App.tsx".to_string(), "App".to_string())),
-        entity_map.get(&(
-            "frontend/src/utils.ts".to_string(),
-            "formatDate".to_string(),
-        )),
+        entity_map.get(&("frontend/src/utils.ts".to_string(), "formatDate".to_string())),
         entity_map.get(&("frontend/src/types.ts".to_string(), "UserType".to_string())),
     ) {
         db.execute(
@@ -178,10 +173,7 @@ async fn test_unified_dependency_summary_basic() -> Result<()> {
 
     assert!(languages.contains("rust"), "Should contain Rust");
     assert!(languages.contains("python"), "Should contain Python");
-    assert!(
-        languages.contains("typescript"),
-        "Should contain TypeScript"
-    );
+    assert!(languages.contains("typescript"), "Should contain TypeScript");
 
     Ok(())
 }
@@ -214,10 +206,7 @@ async fn test_unified_module_structure() -> Result<()> {
         .expect("Should have at least one Rust module");
 
     // Verify module structure
-    assert!(
-        !rust_module.file_path.is_empty(),
-        "File path should not be empty"
-    );
+    assert!(!rust_module.file_path.is_empty(), "File path should not be empty");
     assert_eq!(rust_module.language, "rust", "Language should be rust");
     assert!(rust_module.entity_count > 0, "Should have entity count");
 
@@ -235,10 +224,7 @@ async fn test_cross_language_dependencies() -> Result<()> {
     let mut lang_groups: std::collections::HashMap<String, Vec<&UnifiedModule>> =
         std::collections::HashMap::new();
     for module in &summary.modules {
-        lang_groups
-            .entry(module.language.clone())
-            .or_default()
-            .push(module);
+        lang_groups.entry(module.language.clone()).or_default().push(module);
     }
 
     // Verify we have multiple languages
@@ -256,10 +242,8 @@ async fn test_cross_language_dependencies() -> Result<()> {
 async fn test_empty_database_handling() -> Result<()> {
     let temp_dir = TempDir::new()?;
     let db_path = temp_dir.path().join("empty.db");
-    let db_manager = Arc::new(DbManager::new(
-        &db_path.to_string_lossy(),
-        &db_path.to_string_lossy(),
-    )?);
+    let db_manager =
+        Arc::new(DbManager::new(&db_path.to_string_lossy(), &db_path.to_string_lossy())?);
 
     // Create empty tables (but no data)
     // IMPORTANT: Scope the lock so it's dropped before calling engine methods
@@ -302,14 +286,8 @@ async fn test_empty_database_handling() -> Result<()> {
     let summary = engine.build_unified_dependency_summary(None, None)?;
 
     // Should handle empty database gracefully
-    assert!(
-        summary.modules.is_empty(),
-        "Empty DB should have no modules"
-    );
-    assert!(
-        summary.dependencies.is_empty(),
-        "Empty DB should have no dependencies"
-    );
+    assert!(summary.modules.is_empty(), "Empty DB should have no modules");
+    assert!(summary.dependencies.is_empty(), "Empty DB should have no dependencies");
 
     Ok(())
 }
@@ -327,10 +305,7 @@ async fn test_dependency_aggregation() -> Result<()> {
         total_edges += dep.edge_count;
 
         // Verify edge types are aggregated
-        assert!(
-            !dep.edge_types.is_empty(),
-            "Dependency should have aggregated edge types"
-        );
+        assert!(!dep.edge_types.is_empty(), "Dependency should have aggregated edge types");
 
         // Verify edge count matches edge types
         assert_eq!(
@@ -359,27 +334,13 @@ async fn test_module_language_distribution() -> Result<()> {
     }
 
     // Verify we have entities for each language
-    assert!(
-        lang_counts.contains_key("rust"),
-        "Should have Rust entities"
-    );
-    assert!(
-        lang_counts.contains_key("python"),
-        "Should have Python entities"
-    );
-    assert!(
-        lang_counts.contains_key("typescript"),
-        "Should have TypeScript entities"
-    );
+    assert!(lang_counts.contains_key("rust"), "Should have Rust entities");
+    assert!(lang_counts.contains_key("python"), "Should have Python entities");
+    assert!(lang_counts.contains_key("typescript"), "Should have TypeScript entities");
 
     // Verify counts are positive
     for (lang, count) in &lang_counts {
-        assert!(
-            *count > 0,
-            "Language {} should have positive entity count: {}",
-            lang,
-            count
-        );
+        assert!(*count > 0, "Language {} should have positive entity count: {}", lang, count);
     }
 
     Ok(())
@@ -402,14 +363,8 @@ async fn test_dependency_edge_types() -> Result<()> {
 
     // Verify we have expected edge types
     assert!(edge_types.contains("uses"), "Should have 'uses' edge type");
-    assert!(
-        edge_types.contains("calls"),
-        "Should have 'calls' edge type"
-    );
-    assert!(
-        edge_types.contains("imports"),
-        "Should have 'imports' edge type"
-    );
+    assert!(edge_types.contains("calls"), "Should have 'calls' edge type");
+    assert!(edge_types.contains("imports"), "Should have 'imports' edge type");
 
     Ok(())
 }

@@ -473,9 +473,7 @@ impl SyncoreConfig {
 
     /// Get the global configuration (panics if not initialized)
     pub fn global() -> &'static SyncoreConfig {
-        GLOBAL_CONFIG
-            .get()
-            .expect("Config not initialized. Call SyncoreConfig::init_global first.")
+        GLOBAL_CONFIG.get().expect("Config not initialized. Call SyncoreConfig::init_global first.")
     }
 
     /// Try to get the global configuration (returns None if not initialized)
@@ -490,10 +488,8 @@ impl SyncoreConfig {
         }
 
         let normalized = path.trim_start_matches("./");
-        let components: Vec<&str> = normalized
-            .split(['/', '\\'])
-            .filter(|s| !s.is_empty())
-            .collect();
+        let components: Vec<&str> =
+            normalized.split(['/', '\\']).filter(|s| !s.is_empty()).collect();
 
         for component in &components {
             for excluded in &self.indexing.excluded_dirs {
@@ -551,10 +547,7 @@ mod tests {
     fn test_default_config() {
         let config = SyncoreConfig::default();
         assert_eq!(config.paths.db_path, "syncore.db");
-        assert!(config
-            .indexing
-            .excluded_dirs
-            .contains(&"target".to_string()));
+        assert!(config.indexing.excluded_dirs.contains(&"target".to_string()));
     }
 
     #[test]

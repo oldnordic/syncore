@@ -52,9 +52,7 @@ async fn faiss_queue_serializes_multiple_jobs() -> Result<()> {
 async fn faiss_queue_propagates_errors() {
     let queue = FaissQueue::new(16);
 
-    let result = queue
-        .submit(|| -> Result<()> { anyhow::bail!("boom") })
-        .await;
+    let result = queue.submit(|| -> Result<()> { anyhow::bail!("boom") }).await;
 
     assert!(result.is_err());
 }

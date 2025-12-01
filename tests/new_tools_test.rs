@@ -16,13 +16,9 @@ fn test_vector_insert_tool() {
     let state = router::SynCoreState::new(memory, tasks, vector_store);
 
     // Test vector.insert tool
-    let args = rmp_serde::to_vec(&(
-        1i64,
-        Some(2i64),
-        "test document".to_string(),
-        "note".to_string(),
-    ))
-    .unwrap();
+    let args =
+        rmp_serde::to_vec(&(1i64, Some(2i64), "test document".to_string(), "note".to_string()))
+            .unwrap();
     let result = router::route_tool("vector.insert", &args, &state);
     if let Err(e) = &result {
         println!("Error: {:?}", e);
@@ -52,15 +48,11 @@ fn test_graph_link_tool() {
     let state = router::SynCoreState::new(memory, tasks, vector_store);
 
     // Create some tasks first
-    let task1_id = state
-        .tasks
-        .with_db(|db| tasks::add_task(db, "Task 1", "Description 1", 1, None))
-        .unwrap();
+    let task1_id =
+        state.tasks.with_db(|db| tasks::add_task(db, "Task 1", "Description 1", 1, None)).unwrap();
 
-    let task2_id = state
-        .tasks
-        .with_db(|db| tasks::add_task(db, "Task 2", "Description 2", 2, None))
-        .unwrap();
+    let task2_id =
+        state.tasks.with_db(|db| tasks::add_task(db, "Task 2", "Description 2", 2, None)).unwrap();
 
     // Test graph.link tool
     let args = rmp_serde::to_vec(&(task1_id, task2_id, "depends_on".to_string())).unwrap();
@@ -91,20 +83,14 @@ fn test_graph_query_tool() {
     let state = router::SynCoreState::new(memory, tasks, vector_store);
 
     // Create some tasks and links first
-    let task1_id = state
-        .tasks
-        .with_db(|db| tasks::add_task(db, "Task 1", "Description 1", 1, None))
-        .unwrap();
+    let task1_id =
+        state.tasks.with_db(|db| tasks::add_task(db, "Task 1", "Description 1", 1, None)).unwrap();
 
-    let task2_id = state
-        .tasks
-        .with_db(|db| tasks::add_task(db, "Task 2", "Description 2", 2, None))
-        .unwrap();
+    let task2_id =
+        state.tasks.with_db(|db| tasks::add_task(db, "Task 2", "Description 2", 2, None)).unwrap();
 
-    let task3_id = state
-        .tasks
-        .with_db(|db| tasks::add_task(db, "Task 3", "Description 3", 3, None))
-        .unwrap();
+    let task3_id =
+        state.tasks.with_db(|db| tasks::add_task(db, "Task 3", "Description 3", 3, None)).unwrap();
 
     // Create links: task1 -> task2, task1 -> task3
     state

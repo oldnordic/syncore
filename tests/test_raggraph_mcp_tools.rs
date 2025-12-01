@@ -7,21 +7,12 @@ fn test_raggraph_query_tool_backend() {
     // Test the RagQuery engine that backs the raggraph_query MCP tool
     let query_engine = RagQuery::new();
 
-    let result = query_engine
-        .query("test query about AI")
-        .expect("Query should succeed");
+    let result = query_engine.query("test query about AI").expect("Query should succeed");
 
     // Verify result structure
     assert!(!result.top_nodes.is_empty(), "Should return top nodes");
-    assert_eq!(
-        result.context_embedding.len(),
-        384,
-        "Should have 384-dim embedding"
-    );
-    assert!(
-        !result.reasoning_path.is_empty(),
-        "Should have reasoning path"
-    );
+    assert_eq!(result.context_embedding.len(), 384, "Should have 384-dim embedding");
+    assert!(!result.reasoning_path.is_empty(), "Should have reasoning path");
 }
 
 #[test]
@@ -31,21 +22,12 @@ fn test_raggraph_multihop_tool_backend() {
     let transformer = HopGraphTransformer::new(config);
 
     let seed_nodes = vec![1, 2, 3];
-    let result = transformer
-        .multi_hop_reasoning(&seed_nodes)
-        .expect("Multi-hop should succeed");
+    let result = transformer.multi_hop_reasoning(&seed_nodes).expect("Multi-hop should succeed");
 
     // Verify result structure
     assert!(!result.top_nodes.is_empty(), "Should return top nodes");
-    assert_eq!(
-        result.context_embedding.len(),
-        384,
-        "Should have 384-dim embedding"
-    );
-    assert!(
-        !result.reasoning_path.is_empty(),
-        "Should have reasoning path"
-    );
+    assert_eq!(result.context_embedding.len(), 384, "Should have 384-dim embedding");
+    assert!(!result.reasoning_path.is_empty(), "Should have reasoning path");
 }
 
 #[test]
@@ -55,10 +37,7 @@ fn test_raggraph_query_empty_query() {
 
     let result = query_engine.query("");
     assert!(result.is_err(), "Empty query should return error");
-    assert!(
-        result.unwrap_err().to_string().contains("empty"),
-        "Error should mention empty query"
-    );
+    assert!(result.unwrap_err().to_string().contains("empty"), "Error should mention empty query");
 }
 
 #[test]
@@ -70,10 +49,7 @@ fn test_raggraph_multihop_empty_seeds() {
     let empty_seeds: Vec<i64> = vec![];
     let result = transformer.multi_hop_reasoning(&empty_seeds);
     assert!(result.is_err(), "Empty seeds should return error");
-    assert!(
-        result.unwrap_err().to_string().contains("empty"),
-        "Error should mention empty seeds"
-    );
+    assert!(result.unwrap_err().to_string().contains("empty"), "Error should mention empty seeds");
 }
 
 #[test]
@@ -81,12 +57,8 @@ fn test_raggraph_query_deterministic() {
     // Verify deterministic behavior (same query = same seeds)
     let query_engine = RagQuery::new();
 
-    let result1 = query_engine
-        .query("AI research")
-        .expect("First query should succeed");
-    let result2 = query_engine
-        .query("AI research")
-        .expect("Second query should succeed");
+    let result1 = query_engine.query("AI research").expect("First query should succeed");
+    let result2 = query_engine.query("AI research").expect("Second query should succeed");
 
     // Same query should produce same seed nodes, which leads to same set of top nodes
     // (ordering may vary due to HashMap iteration order, but set should be identical)
@@ -125,9 +97,7 @@ fn test_vector_store_implements_vectorindex() {
     let mut vector_store = VectorStore::with_meta(embeddings, meta);
 
     // Add test vectors
-    vector_store
-        .add(1, vec![0.5; dim])
-        .expect("Failed to add vector");
+    vector_store.add(1, vec![0.5; dim]).expect("Failed to add vector");
 
     // Verify VectorIndex trait methods work
     assert_eq!(VectorIndex::dimension(&vector_store), Some(dim));
@@ -153,9 +123,7 @@ fn test_vector_store_search_functionality() {
     // Add test vectors
     for i in 1..=10 {
         let vec = vec![i as f32 / 10.0; dim];
-        vector_store
-            .add(i as i64, vec)
-            .expect(&format!("Failed to add vector {}", i));
+        vector_store.add(i as i64, vec).expect(&format!("Failed to add vector {}", i));
     }
 
     // Test vector search via VectorIndex trait (as Real backend uses it)
@@ -168,10 +136,7 @@ fn test_vector_store_search_functionality() {
 
     // Verify scores are valid (cosine similarity: -1 to 1, but typically 0 to 1 for normalized vectors)
     for (_node_id, score) in results {
-        assert!(
-            score >= -1.0 && score <= 1.0,
-            "Score should be in [-1, 1] range"
-        );
+        assert!(score >= -1.0 && score <= 1.0, "Score should be in [-1, 1] range");
     }
 }
 
@@ -237,9 +202,5 @@ fn test_mcp_server_cast_pattern() {
         VectorIndex::dimension(&*store)
     };
 
-    assert_eq!(
-        dimension,
-        Some(dim),
-        "Dimension should be accessible through trait object"
-    );
+    assert_eq!(dimension, Some(dim), "Dimension should be accessible through trait object");
 }

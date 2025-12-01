@@ -89,9 +89,7 @@ fn test_insert_function_nodes_into_sqlite() {
     store.insert_graph(&graph).expect("Should insert graph");
 
     // Query SQLite for functions
-    let functions = store
-        .get_functions("src/lib.rs")
-        .expect("Should get functions");
+    let functions = store.get_functions("src/lib.rs").expect("Should get functions");
 
     assert_eq!(functions.len(), 2, "Should have 2 functions");
     assert!(functions.iter().any(|f| f.name == "process_data"));
@@ -108,10 +106,7 @@ fn test_insert_call_edges_into_sqlite() {
     // Query callgraph edges
     let callers = store.get_callers("helper").expect("Should get callers");
 
-    assert!(
-        callers.iter().any(|c| c == "process_data"),
-        "process_data should call helper"
-    );
+    assert!(callers.iter().any(|c| c == "process_data"), "process_data should call helper");
 }
 
 #[test]
@@ -122,14 +117,9 @@ fn test_insert_struct_trait_edges() {
     store.insert_graph(&graph).expect("Should insert graph");
 
     // Query implementations
-    let impls = store
-        .get_implementations("DataProcessor")
-        .expect("Should get implementations");
+    let impls = store.get_implementations("DataProcessor").expect("Should get implementations");
 
-    assert!(
-        impls.iter().any(|t| t == "Processable"),
-        "DataProcessor should implement Processable"
-    );
+    assert!(impls.iter().any(|t| t == "Processable"), "DataProcessor should implement Processable");
 }
 
 #[test]
@@ -143,9 +133,7 @@ fn test_sync_to_neo4j_function_calls() {
     match store.sync_to_neo4j() {
         Ok(_) => {
             // Verify Neo4j has the relationship
-            let neo4j_calls = store
-                .query_neo4j_calls("process_data")
-                .expect("Should query Neo4j");
+            let neo4j_calls = store.query_neo4j_calls("process_data").expect("Should query Neo4j");
             assert!(neo4j_calls.iter().any(|c| c == "helper"));
         }
         Err(e) if e.to_string().contains("connection") => {
@@ -188,9 +176,8 @@ fn test_embed_functions_in_faiss() {
     store.embed_functions().expect("Should embed functions");
 
     // Search for semantically similar functions
-    let results = store
-        .search_similar_functions("data processing helper", 5)
-        .expect("Should search similar");
+    let results =
+        store.search_similar_functions("data processing helper", 5).expect("Should search similar");
 
     assert!(!results.is_empty(), "Should find similar functions");
     // process_data and helper should have high similarity to query
@@ -213,9 +200,7 @@ fn test_cross_linked_query_results() {
         semantic_limit: 3,
     };
 
-    let result = store
-        .query_cross_linked(&query)
-        .expect("Should query cross-linked");
+    let result = store.query_cross_linked(&query).expect("Should query cross-linked");
 
     assert_eq!(result.function.name, "process_data");
     assert!(result.callees.iter().any(|c| c == "helper"));
@@ -306,10 +291,7 @@ fn test_message_bus_events() {
     let events_after = store.get_event_count();
 
     // Should have emitted "code_graph_indexed" event
-    assert!(
-        events_after > events_before,
-        "Should emit MessageBus events on insert"
-    );
+    assert!(events_after > events_before, "Should emit MessageBus events on insert");
 }
 
 #[test]
@@ -333,10 +315,7 @@ fn test_vectors_dir_integration() {
 
     // Check that embeddings file was created
     let embeddings_path = vectors_dir.join("default_embeddings.bin");
-    assert!(
-        embeddings_path.exists(),
-        "Embeddings file should be created in vectors_dir"
-    );
+    assert!(embeddings_path.exists(), "Embeddings file should be created in vectors_dir");
 
     // Create new store instance and verify embeddings are loaded
     let mut store2 = CodeGraphStore::new_with_paths(&db_path, &vectors_dir).unwrap();
@@ -344,8 +323,5 @@ fn test_vectors_dir_integration() {
 
     // Verify semantic search works with loaded embeddings
     let results = store2.search_similar_functions("process_data", 5).unwrap();
-    assert!(
-        !results.is_empty(),
-        "Semantic search should work with loaded embeddings"
-    );
+    assert!(!results.is_empty(), "Semantic search should work with loaded embeddings");
 }

@@ -42,21 +42,13 @@ async fn test_gic_liveindexer_wiring() {
         reindex_mutex,
     )
     .unwrap();
-    let lsp_bridge = Arc::new(std::sync::Mutex::new(
-        syncore::lsp_bridge::LspBridge::disabled(),
-    ));
+    let lsp_bridge = Arc::new(std::sync::Mutex::new(syncore::lsp_bridge::LspBridge::disabled()));
     let indexer_config = LiveIndexerConfig::default();
 
     // Create LiveIndexer
-    let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        vector_store,
-        lsp_bridge,
-        indexer_config,
-    )
-    .unwrap();
+    let indexer =
+        LiveIndexer::new(fs_rx, parser, update_service, vector_store, lsp_bridge, indexer_config)
+            .unwrap();
 
     // Test: enqueue job → LiveIndexer receives job via run_ingestion_loop()
     let test_file = temp_dir.path().join("test.rs");

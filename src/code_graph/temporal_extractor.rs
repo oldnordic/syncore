@@ -59,10 +59,7 @@ fn extract_filesystem_temporal(path: &Path) -> Result<(i64, i64)> {
     let metadata = std::fs::metadata(path)?;
 
     // Get last modified time
-    let modified = metadata
-        .modified()?
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs() as i64;
+    let modified = metadata.modified()?.duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
 
     // Get created time (platform-specific)
     let created = match metadata.created() {
@@ -88,9 +85,8 @@ fn extract_git_temporal(path: &Path) -> Result<(i32, i32)> {
     let repo = discover_repository(path)?;
 
     // Get file path relative to repo root
-    let repo_workdir = repo
-        .workdir()
-        .ok_or_else(|| anyhow!("Repository has no working directory"))?;
+    let repo_workdir =
+        repo.workdir().ok_or_else(|| anyhow!("Repository has no working directory"))?;
 
     let relative_path = path
         .strip_prefix(repo_workdir)
@@ -180,20 +176,13 @@ mod tests {
         let (created, modified) = extract_filesystem_temporal(path)?;
 
         // Both timestamps should be recent (within last minute)
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)?
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
 
         assert!(created > 0, "Created timestamp should be positive");
         assert!(modified > 0, "Modified timestamp should be positive");
-        assert!(
-            now - created < 60,
-            "Created timestamp should be recent (within 60s)"
-        );
-        assert!(
-            now - modified < 60,
-            "Modified timestamp should be recent (within 60s)"
-        );
+        assert!(now - created < 60, "Created timestamp should be recent (within 60s)");
+        assert!(now - modified < 60, "Modified timestamp should be recent (within 60s)");
 
         std::fs::remove_file(temp_file)?;
         Ok(())

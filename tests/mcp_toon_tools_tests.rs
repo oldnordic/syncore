@@ -27,10 +27,7 @@ fn init_test_state() -> (Arc<Mutex<MemoryService>>, Arc<Mutex<ToonController>>) 
             TEST_MEMORY = Some(memory_arc);
             TEST_CONTROLLER = Some(controller_arc);
         }
-        (
-            TEST_MEMORY.clone().unwrap(),
-            TEST_CONTROLLER.clone().unwrap(),
-        )
+        (TEST_MEMORY.clone().unwrap(), TEST_CONTROLLER.clone().unwrap())
     }
 }
 
@@ -67,7 +64,9 @@ fn call_toon_tool(tool_name: &str, params: Value) -> Value {
                                 ToonResult::Pointer(id) => format!("Pointer({})", id),
                                 ToonResult::Retrieved(_) => "Retrieved".to_string(),
                                 ToonResult::Loaded(_) => "Loaded".to_string(),
-                                ToonResult::Folded { new_id } => format!("Folded({})", new_id),
+                                ToonResult::Folded {
+                                    new_id,
+                                } => format!("Folded({})", new_id),
                                 ToonResult::Completed => "Completed".to_string(),
                             };
                             json!({

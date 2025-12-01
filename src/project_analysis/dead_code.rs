@@ -25,10 +25,7 @@ pub struct DeadCodeData {
 impl ProjectAnalysisEngine {
     /// Identify potentially dead code entities
     pub async fn dead_code(&self, request: DeadCodeRequest) -> Result<PAEResponse<DeadCodeData>> {
-        match self
-            .find_dead_code(request.exclude_public.unwrap_or(true), request.limit)
-            .await
-        {
+        match self.find_dead_code(request.exclude_public.unwrap_or(true), request.limit).await {
             Ok(data) => Ok(PAEResponse::success(data)),
             Err(e) => Ok(PAEResponse::error(e.to_string())),
         }

@@ -66,10 +66,7 @@ impl ExecutionTracker {
         if steps.len() != expected_tools.len() {
             return false;
         }
-        steps
-            .iter()
-            .zip(expected_tools.iter())
-            .all(|(step, expected)| step.tool_name == *expected)
+        steps.iter().zip(expected_tools.iter()).all(|(step, expected)| step.tool_name == *expected)
     }
 
     pub fn clear(&self) {
@@ -130,28 +127,19 @@ fn test_code_semantic_search_executes_multi_step_plan_in_order() {
     let step1 = tracker.get_step(0).unwrap();
     assert_eq!(step1.tool_name, "mapping_search");
     assert_eq!(step1.step_number, 1);
-    assert_eq!(
-        step1.params["query"],
-        "find async message bus implementation"
-    );
+    assert_eq!(step1.params["query"], "find async message bus implementation");
 
     // Verify step 2: code_search
     let step2 = tracker.get_step(1).unwrap();
     assert_eq!(step2.tool_name, "code_search");
     assert_eq!(step2.step_number, 2);
-    assert_eq!(
-        step2.params["query"],
-        "find async message bus implementation"
-    );
+    assert_eq!(step2.params["query"], "find async message bus implementation");
 
     // Verify step 3: vector_search
     let step3 = tracker.get_step(2).unwrap();
     assert_eq!(step3.tool_name, "vector_search");
     assert_eq!(step3.step_number, 3);
-    assert_eq!(
-        step3.params["query"],
-        "find async message bus implementation"
-    );
+    assert_eq!(step3.params["query"], "find async message bus implementation");
     assert_eq!(step3.params["limit"], 5);
 
     // Verify overall order
@@ -286,10 +274,7 @@ fn test_task_bootstrap_from_prd_orchestrates_workflow() {
     // Step 1: Generate breakdown
     let step1 = tracker.get_step(0).unwrap();
     assert_eq!(step1.tool_name, "intellitask_generate");
-    assert!(step1.params["prd_content"]
-        .as_str()
-        .unwrap()
-        .contains("macro tools"));
+    assert!(step1.params["prd_content"].as_str().unwrap().contains("macro tools"));
 
     // Step 2: Save to database
     let step2 = tracker.get_step(1).unwrap();

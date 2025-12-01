@@ -47,9 +47,7 @@ impl ParserService {
     /// Create new parser service for given language and root directory
     pub fn new(language: Language, root: PathBuf) -> Result<Self> {
         let mut parser = Parser::new();
-        parser
-            .set_language(language)
-            .context("Failed to set parser language")?;
+        parser.set_language(language).context("Failed to set parser language")?;
 
         Ok(Self {
             parser: Arc::new(Mutex::new(parser)),
@@ -112,12 +110,8 @@ impl ParserService {
 
     /// Full parse for new file
     fn full_parse(&mut self, path: &Path, source: &str) -> Result<ParseDelta> {
-        let tree = self
-            .parser
-            .lock()
-            .unwrap()
-            .parse(source, None)
-            .context("Failed to parse file")?;
+        let tree =
+            self.parser.lock().unwrap().parse(source, None).context("Failed to parse file")?;
 
         let had_errors = tree.root_node().has_error();
 
@@ -134,7 +128,10 @@ impl ParserService {
         let changed_ranges = vec![Range {
             start_byte: 0,
             end_byte: source.len(),
-            start_point: tree_sitter::Point { row: 0, column: 0 },
+            start_point: tree_sitter::Point {
+                row: 0,
+                column: 0,
+            },
             end_point: tree_sitter::Point {
                 row: source.lines().count().saturating_sub(1),
                 column: source.lines().last().map(|l| l.len()).unwrap_or(0),
@@ -215,10 +212,7 @@ impl ParserService {
 
     /// Check if file extension is supported (simple check for now)
     fn is_supported_file(&self, path: &Path) -> bool {
-        path.extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext == "rs")
-            .unwrap_or(false)
+        path.extension().and_then(|ext| ext.to_str()).map(|ext| ext == "rs").unwrap_or(false)
     }
 
     /// Helper: Common prefix length
@@ -228,11 +222,7 @@ impl ParserService {
 
     /// Helper: Common suffix length
     fn common_suffix_len(a: &str, b: &str) -> usize {
-        a.bytes()
-            .rev()
-            .zip(b.bytes().rev())
-            .take_while(|(x, y)| x == y)
-            .count()
+        a.bytes().rev().zip(b.bytes().rev()).take_while(|(x, y)| x == y).count()
     }
 
     /// Helper: Convert byte offset to tree-sitter Point
@@ -250,7 +240,10 @@ impl ParserService {
                 col += 1;
             }
         }
-        tree_sitter::Point { row, column: col }
+        tree_sitter::Point {
+            row,
+            column: col,
+        }
     }
 }
 

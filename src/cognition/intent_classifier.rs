@@ -146,9 +146,7 @@ fn contains_semantic_keywords(query: &str) -> bool {
         "work",
     ];
 
-    semantic_keywords
-        .iter()
-        .any(|&kw| query.split_whitespace().any(|word| word == kw))
+    semantic_keywords.iter().any(|&kw| query.split_whitespace().any(|word| word == kw))
 }
 
 #[cfg(test)]
@@ -170,26 +168,14 @@ mod tests {
 
     #[test]
     fn test_semantic_why() {
-        assert_eq!(
-            classify_intent("why does parse function fail"),
-            QueryIntent::Semantic
-        );
-        assert_eq!(
-            classify_intent("explain how this works"),
-            QueryIntent::Semantic
-        );
+        assert_eq!(classify_intent("why does parse function fail"), QueryIntent::Semantic);
+        assert_eq!(classify_intent("explain how this works"), QueryIntent::Semantic);
     }
 
     #[test]
     fn test_causal_trace() {
-        assert_eq!(
-            classify_intent("trace dependency from A to B"),
-            QueryIntent::Causal
-        );
-        assert_eq!(
-            classify_intent("show call chain for format"),
-            QueryIntent::Causal
-        );
+        assert_eq!(classify_intent("trace dependency from A to B"), QueryIntent::Causal);
+        assert_eq!(classify_intent("show call chain for format"), QueryIntent::Causal);
     }
 
     #[test]

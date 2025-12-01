@@ -23,7 +23,9 @@ impl IpcClient {
             return Err(DlrError::IpcFailed("Cannot access stdout".to_string()));
         }
 
-        Ok(Self { child })
+        Ok(Self {
+            child,
+        })
     }
 
     pub fn init_plugin(
@@ -115,9 +117,7 @@ impl IpcClient {
 
         writeln!(stdin, "{}", request_str)
             .map_err(|e| DlrError::IpcFailed(format!("Failed to write to stdin: {}", e)))?;
-        stdin
-            .flush()
-            .map_err(|e| DlrError::IpcFailed(format!("Failed to flush stdin: {}", e)))?;
+        stdin.flush().map_err(|e| DlrError::IpcFailed(format!("Failed to flush stdin: {}", e)))?;
 
         let mut reader = BufReader::new(stdout);
         let mut response_line = String::new();
@@ -127,9 +127,7 @@ impl IpcClient {
             .map_err(|e| DlrError::IpcFailed(format!("Failed to read from stdout: {}", e)))?;
 
         if bytes_read == 0 {
-            return Err(DlrError::IpcFailed(
-                "Plugin process terminated unexpectedly".to_string(),
-            ));
+            return Err(DlrError::IpcFailed("Plugin process terminated unexpectedly".to_string()));
         }
 
         Ok(response_line.trim().to_string())

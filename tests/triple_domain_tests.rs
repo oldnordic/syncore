@@ -45,35 +45,17 @@ fn test_general_domain_display() {
 #[test]
 fn test_code_domain_from_namespace() {
     // CODE domain namespaces
-    assert_eq!(
-        EmbeddingDomain::from_namespace("code_entity"),
-        EmbeddingDomain::Code
-    );
-    assert_eq!(
-        EmbeddingDomain::from_namespace("rust_code"),
-        EmbeddingDomain::Code
-    );
-    assert_eq!(
-        EmbeddingDomain::from_namespace("javascript_code"),
-        EmbeddingDomain::Code
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("code_entity"), EmbeddingDomain::Code);
+    assert_eq!(EmbeddingDomain::from_namespace("rust_code"), EmbeddingDomain::Code);
+    assert_eq!(EmbeddingDomain::from_namespace("javascript_code"), EmbeddingDomain::Code);
 }
 
 #[test]
 fn test_general_domain_from_namespace() {
     // GENERAL domain namespaces
-    assert_eq!(
-        EmbeddingDomain::from_namespace("documents"),
-        EmbeddingDomain::General
-    );
-    assert_eq!(
-        EmbeddingDomain::from_namespace("plan"),
-        EmbeddingDomain::General
-    );
-    assert_eq!(
-        EmbeddingDomain::from_namespace("sequential_cycle"),
-        EmbeddingDomain::General
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("documents"), EmbeddingDomain::General);
+    assert_eq!(EmbeddingDomain::from_namespace("plan"), EmbeddingDomain::General);
+    assert_eq!(EmbeddingDomain::from_namespace("sequential_cycle"), EmbeddingDomain::General);
 }
 
 #[test]
@@ -164,10 +146,7 @@ fn test_code_domain_unchanged() {
     // CODE domain behavior
     let code = EmbeddingDomain::Code;
     assert_eq!(format!("{}", code), "code");
-    assert_eq!(
-        EmbeddingDomain::from_namespace("code_entity"),
-        EmbeddingDomain::Code
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("code_entity"), EmbeddingDomain::Code);
     let config = EmbeddingConfig::for_code();
     assert_eq!(config.model_name, "BGE-small-en-v1.5");
 }
@@ -177,10 +156,7 @@ fn test_general_domain_unchanged() {
     // GENERAL domain behavior
     let general = EmbeddingDomain::General;
     assert_eq!(format!("{}", general), "general");
-    assert_eq!(
-        EmbeddingDomain::from_namespace("documents"),
-        EmbeddingDomain::General
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("documents"), EmbeddingDomain::General);
     let config = EmbeddingConfig::for_general();
     assert_eq!(config.model_name, "all-MiniLM-L6-v2");
 }
@@ -188,8 +164,5 @@ fn test_general_domain_unchanged() {
 #[test]
 fn test_unknown_namespace_defaults_to_general() {
     // Unknown namespaces should default to GENERAL
-    assert_eq!(
-        EmbeddingDomain::from_namespace("unknown_namespace"),
-        EmbeddingDomain::General
-    );
+    assert_eq!(EmbeddingDomain::from_namespace("unknown_namespace"), EmbeddingDomain::General);
 }

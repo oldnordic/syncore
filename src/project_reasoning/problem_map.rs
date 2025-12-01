@@ -44,14 +44,12 @@ impl ProjectAnalysisEngine {
         let critical_hotspots = self.identify_critical_hotspots(&hotspots_data.hotspots)?;
 
         // Identify brittle paths
-        let brittle_paths = self
-            .identify_brittle_paths(&hotspots_data.hotspots, &diagnostics)
-            .await?;
+        let brittle_paths =
+            self.identify_brittle_paths(&hotspots_data.hotspots, &diagnostics).await?;
 
         // Identify cross-module issues
-        let cross_module_issues = self
-            .identify_cross_module_issues(&hotspots_data.hotspots)
-            .await?;
+        let cross_module_issues =
+            self.identify_cross_module_issues(&hotspots_data.hotspots).await?;
 
         // Compute risk distribution
         let risk_distribution =
@@ -96,9 +94,7 @@ impl ProjectAnalysisEngine {
             if diagnostic.tool == "clippy"
                 && (diagnostic.severity == "error" || diagnostic.severity == "warning")
             {
-                *clippy_errors_by_file
-                    .entry(diagnostic.file_path.clone())
-                    .or_insert(0) += 1;
+                *clippy_errors_by_file.entry(diagnostic.file_path.clone()).or_insert(0) += 1;
             }
         }
 
@@ -158,9 +154,8 @@ impl ProjectAnalysisEngine {
             HashMap::new();
 
         for diagnostic in diagnostics {
-            let file_diagnostics = diagnostics_by_file
-                .entry(diagnostic.file_path.clone())
-                .or_default();
+            let file_diagnostics =
+                diagnostics_by_file.entry(diagnostic.file_path.clone()).or_default();
 
             let severity = crate::project_analysis::diagnostics_severity::normalize_severity(
                 &diagnostic.severity,
@@ -175,10 +170,8 @@ impl ProjectAnalysisEngine {
         let mut total_risk = 0.0f32;
 
         for hotspot in hotspots {
-            let file_diagnostics = diagnostics_by_file
-                .get(&hotspot.file_path)
-                .cloned()
-                .unwrap_or_default();
+            let file_diagnostics =
+                diagnostics_by_file.get(&hotspot.file_path).cloned().unwrap_or_default();
 
             let risk_inputs = FileRiskInputs {
                 file_path: hotspot.file_path.clone(),

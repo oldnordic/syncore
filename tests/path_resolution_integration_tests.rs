@@ -26,10 +26,7 @@ fn test_path_resolver_finds_workspace_root() -> Result<()> {
     let root = resolver.resolve_workspace_root(&nested_dir)?;
 
     assert!(root.is_some());
-    assert_eq!(
-        root.unwrap().canonicalize()?,
-        temp_dir.path().canonicalize()?
-    );
+    assert_eq!(root.unwrap().canonicalize()?, temp_dir.path().canonicalize()?);
     Ok(())
 }
 
@@ -72,10 +69,7 @@ fn test_path_resolver_multiple_indicators() -> Result<()> {
     let root = resolver.resolve_workspace_root(temp_dir.path())?;
 
     assert!(root.is_some());
-    assert_eq!(
-        root.unwrap().canonicalize()?,
-        temp_dir.path().canonicalize()?
-    );
+    assert_eq!(root.unwrap().canonicalize()?, temp_dir.path().canonicalize()?);
     Ok(())
 }
 

@@ -214,10 +214,7 @@ Examples:
         let parsed: ActionResponse =
             serde_json::from_str(&response).context("Failed to parse action suggestion")?;
 
-        info!(
-            "Meta-cognition suggests: {} ({})",
-            parsed.action, parsed.reasoning
-        );
+        info!("Meta-cognition suggests: {} ({})", parsed.action, parsed.reasoning);
 
         Ok(parsed.action)
     }
@@ -234,10 +231,7 @@ Examples:
             .context("Failed to execute ollama command")?;
 
         if !output.status.success() {
-            anyhow::bail!(
-                "Ollama command failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            anyhow::bail!("Ollama command failed: {}", String::from_utf8_lossy(&output.stderr));
         }
 
         let response =

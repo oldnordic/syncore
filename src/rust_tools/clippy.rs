@@ -71,10 +71,7 @@ fn parse_clippy_diagnostic(json: Value, project_root: &Path) -> Result<Option<Co
 
     // Extract basic fields
     let message_obj = &json["message"];
-    let message = message_obj["message"]
-        .as_str()
-        .unwrap_or("Unknown message")
-        .to_string();
+    let message = message_obj["message"].as_str().unwrap_or("Unknown message").to_string();
 
     let level = json["level"].as_str().unwrap_or("warning");
 
@@ -105,10 +102,7 @@ fn parse_clippy_diagnostic(json: Value, project_root: &Path) -> Result<Option<Co
     let file_path = if file_path_raw.starts_with('/') {
         file_path_raw.to_string()
     } else {
-        project_root
-            .join(file_path_raw)
-            .to_string_lossy()
-            .to_string()
+        project_root.join(file_path_raw).to_string_lossy().to_string()
     };
 
     let line_start = span["line_start"].as_u64().unwrap_or(1) as i64;
@@ -150,10 +144,8 @@ pub struct ClippyScanData {
 /// Run clippy scan with request/response pattern
 pub fn run_clippy_scan(db: Arc<DbManager>, request: ClippyScanRequest) -> Result<ClippyScanData> {
     // APEX v1.7 Phase 6: Use PathResolver instead of current_dir()
-    let project_root = request
-        .project_root
-        .map(|p| Path::new(&p).to_path_buf())
-        .unwrap_or_else(|| {
+    let project_root =
+        request.project_root.map(|p| Path::new(&p).to_path_buf()).unwrap_or_else(|| {
             let mut resolver = PathResolver::new();
             resolver
                 .resolve_workspace_root(Path::new("."))
@@ -175,8 +167,6 @@ pub fn run_clippy_scan(db: Arc<DbManager>, request: ClippyScanRequest) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::DbManager;
-    use std::fs;
 
     #[test]
     fn test_parse_clippy_diagnostic() -> Result<()> {

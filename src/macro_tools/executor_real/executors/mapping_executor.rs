@@ -18,10 +18,7 @@ use std::sync::Arc;
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
         Some(v) if !v.is_empty() => Ok(v),
-        _ => Err(wrap_error_static(
-            tool,
-            &format!("Missing '{}' parameter", key),
-        )),
+        _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
 
@@ -90,18 +87,12 @@ pub async fn execute_mapping_record(
     use crate::portfolio::mapping_tool::{FileNode, MappingTool};
     let mapper = MappingTool::new((**state).clone());
 
-    let imports_vec: Vec<String> = imports
-        .iter()
-        .filter_map(|i| i.as_str().map(|s| s.to_string()))
-        .collect();
-    let exports_vec: Vec<String> = exports
-        .iter()
-        .filter_map(|e| e.as_str().map(|s| s.to_string()))
-        .collect();
-    let dependencies_vec: Vec<String> = dependencies
-        .iter()
-        .filter_map(|d| d.as_str().map(|s| s.to_string()))
-        .collect();
+    let imports_vec: Vec<String> =
+        imports.iter().filter_map(|i| i.as_str().map(|s| s.to_string())).collect();
+    let exports_vec: Vec<String> =
+        exports.iter().filter_map(|e| e.as_str().map(|s| s.to_string())).collect();
+    let dependencies_vec: Vec<String> =
+        dependencies.iter().filter_map(|d| d.as_str().map(|s| s.to_string())).collect();
 
     let node = FileNode {
         path: path.to_string(),
@@ -112,9 +103,7 @@ pub async fn execute_mapping_record(
         dependencies: dependencies_vec,
     };
 
-    mapper
-        .record_file(&node)
-        .map_err(|e| anyhow::anyhow!("Failed to record file: {}", e))?;
+    mapper.record_file(&node).map_err(|e| anyhow::anyhow!("Failed to record file: {}", e))?;
 
     Ok(wrap_success(
         "mapping_record",
@@ -198,9 +187,8 @@ pub async fn execute_mapping_search(
     use crate::portfolio::mapping_tool::MappingTool;
     let mapper = MappingTool::new((**state).clone());
 
-    let nodes = mapper
-        .search_related(query)
-        .map_err(|e| anyhow::anyhow!("Failed to search: {}", e))?;
+    let nodes =
+        mapper.search_related(query).map_err(|e| anyhow::anyhow!("Failed to search: {}", e))?;
 
     Ok(wrap_success(
         "mapping_search",

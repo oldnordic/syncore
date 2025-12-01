@@ -9,7 +9,10 @@ fn test_normalize_rust_module() {
         kind: EntityKind::Module,
         name: "my_module".to_string(),
         file_path: "src/my_module/mod.rs".to_string(),
-        span: Span { start: 0, end: 10 },
+        span: Span {
+            start: 0,
+            end: 10,
+        },
         attributes: Default::default(),
     };
     normalize_entity_namespace(&mut entity);
@@ -24,7 +27,10 @@ fn test_normalize_java_package() {
         kind: EntityKind::Package,
         name: "my.package".to_string(),
         file_path: "src/my/package/MyClass.java".to_string(),
-        span: Span { start: 0, end: 10 },
+        span: Span {
+            start: 0,
+            end: 10,
+        },
         attributes: Default::default(),
     };
     normalize_entity_namespace(&mut entity);
@@ -39,7 +45,10 @@ fn test_normalize_ts_import() {
         kind: EntityKind::Module,
         name: "my-module".to_string(),
         file_path: "src/my-module.ts".to_string(),
-        span: Span { start: 0, end: 10 },
+        span: Span {
+            start: 0,
+            end: 10,
+        },
         attributes: Default::default(),
     };
     normalize_entity_namespace(&mut entity);
@@ -54,14 +63,14 @@ fn test_normalize_go_module() {
         kind: EntityKind::Module,
         name: "github.com/my-org/my-repo".to_string(),
         file_path: "main.go".to_string(),
-        span: Span { start: 0, end: 10 },
+        span: Span {
+            start: 0,
+            end: 10,
+        },
         attributes: Default::default(),
     };
     normalize_entity_namespace(&mut entity);
-    assert_eq!(
-        entity.attributes.get("namespace").unwrap(),
-        "github.com/my-org/my-repo"
-    );
+    assert_eq!(entity.attributes.get("namespace").unwrap(), "github.com/my-org/my-repo");
 }
 
 #[test]
@@ -72,7 +81,10 @@ fn test_normalize_cpp_namespace() {
         kind: EntityKind::Namespace,
         name: "my_namespace".to_string(),
         file_path: "src/my_namespace.cpp".to_string(),
-        span: Span { start: 0, end: 10 },
+        span: Span {
+            start: 0,
+            end: 10,
+        },
         attributes: Default::default(),
     };
     normalize_entity_namespace(&mut entity);
@@ -87,7 +99,10 @@ fn test_normalize_python_package() {
         kind: EntityKind::Package,
         name: "my_package".to_string(),
         file_path: "my_package/__init__.py".to_string(),
-        span: Span { start: 0, end: 10 },
+        span: Span {
+            start: 0,
+            end: 10,
+        },
         attributes: Default::default(),
     };
     normalize_entity_namespace(&mut entity);

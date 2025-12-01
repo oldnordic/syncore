@@ -22,32 +22,23 @@ pub fn frame_jsonrpc_message(json: &str) -> String {
 /// Expects format: `Content-Length: N\r\n\r\n<json>`
 pub fn parse_jsonrpc_message(framed: &str) -> Result<String> {
     // Find Content-Length header
-    let header_end = framed
-        .find("\r\n\r\n")
-        .context("Missing header separator (\\r\\n\\r\\n)")?;
+    let header_end = framed.find("\r\n\r\n").context("Missing header separator (\\r\\n\\r\\n)")?;
 
     let header = &framed[..header_end];
     let json_start = header_end + 4; // Skip "\r\n\r\n"
 
     // Extract content length
-    let content_length_str = header
-        .strip_prefix("Content-Length:")
-        .context("Missing Content-Length prefix")?
-        .trim();
+    let content_length_str =
+        header.strip_prefix("Content-Length:").context("Missing Content-Length prefix")?.trim();
 
-    let content_length: usize = content_length_str
-        .parse()
-        .context("Invalid Content-Length value")?;
+    let content_length: usize =
+        content_length_str.parse().context("Invalid Content-Length value")?;
 
     // Extract JSON payload
     let json = &framed[json_start..];
 
     if json.len() < content_length {
-        anyhow::bail!(
-            "Incomplete message: expected {} bytes, got {}",
-            content_length,
-            json.len()
-        );
+        anyhow::bail!("Incomplete message: expected {} bytes, got {}", content_length, json.len());
     }
 
     Ok(json[..content_length].to_string())
@@ -71,15 +62,10 @@ pub fn parse_publish_diagnostics(json: &str) -> Result<Vec<LspDiagnosticEvent>> 
     }
 
     // Extract params
-    let params = value
-        .get("params")
-        .context("Missing params in publishDiagnostics")?;
+    let params = value.get("params").context("Missing params in publishDiagnostics")?;
 
     // Extract URI
-    let uri = params
-        .get("uri")
-        .and_then(|u| u.as_str())
-        .context("Missing uri in params")?;
+    let uri = params.get("uri").and_then(|u| u.as_str()).context("Missing uri in params")?;
 
     let path = uri_to_path(uri)?;
 
@@ -108,38 +94,26 @@ fn parse_diagnostic(path: &Path, diag: &serde_json::Value) -> Result<Option<LspD
     let start = range.get("start").context("Missing start in range")?;
     let end = range.get("end").context("Missing end in range")?;
 
-    let start_line = start
-        .get("line")
-        .and_then(|l| l.as_u64())
-        .context("Missing or invalid start.line")? as u32;
+    let start_line =
+        start.get("line").and_then(|l| l.as_u64()).context("Missing or invalid start.line")? as u32;
 
     let start_char = start
         .get("character")
         .and_then(|c| c.as_u64())
         .context("Missing or invalid start.character")? as u32;
 
-    let end_line = end
-        .get("line")
-        .and_then(|l| l.as_u64())
-        .context("Missing or invalid end.line")? as u32;
+    let end_line =
+        end.get("line").and_then(|l| l.as_u64()).context("Missing or invalid end.line")? as u32;
 
-    let end_char = end
-        .get("character")
-        .and_then(|c| c.as_u64())
-        .context("Missing or invalid end.character")? as u32;
+    let end_char =
+        end.get("character").and_then(|c| c.as_u64()).context("Missing or invalid end.character")?
+            as u32;
 
     // Extract message
-    let message = diag
-        .get("message")
-        .and_then(|m| m.as_str())
-        .unwrap_or("")
-        .to_string();
+    let message = diag.get("message").and_then(|m| m.as_str()).unwrap_or("").to_string();
 
     // Extract severity (optional)
-    let severity = diag
-        .get("severity")
-        .and_then(|s| s.as_u64())
-        .map(|s| s as u32);
+    let severity = diag.get("severity").and_then(|s| s.as_u64()).map(|s| s as u32);
 
     // Extract code (optional)
     let code = diag.get("code").and_then(|c| match c {
@@ -159,9 +133,7 @@ fn parse_diagnostic(path: &Path, diag: &serde_json::Value) -> Result<Option<LspD
 
 /// Convert LSP file:// URI to PathBuf
 fn uri_to_path(uri: &str) -> Result<PathBuf> {
-    let path_str = uri
-        .strip_prefix("file://")
-        .context("URI does not start with file://")?;
+    let path_str = uri.strip_prefix("file://").context("URI does not start with file://")?;
 
     Ok(PathBuf::from(path_str))
 }

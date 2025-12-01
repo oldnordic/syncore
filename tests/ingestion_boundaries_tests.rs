@@ -42,10 +42,7 @@ async fn test_multiple_allowed_roots() {
     let temp_dir1 = TempDir::new().unwrap();
     let temp_dir2 = TempDir::new().unwrap();
     let config = IngestionConfig {
-        allowed_roots: vec![
-            temp_dir1.path().to_path_buf(),
-            temp_dir2.path().to_path_buf(),
-        ],
+        allowed_roots: vec![temp_dir1.path().to_path_buf(), temp_dir2.path().to_path_buf()],
         ..Default::default()
     };
     let (gic, _main_rx, _low_prio_rx) = GlobalIngestionCoordinator::with_config(config);
@@ -136,18 +133,12 @@ async fn test_boundary_statistics_tracking() {
     let outside_file = PathBuf::from("/tmp/outside.rs");
     let ignored_file = temp_dir.path().join("target").join("main");
 
-    gic.submit_file_changed(
-        &outside_file,
-        syncore::ingestion::IngestionSource::FsWatcher,
-    )
-    .await
-    .unwrap();
-    gic.submit_file_changed(
-        &ignored_file,
-        syncore::ingestion::IngestionSource::FsWatcher,
-    )
-    .await
-    .unwrap();
+    gic.submit_file_changed(&outside_file, syncore::ingestion::IngestionSource::FsWatcher)
+        .await
+        .unwrap();
+    gic.submit_file_changed(&ignored_file, syncore::ingestion::IngestionSource::FsWatcher)
+        .await
+        .unwrap();
 
     let stats = gic.get_stats().await;
     // Events that are silently ignored don't increment counters

@@ -63,7 +63,9 @@ pub struct DebugSuite {
 
 impl DebugSuite {
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Execute the suite command
@@ -101,10 +103,7 @@ impl DebugSuite {
             .unwrap_or_else(|| "logs".to_string());
 
         let log_file = args.file_path.unwrap_or_else(|| {
-            std::path::Path::new(&logs_dir)
-                .join("syncore.log")
-                .to_string_lossy()
-                .to_string()
+            std::path::Path::new(&logs_dir).join("syncore.log").to_string_lossy().to_string()
         });
 
         match std::fs::read_to_string(&log_file) {

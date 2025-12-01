@@ -21,10 +21,7 @@ impl CodeGraph {
 
         // Step 2: Map vector results to code entities
         let mut matches = Vec::new();
-        let db = self
-            .db
-            .lock()
-            .map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+        let db = self.db.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
 
         for hit in vector_results {
             // Lookup entity by vector ID

@@ -165,21 +165,12 @@ fn test_unit_vectors() {
 
     // a · b = 0
     let sim_ab = store.cosine_similarity_public(&vec_a, &vec_b);
-    assert!(
-        sim_ab.abs() < 1e-6,
-        "Perpendicular unit vectors: {}",
-        sim_ab
-    );
+    assert!(sim_ab.abs() < 1e-6, "Perpendicular unit vectors: {}", sim_ab);
 
     // a · c = 1/sqrt(2)
     let sim_ac = store.cosine_similarity_public(&vec_a, &vec_c);
     let expected = 1.0 / f32::sqrt(2.0);
-    assert!(
-        (sim_ac - expected).abs() < 1e-5,
-        "Expected {}, got {}",
-        expected,
-        sim_ac
-    );
+    assert!((sim_ac - expected).abs() < 1e-5, "Expected {}, got {}", expected, sim_ac);
 }
 
 #[test]
@@ -194,9 +185,5 @@ fn test_high_dimensional_vectors() {
     let sim = store.cosine_similarity_public(&vec_a, &vec_b);
 
     // Just verify it's in valid range
-    assert!(
-        sim >= -1.0 && sim <= 1.0,
-        "High-dim similarity should be in [-1, 1], got {}",
-        sim
-    );
+    assert!(sim >= -1.0 && sim <= 1.0, "High-dim similarity should be in [-1, 1], got {}", sim);
 }

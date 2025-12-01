@@ -123,14 +123,8 @@ async fn test_orchestrator_inserts_raggraph_call() -> Result<()> {
     let enriched = enrich_query_with_raggraph(query, &code_graph, &neo4j).await?;
 
     // Verify enriched context was created
-    assert!(
-        enriched.selected_mode.is_some(),
-        "selected_mode should be Some for symbolic query"
-    );
-    assert!(
-        enriched.raggraph_invoked,
-        "RAGGraph should be invoked for symbolic query"
-    );
+    assert!(enriched.selected_mode.is_some(), "selected_mode should be Some for symbolic query");
+    assert!(enriched.raggraph_invoked, "RAGGraph should be invoked for symbolic query");
 
     Ok(())
 }

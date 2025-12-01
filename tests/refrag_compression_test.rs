@@ -43,12 +43,7 @@ fn test_compression_uses_existing_embeddings() -> Result<()> {
     // Insert some test vectors
     {
         let mut code_store = state.code_store.lock().unwrap();
-        code_store.insert_text(
-            1,
-            None,
-            "fn example() { println!(\"test\"); }",
-            "code_entity",
-        )?;
+        code_store.insert_text(1, None, "fn example() { println!(\"test\"); }", "code_entity")?;
         code_store.insert_text(2, None, "struct Data { field: i32 }", "code_entity")?;
     }
 

@@ -59,7 +59,9 @@ pub struct PerceiveSelector {
 impl PerceiveSelector {
     /// Create new selector with policy
     pub fn new(policy: SelectionPolicy) -> Self {
-        Self { policy }
+        Self {
+            policy,
+        }
     }
 
     /// Select chunks deterministically based on query and candidates
@@ -80,10 +82,8 @@ impl PerceiveSelector {
 
         // Sort by combined score (descending), then by structural score for ties
         candidates.sort_by(|a, b| {
-            let score_cmp = b
-                .fusion_score
-                .partial_cmp(&a.fusion_score)
-                .unwrap_or(std::cmp::Ordering::Equal);
+            let score_cmp =
+                b.fusion_score.partial_cmp(&a.fusion_score).unwrap_or(std::cmp::Ordering::Equal);
 
             if score_cmp == std::cmp::Ordering::Equal {
                 // Tie-breaker: structural score
@@ -106,7 +106,10 @@ impl PerceiveSelector {
             (candidates, Vec::new())
         };
 
-        Ok(SelectionResult { selected, rejected })
+        Ok(SelectionResult {
+            selected,
+            rejected,
+        })
     }
 
     /// Compute combined scores based on policy
@@ -122,10 +125,8 @@ impl PerceiveSelector {
                 structural_weight,
             } => {
                 // Normalize structural scores to [0,1] range
-                let max_structural = candidates
-                    .iter()
-                    .map(|c| c.structural_score)
-                    .fold(0.0_f32, f32::max);
+                let max_structural =
+                    candidates.iter().map(|c| c.structural_score).fold(0.0_f32, f32::max);
 
                 for chunk in candidates.iter_mut() {
                     let normalized_structural = if max_structural > 0.0 {
@@ -182,7 +183,10 @@ impl PerceiveSelector {
                 let count = (candidates.len() as f32 * (percent as f32 / 100.0)).ceil() as usize;
                 count.max(1).min(candidates.len())
             }
-            SelectionPolicy::Weighted { .. } | SelectionPolicy::GraphPriority => {
+            SelectionPolicy::Weighted {
+                ..
+            }
+            | SelectionPolicy::GraphPriority => {
                 // Default to top 20%
                 let count = (candidates.len() as f32 * 0.2).ceil() as usize;
                 count.max(1).min(candidates.len())

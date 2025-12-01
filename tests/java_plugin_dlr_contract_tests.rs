@@ -60,17 +60,13 @@ mod java_plugin_dlr_contract_tests {
                 });
 
                 use std::io::Write;
-                stdin
-                    .write_all(init_request.to_string().as_bytes())
-                    .unwrap();
+                stdin.write_all(init_request.to_string().as_bytes()).unwrap();
                 stdin.write_all(b"\n").unwrap();
                 stdin.flush().unwrap();
 
                 thread::sleep(Duration::from_millis(100));
 
-                let output = child
-                    .wait_with_output()
-                    .expect("Failed to read plugin output");
+                let output = child.wait_with_output().expect("Failed to read plugin output");
                 let stdout = String::from_utf8_lossy(&output.stdout);
 
                 // Verify response structure
@@ -112,17 +108,13 @@ mod java_plugin_dlr_contract_tests {
                 });
 
                 use std::io::Write;
-                stdin
-                    .write_all(capabilities_request.to_string().as_bytes())
-                    .unwrap();
+                stdin.write_all(capabilities_request.to_string().as_bytes()).unwrap();
                 stdin.write_all(b"\n").unwrap();
                 stdin.flush().unwrap();
 
                 thread::sleep(Duration::from_millis(100));
 
-                let output = child
-                    .wait_with_output()
-                    .expect("Failed to read plugin output");
+                let output = child.wait_with_output().expect("Failed to read plugin output");
                 let stdout = String::from_utf8_lossy(&output.stdout);
 
                 // Verify capabilities response (returns tasks array, not "capabilities")
@@ -160,17 +152,13 @@ mod java_plugin_dlr_contract_tests {
                 });
 
                 use std::io::Write;
-                stdin
-                    .write_all(shutdown_request.to_string().as_bytes())
-                    .unwrap();
+                stdin.write_all(shutdown_request.to_string().as_bytes()).unwrap();
                 stdin.write_all(b"\n").unwrap();
                 stdin.flush().unwrap();
 
                 thread::sleep(Duration::from_millis(100));
 
-                let output = child
-                    .wait_with_output()
-                    .expect("Failed to read plugin output");
+                let output = child.wait_with_output().expect("Failed to read plugin output");
                 let stdout = String::from_utf8_lossy(&output.stdout);
 
                 // Verify shutdown response (returns "ok" status)
@@ -204,9 +192,7 @@ mod java_plugin_dlr_contract_tests {
 
                 thread::sleep(Duration::from_millis(100));
 
-                let output = child
-                    .wait_with_output()
-                    .expect("Failed to read plugin output");
+                let output = child.wait_with_output().expect("Failed to read plugin output");
                 let stdout = String::from_utf8_lossy(&output.stdout);
 
                 // Verify error response
@@ -242,17 +228,13 @@ mod java_plugin_dlr_contract_tests {
                 });
 
                 use std::io::Write;
-                stdin
-                    .write_all(unknown_task_request.to_string().as_bytes())
-                    .unwrap();
+                stdin.write_all(unknown_task_request.to_string().as_bytes()).unwrap();
                 stdin.write_all(b"\n").unwrap();
                 stdin.flush().unwrap();
 
                 thread::sleep(Duration::from_millis(100));
 
-                let output = child
-                    .wait_with_output()
-                    .expect("Failed to read plugin output");
+                let output = child.wait_with_output().expect("Failed to read plugin output");
                 let stdout = String::from_utf8_lossy(&output.stdout);
 
                 // Verify error response

@@ -79,7 +79,9 @@ impl FusionQualityEvaluator {
 
     /// Create with custom config
     pub fn with_config(config: FusionQualityConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+        }
     }
 
     /// Evaluate fusion quality from scored entities
@@ -185,7 +187,11 @@ impl FusionQualityEvaluator {
 
         // Diversity = unique files / total entities, with bonus for multiple files
         let base_diversity = unique_files.len() as f32 / entities.len() as f32;
-        let file_bonus = if unique_files.len() > 1 { 0.2 } else { 0.0 };
+        let file_bonus = if unique_files.len() > 1 {
+            0.2
+        } else {
+            0.0
+        };
 
         (base_diversity + file_bonus).min(1.0)
     }
@@ -212,10 +218,7 @@ impl FusionQualityEvaluator {
         if confidence < self.config.min_confidence && !entities.is_empty() {
             return (
                 true,
-                format!(
-                    "Low confidence ({:.2}) - results may be incomplete",
-                    confidence
-                ),
+                format!("Low confidence ({:.2}) - results may be incomplete", confidence),
             );
         }
 
@@ -234,18 +237,12 @@ impl FusionQualityEvaluator {
             let score_range =
                 entities.first().unwrap().fused_score - entities.last().unwrap().fused_score;
             if score_range < 0.1 {
-                return (
-                    true,
-                    "Multiple equally-ranked results - more context needed".to_string(),
-                );
+                return (true, "Multiple equally-ranked results - more context needed".to_string());
             }
         }
 
         // Good quality - snippet mode sufficient
-        (
-            false,
-            "Good fusion quality - snippet mode sufficient".to_string(),
-        )
+        (false, "Good fusion quality - snippet mode sufficient".to_string())
     }
 
     /// Token efficiency guard - limits tokens based on quality
@@ -310,10 +307,8 @@ mod tests {
     #[test]
     fn test_high_quality_snippet_mode() {
         let evaluator = FusionQualityEvaluator::new();
-        let entities = vec![
-            make_entity(0.95, 0.9, 0.8, "main.rs"),
-            make_entity(0.5, 0.6, 0.4, "util.rs"),
-        ];
+        let entities =
+            vec![make_entity(0.95, 0.9, 0.8, "main.rs"), make_entity(0.5, 0.6, 0.4, "util.rs")];
 
         let result = evaluator.evaluate(&entities, "find main");
 

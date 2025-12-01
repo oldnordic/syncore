@@ -51,10 +51,7 @@ fn test_insert_single_vector() {
     let results = index.search(&vec, 1).expect("Search failed");
     assert_eq!(results.len(), 1, "Should return 1 result");
     assert_eq!(results[0].0, 1, "Should return ID 1");
-    assert!(
-        results[0].1 > 0.99,
-        "Cosine similarity should be ~1.0 for identical vector"
-    );
+    assert!(results[0].1 > 0.99, "Cosine similarity should be ~1.0 for identical vector");
 }
 
 /// Test 2: Insert multiple vectors and verify nearest neighbors
@@ -75,21 +72,14 @@ fn test_insert_multiple_vectors() {
         vectors.push((i, vec));
     }
 
-    assert_eq!(
-        index.len(),
-        n_vectors as usize,
-        "Should contain all vectors"
-    );
+    assert_eq!(index.len(), n_vectors as usize, "Should contain all vectors");
 
     // Search for a known vector
     let query = &vectors[0].1;
     let results = index.search(query, 5).expect("Search failed");
 
     assert_eq!(results.len(), 5, "Should return 5 results");
-    assert_eq!(
-        results[0].0, 0,
-        "First result should be ID 0 (query vector itself)"
-    );
+    assert_eq!(results[0].0, 0, "First result should be ID 0 (query vector itself)");
 
     // Verify results are sorted by similarity (descending)
     for i in 0..results.len() - 1 {
@@ -111,22 +101,17 @@ fn test_hnsw_determinism_with_fixed_seed() {
     // Build first index
     let mut index1 = HnswVectorIndex::new(config.clone(), seed).expect("Failed to create index1");
     let mut rng = StdRng::seed_from_u64(seed);
-    let vectors: Vec<(i64, Vec<f32>)> = (0..n_vectors)
-        .map(|i| (i, random_vector(dim, &mut rng)))
-        .collect();
+    let vectors: Vec<(i64, Vec<f32>)> =
+        (0..n_vectors).map(|i| (i, random_vector(dim, &mut rng))).collect();
 
     for (id, vec) in &vectors {
-        index1
-            .add(*id, vec.clone())
-            .expect("Failed to add to index1");
+        index1.add(*id, vec.clone()).expect("Failed to add to index1");
     }
 
     // Build second index with same seed and vectors
     let mut index2 = HnswVectorIndex::new(config.clone(), seed).expect("Failed to create index2");
     for (id, vec) in &vectors {
-        index2
-            .add(*id, vec.clone())
-            .expect("Failed to add to index2");
+        index2.add(*id, vec.clone()).expect("Failed to add to index2");
     }
 
     // Query both indices
@@ -150,19 +135,10 @@ fn test_empty_index_search() {
     let index = HnswVectorIndex::new(config, 42).expect("Failed to create HNSW index");
 
     let query = vec![1.0, 0.0, 0.0, 0.0];
-    let results = index
-        .search(&query, 5)
-        .expect("Search on empty index should not fail");
+    let results = index.search(&query, 5).expect("Search on empty index should not fail");
 
-    assert!(
-        results.is_empty(),
-        "Empty index should return empty results"
-    );
-    assert_eq!(
-        index.dimension(),
-        None,
-        "Empty index should have no dimension"
-    );
+    assert!(results.is_empty(), "Empty index should return empty results");
+    assert_eq!(index.dimension(), None, "Empty index should have no dimension");
 }
 
 /// Test 5: Dimension mismatch handling
@@ -179,10 +155,7 @@ fn test_dimension_mismatch_handling() {
     let vec2 = vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
     let result = index.add(2, vec2);
 
-    assert!(
-        result.is_err(),
-        "Adding vector with different dimension should fail"
-    );
+    assert!(result.is_err(), "Adding vector with different dimension should fail");
 }
 
 /// Test 6: Large index performance hint (not a strict test, just verification)
@@ -196,10 +169,7 @@ fn test_large_index_performance_hint() {
     let dim = 128;
     let mut vectors = Vec::new();
 
-    println!(
-        "Building index with {} vectors of dimension {}...",
-        n_vectors, dim
-    );
+    println!("Building index with {} vectors of dimension {}...", n_vectors, dim);
 
     // Insert vectors
     let start = std::time::Instant::now();
@@ -223,10 +193,7 @@ fn test_large_index_performance_hint() {
     // HNSW search should be sub-linear (much faster than O(N))
     // Linear search would take ~10ms for 10k vectors with 128D
     // HNSW should be < 1ms typically
-    println!(
-        "Search completed in {:?} (should be sub-linear)",
-        search_time
-    );
+    println!("Search completed in {:?} (should be sub-linear)", search_time);
 
     // Note: This is a performance hint, not a strict assertion
     // Real performance depends on hardware, but HNSW should be noticeably faster than linear
@@ -302,9 +269,6 @@ fn test_multiple_searches() {
 
         let results = index.search(query, 5).expect("Search failed");
         assert_eq!(results.len(), 5, "Should return 5 results");
-        assert_eq!(
-            results[0].0, query_idx as i64,
-            "First result should be query vector itself"
-        );
+        assert_eq!(results[0].0, query_idx as i64, "First result should be query vector itself");
     }
 }

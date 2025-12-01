@@ -67,16 +67,12 @@ fn init_weight_matrix(embedding_dim: usize, hidden_size: usize) -> Vec<Vec<f32>>
 
 /// Initialize bias vector b1 (hidden_size) deterministically
 fn init_bias_vector(hidden_size: usize) -> Vec<f32> {
-    (0..hidden_size)
-        .map(|i| ((i * 11) as f32 * PI / hidden_size as f32).cos() * 0.01)
-        .collect()
+    (0..hidden_size).map(|i| ((i * 11) as f32 * PI / hidden_size as f32).cos() * 0.01).collect()
 }
 
 /// Initialize weight vector W2 (hidden_size) deterministically
 fn init_weight_vector(hidden_size: usize) -> Vec<f32> {
-    (0..hidden_size)
-        .map(|i| ((i * 17) as f32 * PI / hidden_size as f32).sin() * 0.1)
-        .collect()
+    (0..hidden_size).map(|i| ((i * 17) as f32 * PI / hidden_size as f32).sin() * 0.1).collect()
 }
 
 /// Initialize bias scalar b2 deterministically

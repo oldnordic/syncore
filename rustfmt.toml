@@ -2,5 +2,5 @@ edition = "2021"
 hard_tabs = false
 tab_spaces = 4
 max_width = 100
-use_small_heuristics = false
+use_small_heuristics = "Off"
 newline_style = "Unix"

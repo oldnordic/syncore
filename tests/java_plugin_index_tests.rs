@@ -168,13 +168,7 @@ public class ComplexClass extends SimpleClass implements Processor {
         let java_files: Vec<_> = fs::read_dir(package_dir)
             .unwrap()
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .path()
-                    .extension()
-                    .map(|ext| ext == "java")
-                    .unwrap_or(false)
-            })
+            .filter(|entry| entry.path().extension().map(|ext| ext == "java").unwrap_or(false))
             .collect();
 
         assert_eq!(java_files.len(), 3);
@@ -244,13 +238,7 @@ public class ComplexClass extends SimpleClass implements Processor {
         let java_files: Vec<_> = fs::read_dir(&empty_dir)
             .unwrap()
             .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .path()
-                    .extension()
-                    .map(|ext| ext == "java")
-                    .unwrap_or(false)
-            })
+            .filter(|entry| entry.path().extension().map(|ext| ext == "java").unwrap_or(false))
             .collect();
 
         assert_eq!(java_files.len(), 0);

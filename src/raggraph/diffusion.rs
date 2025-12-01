@@ -95,10 +95,8 @@ fn normalize_adjacency(
 
         if total_weight > 0.0 {
             // Normalize each edge weight
-            let norm_neighbors: Vec<(NodeId, f32)> = neighbors
-                .iter()
-                .map(|&(target, weight)| (target, weight / total_weight))
-                .collect();
+            let norm_neighbors: Vec<(NodeId, f32)> =
+                neighbors.iter().map(|&(target, weight)| (target, weight / total_weight)).collect();
 
             normalized.insert(source, norm_neighbors);
         } else {

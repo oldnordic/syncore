@@ -133,11 +133,9 @@ impl DbManager {
         db.pragma_update(None, "synchronous", "NORMAL")
             .context("Failed to set synchronous=NORMAL")?;
 
-        db.pragma_update(None, "cache_size", 1000)
-            .context("Failed to set cache_size")?;
+        db.pragma_update(None, "cache_size", 1000).context("Failed to set cache_size")?;
 
-        db.pragma_update(None, "foreign_keys", "ON")
-            .context("Failed to enable foreign keys")?;
+        db.pragma_update(None, "foreign_keys", "ON").context("Failed to enable foreign keys")?;
 
         // Run schema migrations (critical: schema must match code expectations)
         schema_migration::run_migrations(&db).context("Failed to run schema migrations")?;
@@ -239,9 +237,8 @@ mod tests {
         {
             let main_conn = manager.main_conn();
             let lock = main_conn.lock().unwrap();
-            let result: i32 = lock
-                .query_row("SELECT 1", [], |row| row.get(0))
-                .expect("Failed to query main_db");
+            let result: i32 =
+                lock.query_row("SELECT 1", [], |row| row.get(0)).expect("Failed to query main_db");
             assert_eq!(result, 1);
         }
 
@@ -290,11 +287,9 @@ mod tests {
             let main_conn = manager.main_conn();
             let lock = main_conn.lock().unwrap();
             let count: i64 = lock
-                .query_row(
-                    "SELECT COUNT(*) FROM memory WHERE k = ?",
-                    ["test_key"],
-                    |row| row.get(0),
-                )
+                .query_row("SELECT COUNT(*) FROM memory WHERE k = ?", ["test_key"], |row| {
+                    row.get(0)
+                })
                 .expect("Failed to count");
             assert_eq!(count, 1);
         }

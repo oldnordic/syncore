@@ -48,10 +48,7 @@ async fn test_single_code_update_triggers_code_embedding_refresh() -> Result<()>
 
     // Verify CODE store was updated (stub embeddings will insert)
     let code_count = code_store.lock().unwrap().len();
-    assert!(
-        code_count > 0,
-        "CODE store should have embeddings after refresh"
-    );
+    assert!(code_count > 0, "CODE store should have embeddings after refresh");
 
     // Verify GENERAL store unchanged
     let general_count = general_store.lock().unwrap().len();
@@ -84,10 +81,7 @@ async fn test_single_general_update_triggers_general_embedding_refresh() -> Resu
 
     // Verify GENERAL store was updated
     let general_count = general_store.lock().unwrap().len();
-    assert!(
-        general_count > 0,
-        "GENERAL store should have embeddings after refresh"
-    );
+    assert!(general_count > 0, "GENERAL store should have embeddings after refresh");
 
     // Verify CODE store unchanged
     let code_count = code_store.lock().unwrap().len();
@@ -227,10 +221,7 @@ async fn test_daemon_survives_failed_embedding_and_continues() -> Result<()> {
 
     // Daemon should still be processing
     let count = code_store.lock().unwrap().len();
-    assert!(
-        count > 0,
-        "Daemon should continue processing after failures"
-    );
+    assert!(count > 0, "Daemon should continue processing after failures");
 
     daemon.shutdown().await?;
     Ok(())

@@ -16,10 +16,7 @@ async fn test_doc_index_respects_ignored_directories() -> Result<()> {
     // Create test directory structure
     fs::create_dir_all(root.join("subdir"))?;
     fs::write(root.join("doc.txt"), "This should be indexed")?;
-    fs::write(
-        root.join("subdir/nested.txt"),
-        "This should also be indexed",
-    )?;
+    fs::write(root.join("subdir/nested.txt"), "This should also be indexed")?;
 
     // Create ignored directories with files
     fs::create_dir_all(root.join(".git"))?;
@@ -29,16 +26,10 @@ async fn test_doc_index_respects_ignored_directories() -> Result<()> {
     fs::write(root.join("target/temp.bin"), "This should NOT be indexed")?;
 
     fs::create_dir_all(root.join("node_modules"))?;
-    fs::write(
-        root.join("node_modules/package.json"),
-        "This should NOT be indexed",
-    )?;
+    fs::write(root.join("node_modules/package.json"), "This should NOT be indexed")?;
 
     fs::create_dir_all(root.join(".vscode"))?;
-    fs::write(
-        root.join(".vscode/settings.json"),
-        "This should NOT be indexed",
-    )?;
+    fs::write(root.join(".vscode/settings.json"), "This should NOT be indexed")?;
 
     // Create indexer with default excluded dirs
     let config = IndexerConfig::default();
@@ -48,37 +39,20 @@ async fn test_doc_index_respects_ignored_directories() -> Result<()> {
     let documents = indexer.scan_directory(root)?;
 
     // Verify that only non-ignored files are found
-    let file_paths: Vec<String> = documents
-        .iter()
-        .map(|doc| doc.path.to_string_lossy().to_string())
-        .collect();
+    let file_paths: Vec<String> =
+        documents.iter().map(|doc| doc.path.to_string_lossy().to_string()).collect();
 
-    assert!(
-        file_paths.iter().any(|p| p.contains("doc.txt")),
-        "Should include doc.txt"
-    );
-    assert!(
-        file_paths.iter().any(|p| p.contains("nested.txt")),
-        "Should include nested.txt"
-    );
+    assert!(file_paths.iter().any(|p| p.contains("doc.txt")), "Should include doc.txt");
+    assert!(file_paths.iter().any(|p| p.contains("nested.txt")), "Should include nested.txt");
 
     // Verify ignored directories are NOT included
-    assert!(
-        !file_paths.iter().any(|p| p.contains(".git")),
-        "Should NOT include .git files"
-    );
-    assert!(
-        !file_paths.iter().any(|p| p.contains("target")),
-        "Should NOT include target files"
-    );
+    assert!(!file_paths.iter().any(|p| p.contains(".git")), "Should NOT include .git files");
+    assert!(!file_paths.iter().any(|p| p.contains("target")), "Should NOT include target files");
     assert!(
         !file_paths.iter().any(|p| p.contains("node_modules")),
         "Should NOT include node_modules files"
     );
-    assert!(
-        !file_paths.iter().any(|p| p.contains(".vscode")),
-        "Should NOT include .vscode files"
-    );
+    assert!(!file_paths.iter().any(|p| p.contains(".vscode")), "Should NOT include .vscode files");
 
     Ok(())
 }
@@ -110,22 +84,14 @@ async fn test_doc_index_does_not_escape_project_root() -> Result<()> {
     let documents = indexer.scan_directory(root)?;
 
     // Verify that only the inside file is found
-    let file_paths: Vec<String> = documents
-        .iter()
-        .map(|doc| doc.path.to_string_lossy().to_string())
-        .collect();
+    let file_paths: Vec<String> =
+        documents.iter().map(|doc| doc.path.to_string_lossy().to_string()).collect();
 
-    assert!(
-        file_paths.iter().any(|p| p.contains("inside.txt")),
-        "Should include inside.txt"
-    );
+    assert!(file_paths.iter().any(|p| p.contains("inside.txt")), "Should include inside.txt");
 
     // The symlink should either be ignored or not resolve outside the root
     let outside_found = file_paths.iter().any(|p| p.contains("outside.txt"));
-    assert!(
-        !outside_found,
-        "Should NOT include files outside project root via symlink"
-    );
+    assert!(!outside_found, "Should NOT include files outside project root via symlink");
 
     Ok(())
 }
@@ -161,11 +127,7 @@ async fn test_doc_index_does_not_create_spurious_directories() -> Result<()> {
         .map(|name| name.clone())
         .collect();
 
-    assert!(
-        new_dirs.is_empty(),
-        "doc_index should not create directories: {:?}",
-        new_dirs
-    );
+    assert!(new_dirs.is_empty(), "doc_index should not create directories: {:?}", new_dirs);
 
     Ok(())
 }
@@ -235,16 +197,11 @@ async fn test_doc_index_handles_hidden_files() -> Result<()> {
     // Scan directory
     let documents = indexer.scan_directory(root)?;
 
-    let file_paths: Vec<String> = documents
-        .iter()
-        .map(|doc| doc.path.to_string_lossy().to_string())
-        .collect();
+    let file_paths: Vec<String> =
+        documents.iter().map(|doc| doc.path.to_string_lossy().to_string()).collect();
 
     // Should include visible file
-    assert!(
-        file_paths.iter().any(|p| p.contains("visible.txt")),
-        "Should include visible.txt"
-    );
+    assert!(file_paths.iter().any(|p| p.contains("visible.txt")), "Should include visible.txt");
 
     // Should NOT include hidden files when skip_hidden = true
     assert!(

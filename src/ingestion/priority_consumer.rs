@@ -208,8 +208,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_priority_consumer_creation() {
-        let (main_tx, main_rx) = bounded::<IngestionJob>(10);
-        let (low_prio_tx, low_prio_rx) = bounded::<IngestionJob>(10);
+        let (_main_tx, main_rx) = bounded::<IngestionJob>(10);
+        let (_low_prio_tx, low_prio_rx) = bounded::<IngestionJob>(10);
 
         // Mock components (minimal for testing)
         let temp_dir = TempDir::new().unwrap();

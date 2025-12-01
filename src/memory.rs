@@ -209,8 +209,7 @@ impl Memory {
     /// This should be called after every successful write operation
     /// that changes the state of the memory store.
     pub fn increment_version(&self) {
-        self.version
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        self.version.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
@@ -333,10 +332,7 @@ impl Memory {
         let ns = namespace.unwrap_or(&self.config.default_namespace);
 
         let db = self.db.lock().unwrap();
-        db.execute(
-            "DELETE FROM memory WHERE k=?1 AND namespace=?2",
-            rusqlite::params![key, ns],
-        )?;
+        db.execute("DELETE FROM memory WHERE k=?1 AND namespace=?2", rusqlite::params![key, ns])?;
 
         drop(db);
 
@@ -383,10 +379,9 @@ impl Memory {
         tags: &[&str],
         importance: f32,
     ) -> Result<i64> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         // Auto-generate summary if value is long
         let summary = if value.len() > self.config.auto_summarize_threshold {
@@ -451,10 +446,7 @@ impl Memory {
 
             // Note: embedding_id in this case is the same as entry_id
             let db = self.db.lock().unwrap();
-            db.execute(
-                "UPDATE memory SET embedding_id = ?1 WHERE id = ?2",
-                (entry_id, entry_id),
-            )?;
+            db.execute("UPDATE memory SET embedding_id = ?1 WHERE id = ?2", (entry_id, entry_id))?;
         }
 
         // Increment version counter after successful write
@@ -592,10 +584,8 @@ impl Memory {
         }
 
         let mut stmt = db.prepare(&query)?;
-        let mut params: Vec<Box<dyn rusqlite::ToSql>> = tags
-            .iter()
-            .map(|t| Box::new(t.to_string()) as Box<dyn rusqlite::ToSql>)
-            .collect();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> =
+            tags.iter().map(|t| Box::new(t.to_string()) as Box<dyn rusqlite::ToSql>).collect();
         if let Some(ref ns) = namespace_str {
             params.push(Box::new(ns.clone()));
         }
@@ -849,10 +839,9 @@ impl Memory {
         let store = store.lock().unwrap();
 
         let mut consolidated = Vec::new();
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         // Find similar pairs
         for i in 0..memories.len() {
@@ -955,17 +944,15 @@ impl Memory {
 
     fn load_tags(&self, db: &Connection, memory_id: i64) -> Result<Vec<String>> {
         let mut stmt = db.prepare("SELECT tag FROM memory_tags WHERE memory_id = ?1")?;
-        let tags = stmt
-            .query_map([memory_id], |r| r.get(0))?
-            .collect::<Result<Vec<String>, _>>()?;
+        let tags =
+            stmt.query_map([memory_id], |r| r.get(0))?.collect::<Result<Vec<String>, _>>()?;
         Ok(tags)
     }
 
     fn update_access(&self, key: &str) -> Result<()> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         let db = self.db.lock().unwrap();
         let default_ns = self.config.default_namespace.clone();
@@ -977,10 +964,9 @@ impl Memory {
     }
 
     fn update_access_with_namespace(&self, key: &str, namespace: &str) -> Result<()> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
 
         let db = self.db.lock().unwrap();
         db.execute(

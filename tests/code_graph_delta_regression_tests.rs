@@ -95,14 +95,8 @@ async fn test_delta_never_touches_unrelated_files() -> Result<()> {
     let entities_b_after = pipeline.updater.query_entities_by_path(&file_b)?;
     let count_b_after = entities_b_after.len();
 
-    assert_eq!(
-        count_b_before, count_b_after,
-        "File B entity count should be unchanged"
-    );
-    assert!(
-        entities_b_after.iter().any(|e| e.name == "func_b"),
-        "File B should still have func_b"
-    );
+    assert_eq!(count_b_before, count_b_after, "File B entity count should be unchanged");
+    assert!(entities_b_after.iter().any(|e| e.name == "func_b"), "File B should still have func_b");
 
     Ok(())
 }
@@ -133,10 +127,7 @@ async fn test_delta_preserves_domain_routing() -> Result<()> {
 
     // Verify entities exist
     let entities = pipeline.updater.query_entities_by_path(&file_path)?;
-    assert!(
-        !entities.is_empty(),
-        "Should have entities in code_entities"
-    );
+    assert!(!entities.is_empty(), "Should have entities in code_entities");
 
     Ok(())
 }
@@ -253,10 +244,7 @@ async fn test_delta_handles_file_deletion() -> Result<()> {
 
     // Verify entity exists
     let entities_before = pipeline.updater.query_entities_by_path(&file_path)?;
-    assert!(
-        !entities_before.is_empty(),
-        "Should have entities before delete"
-    );
+    assert!(!entities_before.is_empty(), "Should have entities before delete");
 
     // Delete file
     fs::remove_file(&file_path)?;
@@ -270,10 +258,7 @@ async fn test_delta_handles_file_deletion() -> Result<()> {
 
     // Verify entities removed
     let entities_after = pipeline.updater.query_entities_by_path(&file_path)?;
-    assert!(
-        entities_after.is_empty(),
-        "Should have no entities after delete"
-    );
+    assert!(entities_after.is_empty(), "Should have no entities after delete");
 
     Ok(())
 }

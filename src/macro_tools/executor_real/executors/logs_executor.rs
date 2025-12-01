@@ -49,19 +49,10 @@ pub async fn execute_logs_tail(
     // PARAMETER VALIDATION - MUST BE FIRST (before any imports or I/O)
     let file_path = match params.get("file_path").and_then(|v| v.as_str()) {
         Some(path) if !path.is_empty() => path,
-        _ => {
-            return Ok(wrap_error_static(
-                "logs_tail",
-                "Missing 'file_path' parameter",
-            ))
-        }
+        _ => return Ok(wrap_error_static("logs_tail", "Missing 'file_path' parameter")),
     };
 
-    let n = params
-        .get("n")
-        .and_then(|n| n.as_u64())
-        .map(|n| n as usize)
-        .unwrap_or(50); // Default to 50 lines
+    let n = params.get("n").and_then(|n| n.as_u64()).map(|n| n as usize).unwrap_or(50); // Default to 50 lines
 
     use std::fs::File;
     use std::io::{BufRead, BufReader};
@@ -85,10 +76,7 @@ pub async fn execute_logs_tail(
     // Read log file
     let path = Path::new(file_path);
     if !path.exists() {
-        return Ok(wrap_error(
-            "logs_tail",
-            &format!("IoError: Log file not found: {}", file_path),
-        ));
+        return Ok(wrap_error("logs_tail", &format!("IoError: Log file not found: {}", file_path)));
     }
 
     let file = File::open(path).map_err(|e| anyhow::anyhow!("Failed to open log file: {}", e))?;

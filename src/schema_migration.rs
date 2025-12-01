@@ -25,11 +25,9 @@ pub fn get_schema_version(conn: &Connection) -> Result<i32> {
 
     // Get the highest version number
     let version = conn
-        .query_row(
-            "SELECT MAX(version) FROM _syncore_schema_version",
-            [],
-            |row| row.get::<_, Option<i32>>(0),
-        )
+        .query_row("SELECT MAX(version) FROM _syncore_schema_version", [], |row| {
+            row.get::<_, Option<i32>>(0)
+        })
         .context("Failed to query schema version")?
         .unwrap_or(0);
 
@@ -42,9 +40,8 @@ pub fn set_schema_version(conn: &Connection, version: i32, description: &str) ->
     init_version_table(conn)?;
 
     // Insert or replace the version record
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs() as i64;
+    let timestamp =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs() as i64;
 
     conn.execute(
         "INSERT OR REPLACE INTO _syncore_schema_version (version, applied_at, description) VALUES (?1, ?2, ?3)",
@@ -115,11 +112,7 @@ fn migration_001_initial_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(include_str!("../migrations/01_core.sql"))
         .context("Failed to apply migration 001: Initial core schema")?;
 
-    set_schema_version(
-        conn,
-        1,
-        "Initial core schema (tasks, memories, steps, embeddings)",
-    )?;
+    set_schema_version(conn, 1, "Initial core schema (tasks, memories, steps, embeddings)")?;
     Ok(())
 }
 
@@ -209,11 +202,7 @@ fn migration_005_memory_extended_fields(conn: &Connection) -> Result<()> {
 
     if !has_memory_table {
         // Skip this migration if memory table doesn't exist (CodeGraph-only databases)
-        set_schema_version(
-            conn,
-            5,
-            "Skipped memory extended fields (memory table not present)",
-        )?;
+        set_schema_version(conn, 5, "Skipped memory extended fields (memory table not present)")?;
         return Ok(());
     }
 
@@ -329,10 +318,7 @@ mod tests {
                 |_| Ok(true),
             )
             .unwrap_or(false);
-        assert!(
-            links_exists,
-            "Task links table should exist after migration 001"
-        );
+        assert!(links_exists, "Task links table should exist after migration 001");
     }
 
     #[test]
@@ -368,10 +354,7 @@ mod tests {
         let result = migration_001_initial_schema(&conn);
 
         // Should not fail on second run (idempotent)
-        assert!(
-            result.is_ok(),
-            "Migration 001 should be idempotent (safe to run twice)"
-        );
+        assert!(result.is_ok(), "Migration 001 should be idempotent (safe to run twice)");
     }
 
     #[test]
@@ -385,10 +368,7 @@ mod tests {
         let result = migration_002_intellitask_fields(&conn);
 
         // Should not fail on second run (idempotent)
-        assert!(
-            result.is_ok(),
-            "Migration 002 should be idempotent (safe to run twice)"
-        );
+        assert!(result.is_ok(), "Migration 002 should be idempotent (safe to run twice)");
     }
 
     #[test]
@@ -400,10 +380,7 @@ mod tests {
 
         // Verify we're at current version
         let version = get_schema_version(&conn).expect("Should have version");
-        assert_eq!(
-            version, CURRENT_SCHEMA_VERSION,
-            "Should be at current schema version"
-        );
+        assert_eq!(version, CURRENT_SCHEMA_VERSION, "Should be at current schema version");
 
         // Verify all tables exist
         let tasks_exists: bool = conn
@@ -443,9 +420,6 @@ mod tests {
 
         // Should still be at current version
         let version = get_schema_version(&conn).expect("Should have version");
-        assert_eq!(
-            version, CURRENT_SCHEMA_VERSION,
-            "Should still be at current version"
-        );
+        assert_eq!(version, CURRENT_SCHEMA_VERSION, "Should still be at current version");
     }
 }

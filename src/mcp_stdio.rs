@@ -81,6 +81,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(deprecated)]
     async fn test_mcp_describe_request() -> Result<()> {
         let temp_db = NamedTempFile::new()?;
         let db_path = temp_db.path().to_str().unwrap();
@@ -88,9 +89,8 @@ mod tests {
         let memory = crate::memory::Memory::new(db_path)?;
         let taskmaster = crate::tasks::Tasks::new(&format!("{}_tasks", db_path))?;
         let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
-        let vector_store = std::sync::Arc::new(std::sync::Mutex::new(
-            crate::vector::VectorStore::new(embeddings),
-        ));
+        let vector_store =
+            std::sync::Arc::new(std::sync::Mutex::new(crate::vector::VectorStore::new(embeddings)));
 
         let state = SynCoreState::new(memory, taskmaster, vector_store);
 

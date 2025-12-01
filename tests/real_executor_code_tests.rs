@@ -28,10 +28,7 @@ use syncore::vector::{RealEmbeddings, VectorStore};
 /// Helper to create a RealExecutor with fresh state
 fn create_test_executor(suffix: &str) -> RealExecutor {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
     let db_path = format!(":memory:_code_exec_{}_{}", suffix, timestamp);
     let memory = Memory::new(&db_path).expect("Failed to create memory");
     let tasks = Tasks::new(&db_path).expect("Failed to create tasks");
@@ -68,8 +65,7 @@ pub fn helper_function() -> String {
 "#;
 
     let mut file = fs::File::create(&file_path).expect("Failed to create file");
-    file.write_all(content.as_bytes())
-        .expect("Failed to write file");
+    file.write_all(content.as_bytes()).expect("Failed to write file");
 
     (file_path.to_string_lossy().to_string(), temp_dir)
 }
@@ -89,18 +85,11 @@ fn test_parser_analyze_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("parser_analyze", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("parser_analyze", &params).await });
 
     // Should succeed
-    assert!(
-        result.is_ok(),
-        "Real parser_analyze should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real parser_analyze should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -132,11 +121,8 @@ fn test_parser_analyze_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("parser_analyze", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("parser_analyze", &params).await });
 
     assert!(result.is_ok(), "Dry run should succeed");
     let envelope = result.unwrap();
@@ -170,17 +156,10 @@ fn test_parser_search_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("parser_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("parser_search", &params).await });
 
-    assert!(
-        result.is_ok(),
-        "Real parser_search should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real parser_search should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -188,11 +167,7 @@ fn test_parser_search_real() {
 
     // Unwrap data and validate contents
     let data = unwrap_data(&envelope);
-    assert!(
-        data.get("matches").is_some(),
-        "Data should have matches: {:?}",
-        data
-    );
+    assert!(data.get("matches").is_some(), "Data should have matches: {:?}", data);
 }
 
 // ============================================================================
@@ -209,11 +184,8 @@ fn test_parser_search_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("parser_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("parser_search", &params).await });
 
     assert!(result.is_ok(), "Dry run should succeed");
     let envelope = result.unwrap();
@@ -245,17 +217,10 @@ fn test_code_index_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_index", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("code_index", &params).await });
 
-    assert!(
-        result.is_ok(),
-        "Real code_index should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real code_index should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -285,11 +250,8 @@ fn test_code_index_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_index", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("code_index", &params).await });
 
     assert!(result.is_ok(), "Dry run should succeed");
     let envelope = result.unwrap();
@@ -319,8 +281,7 @@ fn test_code_index_directory_real() {
     for i in 1..=3 {
         let file_path = temp_dir.path().join(format!("file{}.rs", i));
         let mut file = fs::File::create(&file_path).expect("Failed to create file");
-        file.write_all(b"pub fn test() {}")
-            .expect("Failed to write");
+        file.write_all(b"pub fn test() {}").expect("Failed to write");
     }
 
     let params = json!({
@@ -331,16 +292,10 @@ fn test_code_index_directory_real() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_index_directory", &params)
-            .await
+        executor.execute_real_tool_async("code_index_directory", &params).await
     });
 
-    assert!(
-        result.is_ok(),
-        "Real code_index_directory should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real code_index_directory should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -372,9 +327,7 @@ fn test_code_index_directory_respects_dry_run() {
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_index_directory", &params)
-            .await
+        executor.execute_real_tool_async("code_index_directory", &params).await
     });
 
     assert!(result.is_ok(), "Dry run should succeed");
@@ -407,17 +360,10 @@ fn test_code_search_real() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("code_search", &params).await });
 
-    assert!(
-        result.is_ok(),
-        "Real code_search should succeed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "Real code_search should succeed: {:?}", result.err());
     let envelope = result.unwrap();
 
     // Validate envelope structure
@@ -446,11 +392,8 @@ fn test_code_search_respects_dry_run() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_search", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("code_search", &params).await });
 
     assert!(result.is_ok(), "Dry run should succeed");
     let envelope = result.unwrap();
@@ -482,17 +425,11 @@ fn test_code_tools_error_handling() {
         // Missing 'file_path' - should error
     });
 
-    let result = rt.block_on(async {
-        executor
-            .execute_real_tool_async("parser_analyze", &params)
-            .await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("parser_analyze", &params).await });
 
     // RealExecutor returns Ok(Value) with error envelope, NOT Err
-    assert!(
-        result.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope = result.unwrap();
     assert_error_envelope(&envelope);
     let error = unwrap_error(&envelope);
@@ -504,16 +441,10 @@ fn test_code_tools_error_handling() {
         // Missing 'pattern' - should error
     });
 
-    let result2 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("parser_search", &params2)
-            .await
-    });
+    let result2 =
+        rt.block_on(async { executor.execute_real_tool_async("parser_search", &params2).await });
 
-    assert!(
-        result2.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result2.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope2 = result2.unwrap();
     assert_error_envelope(&envelope2);
     let error2 = unwrap_error(&envelope2);
@@ -525,16 +456,10 @@ fn test_code_tools_error_handling() {
         // Missing 'query' - should error
     });
 
-    let result3 = rt.block_on(async {
-        executor
-            .execute_real_tool_async("code_search", &params3)
-            .await
-    });
+    let result3 =
+        rt.block_on(async { executor.execute_real_tool_async("code_search", &params3).await });
 
-    assert!(
-        result3.is_ok(),
-        "RealExecutor should return Ok(Value) even for errors"
-    );
+    assert!(result3.is_ok(), "RealExecutor should return Ok(Value) even for errors");
     let envelope3 = result3.unwrap();
     assert_error_envelope(&envelope3);
     let error3 = unwrap_error(&envelope3);
