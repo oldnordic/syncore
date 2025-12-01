@@ -127,8 +127,8 @@ impl ApplicationTool {
         // Neo4j integration: Use canonical portfolio_graph module
         if let Some(neo4j) = &self.state.neo4j {
             use crate::databases::portfolio_graph::{
-                upsert_patch, create_applies_to_relationship,
-                create_for_task_relationship, upsert_task, PatchProperties
+                create_applies_to_relationship, create_for_task_relationship, upsert_patch,
+                upsert_task, PatchProperties,
             };
 
             let neo4j = neo4j.clone();
@@ -139,10 +139,14 @@ impl ApplicationTool {
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async move {
                     // Create Patch node
-                    let _ = upsert_patch(&neo4j, PatchProperties {
-                        id: patch_id,
-                        metadata: None,
-                    }).await;
+                    let _ = upsert_patch(
+                        &neo4j,
+                        PatchProperties {
+                            id: patch_id,
+                            metadata: None,
+                        },
+                    )
+                    .await;
 
                     // Create APPLIES_TO relationship to File
                     let _ = create_applies_to_relationship(&neo4j, patch_id, &file_path).await;
@@ -151,10 +155,14 @@ impl ApplicationTool {
                     if let Some(task_id) = task_id_opt {
                         // Ensure Task node exists
                         use crate::databases::portfolio_graph::TaskProperties;
-                        let _ = upsert_task(&neo4j, TaskProperties {
-                            id: task_id,
-                            metadata: None,
-                        }).await;
+                        let _ = upsert_task(
+                            &neo4j,
+                            TaskProperties {
+                                id: task_id,
+                                metadata: None,
+                            },
+                        )
+                        .await;
 
                         // Create relationship
                         let _ = create_for_task_relationship(&neo4j, patch_id, task_id).await;

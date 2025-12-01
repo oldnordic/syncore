@@ -3,7 +3,6 @@
 //! This module contains all request parameter structures used by the MCP protocol.
 //! Each struct represents the parameters for a specific MCP tool.
 
-
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct MemoryStoreRequest {
     pub key: String,

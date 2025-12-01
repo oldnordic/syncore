@@ -227,7 +227,10 @@ mod tests {
         features_rich.degree_out = 20;
         let emb_rich = model.embed_with_graph(&code_emb, &features_rich);
 
-        assert_ne!(emb_empty, emb_rich, "Graph features must influence embedding");
+        assert_ne!(
+            emb_empty, emb_rich,
+            "Graph features must influence embedding"
+        );
     }
 
     #[test]
@@ -265,7 +268,10 @@ mod tests {
         let emb_high = model.embed_with_graph(&code_emb, &features_high);
 
         // High-degree nodes should have different embeddings (attention effect)
-        assert_ne!(emb_low, emb_high, "Degree should affect embedding via attention");
+        assert_ne!(
+            emb_low, emb_high,
+            "Degree should affect embedding via attention"
+        );
     }
 
     #[test]
@@ -281,7 +287,9 @@ mod tests {
         let mut features_diverse = GraphFeatures::empty();
         features_diverse.edge_types.insert("calls".to_string(), 5);
         features_diverse.edge_types.insert("imports".to_string(), 3);
-        features_diverse.edge_types.insert("inherits".to_string(), 1);
+        features_diverse
+            .edge_types
+            .insert("inherits".to_string(), 1);
         let emb_diverse = model.embed_with_graph(&code_emb, &features_diverse);
 
         // Edge type diversity should affect embedding

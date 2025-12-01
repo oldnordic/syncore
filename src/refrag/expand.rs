@@ -176,7 +176,10 @@ impl ExpandStage {
 
         // Fallback: use metadata.text
         let token_count = self.estimate_tokens(&metadata.text);
-        let language = metadata.file_path.as_ref().map(|p| self.detect_language_from_path(p));
+        let language = metadata
+            .file_path
+            .as_ref()
+            .map(|p| self.detect_language_from_path(p));
 
         Ok(ExpandedChunk {
             chunk_id: metadata.chunk_id,
@@ -215,7 +218,11 @@ impl ExpandStage {
     }
 
     /// Auto-shrink RAW chunks to fit token limit
-    fn auto_shrink(&self, mut chunks: Vec<ExpandedChunk>, limit: usize) -> Result<Vec<ExpandedChunk>> {
+    fn auto_shrink(
+        &self,
+        mut chunks: Vec<ExpandedChunk>,
+        limit: usize,
+    ) -> Result<Vec<ExpandedChunk>> {
         // Sort by token count (ascending) to compress smallest first
         chunks.sort_by_key(|c| c.token_count);
 

@@ -8,10 +8,10 @@ use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 use tokio::time::{sleep, Duration};
 
-use syncore::code_graph::CodeGraph;
 use syncore::code_graph::update_service::{CodeGraphUpdateEvent, CodeGraphUpdateService};
+use syncore::code_graph::CodeGraph;
 use syncore::embedding_refresh::{EmbeddingRefreshConfig, EmbeddingRefreshDaemon};
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
 use syncore::parser_service::ParseDelta;
 use syncore::vector::{StubEmbeddings, VectorStore};
 
@@ -41,19 +41,13 @@ async fn test_live_indexer_pipeline_triggers_embedding_refresh() -> Result<()> {
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
     let config = EmbeddingRefreshConfig::default();
-    let (daemon, tx) = EmbeddingRefreshDaemon::spawn(
-        code_store.clone(),
-        general_store.clone(),
-        config,
-    )?;
+    let (daemon, tx) =
+        EmbeddingRefreshDaemon::spawn(code_store.clone(), general_store.clone(), config)?;
 
     // Simulate code update from live indexer
-    let event = FsEvent {
-        path: root.join("src/test.rs"),
-        kind: FsEventKind::Modified,
-    };
+    let event = FsEvent::Modified(root.join("src/test.rs"));
 
-    tx.send(event).await?;
+    tx.send(event)?;
 
     // Give pipeline time to process
     sleep(Duration::from_millis(300)).await;
@@ -82,19 +76,13 @@ async fn test_delta_engine_and_daemon_consistency_for_modify() -> Result<()> {
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
     let config = EmbeddingRefreshConfig::default();
-    let (daemon, tx) = EmbeddingRefreshDaemon::spawn(
-        code_store.clone(),
-        general_store.clone(),
-        config,
-    )?;
+    let (daemon, tx) =
+        EmbeddingRefreshDaemon::spawn(code_store.clone(), general_store.clone(), config)?;
 
     // Simulate modify event
-    let event = FsEvent {
-        path: root.join("src/module.rs"),
-        kind: FsEventKind::Modified,
-    };
+    let event = FsEvent::Modified(root.join("src/module.rs"));
 
-    tx.send(event).await?;
+    tx.send(event)?;
 
     // Give time to process
     sleep(Duration::from_millis(300)).await;
@@ -122,11 +110,8 @@ async fn test_empty_delta_does_not_trigger_unnecessary_embeddings() -> Result<()
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
     let config = EmbeddingRefreshConfig::default();
-    let (daemon, tx) = EmbeddingRefreshDaemon::spawn(
-        code_store.clone(),
-        general_store.clone(),
-        config,
-    )?;
+    let (daemon, tx) =
+        EmbeddingRefreshDaemon::spawn(code_store.clone(), general_store.clone(), config)?;
 
     let initial_code_count = code_store.lock().unwrap().len();
     let initial_general_count = general_store.lock().unwrap().len();
@@ -141,8 +126,14 @@ async fn test_empty_delta_does_not_trigger_unnecessary_embeddings() -> Result<()
     let final_code_count = code_store.lock().unwrap().len();
     let final_general_count = general_store.lock().unwrap().len();
 
-    assert_eq!(initial_code_count, final_code_count, "No spurious CODE embeddings");
-    assert_eq!(initial_general_count, final_general_count, "No spurious GENERAL embeddings");
+    assert_eq!(
+        initial_code_count, final_code_count,
+        "No spurious CODE embeddings"
+    );
+    assert_eq!(
+        initial_general_count, final_general_count,
+        "No spurious GENERAL embeddings"
+    );
 
     daemon.shutdown().await?;
     Ok(())

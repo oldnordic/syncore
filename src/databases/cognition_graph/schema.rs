@@ -6,8 +6,8 @@
 /// Node Labels for cognition tracking
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NodeLabel {
-    ReasoningEpisode,  // Cognitive reasoning session
-    CodeReference,     // Reference to code entity (lightweight, ID-only)
+    ReasoningEpisode, // Cognitive reasoning session
+    CodeReference,    // Reference to code entity (lightweight, ID-only)
 }
 
 impl NodeLabel {
@@ -22,7 +22,7 @@ impl NodeLabel {
 /// Relationship Types for cognition graph
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RelationType {
-    Uses,  // ReasoningEpisode USES CodeReference
+    Uses, // ReasoningEpisode USES CodeReference
 }
 
 impl RelationType {

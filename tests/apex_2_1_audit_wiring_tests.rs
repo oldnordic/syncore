@@ -33,9 +33,9 @@ fn test_no_hash_embedding_in_production() {
 
     // Allowed files (test/mock contexts only)
     let allowed_files = vec![
-        "src/vector.rs",              // Contains fast_embed() utility function
+        "src/vector.rs",                     // Contains fast_embed() utility function
         "src/memory_service/toon_engine.rs", // Uses hash for mock/test engine
-        "src/raggraph/storage.rs",    // Temporary comment about hash embeddings
+        "src/raggraph/storage.rs",           // Temporary comment about hash embeddings
     ];
 
     let problematic_files: Vec<&str> = files_with_hash
@@ -367,13 +367,7 @@ fn test_dual_store_initialization_in_mcp_main() {
 fn test_no_stub_embeddings_in_production_paths() {
     // Find all StubEmbeddings instantiations outside test contexts
     let output = std::process::Command::new("rg")
-        .args(&[
-            "StubEmbeddings::new",
-            "--type",
-            "rust",
-            "src/",
-            "-l",
-        ])
+        .args(&["StubEmbeddings::new", "--type", "rust", "src/", "-l"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -389,14 +383,7 @@ fn test_no_stub_embeddings_in_production_paths() {
 
         // Check if this file has StubEmbeddings usage outside #[cfg(test)]
         let test_check = std::process::Command::new("rg")
-            .args(&[
-                "StubEmbeddings::new",
-                "--type",
-                "rust",
-                file,
-                "-B",
-                "20",
-            ])
+            .args(&["StubEmbeddings::new", "--type", "rust", file, "-B", "20"])
             .output()
             .expect("Failed to check test context");
 
@@ -426,13 +413,7 @@ fn test_no_stub_embeddings_in_production_paths() {
 fn test_no_real_embeddings_in_production() {
     // RealEmbeddings (TF-IDF semantic word vectors) should be replaced by HuggingFaceEmbeddings
     let output = std::process::Command::new("rg")
-        .args(&[
-            "RealEmbeddings::new",
-            "--type",
-            "rust",
-            "src/",
-            "-l",
-        ])
+        .args(&["RealEmbeddings::new", "--type", "rust", "src/", "-l"])
         .output()
         .expect("Failed to execute ripgrep");
 

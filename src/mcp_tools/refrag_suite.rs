@@ -8,7 +8,7 @@
 use super::{SuiteDispatcher, SuiteResult};
 use crate::refrag::{RefragConfig, RefragPipeline, SelectionPolicy};
 use crate::router::SynCoreState;
-use serde::{Deserialize};
+use serde::Deserialize;
 use serde_json::json;
 
 /// REFRAG query request
@@ -138,7 +138,10 @@ impl SuiteDispatcher for RefragSuite {
             "help" => self.handle_help(),
             _ => SuiteResult::err(
                 command,
-                format!("Unknown command: {}. Use 'help' to see available commands.", command),
+                format!(
+                    "Unknown command: {}. Use 'help' to see available commands.",
+                    command
+                ),
             ),
         }
     }

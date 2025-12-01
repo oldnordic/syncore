@@ -47,8 +47,7 @@ fn broken() {
         .expect("Failed to send didOpen");
 
     // Wait for diagnostic (with timeout)
-    let diagnostic_result =
-        timeout(Duration::from_secs(10), bridge.recv_diagnostic()).await;
+    let diagnostic_result = timeout(Duration::from_secs(10), bridge.recv_diagnostic()).await;
 
     assert!(
         diagnostic_result.is_ok(),

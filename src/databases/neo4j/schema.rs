@@ -54,20 +54,20 @@ impl NodeLabel {
 /// Relationship Types - Exhaustive list of allowed relationships
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RelationType {
-    Declares,      // File DECLARES Function
-    Calls,         // Function CALLS Function
-    HasMember,     // Struct HAS_MEMBER Function (method)
-    Implements,    // Struct IMPLEMENTS Trait
-    Imports,       // File IMPORTS Module
-    Uses,          // Function USES Struct/Enum
-    Owns,          // Module OWNS File
-    References,    // Generic reference
-    Inherits,      // Class INHERITS Class (inheritance)
-    Contains,      // Module CONTAINS Entity (containment)
-    UsesField,     // Entity USES_FIELD Field (field access)
-    UsesType,      // Entity USES_TYPE Type (type usage)
-    ModuleChild,   // Module MODULE_CHILD Module (module hierarchy)
-    DependsOn,     // File DEPENDS_ON File (file-level dependencies)
+    Declares,    // File DECLARES Function
+    Calls,       // Function CALLS Function
+    HasMember,   // Struct HAS_MEMBER Function (method)
+    Implements,  // Struct IMPLEMENTS Trait
+    Imports,     // File IMPORTS Module
+    Uses,        // Function USES Struct/Enum
+    Owns,        // Module OWNS File
+    References,  // Generic reference
+    Inherits,    // Class INHERITS Class (inheritance)
+    Contains,    // Module CONTAINS Entity (containment)
+    UsesField,   // Entity USES_FIELD Field (field access)
+    UsesType,    // Entity USES_TYPE Type (type usage)
+    ModuleChild, // Module MODULE_CHILD Module (module hierarchy)
+    DependsOn,   // File DEPENDS_ON File (file-level dependencies)
 }
 
 impl RelationType {
@@ -118,13 +118,13 @@ impl RelationType {
 #[derive(Debug, Clone)]
 pub struct NodeProperties {
     // Identity (required for all nodes)
-    pub id: i64,                      // SQLite entity ID
-    pub name: String,                 // Entity name
+    pub id: i64,      // SQLite entity ID
+    pub name: String, // Entity name
 
     // Location (required for code entities)
-    pub path: Option<String>,         // File path
-    pub start_line: Option<i64>,      // Start line number
-    pub end_line: Option<i64>,        // End line number
+    pub path: Option<String>,    // File path
+    pub start_line: Option<i64>, // Start line number
+    pub end_line: Option<i64>,   // End line number
 
     // Content
     pub signature: Option<String>,    // Function/method signature
@@ -132,12 +132,12 @@ pub struct NodeProperties {
     pub docstring: Option<String>,    // Documentation
 
     // Metadata
-    pub hash: Option<String>,         // SHA256 of content
-    pub language: Option<String>,     // rust, javascript, python, etc.
+    pub hash: Option<String>,     // SHA256 of content
+    pub language: Option<String>, // rust, javascript, python, etc.
 
     // Timestamps (file-level)
-    pub file_sha256: Option<String>,  // Whole file hash
-    pub mtime: Option<i64>,           // File modification timestamp
+    pub file_sha256: Option<String>, // Whole file hash
+    pub mtime: Option<i64>,          // File modification timestamp
 
     // Git/History metadata (from code_graph)
     pub created_at: Option<String>,       // First seen timestamp

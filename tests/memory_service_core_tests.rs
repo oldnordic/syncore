@@ -52,6 +52,24 @@ fn test_memory_service_store_and_retrieve_basic() {
 }
 
 #[test]
+fn test_memory_service_dimension_getter() {
+    // Test that dimension getter returns the configured dimension
+    let dimension = 256;
+    let capacity = 50;
+    let service = MemoryService::new(dimension, capacity);
+
+    assert_eq!(
+        service.dimension(),
+        dimension,
+        "Dimension getter should return configured dimension"
+    );
+
+    // Test that stats include dimension
+    let stats = service.stats();
+    assert_eq!(stats.dimension, dimension, "Stats should include dimension");
+}
+
+#[test]
 fn test_memory_service_empty_results() {
     // Test retrieve on empty service
     let service = MemoryService::new(128, 10);

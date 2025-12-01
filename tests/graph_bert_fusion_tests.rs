@@ -106,43 +106,56 @@ async fn test_graph_bert_score_influences_ranking() -> Result<()> {
     // Recompute combined_score with GraphBERT term
     // Expected formula: α*vector + β*graph + τ*temporal + γ*graph_embedding
     // Using conservative weights: 0.5, 0.2, 0.1, 0.2
-    ranked_high.combined_score =
-        0.5 * ranked_high.vector_score +
-        0.2 * ranked_high.graph_score +
-        0.1 * ranked_high.temporal_score +
-        0.2 * ranked_high.graph_embedding_score;
+    ranked_high.combined_score = 0.5 * ranked_high.vector_score
+        + 0.2 * ranked_high.graph_score
+        + 0.1 * ranked_high.temporal_score
+        + 0.2 * ranked_high.graph_embedding_score;
 
-    ranked_medium.combined_score =
-        0.5 * ranked_medium.vector_score +
-        0.2 * ranked_medium.graph_score +
-        0.1 * ranked_medium.temporal_score +
-        0.2 * ranked_medium.graph_embedding_score;
+    ranked_medium.combined_score = 0.5 * ranked_medium.vector_score
+        + 0.2 * ranked_medium.graph_score
+        + 0.1 * ranked_medium.temporal_score
+        + 0.2 * ranked_medium.graph_embedding_score;
 
-    ranked_low.combined_score =
-        0.5 * ranked_low.vector_score +
-        0.2 * ranked_low.graph_score +
-        0.1 * ranked_low.temporal_score +
-        0.2 * ranked_low.graph_embedding_score;
+    ranked_low.combined_score = 0.5 * ranked_low.vector_score
+        + 0.2 * ranked_low.graph_score
+        + 0.1 * ranked_low.temporal_score
+        + 0.2 * ranked_low.graph_embedding_score;
 
     // Sort by combined_score (descending)
-    let mut results = vec![ranked_low.clone(), ranked_medium.clone(), ranked_high.clone()];
+    let mut results = vec![
+        ranked_low.clone(),
+        ranked_medium.clone(),
+        ranked_high.clone(),
+    ];
     results.sort_by(|a, b| b.combined_score.partial_cmp(&a.combined_score).unwrap());
 
     // Assert: Ranking order should be high → medium → low
-    assert_eq!(results[0].entity.name, "high_graph_bert",
-        "Entity with highest graph_embedding_score should rank first");
-    assert_eq!(results[1].entity.name, "medium_graph_bert",
-        "Entity with medium graph_embedding_score should rank second");
-    assert_eq!(results[2].entity.name, "low_graph_bert",
-        "Entity with lowest graph_embedding_score should rank third");
+    assert_eq!(
+        results[0].entity.name, "high_graph_bert",
+        "Entity with highest graph_embedding_score should rank first"
+    );
+    assert_eq!(
+        results[1].entity.name, "medium_graph_bert",
+        "Entity with medium graph_embedding_score should rank second"
+    );
+    assert_eq!(
+        results[2].entity.name, "low_graph_bert",
+        "Entity with lowest graph_embedding_score should rank third"
+    );
 
     // Assert: Scores are correctly ordered
-    assert!(results[0].combined_score > results[1].combined_score,
+    assert!(
+        results[0].combined_score > results[1].combined_score,
         "High score ({}) should be greater than medium score ({})",
-        results[0].combined_score, results[1].combined_score);
-    assert!(results[1].combined_score > results[2].combined_score,
+        results[0].combined_score,
+        results[1].combined_score
+    );
+    assert!(
+        results[1].combined_score > results[2].combined_score,
         "Medium score ({}) should be greater than low score ({})",
-        results[1].combined_score, results[2].combined_score);
+        results[1].combined_score,
+        results[2].combined_score
+    );
 
     Ok(())
 }
@@ -240,21 +253,26 @@ async fn test_zero_graph_bert_preserves_old_behavior() -> Result<()> {
     // Compute combined_score (old formula + zero GraphBERT term)
     // Formula: α*vector + β*graph + τ*temporal + γ*0
     // Since γ*0 = 0, this should match old behavior
-    let compute_score = |v: f32, g: f32, t: f32, ge: f32| -> f32 {
-        0.5 * v + 0.2 * g + 0.1 * t + 0.2 * ge
-    };
+    let compute_score =
+        |v: f32, g: f32, t: f32, ge: f32| -> f32 { 0.5 * v + 0.2 * g + 0.1 * t + 0.2 * ge };
 
     ranked_a.combined_score = compute_score(
-        ranked_a.vector_score, ranked_a.graph_score,
-        ranked_a.temporal_score, ranked_a.graph_embedding_score
+        ranked_a.vector_score,
+        ranked_a.graph_score,
+        ranked_a.temporal_score,
+        ranked_a.graph_embedding_score,
     );
     ranked_b.combined_score = compute_score(
-        ranked_b.vector_score, ranked_b.graph_score,
-        ranked_b.temporal_score, ranked_b.graph_embedding_score
+        ranked_b.vector_score,
+        ranked_b.graph_score,
+        ranked_b.temporal_score,
+        ranked_b.graph_embedding_score,
     );
     ranked_c.combined_score = compute_score(
-        ranked_c.vector_score, ranked_c.graph_score,
-        ranked_c.temporal_score, ranked_c.graph_embedding_score
+        ranked_c.vector_score,
+        ranked_c.graph_score,
+        ranked_c.temporal_score,
+        ranked_c.graph_embedding_score,
     );
 
     // Sort by combined_score
@@ -262,12 +280,18 @@ async fn test_zero_graph_bert_preserves_old_behavior() -> Result<()> {
     results.sort_by(|a, b| b.combined_score.partial_cmp(&a.combined_score).unwrap());
 
     // Assert: Ranking matches old behavior (vector_score dominates)
-    assert_eq!(results[0].entity.name, "func_a",
-        "Entity with highest vector_score should rank first (old behavior)");
-    assert_eq!(results[1].entity.name, "func_b",
-        "Entity with medium vector_score should rank second");
-    assert_eq!(results[2].entity.name, "func_c",
-        "Entity with lowest vector_score should rank third");
+    assert_eq!(
+        results[0].entity.name, "func_a",
+        "Entity with highest vector_score should rank first (old behavior)"
+    );
+    assert_eq!(
+        results[1].entity.name, "func_b",
+        "Entity with medium vector_score should rank second"
+    );
+    assert_eq!(
+        results[2].entity.name, "func_c",
+        "Entity with lowest vector_score should rank third"
+    );
 
     // Verify no panics occurred
     Ok(())

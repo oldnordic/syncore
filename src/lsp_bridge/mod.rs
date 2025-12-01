@@ -87,15 +87,9 @@ impl LspBridge {
             .spawn()
             .map_err(|e| LspBridgeError::SpawnFailed(format!("{}: {}", server_cmd, e)))?;
 
-        let stdin = child
-            .stdin
-            .take()
-            .context("Failed to get stdin")?;
+        let stdin = child.stdin.take().context("Failed to get stdin")?;
 
-        let stdout = child
-            .stdout
-            .take()
-            .context("Failed to get stdout")?;
+        let stdout = child.stdout.take().context("Failed to get stdout")?;
 
         // Create channels
         let (stdin_tx, mut stdin_rx) = mpsc::channel::<String>(100);
@@ -272,10 +266,7 @@ impl LspBridge {
     }
 
     /// Stdin writer task
-    async fn stdin_writer_task(
-        mut stdin: ChildStdin,
-        rx: &mut mpsc::Receiver<String>,
-    ) {
+    async fn stdin_writer_task(mut stdin: ChildStdin, rx: &mut mpsc::Receiver<String>) {
         while let Some(message) = rx.recv().await {
             if stdin.write_all(message.as_bytes()).await.is_err() {
                 break;
@@ -325,7 +316,7 @@ impl LspBridge {
 // FsEvent Integration Helper
 // ============================================================================
 
-use crate::fs_watcher::{FsEvent, FsEventKind};
+use crate::fs_watcher::FsEvent;
 use crate::parser_service::ParserService;
 
 /// Helper to wire FsEvent → LSP notifications
@@ -342,25 +333,25 @@ pub async fn on_fs_event_update_lsp(
     }
 
     // Check if supported file extension
-    if !event.path.extension().map(|e| e == "rs").unwrap_or(false) {
+    if !event.path().extension().map(|e| e == "rs").unwrap_or(false) {
         return Ok(()); // Only Rust files for now
     }
 
-    match &event.kind {
-        FsEventKind::Created => {
+    match event {
+        FsEvent::Created(_) => {
             // Read file content and send didOpen
-            if let Ok(content) = std::fs::read_to_string(&event.path) {
-                bridge.send_did_open(&event.path, &content).await?;
+            if let Ok(content) = std::fs::read_to_string(event.path()) {
+                bridge.send_did_open(event.path(), &content).await?;
             }
         }
-        FsEventKind::Modified => {
+        FsEvent::Modified(_) => {
             // Read file content and send didChange
-            if let Ok(content) = std::fs::read_to_string(&event.path) {
-                bridge.send_did_change(&event.path, &content).await?;
+            if let Ok(content) = std::fs::read_to_string(event.path()) {
+                bridge.send_did_change(event.path(), &content).await?;
             }
         }
-        FsEventKind::Removed | FsEventKind::Renamed(_) => {
-            // No-op for delete/rename
+        FsEvent::Removed(_) => {
+            // No-op for delete
         }
     }
 

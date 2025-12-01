@@ -59,6 +59,8 @@ pub struct Memory {
     // NEW: Semantic search infrastructure
     embeddings: Option<Arc<DualEmbeddingService>>,
     config: MemoryConfig,
+    /// MVCC-lite version counter for snapshot consistency
+    version: std::sync::atomic::AtomicU64,
 }
 
 impl std::fmt::Debug for Memory {
@@ -79,6 +81,9 @@ impl Clone for Memory {
             cache: Arc::clone(&self.cache),
             embeddings: self.embeddings.clone(),
             config: self.config.clone(),
+            version: std::sync::atomic::AtomicU64::new(
+                self.version.load(std::sync::atomic::Ordering::SeqCst),
+            ),
         }
     }
 }
@@ -138,6 +143,7 @@ impl Memory {
             cache: Arc::new(cache),
             embeddings: Some(embeddings),
             config: MemoryConfig::default(),
+            version: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -186,7 +192,25 @@ impl Memory {
             cache: Arc::new(cache),
             embeddings,
             config,
+            version: std::sync::atomic::AtomicU64::new(0),
         })
+    }
+
+    /// Get the current version of the Memory
+    ///
+    /// This version is incremented on every meaningful write operation
+    /// and is used for MVCC-lite snapshot consistency.
+    pub fn current_version(&self) -> u64 {
+        self.version.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Increment the version counter
+    ///
+    /// This should be called after every successful write operation
+    /// that changes the state of the memory store.
+    pub fn increment_version(&self) {
+        self.version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Legacy constructor - opens its own connection (deprecated, use with_connection instead).
@@ -232,10 +256,11 @@ impl Memory {
         let db = self.db.lock().unwrap();
         let default_ns = self.config.default_namespace.clone();
         let value = db
-            .query_row("SELECT v FROM memory WHERE k=?1 AND namespace=?2",
-                       rusqlite::params![key, default_ns], |r| {
-                r.get::<_, String>(0)
-            })
+            .query_row(
+                "SELECT v FROM memory WHERE k=?1 AND namespace=?2",
+                rusqlite::params![key, default_ns],
+                |r| r.get::<_, String>(0),
+            )
             .optional()?;
 
         Ok(value)
@@ -245,10 +270,11 @@ impl Memory {
         let db = self.db.lock().unwrap();
         let default_ns = self.config.default_namespace.clone();
         let result = db
-            .query_row("SELECT v, ts FROM memory WHERE k=?1 AND namespace=?2",
-                       rusqlite::params![key, default_ns], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
-            })
+            .query_row(
+                "SELECT v, ts FROM memory WHERE k=?1 AND namespace=?2",
+                rusqlite::params![key, default_ns],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+            )
             .optional()?;
 
         Ok(result)
@@ -257,18 +283,27 @@ impl Memory {
     pub fn delete(&self, key: &str) -> Result<()> {
         let db = self.db.lock().unwrap();
         let default_ns = self.config.default_namespace.clone();
-        db.execute("DELETE FROM memory WHERE k=?1 AND namespace=?2",
-                   rusqlite::params![key, default_ns])?;
+        db.execute(
+            "DELETE FROM memory WHERE k=?1 AND namespace=?2",
+            rusqlite::params![key, default_ns],
+        )?;
 
         drop(db);
         self.cache.remove(key)?;
         self.cache.flush()?;
 
+        // Increment version counter after successful delete
+        self.increment_version();
+
         Ok(())
     }
 
     /// Query with explicit namespace support (APEX 2.0-M-FIX)
-    pub fn query_with_namespace(&self, key: &str, namespace: Option<&str>) -> Result<Option<String>> {
+    pub fn query_with_namespace(
+        &self,
+        key: &str,
+        namespace: Option<&str>,
+    ) -> Result<Option<String>> {
         let ns = namespace.unwrap_or(&self.config.default_namespace);
 
         // Update access tracking (namespace-aware)
@@ -283,10 +318,11 @@ impl Memory {
         // Fallback to database
         let db = self.db.lock().unwrap();
         let value = db
-            .query_row("SELECT v FROM memory WHERE k=?1 AND namespace=?2",
-                       rusqlite::params![key, ns], |r| {
-                r.get::<_, String>(0)
-            })
+            .query_row(
+                "SELECT v FROM memory WHERE k=?1 AND namespace=?2",
+                rusqlite::params![key, ns],
+                |r| r.get::<_, String>(0),
+            )
             .optional()?;
 
         Ok(value)
@@ -297,8 +333,10 @@ impl Memory {
         let ns = namespace.unwrap_or(&self.config.default_namespace);
 
         let db = self.db.lock().unwrap();
-        db.execute("DELETE FROM memory WHERE k=?1 AND namespace=?2",
-                   rusqlite::params![key, ns])?;
+        db.execute(
+            "DELETE FROM memory WHERE k=?1 AND namespace=?2",
+            rusqlite::params![key, ns],
+        )?;
 
         drop(db);
 
@@ -306,6 +344,9 @@ impl Memory {
         let cache_key = format!("{}:{}", ns, key);
         self.cache.remove(&cache_key)?;
         self.cache.flush()?;
+
+        // Increment version counter after successful delete
+        self.increment_version();
 
         Ok(())
     }
@@ -358,11 +399,13 @@ impl Memory {
         let db = self.db.lock().unwrap();
 
         // Try to get existing ID and created_at (by key AND namespace for proper isolation)
-        let existing: Option<(i64, i64)> = db.query_row(
-            "SELECT id, created_at FROM memory WHERE k=?1 AND namespace=?2",
-            rusqlite::params![key, namespace],
-            |r| Ok((r.get(0)?, r.get(1)?))
-        ).optional()?;
+        let existing: Option<(i64, i64)> = db
+            .query_row(
+                "SELECT id, created_at FROM memory WHERE k=?1 AND namespace=?2",
+                rusqlite::params![key, namespace],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
 
         let entry_id = if let Some((id, _existing_created_at)) = existing {
             // UPDATE existing entry
@@ -414,6 +457,9 @@ impl Memory {
             )?;
         }
 
+        // Increment version counter after successful write
+        self.increment_version();
+
         Ok(entry_id)
     }
 
@@ -424,7 +470,9 @@ impl Memory {
         namespace: Option<&str>,
         limit: usize,
     ) -> Result<Vec<SemanticSearchResult>> {
-        let embeddings = self.embeddings.as_ref()
+        let embeddings = self
+            .embeddings
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Semantic search not enabled"))?;
 
         // Search vector store using its search method
@@ -521,14 +569,19 @@ impl Memory {
     }
 
     /// Query by tags
-    pub fn query_by_tags(&self, tags: &[&str], namespace: Option<&str>) -> Result<Vec<MemoryEntry>> {
+    pub fn query_by_tags(
+        &self,
+        tags: &[&str],
+        namespace: Option<&str>,
+    ) -> Result<Vec<MemoryEntry>> {
         let db = self.db.lock().unwrap();
 
         let mut query = "SELECT DISTINCT m.id, m.k, m.v, m.summary, m.namespace, m.importance,
                          m.created_at, m.last_accessed, m.access_count, m.embedding_id
                          FROM memory m
                          JOIN memory_tags mt ON m.id = mt.memory_id
-                         WHERE mt.tag IN (".to_string();
+                         WHERE mt.tag IN ("
+            .to_string();
 
         query.push_str(&vec!["?"; tags.len()].join(","));
         query.push(')');
@@ -539,7 +592,8 @@ impl Memory {
         }
 
         let mut stmt = db.prepare(&query)?;
-        let mut params: Vec<Box<dyn rusqlite::ToSql>> = tags.iter()
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = tags
+            .iter()
             .map(|t| Box::new(t.to_string()) as Box<dyn rusqlite::ToSql>)
             .collect();
         if let Some(ref ns) = namespace_str {
@@ -574,7 +628,11 @@ impl Memory {
     }
 
     /// Query by importance threshold
-    pub fn query_by_importance(&self, min_importance: f32, limit: usize) -> Result<Vec<MemoryEntry>> {
+    pub fn query_by_importance(
+        &self,
+        min_importance: f32,
+        limit: usize,
+    ) -> Result<Vec<MemoryEntry>> {
         let db = self.db.lock().unwrap();
 
         let mut stmt = db.prepare(
@@ -770,15 +828,16 @@ impl Memory {
 
     /// Consolidate similar memories (deduplication)
     pub fn consolidate_similar(&self, similarity_threshold: f32) -> Result<Vec<i64>> {
-        let embeddings = self.embeddings.as_ref()
+        let embeddings = self
+            .embeddings
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Semantic search not enabled"))?;
 
         let db = self.db.lock().unwrap();
 
         // Get all memories with embeddings
-        let mut stmt = db.prepare(
-            "SELECT id, k, embedding_id FROM memory WHERE embedding_id IS NOT NULL"
-        )?;
+        let mut stmt =
+            db.prepare("SELECT id, k, embedding_id FROM memory WHERE embedding_id IS NOT NULL")?;
 
         let memories: Vec<(i64, String, i64)> = stmt
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
@@ -808,17 +867,17 @@ impl Memory {
                 if similarity >= similarity_threshold {
                     // Delete duplicate (keep the one with higher importance)
                     // Skip if either memory was already deleted in a previous iteration
-                    let importance1: Option<f32> = db.query_row(
-                        "SELECT importance FROM memory WHERE id = ?1",
-                        [id1],
-                        |r| r.get(0),
-                    ).optional()?;
+                    let importance1: Option<f32> = db
+                        .query_row("SELECT importance FROM memory WHERE id = ?1", [id1], |r| {
+                            r.get(0)
+                        })
+                        .optional()?;
 
-                    let importance2: Option<f32> = db.query_row(
-                        "SELECT importance FROM memory WHERE id = ?1",
-                        [id2],
-                        |r| r.get(0),
-                    ).optional()?;
+                    let importance2: Option<f32> = db
+                        .query_row("SELECT importance FROM memory WHERE id = ?1", [id2], |r| {
+                            r.get(0)
+                        })
+                        .optional()?;
 
                     let (Some(imp1), Some(imp2)) = (importance1, importance2) else {
                         continue; // One or both already deleted
@@ -860,9 +919,11 @@ impl Memory {
     pub fn link_memories(&self, from_key: &str, to_key: &str, _relationship: &str) -> Result<()> {
         // TODO: Implement Neo4j integration when available
         // For now, just verify both keys exist
-        let _ = self.query(from_key)?
+        let _ = self
+            .query(from_key)?
             .ok_or_else(|| anyhow::anyhow!("Source key not found: {}", from_key))?;
-        let _ = self.query(to_key)?
+        let _ = self
+            .query(to_key)?
             .ok_or_else(|| anyhow::anyhow!("Target key not found: {}", to_key))?;
 
         Ok(())

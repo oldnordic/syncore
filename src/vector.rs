@@ -1,14 +1,19 @@
 use anyhow::Result;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+
 use rayon::prelude::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+
+// Import fast map utilities
+use crate::common::fast_map::FastHashMap;
+// Import fast lock aliases
+use crate::common::locks::FastRwLock;
 
 // Import HNSW vector index
 use crate::vector::hnsw::{HnswConfig, HnswVectorIndex};
@@ -30,9 +35,20 @@ impl HuggingFaceEmbeddings {
     /// Create new HuggingFace embeddings with all-MiniLM-L6-v2 model (default)
     /// Use `new_bge()` for BGE-small-en-v1.5 which may have better code search quality
     pub fn new() -> Result<Self> {
-        let model = TextEmbedding::try_new(
-            InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
-        )?;
+        Self::new_with_cache(None)
+    }
+
+    /// Create new HuggingFace embeddings with custom cache directory
+    pub fn new_with_cache(cache_dir: Option<&str>) -> Result<Self> {
+        let mut init_options =
+            InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true);
+
+        // Set custom cache directory if provided
+        if let Some(cache_path) = cache_dir {
+            init_options = init_options.with_cache_dir(cache_path.into());
+        }
+
+        let model = TextEmbedding::try_new(init_options)?;
 
         Ok(Self {
             model,
@@ -44,9 +60,20 @@ impl HuggingFaceEmbeddings {
     /// Create embeddings with BGE-small-en-v1.5 model
     /// This model is optimized for semantic search and may perform better on code
     pub fn new_bge() -> Result<Self> {
-        let model = TextEmbedding::try_new(
-            InitOptions::new(EmbeddingModel::BGESmallENV15).with_show_download_progress(true),
-        )?;
+        Self::new_bge_with_cache(None)
+    }
+
+    /// Create BGE embeddings with custom cache directory
+    pub fn new_bge_with_cache(cache_dir: Option<&str>) -> Result<Self> {
+        let mut init_options =
+            InitOptions::new(EmbeddingModel::BGESmallENV15).with_show_download_progress(true);
+
+        // Set custom cache directory if provided
+        if let Some(cache_path) = cache_dir {
+            init_options = init_options.with_cache_dir(cache_path.into());
+        }
+
+        let model = TextEmbedding::try_new(init_options)?;
 
         Ok(Self {
             model,
@@ -94,8 +121,8 @@ impl Embeddings for HuggingFaceEmbeddings {
 pub struct RealEmbeddings {
     dim: usize,
     // Production embeddings using semantic word vectors
-    word_vectors: HashMap<String, Vec<f32>>,
-    idf_cache: HashMap<String, f32>,
+    word_vectors: FastHashMap<String, Vec<f32>>,
+    idf_cache: FastHashMap<String, f32>,
     vocab_size: usize,
     model_name: String,
 }
@@ -105,7 +132,7 @@ impl RealEmbeddings {
         // Initialize with semantic word vectors for production use
         let model_name = "semantic-word-vectors".to_string();
 
-        let mut word_vectors = HashMap::new();
+        let mut word_vectors = FastHashMap::default();
 
         // Generate semantic vectors using word patterns
         // This creates semantically meaningful embeddings based on word categories
@@ -194,7 +221,7 @@ impl RealEmbeddings {
         Ok(Self {
             dim,
             word_vectors,
-            idf_cache: HashMap::new(),
+            idf_cache: FastHashMap::default(),
             vocab_size,
             model_name,
         })
@@ -251,7 +278,7 @@ impl RealEmbeddings {
         }
 
         // Simple TF-IDF weighted average of word vectors
-        let mut tf_counts = HashMap::new();
+        let mut tf_counts = FastHashMap::default();
         for token in &tokens {
             *tf_counts.entry(token.clone()).or_insert(0) += 1;
         }
@@ -404,6 +431,11 @@ impl RealEmbeddings {
         self.word_vectors.contains_key(word)
     }
 
+    /// Fast vocabulary lookup with O(1) hash map access
+    pub fn get_vector(&self, word: &str) -> Option<&Vec<f32>> {
+        self.word_vectors.get(word)
+    }
+
     /// Get all words in the vocabulary
     pub fn vocabulary(&self) -> impl Iterator<Item = &str> {
         self.word_vectors.keys().map(|s| s.as_str())
@@ -473,7 +505,7 @@ impl Eq for VectorData {}
 // Simple LRU query cache
 #[derive(Debug, Clone)]
 struct QueryCache {
-    cache: HashMap<u64, Vec<Hit>>,
+    cache: FastHashMap<u64, Vec<Hit>>,
     access_order: Vec<u64>,
     capacity: usize,
 }
@@ -481,20 +513,9 @@ struct QueryCache {
 impl QueryCache {
     fn new(capacity: usize) -> Self {
         Self {
-            cache: HashMap::new(),
+            cache: FastHashMap::default(),
             access_order: Vec::new(),
             capacity,
-        }
-    }
-
-    fn get(&mut self, key: u64) -> Option<Vec<Hit>> {
-        if let Some(hits) = self.cache.get(&key) {
-            // Update access order (move to end)
-            self.access_order.retain(|&k| k != key);
-            self.access_order.push(key);
-            Some(hits.clone())
-        } else {
-            None
         }
     }
 
@@ -537,14 +558,18 @@ pub struct VectorStore {
     meta: VectorMeta,
     next_id: i64,
     index_path: String,
-    query_cache: RwLock<QueryCache>,
-    embedding_cache: RwLock<HashMap<String, Vec<f32>>>, // Cache embeddings for repeated queries
-    fast_mode: bool,                                    // Use fast hash-based embeddings for tests
-    hnsw: Arc<RwLock<HnswVectorIndex>>, // HNSW index for fast nearest neighbor search
+    query_cache: FastRwLock<QueryCache>,
+    embedding_cache: FastRwLock<FastHashMap<String, Vec<f32>>>, // Cache embeddings for repeated queries
+    fast_mode: bool, // Use fast hash-based embeddings for tests
+    hnsw: Arc<FastRwLock<HnswVectorIndex>>, // HNSW index for fast nearest neighbor search
     hnsw_ready: Arc<std::sync::atomic::AtomicBool>, // HNSW warmup status flag (legacy)
-    pending_vectors: RwLock<Vec<PendingVector>>, // Queue for vectors added during warmup
+    pending_vectors: FastRwLock<Vec<PendingVector>>, // Queue for vectors added during warmup
     bruteforce_warned: std::sync::atomic::AtomicBool, // Log fallback warning only once
     warmup_controller: Arc<warmup::WarmupController>, // State machine for warmup (Cold/WarmingUp/Hot)
+    // Phase 7 optimization: Secondary index for task_id filtering
+    task_index: FastRwLock<FastHashMap<i64, Vec<usize>>>, // task_id -> vector indices
+    /// MVCC-lite version counter for snapshot consistency
+    version: std::sync::atomic::AtomicU64,
 }
 
 impl std::fmt::Debug for VectorStore {
@@ -554,24 +579,15 @@ impl std::fmt::Debug for VectorStore {
             .field("meta", &self.meta)
             .field("next_id", &self.next_id)
             .field("index_path", &self.index_path)
-            .field(
-                "query_cache_size",
-                &self.query_cache.read().map(|c| c.cache.len()).unwrap_or(0),
-            )
-            .field(
-                "embedding_cache_size",
-                &self.embedding_cache.read().map(|c| c.len()).unwrap_or(0),
-            )
+            .field("query_cache_size", &self.query_cache.read().cache.len())
+            .field("embedding_cache_size", &self.embedding_cache.read().len())
             .field("fast_mode", &self.fast_mode)
             .field(
                 "hnsw_ready",
                 &self.hnsw_ready.load(std::sync::atomic::Ordering::SeqCst),
             )
             .field("warmup_state", &self.warmup_controller.state())
-            .field(
-                "pending_vectors",
-                &self.pending_vectors.read().map(|v| v.len()).unwrap_or(0),
-            )
+            .field("pending_vectors", &self.pending_vectors.read().len())
             .field("embeddings", &"Box<dyn Embeddings>")
             .finish()
     }
@@ -599,14 +615,16 @@ impl VectorStore {
             meta,
             next_id: 1,
             index_path: "vector.index".to_string(),
-            query_cache: RwLock::new(QueryCache::new(16)), // Cache last 16 queries
-            embedding_cache: RwLock::new(HashMap::new()),
+            query_cache: FastRwLock::new(QueryCache::new(16)), // Cache last 16 queries
+            embedding_cache: FastRwLock::new(FastHashMap::default()),
             fast_mode,
-            hnsw: Arc::new(RwLock::new(hnsw_index)),
+            hnsw: Arc::new(FastRwLock::new(hnsw_index)),
             hnsw_ready: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            pending_vectors: RwLock::new(Vec::new()),
+            pending_vectors: FastRwLock::new(Vec::new()),
             bruteforce_warned: std::sync::atomic::AtomicBool::new(false),
             warmup_controller: Arc::new(warmup::WarmupController::new()),
+            task_index: FastRwLock::new(FastHashMap::default()), // Phase 7 optimization
+            version: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -614,6 +632,23 @@ impl VectorStore {
     pub fn set_hnsw_ready(&self, ready: bool) {
         use std::sync::atomic::Ordering;
         self.hnsw_ready.store(ready, Ordering::SeqCst);
+    }
+
+    /// Get the current version of the VectorStore
+    ///
+    /// This version is incremented on every meaningful write operation
+    /// and is used for MVCC-lite snapshot consistency.
+    pub fn current_version(&self) -> u64 {
+        self.version.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Increment the version counter
+    ///
+    /// This should be called after every successful write operation
+    /// that changes the state of the vector store.
+    pub fn increment_version(&self) {
+        self.version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Check if HNSW index is ready for fast search
@@ -644,20 +679,14 @@ impl VectorStore {
 
     /// Flush pending vectors into HNSW index (called after warmup)
     pub fn flush_pending_vectors(&mut self) -> Result<usize> {
-        let mut pending = self
-            .pending_vectors
-            .write()
-            .map_err(|e| anyhow::anyhow!("Failed to lock pending vectors: {}", e))?;
+        let mut pending = self.pending_vectors.write();
 
         if pending.is_empty() {
             return Ok(0);
         }
 
         let count = pending.len();
-        let mut hnsw = self
-            .hnsw
-            .write()
-            .map_err(|e| anyhow::anyhow!("Failed to lock HNSW: {}", e))?;
+        let mut hnsw = self.hnsw.write();
 
         for pv in pending.drain(..) {
             hnsw.add(pv.id, pv.embedding)?;
@@ -672,6 +701,16 @@ impl VectorStore {
 
     pub fn set_index_path(&mut self, path: String) {
         self.index_path = path;
+    }
+
+    /// Get the index path for the vector store
+    pub fn index_path(&self) -> &str {
+        &self.index_path
+    }
+
+    /// Get all vectors from the store (for validation purposes)
+    pub fn get_vectors(&self) -> &Vec<(i64, Option<i64>, Vec<f32>, String)> {
+        &self.vectors
     }
 
     /// Enable fast mode for testing (uses hash-based embeddings, skips snapshot)
@@ -700,18 +739,30 @@ impl VectorStore {
         };
 
         // Store in persistent vector list
+        let vector_index = self.vectors.len();
         self.vectors
             .push((id, task_id, embedding.clone(), text.to_string()));
+
+        // Phase 7 optimization: Update task_index for O(1) task_id filtering
+        if let Some(task_id_val) = task_id {
+            let mut task_idx = self.task_index.write();
+            task_idx
+                .entry(task_id_val)
+                .or_insert_with(Vec::new)
+                .push(vector_index);
+        }
 
         // Insert into HNSW index or queue for later
         if self.hnsw_ready.load(Ordering::SeqCst) {
             // HNSW ready - insert directly
-            if let Ok(mut hnsw) = self.hnsw.write() {
+            {
+                let mut hnsw = self.hnsw.write();
                 hnsw.add(id, embedding.clone())?;
             }
         } else {
             // HNSW warming up - queue for later insertion
-            if let Ok(mut pending) = self.pending_vectors.write() {
+            {
+                let mut pending = self.pending_vectors.write();
                 pending.push(PendingVector {
                     id,
                     embedding: embedding.clone(),
@@ -719,10 +770,11 @@ impl VectorStore {
             }
         }
 
-        // Clear query cache since results may have changed (ignore if poisoned)
-        if let Ok(mut cache) = self.query_cache.write() {
-            cache.clear();
-        }
+        // Clear query cache since results may have changed
+        self.query_cache.write().clear();
+
+        // Increment version counter after successful insert
+        self.increment_version();
 
         // NOTE: No save_snapshot() here - caller must save explicitly
         Ok(())
@@ -762,30 +814,26 @@ impl VectorStore {
         }
         let cache_key = hasher.finish();
 
-        // Check query cache first (handle poisoned locks gracefully)
-        if let Ok(cache) = self.query_cache.read() {
+        // Check query cache first
+        {
+            let cache = self.query_cache.read();
             if let Some(cached_results) = cache.peek(cache_key) {
                 return Ok(cached_results);
             }
         }
 
-        // Check embedding cache for this query (handle poisoned locks)
-        let query_embedding = match self.embedding_cache.read() {
-            Ok(cache) => {
-                if let Some(cached_emb) = cache.get(query) {
-                    cached_emb.clone()
-                } else {
-                    drop(cache); // Release read lock before acquiring write lock
-                    let emb = self.embeddings.embed(query)?;
-                    if let Ok(mut cache) = self.embedding_cache.write() {
-                        cache.insert(query.to_string(), emb.clone());
-                    }
-                    emb
-                }
-            }
-            Err(_) => {
-                // Cache lock poisoned, regenerate embedding
-                self.embeddings.embed(query)?
+        // Check embedding cache for this query
+        let query_embedding = {
+            let cache = self.embedding_cache.read();
+            if let Some(cached_emb) = cache.get(query) {
+                cached_emb.clone()
+            } else {
+                drop(cache); // Release read lock before acquiring write lock
+                let emb = self.embeddings.embed(query)?;
+                self.embedding_cache
+                    .write()
+                    .insert(query.to_string(), emb.clone());
+                emb
             }
         };
 
@@ -794,14 +842,13 @@ impl VectorStore {
         // Check if HNSW is ready - use HNSW if ready, brute-force fallback otherwise
         let mut results: Vec<Hit> = if self.hnsw_ready.load(Ordering::SeqCst) {
             // Use HNSW for fast nearest neighbor search
-            let hnsw_results = if let Ok(hnsw) = self.hnsw.read() {
+            let hnsw_results = {
+                let hnsw = self.hnsw.read();
                 hnsw.search(&query_embedding, k * 2)? // Get more candidates for filtering
-            } else {
-                Vec::new()
             };
 
             // Build lookup map for vector metadata (task_id, text)
-            let vector_map: HashMap<i64, (Option<i64>, String)> = self
+            let vector_map: FastHashMap<i64, (Option<i64>, String)> = self
                 .vectors
                 .iter()
                 .map(|(id, task_id, _embedding, text)| (*id, (*task_id, text.clone())))
@@ -817,7 +864,9 @@ impl VectorStore {
                             SearchScope::Task(target_task_id) => *task_id == Some(target_task_id),
                             // Domain filtering via store selection (router.rs routes to correct store)
                             SearchScope::Domain(_) => true,
-                            SearchScope::DomainTask(_, target_task_id) => *task_id == Some(target_task_id),
+                            SearchScope::DomainTask(_, target_task_id) => {
+                                *task_id == Some(target_task_id)
+                            }
                         };
                         if should_include {
                             Some(Hit {
@@ -841,19 +890,26 @@ impl VectorStore {
                 eprintln!("[SynCore] HNSW not ready — using temporary brute-force search.");
             }
 
-            // Compute cosine similarity for all vectors
-            let mut scored: Vec<Hit> = self
-                .vectors
+            // Phase 7 optimization: Use task_index for O(1) task_id filtering
+            let candidate_indices = match scope {
+                SearchScope::Global => (0..self.vectors.len()).collect(),
+                SearchScope::Task(target_task_id) => {
+                    let task_idx = self.task_index.read();
+                    task_idx.get(&target_task_id).cloned().unwrap_or_default()
+                }
+                // Domain filtering via store selection (router.rs routes to correct store)
+                SearchScope::Domain(_) => (0..self.vectors.len()).collect(),
+                SearchScope::DomainTask(_, target_task_id) => {
+                    let task_idx = self.task_index.read();
+                    task_idx.get(&target_task_id).cloned().unwrap_or_default()
+                }
+            };
+
+            // Compute cosine similarity only for filtered vectors (major optimization)
+            let mut scored: Vec<Hit> = candidate_indices
                 .iter()
-                .filter_map(|(id, task_id, embedding, text)| {
-                    let should_include = match scope {
-                        SearchScope::Global => true,
-                        SearchScope::Task(target_task_id) => *task_id == Some(target_task_id),
-                        // Domain filtering via store selection (router.rs routes to correct store)
-                        SearchScope::Domain(_) => true,
-                        SearchScope::DomainTask(_, target_task_id) => *task_id == Some(target_task_id),
-                    };
-                    if should_include {
+                .filter_map(|&idx| {
+                    if let Some((id, task_id, embedding, text)) = self.vectors.get(idx) {
                         let score = self.cosine_similarity(&query_embedding, embedding);
                         Some(Hit {
                             id: *id,
@@ -879,8 +935,9 @@ impl VectorStore {
         // Truncate to k results
         results.truncate(k);
 
-        // Store in query cache (ignore if lock poisoned)
-        if let Ok(mut cache) = self.query_cache.write() {
+        // Store in query cache
+        {
+            let mut cache = self.query_cache.write();
             cache.put(cache_key, results.clone());
         }
 
@@ -932,8 +989,9 @@ impl VectorStore {
         self.vectors.reserve(embeddings.len());
         self.vectors.extend(embeddings);
 
-        // Clear query cache since results may have changed (ignore if poisoned)
-        if let Ok(mut cache) = self.query_cache.write() {
+        // Clear query cache since results may have changed
+        {
+            let mut cache = self.query_cache.write();
             cache.clear();
         }
 
@@ -1026,7 +1084,8 @@ impl VectorStore {
 
         // Save HNSW index to disk
         let hnsw_path = Path::new(&self.index_path);
-        if let Ok(hnsw) = self.hnsw.read() {
+        {
+            let hnsw = self.hnsw.read();
             if hnsw.len() > 0 {
                 hnsw.save_to_disk(hnsw_path)?;
             }
@@ -1064,7 +1123,8 @@ impl VectorStore {
 
         // Try to load HNSW index directly (snapshot-first pattern)
         let hnsw_path = Path::new(&self.index_path);
-        if let Ok(mut hnsw) = self.hnsw.write() {
+        {
+            let mut hnsw = self.hnsw.write();
             // Try to load existing HNSW index from disk
             let load_result = hnsw.load_from_disk(hnsw_path);
 
@@ -1124,21 +1184,52 @@ impl VectorStore {
             if !self.vectors.is_empty() {
                 let vector_ids: Vec<i64> = self.vectors.iter().map(|(id, _, _, _)| *id).collect();
 
-                // Check if all vector IDs exist in code_embeddings
-                let mut invalid_ids = Vec::new();
-                for vid in &vector_ids {
-                    let exists: bool = db
+                // Phase 7 optimization: Batch validate vector IDs with single SQL query
+                if vector_ids.len() > 1000 {
+                    // For very large sets, check sample first
+                    let sample_size = 1000;
+                    let sample_ids: Vec<i64> =
+                        vector_ids.iter().take(sample_size).cloned().collect();
+                    let placeholders: String =
+                        sample_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+                    let valid_count: i64 = db
                         .query_row(
-                            "SELECT EXISTS(SELECT 1 FROM code_embeddings WHERE vector_id = ?)",
-                            [vid],
+                            &format!(
+                                "SELECT COUNT(*) FROM code_embeddings WHERE vector_id IN ({})",
+                                placeholders
+                            ),
+                            rusqlite::params_from_iter(sample_ids.clone()),
                             |row| row.get(0),
                         )
-                        .unwrap_or(false);
+                        .unwrap_or(0);
 
-                    if !exists {
-                        invalid_ids.push(*vid);
+                    // If sample has issues, do full check
+                    if valid_count != sample_ids.len() as i64 {
+                        eprintln!(
+                            "[WARN] Large vector set validation failed, checking all {} IDs",
+                            vector_ids.len()
+                        );
                     }
                 }
+
+                // Full validation with optimized IN clause
+                let placeholders: String =
+                    vector_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+                let valid_ids: std::collections::HashSet<i64> = db
+                    .prepare(&format!(
+                        "SELECT vector_id FROM code_embeddings WHERE vector_id IN ({})",
+                        placeholders
+                    ))?
+                    .query_map(rusqlite::params_from_iter(vector_ids.clone()), |row| {
+                        row.get(0)
+                    })?
+                    .collect::<Result<_, _>>()?;
+
+                let invalid_ids: Vec<i64> = vector_ids
+                    .iter()
+                    .filter(|vid| !valid_ids.contains(vid))
+                    .cloned()
+                    .collect();
 
                 // If any IDs are invalid, rebuild (clear) the snapshot
                 if !invalid_ids.is_empty() {
@@ -1208,8 +1299,9 @@ impl traits::VectorIndex for VectorStore {
         self.vectors
             .push((id, None, embedding.clone(), String::new()));
 
-        // Clear query cache since results may have changed (ignore if poisoned)
-        if let Ok(mut cache) = self.query_cache.write() {
+        // Clear query cache since results may have changed
+        {
+            let mut cache = self.query_cache.write();
             cache.clear();
         }
 
@@ -1339,8 +1431,8 @@ impl instant_distance::Point for VectorPoint {
 /// TODO: Port to hnsw_rs or remove in favor of standalone HnswVectorIndex
 pub struct USearchStore {
     // Raw data (always kept for rebuilding index)
-    vectors: Vec<(i64, Vec<f32>)>,             // (id, embedding)
-    metadata: HashMap<i64, USearchVectorMeta>, // id -> metadata
+    vectors: Vec<(i64, Vec<f32>)>,                 // (id, embedding)
+    metadata: FastHashMap<i64, USearchVectorMeta>, // id -> metadata
     dimensions: usize,
     next_id: i64,
     options: USearchOptions,
@@ -1359,7 +1451,7 @@ impl USearchStore {
     pub fn with_options(dimensions: usize, options: USearchOptions) -> Result<Self> {
         Ok(Self {
             vectors: Vec::new(),
-            metadata: HashMap::new(),
+            metadata: FastHashMap::default(),
             dimensions,
             next_id: 1,
             options,
@@ -1505,7 +1597,7 @@ impl USearchStore {
         let meta_bytes = fs::read(&meta_path)?;
         let (vectors, metadata, saved_dims, next_id, options): (
             Vec<(i64, Vec<f32>)>,
-            HashMap<i64, USearchVectorMeta>,
+            FastHashMap<i64, USearchVectorMeta>,
             usize,
             i64,
             USearchOptions,

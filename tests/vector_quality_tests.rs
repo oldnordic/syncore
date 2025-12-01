@@ -9,7 +9,7 @@
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
-use syncore::vector::{HuggingFaceEmbeddings, VectorStore, SearchScope};
+use syncore::vector::{HuggingFaceEmbeddings, SearchScope, VectorStore};
 
 /// Load queries from the golden corpus
 fn load_queries() -> Result<Vec<String>> {
@@ -81,7 +81,11 @@ fn test_vector_insert_and_search_roundtrip() -> Result<()> {
     // Assert the document appears in top results with reasonable score
     let top_hit = &results[0];
     assert_eq!(top_hit.id, 1, "Expected doc ID 1 to be top result");
-    assert!(top_hit.score > 0.3, "Expected score > 0.3, got {}", top_hit.score);
+    assert!(
+        top_hit.score > 0.3,
+        "Expected score > 0.3, got {}",
+        top_hit.score
+    );
 
     Ok(())
 }
@@ -103,13 +107,13 @@ fn test_semantic_similarity_ranking() -> Result<()> {
 
     // Define expected mappings: query -> expected doc IDs in top 3
     let test_cases = vec![
-        ("memory storage implementation", vec![0, 4]),  // Doc 0: hybrid storage, Doc 4: SQLite
-        ("MCP server tool routing", vec![1, 14]),       // Doc 1: MCP routing, Doc 14: stdio transport
-        ("vector search HNSW", vec![2]),                // Doc 2: HNSW algorithm
+        ("memory storage implementation", vec![0, 4]), // Doc 0: hybrid storage, Doc 4: SQLite
+        ("MCP server tool routing", vec![1, 14]), // Doc 1: MCP routing, Doc 14: stdio transport
+        ("vector search HNSW", vec![2]),          // Doc 2: HNSW algorithm
         ("task management with dependencies", vec![3, 13]), // Doc 3: task hierarchy, Doc 13: scheduling
-        ("Ollama LLM integration", vec![5, 9, 15]),     // Doc 5: Ollama, Doc 9: sequential, Doc 15: IntelliTask
-        ("tree-sitter code parsing", vec![6, 10]),      // Doc 6: parser, Doc 10: entity extraction
-        ("function body indexing", vec![11]),           // Doc 11: body indexing
+        ("Ollama LLM integration", vec![5, 9, 15]), // Doc 5: Ollama, Doc 9: sequential, Doc 15: IntelliTask
+        ("tree-sitter code parsing", vec![6, 10]),  // Doc 6: parser, Doc 10: entity extraction
+        ("function body indexing", vec![11]),       // Doc 11: body indexing
     ];
 
     for (query, expected_ids) in test_cases {
@@ -122,7 +126,9 @@ fn test_semantic_similarity_ranking() -> Result<()> {
         let top_ids: Vec<i64> = results.iter().take(3).map(|h| h.id).collect();
 
         // Assert at least one expected doc appears in top 3
-        let found = expected_ids.iter().any(|&expected| top_ids.contains(&expected));
+        let found = expected_ids
+            .iter()
+            .any(|&expected| top_ids.contains(&expected));
         assert!(
             found,
             "Query '{}': expected one of {:?} in top 3, got {:?}",
@@ -132,9 +138,11 @@ fn test_semantic_similarity_ranking() -> Result<()> {
         // Assert the expected doc has higher score than completely unrelated docs
         // (This is a weak assertion but ensures basic ranking works)
         if !results.is_empty() {
-            assert!(results[0].score > 0.1,
+            assert!(
+                results[0].score > 0.1,
                 "Query '{}': top result score too low: {}",
-                query, results[0].score
+                query,
+                results[0].score
             );
         }
     }
@@ -162,9 +170,9 @@ fn test_code_snippet_search() -> Result<()> {
 
     // Test queries with functional intent
     let test_cases = vec![
-        ("extract code entities from file", 10),    // Doc 10: extract_entities function
+        ("extract code entities from file", 10), // Doc 10: extract_entities function
         ("index function body implementation", 11), // Doc 11: index_function_body
-        ("search code with ripgrep", 12),           // Doc 12: search_with_ripgrep
+        ("search code with ripgrep", 12),        // Doc 12: search_with_ripgrep
     ];
 
     for (query, expected_id) in test_cases {
@@ -177,7 +185,9 @@ fn test_code_snippet_search() -> Result<()> {
         assert!(
             top_ids.contains(&expected_id),
             "Query '{}': expected doc {} in top 3, got {:?}",
-            query, expected_id, top_ids
+            query,
+            expected_id,
+            top_ids
         );
     }
 

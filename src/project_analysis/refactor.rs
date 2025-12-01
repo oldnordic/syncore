@@ -2,9 +2,7 @@
 //!
 //! Provides heuristic-based refactor hints based on graph and metrics analysis.
 
-use crate::project_analysis::{
-    PAEResponse, ProjectAnalysisEngine, RefactorSuggestion,
-};
+use crate::project_analysis::{PAEResponse, ProjectAnalysisEngine, RefactorSuggestion};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 

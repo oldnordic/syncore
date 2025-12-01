@@ -6,23 +6,25 @@
 use super::config::HnswConfig;
 use crate::vector::traits::VectorIndex;
 use anyhow::{anyhow, Result};
+use arc_swap::ArcSwap;
 use hnsw_rs::prelude::*;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 /// HNSW-based vector index for approximate nearest neighbor search
 /// Uses hnsw_rs crate with DistL2 (Euclidean distance) for cosine similarity via normalized vectors
+/// Phase 8: Uses ArcSwap for zero-blocking read snapshots
 pub struct HnswVectorIndex {
-    /// HNSW graph structure wrapped in Arc<RwLock> for thread-safety
-    /// hnsw_rs::Hnsw uses interior mutability via parking_lot::RwLock
-    hnsw: Arc<RwLock<Option<Hnsw<'static, f32, DistL2>>>>,
+    /// HNSW graph structure using ArcSwap for zero-blocking reads
+    /// Phase 8 optimization: Readers get consistent snapshots without blocking
+    hnsw: ArcSwap<Option<Hnsw<'static, f32, DistL2>>>,
 
     /// Configuration parameters
     config: HnswConfig,
 
     /// Current dimensionality (None if empty)
-    /// Wrapped in RwLock for interior mutability during search
-    dimension: Arc<RwLock<Option<usize>>>,
+    /// Also using ArcSwap for consistent zero-blocking reads
+    dimension: ArcSwap<Option<usize>>,
 
     /// Number of vectors in the index
     count: usize,
@@ -42,9 +44,9 @@ impl HnswVectorIndex {
     /// can only be achieved by controlling insertion order, not RNG seed.
     pub fn new(config: HnswConfig, _seed: u64) -> Result<Self> {
         Ok(Self {
-            hnsw: Arc::new(RwLock::new(None)),
+            hnsw: ArcSwap::new(Arc::new(None)),
             config,
-            dimension: Arc::new(RwLock::new(None)),
+            dimension: ArcSwap::new(Arc::new(None)),
             count: 0,
             max_elements: 100_000, // Default capacity hint
         })
@@ -52,9 +54,9 @@ impl HnswVectorIndex {
 
     /// Initialize HNSW graph with known dimension and capacity
     fn ensure_hnsw_initialized(&mut self, dimension: usize) -> Result<()> {
-        let mut hnsw_guard = self.hnsw.write().unwrap();
-
-        if hnsw_guard.is_none() {
+        // Phase 8: Use ArcSwap for lock-free reads
+        let current_hnsw = self.hnsw.load();
+        if current_hnsw.is_none() {
             // IMPORTANT: nb_layer must be 16 (NB_LAYER_MAX) for serialization to work
             // hnsw_rs file_dump requires nb_layer == NB_LAYER_MAX (16) for file format compatibility
             // The actual max layer used will be determined by data distribution
@@ -70,8 +72,9 @@ impl HnswVectorIndex {
                 DistL2 {},
             );
 
-            *hnsw_guard = Some(hnsw);
-            *self.dimension.write().unwrap() = Some(dimension);
+            // Phase 8: Atomic swap for zero-blocking readers
+            self.hnsw.store(Arc::new(Some(hnsw)));
+            self.dimension.store(Arc::new(Some(dimension)));
         }
 
         Ok(())
@@ -82,12 +85,10 @@ impl HnswVectorIndex {
     /// Uses hnsw_rs native file_dump which saves to multiple files with basename prefix.
     /// Example: path="/tmp/hnsw.index" saves to /tmp/hnsw_* files
     pub fn save_to_disk(&self, path: &Path) -> Result<()> {
-        let hnsw_guard = self
-            .hnsw
-            .read()
-            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+        // Phase 8: Zero-blocking read with ArcSwap
+        let hnsw_arc = self.hnsw.load();
 
-        if let Some(ref hnsw) = *hnsw_guard {
+        if let Some(ref hnsw) = **hnsw_arc {
             // hnsw_rs file_dump API: file_dump(&self, dir: &Path, basename: &str)
             let dir = path.parent().unwrap_or_else(|| Path::new("."));
             let basename = path.file_stem().and_then(|s| s.to_str()).unwrap_or("hnsw");
@@ -106,12 +107,9 @@ impl HnswVectorIndex {
     /// Uses hnsw_rs native HnswIO::load_hnsw_with_dist for loading.
     /// Requires the index to be uninitialized.
     pub fn load_from_disk(&mut self, path: &Path) -> Result<()> {
-        let mut hnsw_guard = self
-            .hnsw
-            .write()
-            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
-
-        if hnsw_guard.is_some() {
+        // Phase 8: Check if already initialized using ArcSwap
+        let current_hnsw = self.hnsw.load();
+        if (**current_hnsw).is_some() {
             return Err(anyhow!("Cannot load into already-initialized HNSW index"));
         }
 
@@ -137,7 +135,8 @@ impl HnswVectorIndex {
         // Note: dimension will be inferred from first search/insert operation
         // hnsw_rs doesn't expose a reliable way to query dimension from loaded index
 
-        *hnsw_guard = Some(loaded);
+        // Phase 8: Atomic swap for zero-blocking readers
+        self.hnsw.store(Arc::new(Some(loaded)));
 
         Ok(())
     }
@@ -151,17 +150,11 @@ impl HnswVectorIndex {
             return Ok(());
         }
 
-        // Clear existing index
-        {
-            let mut hnsw_guard = self
-                .hnsw
-                .write()
-                .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
-            *hnsw_guard = None;
-        }
+        // Phase 8: Clear existing index atomically
+        self.hnsw.store(Arc::new(None));
 
         // Reset metadata
-        *self.dimension.write().unwrap() = None;
+        self.dimension.store(Arc::new(None));
         self.count = 0;
 
         // Initialize with first vector's dimension
@@ -227,7 +220,7 @@ impl VectorIndex for HnswVectorIndex {
     fn add(&mut self, id: i64, embedding: Vec<f32>) -> Result<()> {
         // Check dimension consistency
         let dim = embedding.len();
-        let current_dim = *self.dimension.read().unwrap();
+        let current_dim = **self.dimension.load();
         if let Some(expected_dim) = current_dim {
             if dim != expected_dim {
                 return Err(anyhow!(
@@ -252,12 +245,12 @@ impl VectorIndex for HnswVectorIndex {
 
         // Insert into HNSW index
         // hnsw_rs API: hnsw.insert((data.as_slice(), id))
-        // Note: hnsw_rs Hnsw uses interior mutability with parking_lot::RwLock
-        let hnsw_guard = self.hnsw.read().unwrap();
-        if let Some(ref hnsw) = *hnsw_guard {
+        // Phase 8: Zero-blocking read with ArcSwap
+        let hnsw_arc = self.hnsw.load();
+        if let Some(ref hnsw) = **hnsw_arc {
             // DataId is usize in hnsw_rs, cast i64 to usize
             hnsw.insert((&normalized[..], id as usize));
-            drop(hnsw_guard); // Release read lock before incrementing count
+            // Phase 8: No lock to release with ArcSwap
             self.count += 1;
         } else {
             return Err(anyhow!("HNSW not initialized"));
@@ -267,18 +260,23 @@ impl VectorIndex for HnswVectorIndex {
     }
 
     fn search(&self, query: &[f32], k: usize) -> Result<Vec<(i64, f32)>> {
-        let hnsw_guard = self.hnsw.read().unwrap();
+        // Phase 8: Zero-blocking read with ArcSwap
+        let hnsw_arc = self.hnsw.load();
 
         // Empty index returns empty results
-        if hnsw_guard.is_none() {
+        if (**hnsw_arc).is_none() {
             return Ok(Vec::new());
         }
 
-        let hnsw = hnsw_guard.as_ref().unwrap();
+        let hnsw = (**hnsw_arc)
+            .as_ref()
+            .ok_or_else(|| anyhow!("HNSW not initialized"))?;
 
         // Lazily infer dimension from query if not set
-        if self.dimension.read().unwrap().is_none() && !query.is_empty() {
-            *self.dimension.write().unwrap() = Some(query.len());
+        let dim_arc = self.dimension.load();
+        if (**dim_arc).is_none() && !query.is_empty() {
+            // Phase 8: Store inferred dimension atomically
+            self.dimension.store(Arc::new(Some(query.len())));
         }
 
         // Normalize the query vector to unit length (same as indexed vectors)
@@ -321,7 +319,7 @@ impl VectorIndex for HnswVectorIndex {
     }
 
     fn dimension(&self) -> Option<usize> {
-        *self.dimension.read().unwrap()
+        **self.dimension.load()
     }
 
     fn len(&self) -> usize {

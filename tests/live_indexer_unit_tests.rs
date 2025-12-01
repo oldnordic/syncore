@@ -12,7 +12,11 @@ use tokio::sync::mpsc;
 
 use syncore::code_graph::update_service::CodeGraphUpdateService;
 use syncore::code_graph::CodeGraph;
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
+
+use syncore::ingestion::{
+    IngestionEventKind, IngestionJob, IngestionKind, IngestionPriority, IngestionSource,
+};
 use syncore::live_indexer::{LiveIndexer, LiveIndexerConfig};
 use syncore::lsp_bridge::LspBridge;
 use syncore::parser_service::ParserService;
@@ -22,18 +26,29 @@ use syncore::vector::{StubEmbeddings, VectorStore};
 // Helper Functions
 // ============================================================================
 
-fn create_test_components(root: PathBuf) -> Result<(CodeGraphUpdateService, ParserService, Arc<Mutex<VectorStore>>, LspBridge)> {
+fn create_test_components(
+    root: PathBuf,
+) -> Result<(
+    CodeGraphUpdateService,
+    ParserService,
+    Arc<Mutex<VectorStore>>,
+    Arc<Mutex<LspBridge>>,
+)> {
     let db_path = root.join("test_live.db");
     let embeddings = Box::new(StubEmbeddings::new(384)?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph)?;
+    let update_service = CodeGraphUpdateService::new(
+        root.clone(),
+        code_graph,
+        Arc::new(std::sync::Mutex::new(())),
+    )?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let lsp_bridge = LspBridge::disabled();
+    let lsp_bridge = Arc::new(Mutex::new(LspBridge::disabled()));
 
     Ok((update_service, parser, vector_store, lsp_bridge))
 }
@@ -49,7 +64,7 @@ async fn test_indexer_starts_and_shuts_down_cleanly() -> Result<()> {
 
     let (update_service, parser, vector_store, lsp_bridge) = create_test_components(root.clone())?;
 
-    let (_tx, rx) = mpsc::channel::<FsEvent>(100);
+    let (_tx, rx) = mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
 
     let config = LiveIndexerConfig {
         debounce_ms: 50,
@@ -58,14 +73,7 @@ async fn test_indexer_starts_and_shuts_down_cleanly() -> Result<()> {
     };
 
     // Start indexer
-    let indexer = LiveIndexer::new(
-        rx,
-        parser,
-        update_service,
-        vector_store,
-        lsp_bridge,
-        config,
-    )?;
+    let indexer = LiveIndexer::new(rx, parser, update_service, vector_store, lsp_bridge, config)?;
 
     let handle = indexer.start().await?;
 
@@ -90,7 +98,7 @@ async fn test_indexer_receives_fs_events() -> Result<()> {
 
     let (update_service, parser, vector_store, lsp_bridge) = create_test_components(root.clone())?;
 
-    let (tx, rx) = mpsc::channel::<FsEvent>(100);
+    let (tx, rx) = mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
 
     let config = LiveIndexerConfig {
         debounce_ms: 50,
@@ -98,14 +106,7 @@ async fn test_indexer_receives_fs_events() -> Result<()> {
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        rx,
-        parser,
-        update_service,
-        vector_store,
-        lsp_bridge,
-        config,
-    )?;
+    let indexer = LiveIndexer::new(rx, parser, update_service, vector_store, lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -113,10 +114,8 @@ async fn test_indexer_receives_fs_events() -> Result<()> {
     let test_file = root.join("test.rs");
     std::fs::write(&test_file, "pub fn test() {}")?;
 
-    tx.send(FsEvent {
-        path: test_file.clone(),
-        kind: FsEventKind::Created,
-    }).await?;
+    let fs_event = FsEvent::Created(test_file.clone());
+    tx.send(fs_event).await?;
 
     // Give indexer time to process
     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -139,7 +138,7 @@ async fn test_indexer_processes_parse_delta() -> Result<()> {
 
     let (update_service, parser, vector_store, lsp_bridge) = create_test_components(root.clone())?;
 
-    let (tx, rx) = mpsc::channel::<FsEvent>(100);
+    let (tx, rx) = mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
 
     let config = LiveIndexerConfig {
         debounce_ms: 50,
@@ -147,14 +146,7 @@ async fn test_indexer_processes_parse_delta() -> Result<()> {
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        rx,
-        parser,
-        update_service,
-        vector_store,
-        lsp_bridge,
-        config,
-    )?;
+    let indexer = LiveIndexer::new(rx, parser, update_service, vector_store, lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -162,10 +154,8 @@ async fn test_indexer_processes_parse_delta() -> Result<()> {
     let test_file = root.join("test.rs");
     std::fs::write(&test_file, "pub fn test() {}")?;
 
-    tx.send(FsEvent {
-        path: test_file.clone(),
-        kind: FsEventKind::Created,
-    }).await?;
+    let fs_event = FsEvent::Created(test_file.clone());
+    tx.send(fs_event).await?;
 
     // Wait for processing
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -188,22 +178,15 @@ async fn test_throttling_per_file() -> Result<()> {
 
     let (update_service, parser, vector_store, lsp_bridge) = create_test_components(root.clone())?;
 
-    let (tx, rx) = mpsc::channel::<FsEvent>(100);
+    let (tx, rx) = mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
 
     let config = LiveIndexerConfig {
-        debounce_ms: 100, // 100ms debounce
+        debounce_ms: 50,
         max_queue: 100,
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        rx,
-        parser,
-        update_service,
-        vector_store,
-        lsp_bridge,
-        config,
-    )?;
+    let indexer = LiveIndexer::new(rx, parser, update_service, vector_store, lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -212,10 +195,8 @@ async fn test_throttling_per_file() -> Result<()> {
 
     // Send multiple events for same file rapidly
     for _ in 0..5 {
-        tx.send(FsEvent {
-            path: test_file.clone(),
-            kind: FsEventKind::Modified,
-        }).await?;
+        let fs_event = FsEvent::Created(test_file.clone());
+        tx.send(fs_event).await?;
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 
@@ -239,22 +220,15 @@ async fn test_throttling_different_files_independent() -> Result<()> {
 
     let (update_service, parser, vector_store, lsp_bridge) = create_test_components(root.clone())?;
 
-    let (tx, rx) = mpsc::channel::<FsEvent>(100);
+    let (tx, rx) = mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
 
     let config = LiveIndexerConfig {
-        debounce_ms: 100,
+        debounce_ms: 50,
         max_queue: 100,
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        rx,
-        parser,
-        update_service,
-        vector_store,
-        lsp_bridge,
-        config,
-    )?;
+    let indexer = LiveIndexer::new(rx, parser, update_service, vector_store, lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
@@ -265,15 +239,11 @@ async fn test_throttling_different_files_independent() -> Result<()> {
     std::fs::write(&file_b, "pub fn b() {}")?;
 
     // Send events for both files
-    tx.send(FsEvent {
-        path: file_a.clone(),
-        kind: FsEventKind::Modified,
-    }).await?;
+    let fs_event_a = FsEvent::Modified(file_a.clone());
+    tx.send(fs_event_a).await?;
 
-    tx.send(FsEvent {
-        path: file_b.clone(),
-        kind: FsEventKind::Modified,
-    }).await?;
+    let fs_event_b = FsEvent::Modified(file_b.clone());
+    tx.send(fs_event_b).await?;
 
     // Wait for processing
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -295,7 +265,7 @@ async fn test_error_in_update_does_not_stop_indexer() -> Result<()> {
 
     let (update_service, parser, vector_store, lsp_bridge) = create_test_components(root.clone())?;
 
-    let (tx, rx) = mpsc::channel::<FsEvent>(100);
+    let (tx, rx) = mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
 
     let config = LiveIndexerConfig {
         debounce_ms: 50,
@@ -303,22 +273,13 @@ async fn test_error_in_update_does_not_stop_indexer() -> Result<()> {
         index_threads: 1,
     };
 
-    let indexer = LiveIndexer::new(
-        rx,
-        parser,
-        update_service,
-        vector_store,
-        lsp_bridge,
-        config,
-    )?;
+    let indexer = LiveIndexer::new(rx, parser, update_service, vector_store, lsp_bridge, config)?;
 
     let _handle = indexer.start().await?;
 
     // Send event for non-existent file (will cause error)
-    tx.send(FsEvent {
-        path: root.join("nonexistent.rs"),
-        kind: FsEventKind::Modified,
-    }).await?;
+    let fs_event = FsEvent::Modified(root.join("nonexistent.rs"));
+    tx.send(fs_event).await?;
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 
@@ -326,10 +287,8 @@ async fn test_error_in_update_does_not_stop_indexer() -> Result<()> {
     let valid_file = root.join("valid.rs");
     std::fs::write(&valid_file, "pub fn valid() {}")?;
 
-    tx.send(FsEvent {
-        path: valid_file.clone(),
-        kind: FsEventKind::Created,
-    }).await?;
+    let fs_event = FsEvent::Created(valid_file.clone());
+    tx.send(fs_event).await?;
 
     tokio::time::sleep(Duration::from_millis(200)).await;
 

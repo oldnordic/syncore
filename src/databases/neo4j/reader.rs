@@ -9,9 +9,9 @@
 //! - Namespace-aware
 //! - Strongly typed
 
-use anyhow::Result;
+use super::schema::{project_namespace, NodeLabel, GRAPH_DOMAIN};
 use crate::graph::Neo4jClient;
-use super::schema::{NodeLabel, GRAPH_DOMAIN, project_namespace};
+use anyhow::Result;
 use serde_json::Value;
 
 /// Entity result from Neo4j query
@@ -38,13 +38,28 @@ impl EntityResult {
             id: record.get("id")?.as_i64()?,
             name: record.get("name")?.as_str()?.to_string(),
             label: record.get("label")?.as_str()?.to_string(),
-            path: record.get("path").and_then(|v| v.as_str()).map(String::from),
+            path: record
+                .get("path")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             start_line: record.get("start_line").and_then(|v| v.as_i64()),
             end_line: record.get("end_line").and_then(|v| v.as_i64()),
-            signature: record.get("signature").and_then(|v| v.as_str()).map(String::from),
-            body_snippet: record.get("body_snippet").and_then(|v| v.as_str()).map(String::from),
-            created_at: record.get("created_at").and_then(|v| v.as_str()).map(String::from),
-            last_modified_at: record.get("last_modified_at").and_then(|v| v.as_str()).map(String::from),
+            signature: record
+                .get("signature")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            body_snippet: record
+                .get("body_snippet")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            created_at: record
+                .get("created_at")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            last_modified_at: record
+                .get("last_modified_at")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             change_count: record.get("change_count").and_then(|v| v.as_i64()),
             author_count: record.get("author_count").and_then(|v| v.as_i64()),
         })
@@ -121,7 +136,10 @@ pub async fn get_file_entities(client: &Neo4jClient, file_path: &str) -> Result<
 }
 
 /// Get functions called by a function
-pub async fn get_function_callees(client: &Neo4jClient, function_id: i64) -> Result<Vec<EntityResult>> {
+pub async fn get_function_callees(
+    client: &Neo4jClient,
+    function_id: i64,
+) -> Result<Vec<EntityResult>> {
     let query = r#"
         MATCH (f {id: $id, namespace: $ns, graph_domain: $graph_domain})-[:CALLS]->(callee)
         WHERE callee.namespace = $ns
@@ -158,7 +176,10 @@ pub async fn get_function_callees(client: &Neo4jClient, function_id: i64) -> Res
 }
 
 /// Get functions that call a function
-pub async fn get_function_callers(client: &Neo4jClient, function_id: i64) -> Result<Vec<EntityResult>> {
+pub async fn get_function_callers(
+    client: &Neo4jClient,
+    function_id: i64,
+) -> Result<Vec<EntityResult>> {
     let query = r#"
         MATCH (caller)-[:CALLS]->(f {id: $id, namespace: $ns, graph_domain: $graph_domain})
         WHERE caller.namespace = $ns
@@ -230,7 +251,10 @@ pub async fn find_entities_by_name(client: &Neo4jClient, name: &str) -> Result<V
 }
 
 /// Get entities by label type
-pub async fn get_entities_by_type(client: &Neo4jClient, label: NodeLabel) -> Result<Vec<EntityResult>> {
+pub async fn get_entities_by_type(
+    client: &Neo4jClient,
+    label: NodeLabel,
+) -> Result<Vec<EntityResult>> {
     let query = format!(
         r#"
         MATCH (e:{} {{namespace: $ns, graph_domain: $graph_domain}})

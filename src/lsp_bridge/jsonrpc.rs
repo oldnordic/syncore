@@ -61,14 +61,10 @@ pub fn parse_jsonrpc_message(framed: &str) -> Result<String> {
 ///
 /// Returns vector of normalized diagnostic events.
 pub fn parse_publish_diagnostics(json: &str) -> Result<Vec<LspDiagnosticEvent>> {
-    let value: serde_json::Value =
-        serde_json::from_str(json).context("Failed to parse JSON")?;
+    let value: serde_json::Value = serde_json::from_str(json).context("Failed to parse JSON")?;
 
     // Check if this is a publishDiagnostics notification
-    let method = value
-        .get("method")
-        .and_then(|m| m.as_str())
-        .unwrap_or("");
+    let method = value.get("method").and_then(|m| m.as_str()).unwrap_or("");
 
     if method != "textDocument/publishDiagnostics" {
         return Ok(Vec::new()); // Not a diagnostic message
@@ -105,10 +101,7 @@ pub fn parse_publish_diagnostics(json: &str) -> Result<Vec<LspDiagnosticEvent>> 
 }
 
 /// Parse a single diagnostic object
-fn parse_diagnostic(
-    path: &Path,
-    diag: &serde_json::Value,
-) -> Result<Option<LspDiagnosticEvent>> {
+fn parse_diagnostic(path: &Path, diag: &serde_json::Value) -> Result<Option<LspDiagnosticEvent>> {
     // Extract range
     let range = diag.get("range").context("Missing range in diagnostic")?;
 
@@ -143,7 +136,10 @@ fn parse_diagnostic(
         .to_string();
 
     // Extract severity (optional)
-    let severity = diag.get("severity").and_then(|s| s.as_u64()).map(|s| s as u32);
+    let severity = diag
+        .get("severity")
+        .and_then(|s| s.as_u64())
+        .map(|s| s as u32);
 
     // Extract code (optional)
     let code = diag.get("code").and_then(|c| match c {

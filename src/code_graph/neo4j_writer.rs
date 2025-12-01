@@ -5,8 +5,8 @@
 //! the indexing pipeline.
 
 use super::types::{CodeEntity, EntityType};
+use crate::databases::neo4j::{upsert_entity, NodeLabel, NodeProperties};
 use crate::graph::Neo4jClient;
-use crate::databases::neo4j::{NodeLabel, NodeProperties, upsert_entity};
 use anyhow::Result;
 
 /// Create a Neo4j node for a CodeEntity
@@ -50,7 +50,7 @@ pub async fn create_code_entity_node(
         hash: None, // Not available in CodeEntity
         language: Some(entity.language.clone()),
         file_sha256: None, // Not available in CodeEntity
-        mtime: None, // Not available in CodeEntity
+        mtime: None,       // Not available in CodeEntity
         created_at: entity.created_at.map(|ts| ts.to_string()),
         last_modified_at: entity.last_modified_at.map(|ts| ts.to_string()),
         change_count: entity.change_count.map(|c| c as i64),
@@ -76,32 +76,40 @@ fn entity_type_to_node_label(entity_type: &EntityType) -> NodeLabel {
     }
 }
 
-// Deprecated: Use entity_type_to_node_label() instead
-fn entity_type_to_label(entity_type: &EntityType) -> &str {
-    match entity_type {
-        EntityType::Function => "Function",
-        EntityType::Class => "Class",
-        EntityType::Method => "Method",
-        EntityType::Import => "Import",
-        EntityType::Struct => "Struct",
-        EntityType::Enum => "Enum",
-        EntityType::Trait => "Trait",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_entity_type_to_label() {
-        assert_eq!(entity_type_to_label(&EntityType::Function), "Function");
-        assert_eq!(entity_type_to_label(&EntityType::Class), "Class");
-        assert_eq!(entity_type_to_label(&EntityType::Method), "Method");
-        assert_eq!(entity_type_to_label(&EntityType::Import), "Import");
-        assert_eq!(entity_type_to_label(&EntityType::Struct), "Struct");
-        assert_eq!(entity_type_to_label(&EntityType::Enum), "Enum");
-        assert_eq!(entity_type_to_label(&EntityType::Trait), "Trait");
+    fn test_entity_type_to_node_label() {
+        assert_eq!(
+            entity_type_to_node_label(&EntityType::Function),
+            NodeLabel::Function
+        );
+        assert_eq!(
+            entity_type_to_node_label(&EntityType::Struct),
+            NodeLabel::Struct
+        );
+        assert_eq!(
+            entity_type_to_node_label(&EntityType::Function),
+            NodeLabel::Function
+        );
+        assert_eq!(
+            entity_type_to_node_label(&EntityType::Import),
+            NodeLabel::Import
+        );
+        assert_eq!(
+            entity_type_to_node_label(&EntityType::Struct),
+            NodeLabel::Struct
+        );
+        assert_eq!(
+            entity_type_to_node_label(&EntityType::Enum),
+            NodeLabel::Enum
+        );
+        assert_eq!(
+            entity_type_to_node_label(&EntityType::Trait),
+            NodeLabel::Trait
+        );
     }
 
     // TASK C: Verify that :SynCore label is included in MERGE query
@@ -124,13 +132,13 @@ mod tests {
             author_count: Some(1),
         };
 
-        let label = entity_type_to_label(&entity.entity_type);
+        let label = entity_type_to_node_label(&entity.entity_type);
         let cypher = format!(
             r#"
             MERGE (e:{}:SynCore {{id: $id, namespace: $ns}})
             SET e.file_path = $file_path
             "#,
-            label
+            label.as_str()
         );
 
         // Verify query includes both type label and :SynCore label

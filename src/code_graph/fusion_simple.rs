@@ -237,7 +237,11 @@ mod tests {
         // Note: Gets some score from balance (0.3*1.0) but no degree or diversity
         let features = GraphFeatures::empty();
         let score = compute_graph_embedding_score(&features);
-        assert!(score < 0.5, "Isolated node should have low score (< 0.5), got {}", score);
+        assert!(
+            score < 0.5,
+            "Isolated node should have low score (< 0.5), got {}",
+            score
+        );
         assert!(score >= 0.0, "Score should be non-negative");
     }
 
@@ -254,7 +258,11 @@ mod tests {
         features.edge_types.insert("USES".to_string(), 5);
 
         let score = compute_graph_embedding_score(&features);
-        assert!(score > 0.5, "Hub node should have high score (> 0.5), got {}", score);
+        assert!(
+            score > 0.5,
+            "Hub node should have high score (> 0.5), got {}",
+            score
+        );
         assert!(score <= 1.0, "Score should not exceed 1.0");
     }
 
@@ -289,7 +297,8 @@ mod tests {
         assert!(
             score_balanced > score_imbalanced,
             "Balanced node should score higher than imbalanced, got balanced={} imbalanced={}",
-            score_balanced, score_imbalanced
+            score_balanced,
+            score_imbalanced
         );
     }
 

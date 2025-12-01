@@ -27,6 +27,7 @@ pub struct AstDelta {
 }
 
 /// Delta engine for computing and applying selective AST changes
+#[derive(Clone)]
 pub struct CodeGraphDeltaEngine {
     graph: Arc<Mutex<CodeGraph>>,
 }
@@ -57,7 +58,7 @@ impl CodeGraphDeltaEngine {
         if parse_delta.had_errors {
             return Ok(AstDelta {
                 file_path: file_path.to_path_buf(),
-                changed_ranges: vec![],  // Empty = full reindex
+                changed_ranges: vec![], // Empty = full reindex
                 deleted: false,
                 renamed: None,
             });

@@ -4,12 +4,12 @@
 
 use serde_json::json;
 use std::sync::Arc;
-use syncore::memory::Memory;
+use std::sync::Mutex;
 use syncore::mcp_tools::memory_suite::{MemorySuite, MemorySuiteArgs};
+use syncore::memory::Memory;
 use syncore::router::SynCoreState;
 use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
-use std::sync::Mutex;
 
 /// Helper to create test suite
 fn create_test_suite(db_suffix: &str) -> MemorySuite {
@@ -46,7 +46,11 @@ fn test_mcp_delete() {
     let result = suite.execute(delete_args);
 
     assert!(result.success, "Delete should succeed");
-    assert!(result.data.get("success").and_then(|v| v.as_bool()).unwrap_or(false));
+    assert!(result
+        .data
+        .get("success")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false));
 }
 
 #[test]
@@ -120,7 +124,8 @@ fn test_help_includes_all_commands() {
 
     let command_list = commands.unwrap();
     // Verify new commands are in the list
-    let command_strings: Vec<String> = command_list.iter()
+    let command_strings: Vec<String> = command_list
+        .iter()
         .filter_map(|v| v.as_str())
         .map(|s| s.to_string())
         .collect();

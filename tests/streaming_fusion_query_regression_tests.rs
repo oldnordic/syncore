@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 use tokio::time::{timeout, Duration};
 
-use syncore::code_graph::streaming::{RagStreamingChunk, StreamingConfig};
 use syncore::code_graph::rag_graph_api::RagGraphAPI;
+use syncore::code_graph::streaming::{RagStreamingChunk, StreamingConfig};
 use syncore::code_graph::CodeGraph;
 use syncore::graph::Neo4jClient;
 use syncore::vector::{StubEmbeddings, VectorStore};
@@ -104,7 +104,10 @@ async fn test_streaming_works_if_graph_empty() -> Result<()> {
 
     let chunk = final_chunk.expect("Should receive final chunk");
     assert!(chunk.is_final, "Should receive final chunk");
-    assert!(chunk.ranked_entities.is_empty(), "Empty graph should have no entities");
+    assert!(
+        chunk.ranked_entities.is_empty(),
+        "Empty graph should have no entities"
+    );
 
     Ok(())
 }
@@ -162,7 +165,11 @@ async fn test_streaming_yields_deterministic_results() -> Result<()> {
 
     // If there are entities, verify scores match
     if !final1.ranked_entities.is_empty() {
-        for (e1, e2) in final1.ranked_entities.iter().zip(final2.ranked_entities.iter()) {
+        for (e1, e2) in final1
+            .ranked_entities
+            .iter()
+            .zip(final2.ranked_entities.iter())
+        {
             assert_eq!(
                 e1.combined_score, e2.combined_score,
                 "Scores should be deterministic"

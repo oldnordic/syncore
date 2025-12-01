@@ -150,6 +150,7 @@ impl RagGraphAPI {
             vector_store,
             parser,
             neo4j: code_graph_neo4j,
+            version: std::sync::atomic::AtomicU64::new(0),
         };
 
         // Step 1: Select fusion mode
@@ -229,7 +230,12 @@ impl RagGraphAPI {
                 FusionMode::Simple => {
                     use super::fusion_simple::FusionSimple;
                     let fusion = FusionSimple::default();
-                    fusion.combine(vector_score, graph_score, temporal_score, graph_embedding_score)
+                    fusion.combine(
+                        vector_score,
+                        graph_score,
+                        temporal_score,
+                        graph_embedding_score,
+                    )
                 }
                 FusionMode::Attention => {
                     // Simplified attention fusion

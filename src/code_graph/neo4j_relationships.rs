@@ -4,8 +4,8 @@
 //! based on CodeEdge data from the code graph.
 
 use super::types::{CodeEdge, EdgeType};
+use crate::databases::neo4j::{create_relationship, RelationType};
 use crate::graph::Neo4jClient;
-use crate::databases::neo4j::{RelationType, create_relationship};
 use anyhow::Result;
 
 /// Create a Neo4j relationship for a CodeEdge
@@ -45,34 +45,35 @@ fn edge_type_to_relation_type(edge_type: &EdgeType) -> RelationType {
     }
 }
 
-// Deprecated: Use edge_type_to_relation_type() instead
-#[allow(dead_code)]
-fn edge_type_to_neo4j_type(edge_type: &EdgeType) -> &str {
-    match edge_type {
-        EdgeType::Calls => "CALLS",
-        EdgeType::Imports => "IMPORTS",
-        EdgeType::Inherits => "INHERITS",
-        EdgeType::References => "REFERENCES",
-        EdgeType::Uses => "USES",
-        EdgeType::Contains => "CONTAINS",
-        EdgeType::UsesField => "USES_FIELD",
-        EdgeType::Implements => "IMPLEMENTS",
-        EdgeType::UsesType => "USES_TYPE",
-        EdgeType::ModuleChild => "MODULE_CHILD",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_edge_type_to_neo4j_type() {
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Calls), "CALLS");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Imports), "IMPORTS");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Inherits), "INHERITS");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::References), "REFERENCES");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Uses), "USES");
-        assert_eq!(edge_type_to_neo4j_type(&EdgeType::Contains), "CONTAINS");
+    fn test_edge_type_to_relation_type() {
+        assert_eq!(
+            edge_type_to_relation_type(&EdgeType::Calls),
+            RelationType::Calls
+        );
+        assert_eq!(
+            edge_type_to_relation_type(&EdgeType::Imports),
+            RelationType::Imports
+        );
+        assert_eq!(
+            edge_type_to_relation_type(&EdgeType::Inherits),
+            RelationType::Inherits
+        );
+        assert_eq!(
+            edge_type_to_relation_type(&EdgeType::References),
+            RelationType::References
+        );
+        assert_eq!(
+            edge_type_to_relation_type(&EdgeType::Uses),
+            RelationType::Uses
+        );
+        assert_eq!(
+            edge_type_to_relation_type(&EdgeType::Contains),
+            RelationType::Contains
+        );
     }
 }

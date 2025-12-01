@@ -56,11 +56,8 @@ fn insert_fake_entity(db_path: &str) -> Result<()> {
 /// Helper: Count entities in code_entities table
 fn count_code_entities(db_path: &str) -> Result<usize> {
     let conn = Connection::open(db_path)?;
-    let count: usize = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities",
-        [],
-        |row| row.get(0)
-    )?;
+    let count: usize =
+        conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
     Ok(count)
 }
 
@@ -100,7 +97,7 @@ async fn test_warm_start_skips_bootstrap() -> Result<()> {
     let name: String = conn.query_row(
         "SELECT name FROM code_entities WHERE entity_type = 'Function'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     )?;
 
     assert_eq!(name, "fake_function", "Original entity should be preserved");
@@ -204,7 +201,7 @@ async fn test_warm_start_does_not_delete_existing_data() -> Result<()> {
     let entity_id_before: i64 = conn.query_row(
         "SELECT id FROM code_entities WHERE name = 'fake_function'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     )?;
 
     // Act: Run bootstrap
@@ -214,7 +211,7 @@ async fn test_warm_start_does_not_delete_existing_data() -> Result<()> {
     let entity_id_after: Result<i64, _> = conn.query_row(
         "SELECT id FROM code_entities WHERE name = 'fake_function'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     );
 
     // THIS WILL FAIL IN PHASE 1

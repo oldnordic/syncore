@@ -10,11 +10,10 @@
 
 use anyhow::Result;
 use syncore::databases::neo4j::{
-    create_relationship, upsert_entity, batch_upsert_entities,
-    get_entity_by_id, get_file_entities, get_function_callers, get_function_callees,
-    count_entities_by_type, validate_structure,
-    delete_entity, delete_file_entities,
-    NodeLabel, RelationType, NodeProperties, project_namespace,
+    batch_upsert_entities, count_entities_by_type, create_relationship, delete_entity,
+    delete_file_entities, get_entity_by_id, get_file_entities, get_function_callees,
+    get_function_callers, project_namespace, upsert_entity, validate_structure, NodeLabel,
+    NodeProperties, RelationType,
 };
 use syncore::graph::Neo4jClient;
 
@@ -161,9 +160,30 @@ async fn test_get_file_entities() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create entities in same file
-    let props1 = NodeProperties::full(3001, "func1".to_string(), "src/main.rs".to_string(), 10, 20, "rust".to_string());
-    let props2 = NodeProperties::full(3002, "func2".to_string(), "src/main.rs".to_string(), 30, 40, "rust".to_string());
-    let props3 = NodeProperties::full(3003, "func3".to_string(), "src/other.rs".to_string(), 10, 20, "rust".to_string());
+    let props1 = NodeProperties::full(
+        3001,
+        "func1".to_string(),
+        "src/main.rs".to_string(),
+        10,
+        20,
+        "rust".to_string(),
+    );
+    let props2 = NodeProperties::full(
+        3002,
+        "func2".to_string(),
+        "src/main.rs".to_string(),
+        30,
+        40,
+        "rust".to_string(),
+    );
+    let props3 = NodeProperties::full(
+        3003,
+        "func3".to_string(),
+        "src/other.rs".to_string(),
+        10,
+        20,
+        "rust".to_string(),
+    );
 
     upsert_entity(&client, NodeLabel::Function, props1).await?;
     upsert_entity(&client, NodeLabel::Function, props2).await?;
@@ -185,14 +205,37 @@ async fn test_count_entities_by_type() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create entities of different types
-    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(4001, "func1".to_string())).await?;
-    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(4002, "func2".to_string())).await?;
-    upsert_entity(&client, NodeLabel::Struct, NodeProperties::minimal(4003, "struct1".to_string())).await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Function,
+        NodeProperties::minimal(4001, "func1".to_string()),
+    )
+    .await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Function,
+        NodeProperties::minimal(4002, "func2".to_string()),
+    )
+    .await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Struct,
+        NodeProperties::minimal(4003, "struct1".to_string()),
+    )
+    .await?;
 
     let counts = count_entities_by_type(&client).await?;
 
-    let func_count = counts.iter().find(|(label, _)| label == "Function").map(|(_, count)| *count).unwrap_or(0);
-    let struct_count = counts.iter().find(|(label, _)| label == "Struct").map(|(_, count)| *count).unwrap_or(0);
+    let func_count = counts
+        .iter()
+        .find(|(label, _)| label == "Function")
+        .map(|(_, count)| *count)
+        .unwrap_or(0);
+    let struct_count = counts
+        .iter()
+        .find(|(label, _)| label == "Struct")
+        .map(|(_, count)| *count)
+        .unwrap_or(0);
 
     assert_eq!(func_count, 2);
     assert_eq!(struct_count, 1);
@@ -207,7 +250,12 @@ async fn test_delete_entity() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create entity
-    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(5001, "to_delete".to_string())).await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Function,
+        NodeProperties::minimal(5001, "to_delete".to_string()),
+    )
+    .await?;
 
     // Verify exists
     assert!(get_entity_by_id(&client, 5001).await?.is_some());
@@ -228,9 +276,30 @@ async fn test_delete_file_entities() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create entities in file
-    let props1 = NodeProperties::full(6001, "func1".to_string(), "src/delete_me.rs".to_string(), 10, 20, "rust".to_string());
-    let props2 = NodeProperties::full(6002, "func2".to_string(), "src/delete_me.rs".to_string(), 30, 40, "rust".to_string());
-    let props3 = NodeProperties::full(6003, "func3".to_string(), "src/keep_me.rs".to_string(), 10, 20, "rust".to_string());
+    let props1 = NodeProperties::full(
+        6001,
+        "func1".to_string(),
+        "src/delete_me.rs".to_string(),
+        10,
+        20,
+        "rust".to_string(),
+    );
+    let props2 = NodeProperties::full(
+        6002,
+        "func2".to_string(),
+        "src/delete_me.rs".to_string(),
+        30,
+        40,
+        "rust".to_string(),
+    );
+    let props3 = NodeProperties::full(
+        6003,
+        "func3".to_string(),
+        "src/keep_me.rs".to_string(),
+        10,
+        20,
+        "rust".to_string(),
+    );
 
     upsert_entity(&client, NodeLabel::Function, props1).await?;
     upsert_entity(&client, NodeLabel::Function, props2).await?;
@@ -254,33 +323,48 @@ async fn test_namespace_isolation() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create entity in "syncore" namespace
-    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(7001, "syncore_func".to_string())).await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Function,
+        NodeProperties::minimal(7001, "syncore_func".to_string()),
+    )
+    .await?;
 
     // Manually create entity in different namespace (for test)
     let query = r#"
         MERGE (e:Function {id: $id, namespace: $ns})
         SET e.name = $name
     "#;
-    client.execute_query(query, vec![
-        ("id", serde_json::json!(7002)),
-        ("ns", serde_json::json!("other_namespace")),
-        ("name", serde_json::json!("other_func")),
-    ]).await?;
+    client
+        .execute_query(
+            query,
+            vec![
+                ("id", serde_json::json!(7002)),
+                ("ns", serde_json::json!("other_namespace")),
+                ("name", serde_json::json!("other_func")),
+            ],
+        )
+        .await?;
 
     // Canonical API should only see "syncore" namespace
     let entity = get_entity_by_id(&client, 7001).await?;
     assert!(entity.is_some());
 
     let entity = get_entity_by_id(&client, 7002).await?;
-    assert!(entity.is_none(), "Should not see entities from other namespaces");
+    assert!(
+        entity.is_none(),
+        "Should not see entities from other namespaces"
+    );
 
     cleanup_test_data(&client).await?;
 
     // Clean up other namespace
-    client.execute_query(
-        "MATCH (n {namespace: $ns}) DETACH DELETE n",
-        vec![("ns", serde_json::json!("other_namespace"))],
-    ).await?;
+    client
+        .execute_query(
+            "MATCH (n {namespace: $ns}) DETACH DELETE n",
+            vec![("ns", serde_json::json!("other_namespace"))],
+        )
+        .await?;
 
     Ok(())
 }
@@ -291,9 +375,24 @@ async fn test_validate_structure() -> Result<()> {
     cleanup_test_data(&client).await?;
 
     // Create graph structure
-    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(8001, "func1".to_string())).await?;
-    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(8002, "func2".to_string())).await?;
-    upsert_entity(&client, NodeLabel::Function, NodeProperties::minimal(8003, "orphan".to_string())).await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Function,
+        NodeProperties::minimal(8001, "func1".to_string()),
+    )
+    .await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Function,
+        NodeProperties::minimal(8002, "func2".to_string()),
+    )
+    .await?;
+    upsert_entity(
+        &client,
+        NodeLabel::Function,
+        NodeProperties::minimal(8003, "orphan".to_string()),
+    )
+    .await?;
 
     create_relationship(&client, 8001, 8002, RelationType::Calls).await?;
 

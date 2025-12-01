@@ -11,8 +11,8 @@ use tempfile::TempDir;
 
 use syncore::code_graph::update_service::{CodeGraphUpdateEvent, CodeGraphUpdateService};
 use syncore::code_graph::CodeGraph;
-use syncore::fs_watcher::{FsEvent, FsEventKind};
-use syncore::parser_service::{ParseDelta, ParserService};
+use syncore::fs_watcher::FsEvent;
+use syncore::parser_service::ParserService;
 use syncore::vector::{StubEmbeddings, VectorStore};
 
 /// Helper to write Rust file
@@ -40,7 +40,8 @@ fn init_pipeline(root: PathBuf) -> Result<Pipeline> {
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let updater = CodeGraphUpdateService::new(root.clone(), graph)?;
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let updater = CodeGraphUpdateService::new(root.clone(), graph, reindex_mutex)?;
 
     Ok(Pipeline {
         root,
@@ -72,10 +73,7 @@ pub fn function_two() {
     write_rust_file(&file_path, initial_code)?;
 
     // Initial index
-    let created_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let created_event = FsEvent::Created(file_path.clone());
     let created_deltas = pipeline.parser.apply_fs_event(created_event.clone())?;
     let created_delta = created_deltas.first().cloned();
 
@@ -108,10 +106,7 @@ pub fn function_two() {
 "#;
     write_rust_file(&file_path, modified_code)?;
 
-    let modified_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let modified_event = FsEvent::Modified(file_path.clone());
     let modified_deltas = pipeline.parser.apply_fs_event(modified_event.clone())?;
     let modified_delta = modified_deltas.first().cloned();
 
@@ -154,10 +149,7 @@ pub fn existing_function() {
     write_rust_file(&file_path, initial_code)?;
 
     // Initial index
-    let created_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let created_event = FsEvent::Created(file_path.clone());
     let created_deltas = pipeline.parser.apply_fs_event(created_event.clone())?;
     let event = CodeGraphUpdateEvent {
         fs_event: created_event,
@@ -177,10 +169,7 @@ pub fn new_function() {
 "#;
     write_rust_file(&file_path, modified_code)?;
 
-    let modified_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let modified_event = FsEvent::Modified(file_path.clone());
     let modified_deltas = pipeline.parser.apply_fs_event(modified_event.clone())?;
     let event = CodeGraphUpdateEvent {
         fs_event: modified_event,
@@ -225,10 +214,7 @@ pub fn function_to_delete() {
     write_rust_file(&file_path, initial_code)?;
 
     // Initial index
-    let created_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let created_event = FsEvent::Created(file_path.clone());
     let created_deltas = pipeline.parser.apply_fs_event(created_event.clone())?;
     let event = CodeGraphUpdateEvent {
         fs_event: created_event,
@@ -244,10 +230,7 @@ pub fn function_to_keep() {
 "#;
     write_rust_file(&file_path, modified_code)?;
 
-    let modified_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let modified_event = FsEvent::Modified(file_path.clone());
     let modified_deltas = pipeline.parser.apply_fs_event(modified_event.clone())?;
     let event = CodeGraphUpdateEvent {
         fs_event: modified_event,
@@ -289,10 +272,7 @@ pub fn documented_function() {
     write_rust_file(&file_path, initial_code)?;
 
     // Initial index
-    let created_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let created_event = FsEvent::Created(file_path.clone());
     let created_deltas = pipeline.parser.apply_fs_event(created_event.clone())?;
     let event = CodeGraphUpdateEvent {
         fs_event: created_event,
@@ -309,10 +289,7 @@ pub fn documented_function() {
 "#;
     write_rust_file(&file_path, modified_code)?;
 
-    let modified_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let modified_event = FsEvent::Modified(file_path.clone());
     let modified_deltas = pipeline.parser.apply_fs_event(modified_event.clone())?;
     let event = CodeGraphUpdateEvent {
         fs_event: modified_event,

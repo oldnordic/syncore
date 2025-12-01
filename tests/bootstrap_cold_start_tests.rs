@@ -56,11 +56,9 @@ fn create_test_config(workspace: &TempDir) -> Result<SyncoreConfig> {
 /// Helper: Count entities in code_entities table
 fn count_code_entities(db_path: &str) -> Result<usize> {
     let conn = Connection::open(db_path)?;
-    let count: usize = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities",
-        [],
-        |row| row.get(0)
-    ).unwrap_or(0);
+    let count: usize = conn
+        .query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))
+        .unwrap_or(0);
     Ok(count)
 }
 
@@ -82,7 +80,10 @@ async fn test_cold_start_triggers_full_bootstrap() -> Result<()> {
 
     // Verify table is empty BEFORE bootstrap
     let count_before = count_code_entities(code_graph_path)?;
-    assert_eq!(count_before, 0, "code_entities should be empty before bootstrap");
+    assert_eq!(
+        count_before, 0,
+        "code_entities should be empty before bootstrap"
+    );
 
     // Act: Run bootstrap (NOT YET IMPLEMENTED - will do nothing)
     run_startup_bootstrap_for_tests(&config).await?;
@@ -103,13 +104,10 @@ async fn test_cold_start_triggers_full_bootstrap() -> Result<()> {
     let function_count: usize = conn.query_row(
         "SELECT COUNT(*) FROM code_entities WHERE entity_type = 'function' AND name = 'add'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     )?;
 
-    assert_eq!(
-        function_count, 1,
-        "Function 'add' should be indexed"
-    );
+    assert_eq!(function_count, 1, "Function 'add' should be indexed");
 
     Ok(())
 }

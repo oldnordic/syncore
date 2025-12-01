@@ -19,10 +19,7 @@ use std::sync::Arc;
 
 /// Execute application_record tool
 /// DEPRECATED: Routes through mapping_suite with command="app_record"
-pub async fn execute_application_record(
-    state: &Arc<SynCoreState>,
-    params: &Value,
-) -> SuiteResult {
+pub async fn execute_application_record(state: &Arc<SynCoreState>, params: &Value) -> SuiteResult {
     let suite_args = MappingSuiteArgs {
         command: "app_record".to_string(),
         path: None,
@@ -69,10 +66,7 @@ pub async fn execute_application_record(
 
 /// Execute application_get tool
 /// DEPRECATED: Routes through mapping_suite with command="app_get"
-pub async fn execute_application_get(
-    state: &Arc<SynCoreState>,
-    params: &Value,
-) -> SuiteResult {
+pub async fn execute_application_get(state: &Arc<SynCoreState>, params: &Value) -> SuiteResult {
     let suite_args = MappingSuiteArgs {
         command: "app_get".to_string(),
         path: None,
@@ -98,10 +92,7 @@ pub async fn execute_application_get(
 
 /// Execute application_history tool
 /// DEPRECATED: Routes through mapping_suite with command="app_history"
-pub async fn execute_application_history(
-    state: &Arc<SynCoreState>,
-    params: &Value,
-) -> SuiteResult {
+pub async fn execute_application_history(state: &Arc<SynCoreState>, params: &Value) -> SuiteResult {
     let suite_args = MappingSuiteArgs {
         command: "app_history".to_string(),
         path: None,
@@ -130,10 +121,7 @@ pub async fn execute_application_history(
 
 /// Execute application_search tool
 /// DEPRECATED: Routes through mapping_suite with command="app_search"
-pub async fn execute_application_search(
-    state: &Arc<SynCoreState>,
-    params: &Value,
-) -> SuiteResult {
+pub async fn execute_application_search(state: &Arc<SynCoreState>, params: &Value) -> SuiteResult {
     let suite_args = MappingSuiteArgs {
         command: "app_search".to_string(),
         path: None,

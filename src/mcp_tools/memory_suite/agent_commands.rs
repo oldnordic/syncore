@@ -13,8 +13,8 @@
 //! - agent_task: Send task envelope to agent
 //! - agent_result: Submit task result from agent
 
-use crate::mcp_tools::SuiteResult;
 use super::{MemorySuite, MemorySuiteArgs};
+use crate::mcp_tools::SuiteResult;
 
 /// Execute agent_send command
 pub fn cmd_agent_send(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {
@@ -136,10 +136,7 @@ pub fn cmd_agent_register(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteRe
     let capabilities = match args.capabilities {
         Some(ref c) => c.clone(),
         None => {
-            return SuiteResult::err(
-                "agent_register",
-                "Missing required parameter: capabilities",
-            )
+            return SuiteResult::err("agent_register", "Missing required parameter: capabilities")
         }
     };
 

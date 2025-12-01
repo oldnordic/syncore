@@ -65,7 +65,10 @@ fn test_index_directory_excludes_target() -> Result<()> {
 
         // THIS IS THE FIX WE'RE TESTING FOR:
         let config = SyncoreConfig::default();
-        let should_skip = config.indexing.excluded_dirs.iter()
+        let should_skip = config
+            .indexing
+            .excluded_dirs
+            .iter()
             .any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
@@ -99,7 +102,7 @@ fn test_index_directory_excludes_target() -> Result<()> {
     let target_count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM code_entities WHERE file_path LIKE '%target%'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     )?;
 
     assert_eq!(
@@ -147,7 +150,10 @@ fn test_index_directory_excludes_node_modules() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config.indexing.excluded_dirs.iter()
+        let should_skip = config
+            .indexing
+            .excluded_dirs
+            .iter()
             .any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
@@ -165,7 +171,7 @@ fn test_index_directory_excludes_node_modules() -> Result<()> {
     let node_modules_count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM code_entities WHERE file_path LIKE '%node_modules%'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     )?;
 
     assert_eq!(
@@ -212,7 +218,10 @@ fn test_index_directory_excludes_git() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config.indexing.excluded_dirs.iter()
+        let should_skip = config
+            .indexing
+            .excluded_dirs
+            .iter()
             .any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
@@ -227,10 +236,13 @@ fn test_index_directory_excludes_git() -> Result<()> {
     let git_count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM code_entities WHERE file_path LIKE '%.git%'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     )?;
 
-    assert_eq!(git_count, 0, "Database should have ZERO entities from .git/");
+    assert_eq!(
+        git_count, 0,
+        "Database should have ZERO entities from .git/"
+    );
 
     Ok(())
 }
@@ -268,7 +280,10 @@ fn test_index_directory_includes_src() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config.indexing.excluded_dirs.iter()
+        let should_skip = config
+            .indexing
+            .excluded_dirs
+            .iter()
             .any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
@@ -283,13 +298,13 @@ fn test_index_directory_includes_src() -> Result<()> {
     assert_eq!(indexed_count, 2, "Should index both files in src/");
 
     let conn = Connection::open(&db_path)?;
-    let entity_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities",
-        [],
-        |row| row.get(0)
-    )?;
+    let entity_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
 
-    assert!(entity_count >= 2, "Should have at least 2 entities (main and lib functions)");
+    assert!(
+        entity_count >= 2,
+        "Should have at least 2 entities (main and lib functions)"
+    );
 
     Ok(())
 }
@@ -337,7 +352,10 @@ fn test_index_directory_multiple_exclusions() -> Result<()> {
 
     for entry in paths.flatten() {
         let entry_str = entry.to_string_lossy();
-        let should_skip = config.indexing.excluded_dirs.iter()
+        let should_skip = config
+            .indexing
+            .excluded_dirs
+            .iter()
             .any(|excluded| entry_str.contains(excluded));
 
         if should_skip {
@@ -356,11 +374,8 @@ fn test_index_directory_multiple_exclusions() -> Result<()> {
     );
 
     let conn = Connection::open(&db_path)?;
-    let total_entities: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities",
-        [],
-        |row| row.get(0)
-    )?;
+    let total_entities: i64 =
+        conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
 
     // Only main() function from src/main.rs
     assert_eq!(

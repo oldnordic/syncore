@@ -4,6 +4,10 @@
 **/*.rs.bk
 *.pdb
 
+# Binaries
+syncore
+syncore_mcp_stdio
+
 # Database files (generated at runtime)
 *.db
 *.db-shm
@@ -61,9 +65,17 @@ RECOMMENDED_CLAUDE_CONFIG.json
 vector.index.*
 *.vectors
 *.meta
+*.hnsw.*
+*.index.*
 
 # Code graph databases
 *_code_graph.db
+syncore.db
+syncore_code_graph.db
+
+# Snapshots and test directories
+/snapshots/
+/tests/tmp/
 
 # Memory test artifacts
 :memory:*
@@ -81,6 +93,7 @@ vector.index.*
 *.tmp
 *.bak
 *.orig
+*.lock
 
 # OS generated
 .DS_Store

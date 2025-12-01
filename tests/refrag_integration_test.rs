@@ -7,9 +7,9 @@ use anyhow::Result;
 
 // TDD: These imports will fail until we create the refrag module
 // use syncore::refrag::{RefragPipeline, RefragConfig};
+use std::sync::{Arc, Mutex};
 use syncore::router::SynCoreState;
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
-use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 
 /// Helper: Create test state with dual stores
@@ -42,8 +42,18 @@ async fn test_refrag_end_to_end_pipeline() -> Result<()> {
     // Insert test code chunks
     {
         let mut code_store = state.code_store.lock().unwrap();
-        code_store.insert_text(1, None, "fn parse_config(path: &str) -> Result<Config>", "code_entity")?;
-        code_store.insert_text(2, None, "fn load_file(path: &str) -> Result<String>", "code_entity")?;
+        code_store.insert_text(
+            1,
+            None,
+            "fn parse_config(path: &str) -> Result<Config>",
+            "code_entity",
+        )?;
+        code_store.insert_text(
+            2,
+            None,
+            "fn load_file(path: &str) -> Result<String>",
+            "code_entity",
+        )?;
         code_store.insert_text(3, None, "struct Config { database: String }", "code_entity")?;
         code_store.insert_text(4, None, "impl Config { fn new() -> Self }", "code_entity")?;
         code_store.insert_text(5, None, "use std::fs;", "code_entity")?;

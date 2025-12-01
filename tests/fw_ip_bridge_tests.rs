@@ -34,12 +34,14 @@ async fn test_fs_event_triggers_incremental_parse() {
     std::fs::write(&test_file, "fn main() {}").expect("Failed to write file");
 
     // Wait for fs event
-    let fs_event = timeout(Duration::from_secs(2), watcher_handle.rx.recv())
-        .await
-        .expect("Timeout waiting for fs event")
-        .expect("Channel closed");
+    let fs_event = {
+        let rx = watcher_handle.rx.clone();
+        tokio::task::spawn_blocking(move || rx.recv().expect("Channel closed"))
+            .await
+            .expect("Task panicked")
+    };
 
-    assert_eq!(fs_event.path, test_file);
+    assert_eq!(fs_event.path(), &test_file);
 
     // Apply fs_event to parser
     let deltas = parser_service
@@ -55,10 +57,12 @@ async fn test_fs_event_triggers_incremental_parse() {
         .expect("Failed to modify file");
 
     // Wait for modify event
-    let fs_event = timeout(Duration::from_secs(2), watcher_handle.rx.recv())
-        .await
-        .expect("Timeout waiting for modify event")
-        .expect("Channel closed");
+    let fs_event = {
+        let rx = watcher_handle.rx.clone();
+        tokio::task::spawn_blocking(move || rx.recv().expect("Channel closed"))
+            .await
+            .expect("Task panicked")
+    };
 
     // Apply modify event
     let deltas = parser_service
@@ -108,12 +112,14 @@ async fn test_ignore_non_rust_files() {
     std::fs::write(&txt_file, "This is not Rust code").expect("Failed to write txt file");
 
     // Wait for fs event
-    let fs_event = timeout(Duration::from_secs(2), watcher_handle.rx.recv())
-        .await
-        .expect("Timeout waiting for fs event")
-        .expect("Channel closed");
+    let fs_event = {
+        let rx = watcher_handle.rx.clone();
+        tokio::task::spawn_blocking(move || rx.recv().expect("Channel closed"))
+            .await
+            .expect("Task panicked")
+    };
 
-    assert_eq!(fs_event.path, txt_file);
+    assert_eq!(fs_event.path(), &txt_file);
 
     // Apply to parser - should produce no deltas for unsupported extension
     let deltas = parser_service
@@ -129,10 +135,10 @@ async fn test_ignore_non_rust_files() {
     let rs_file = root.join("test.rs");
     std::fs::write(&rs_file, "fn main() {}").expect("Failed to write Rust file");
 
-    let fs_event = timeout(Duration::from_secs(2), watcher_handle.rx.recv())
-        .await
-        .expect("Timeout waiting for Rust file event")
-        .expect("Channel closed");
+    let fs_event =
+        tokio::task::spawn_blocking(move || watcher_handle.rx.recv().expect("Channel closed"))
+            .await
+            .expect("Task panicked");
 
     let deltas = parser_service
         .apply_fs_event(fs_event)

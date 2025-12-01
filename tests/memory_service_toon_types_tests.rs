@@ -24,8 +24,29 @@ fn test_toon_store_op_construction() {
             assert_eq!(tags.len(), 1);
             assert_eq!(raw_text, "Raw text content");
         }
-        _ => panic!("Expected Store variant"),
+        _ => panic!("Expected Store variant");
     }
+}
+
+#[test]
+fn test_toon_controller_max_context_tokens() {
+    use syncore::memory_service::{MemoryService, ToonController, ToonGraph};
+    use std::sync::{Arc, Mutex};
+    
+    // Test ToonController with max_context_tokens
+    let max_tokens = 1000;
+    let graph = ToonGraph::new();
+    let memory = Arc::new(Mutex::new(MemoryService::new(128, 10)))
+    let controller = ToonController::new(graph, memory, max_tokens);
+    
+    assert_eq!(controller.max_context_tokens(), max_tokens, "Should return configured max tokens");
+    
+    // Test prompt fitting
+    let short_prompt = "Short prompt that should fit";
+    assert!(controller.can_fit_prompt(short_prompt), "Short prompt should fit");
+    
+    let long_prompt = "A".repeat(500); // ~2000 chars = ~500 tokens
+    assert!(!controller.can_fit_prompt(&long_prompt), "Long prompt should not fit");
 }
 
 #[test]

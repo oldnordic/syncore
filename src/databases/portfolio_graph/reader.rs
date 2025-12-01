@@ -2,9 +2,9 @@
 //!
 //! Type-safe queries for portfolio tracking entities.
 
-use anyhow::Result;
+use super::schema::portfolio_namespace;
 use crate::graph::Neo4jClient;
-use super::schema::{portfolio_namespace};
+use anyhow::Result;
 
 /// Result of a Patch query
 #[derive(Debug, Clone)]
@@ -200,7 +200,11 @@ pub async fn get_patch_files(client: &Neo4jClient, patch_id: i64) -> Result<Vec<
 
     Ok(results
         .iter()
-        .filter_map(|r| r.get("path").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .filter_map(|r| {
+            r.get("path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
         .collect())
 }
 

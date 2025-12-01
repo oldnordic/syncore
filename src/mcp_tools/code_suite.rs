@@ -15,6 +15,7 @@
 //! - `help`: Show available commands
 
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
+use crate::query::{PipelineExecutor, QueryConstraints, QueryPlanner};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -213,7 +214,11 @@ impl CodeSuite {
                     Ok(paths) => {
                         // APEX 2.15: Acquire reindex mutex to serialize DELETE+INSERT operations
                         // This prevents UNIQUE constraint collisions with concurrent LiveIndexer updates
-                        let _lock = self.state.reindex_mutex.lock().expect("reindex mutex poisoned");
+                        let _lock = self
+                            .state
+                            .reindex_mutex
+                            .lock()
+                            .expect("reindex mutex poisoned");
 
                         // BUGFIX: Load config to get excluded directories (same as bootstrap.rs)
                         // Use default config if load fails (will use default_excluded_dirs)
@@ -222,7 +227,10 @@ impl CodeSuite {
                         for entry in paths.flatten() {
                             // BUGFIX: Skip excluded directories (target/, node_modules/, etc.)
                             let entry_str = entry.to_string_lossy();
-                            let should_skip = config.indexing.excluded_dirs.iter()
+                            let should_skip = config
+                                .indexing
+                                .excluded_dirs
+                                .iter()
                                 .any(|excluded| entry_str.contains(excluded));
 
                             if should_skip {
@@ -409,64 +417,52 @@ impl CodeSuite {
             None => return SuiteResult::err("fusion_query", "Missing required parameter: query"),
         };
 
-        use crate::code_graph::{CodeGraph, QueryScope, RagGraphAPI};
+        // Create query planner
+        let planner = QueryPlanner::new();
 
-        // Parse scope from string if provided
-        let scope = args
-            .scope
-            .as_ref()
-            .map(|s| QueryScope::parse(s))
-            .unwrap_or(QueryScope::Global);
-
-        // Check if we have Neo4j available
-        let neo4j = match &self.state.neo4j {
-            Some(n) => n,
-            None => return SuiteResult::err("fusion_query", "Neo4j connection required"),
+        // Build constraints from args
+        let constraints = QueryConstraints {
+            scope: args.scope.unwrap_or_else(|| "project".to_string()),
+            max_results: args.top_k,
+            project_label: args.project_label.clone(),
+            local_root: args.local_root.clone(),
+            graph_required: self.state.neo4j.is_some(),
+            allow_hopgraph: true,
+            allow_raggraph: true,
+            allow_vector: true,
         };
 
-        // Create CodeGraph instance
-        let code_graph_conn = self.state.db_manager.code_graph_conn();
-        let code_graph =
-            match CodeGraph::with_connection(code_graph_conn, self.state.code_store.clone()) {
-                Ok(cg) => cg,
-                Err(e) => {
-                    return SuiteResult::err(
-                        "fusion_query",
-                        format!("Failed to create CodeGraph: {}", e),
-                    )
-                }
-            };
+        // Plan the query
+        let plan = match planner.plan_with_constraints(&query, constraints) {
+            Ok(plan) => plan,
+            Err(e) => {
+                return SuiteResult::err("fusion_query", format!("Query planning failed: {}", e))
+            }
+        };
 
-        // Create RAGGraph API
-        let api = RagGraphAPI::new(code_graph, (**neo4j).clone());
-
-        // Execute query with scope control
+        // Execute pipeline
+        let executor = PipelineExecutor::new();
         let result = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                api.query_with_scope(
-                    &query,
-                    args.namespace.as_deref(),
-                    args.mode_hint.as_deref(),
-                    args.top_k.map(|k| k as u32),
-                    scope,
-                    args.project_label.as_deref(),
-                    args.local_root.as_deref(),
-                )
-                .await
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async { executor.execute(&plan, &query).await })
         });
 
         match result {
-            Ok(response) => SuiteResult::ok(
+            Ok(fusion_output) => SuiteResult::ok(
                 "fusion_query",
                 serde_json::json!({
-                    "entities": response.entities,
-                    "selected_mode": response.selected_mode,
-                    "applied_scope": response.applied_scope,
-                    "entity_count": response.entities.len()
+                    "entities": fusion_output.entities,
+                    "metadata": fusion_output.metadata,
+                    "scoring_weights": fusion_output.scoring_weights,
+                    "plan": {
+                        "steps": plan.steps,
+                        "constraints": plan.constraints,
+                        "planning_metadata": plan.metadata
+                    },
+                    "entity_count": fusion_output.entities.len()
                 }),
             ),
-            Err(e) => SuiteResult::err("fusion_query", format!("Query failed: {}", e)),
+            Err(e) => SuiteResult::err("fusion_query", format!("Pipeline execution failed: {}", e)),
         }
     }
 

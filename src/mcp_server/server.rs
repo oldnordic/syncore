@@ -18,7 +18,6 @@ use std::time::SystemTime;
 // Request type definitions
 use super::types::*;
 
-
 #[derive(Clone)]
 pub struct SynCoreMCPServer {
     state: Arc<SynCoreState>,
@@ -28,7 +27,6 @@ pub struct SynCoreMCPServer {
 
 #[tool_router]
 impl SynCoreMCPServer {
-    #[allow(dead_code)]
     pub fn new(state: SynCoreState) -> Self {
         let state = Arc::new(state);
 
@@ -942,17 +940,17 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<TaskSaveRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let persistence =
-            match crate::intellitask_persistence::IntelliTaskPersistence::new(crate::common::db_paths::intellitask_db_path().as_str())
-            {
-                Ok(p) => p,
-                Err(e) => {
-                    return Ok(CallToolResult::error(vec![Content::text(format!(
-                        "Failed to initialize persistence: {}",
-                        e
-                    ))]))
-                }
-            };
+        let persistence = match crate::intellitask_persistence::IntelliTaskPersistence::new(
+            crate::common::db_paths::intellitask_db_path().as_str(),
+        ) {
+            Ok(p) => p,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to initialize persistence: {}",
+                    e
+                ))]))
+            }
+        };
 
         // Step 1: Parse as Value to check JSON syntax
         let json_value: serde_json::Value = match serde_json::from_str(&params.breakdown_json) {
@@ -2263,7 +2261,7 @@ impl ServerHandler for SynCoreMCPServer {
                 .build(),
             server_info: Implementation {
                 name: "SynCore".to_string(),
-                version: env!("CARGO_PKG_VERSION", "unknown").to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string(),
                 title: Some("SynCore MCP Server".to_string()),
                 website_url: None,
                 icons: None,

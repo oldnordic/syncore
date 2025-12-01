@@ -8,9 +8,9 @@ use anyhow::Result;
 // TDD: These imports will fail until we create the refrag module
 // use syncore::refrag::compression::{ChunkCompressionLayer, ChunkMetadata};
 // use syncore::refrag::types::Domain;
+use std::sync::{Arc, Mutex};
 use syncore::router::SynCoreState;
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
-use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 
 /// Helper: Create test state with dual stores
@@ -43,7 +43,12 @@ fn test_compression_uses_existing_embeddings() -> Result<()> {
     // Insert some test vectors
     {
         let mut code_store = state.code_store.lock().unwrap();
-        code_store.insert_text(1, None, "fn example() { println!(\"test\"); }", "code_entity")?;
+        code_store.insert_text(
+            1,
+            None,
+            "fn example() { println!(\"test\"); }",
+            "code_entity",
+        )?;
         code_store.insert_text(2, None, "struct Data { field: i32 }", "code_entity")?;
     }
 
@@ -76,7 +81,7 @@ fn test_compression_metadata_extraction() -> Result<()> {
             10,
             None,
             "fn parse_config(path: &str) -> Result<Config>",
-            "code_entity"
+            "code_entity",
         )?;
     }
 

@@ -94,7 +94,10 @@ pub fn main() {
             params,
         )
         .await?;
-    assert!(!edges.is_empty(), "Should have created edges for method calls");
+    assert!(
+        !edges.is_empty(),
+        "Should have created edges for method calls"
+    );
 
     Ok(())
 }
@@ -157,7 +160,10 @@ fn gamma() { }
         .await?;
 
     // Should have 3 nodes now (alpha, beta, gamma), not 2+3=5 (duplicates)
-    assert!(!nodes_second.is_empty(), "Should have exactly 3 nodes after reindex, not duplicates");
+    assert!(
+        !nodes_second.is_empty(),
+        "Should have exactly 3 nodes after reindex, not duplicates"
+    );
 
     Ok(())
 }

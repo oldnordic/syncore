@@ -121,7 +121,7 @@ impl MappingTool {
 
         // Neo4j integration: Use canonical neo4j module for File dependency tracking
         if let Some(neo4j) = &self.state.neo4j {
-            use crate::databases::neo4j::{upsert_file_by_path, create_file_dependency};
+            use crate::databases::neo4j::{create_file_dependency, upsert_file_by_path};
 
             let neo4j = neo4j.clone();
             let path = node.path.clone();

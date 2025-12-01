@@ -1,9 +1,7 @@
 //! Code Graph Store - SQLite persistence, FAISS embeddings, Neo4j sync
 //! Stores extracted code graphs with cross-linked queries across multiple backends.
 
-use crate::portfolio::code_graph_extractor::{
-    CodeGraph, FunctionNode,
-};
+use crate::portfolio::code_graph_extractor::{CodeGraph, FunctionNode};
 use anyhow::{anyhow, Result};
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
@@ -335,6 +333,17 @@ impl CodeGraphStore {
 
     /// Embed function signatures in FAISS vector store
     pub fn embed_functions(&mut self) -> Result<()> {
+        // Try to load existing embeddings first
+        if self.embeddings.is_empty() {
+            self.load_embeddings()?;
+        }
+
+        // If we have embeddings loaded, skip regeneration
+        if !self.embeddings.is_empty() {
+            tracing::debug!("Using {} cached embeddings", self.embeddings.len());
+            return Ok(());
+        }
+
         let functions = self.get_all_functions()?;
 
         // Use fastembed for real embeddings
@@ -356,6 +365,9 @@ impl CodeGraphStore {
         for (i, (text, embedding)) in texts.into_iter().zip(embeddings_result).enumerate() {
             self.embeddings.push((i as i64, text, embedding));
         }
+
+        // Save embeddings to disk for future use
+        self.save_embeddings()?;
 
         Ok(())
     }
@@ -668,6 +680,70 @@ impl CodeGraphStore {
     /// Get current event count (for MessageBus tracking)
     pub fn get_event_count(&self) -> usize {
         self.event_count.load(Ordering::SeqCst)
+    }
+
+    /// Get the vectors directory path
+    pub fn vectors_dir(&self) -> &PathBuf {
+        &self.vectors_dir
+    }
+
+    /// Save embeddings to disk in the vectors directory
+    pub fn save_embeddings(&self) -> Result<()> {
+        if self.embeddings.is_empty() {
+            return Ok(());
+        }
+
+        std::fs::create_dir_all(&self.vectors_dir)?;
+
+        let embeddings_path = self
+            .vectors_dir
+            .join(format!("{}_embeddings.bin", self.namespace));
+        let mut file = std::fs::File::create(&embeddings_path)?;
+
+        // Use bincode for serialization
+        use bincode::{serialize, Error};
+        let serialized = serialize(&self.embeddings)
+            .map_err(|e: Error| anyhow!("Failed to serialize embeddings: {}", e))?;
+
+        use std::io::Write;
+        file.write_all(&serialized)?;
+
+        tracing::debug!(
+            "Saved {} embeddings to {}",
+            self.embeddings.len(),
+            embeddings_path.display()
+        );
+        Ok(())
+    }
+
+    /// Load embeddings from disk in the vectors directory
+    pub fn load_embeddings(&mut self) -> Result<()> {
+        let embeddings_path = self
+            .vectors_dir
+            .join(format!("{}_embeddings.bin", self.namespace));
+
+        if !embeddings_path.exists() {
+            tracing::debug!("No embeddings file found at {}", embeddings_path.display());
+            return Ok(());
+        }
+
+        let mut file = std::fs::File::open(&embeddings_path)?;
+        let mut contents = Vec::new();
+        use std::io::Read;
+        file.read_to_end(&mut contents)?;
+
+        // Use bincode for deserialization
+        use bincode::{deserialize, Error};
+        let loaded: Vec<(i64, String, Vec<f32>)> = deserialize(&contents)
+            .map_err(|e: Error| anyhow!("Failed to deserialize embeddings: {}", e))?;
+
+        self.embeddings = loaded;
+        tracing::debug!(
+            "Loaded {} embeddings from {}",
+            self.embeddings.len(),
+            embeddings_path.display()
+        );
+        Ok(())
     }
 }
 

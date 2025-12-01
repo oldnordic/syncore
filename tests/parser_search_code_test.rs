@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex};
 use syncore::mcp::{handle_mcp_request, MCPRequest};
 use syncore::memory::Memory;
 use syncore::router::SynCoreState;
+use syncore::snapshots::SnapshotHandle;
+
 use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 use tempfile::TempDir;
@@ -73,6 +75,10 @@ fn sync_function() -> i32 {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(SnapshotHandle::default()),
+
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Create MCP request to search for async patterns
@@ -150,6 +156,10 @@ async fn test_parser_search_code_should_handle_missing_pattern() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(SnapshotHandle::default()),
+
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Create request missing pattern parameter
@@ -213,6 +223,10 @@ async fn test_parser_search_code_should_handle_nonexistent_path() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(SnapshotHandle::default()),
+
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Create request for nonexistent path
@@ -299,6 +313,10 @@ async fn test_parser_search_code_should_support_file_patterns() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(SnapshotHandle::default()),
+
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Test different search patterns
@@ -427,6 +445,10 @@ fn cleanup_function() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(SnapshotHandle::default()),
+
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Create MCP request to search with context

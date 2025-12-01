@@ -9,10 +9,13 @@
 pub mod adapter;
 pub mod message;
 
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use dashmap::DashMap;
+use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc;
+
+// Import fast lock aliases
+use crate::common::locks::{FastMutex, FastRwLock};
 
 use message::{AgentId, Msg};
 
@@ -29,29 +32,29 @@ pub struct AgentInfo {
 #[derive(Clone)]
 pub struct MessageBus {
     /// Registry of connected agents: AgentId -> Sender<Msg>
-    agents: Arc<RwLock<HashMap<AgentId, mpsc::Sender<Msg>>>>,
+    agents: Arc<DashMap<AgentId, mpsc::Sender<Msg>>>,
     /// Agent metadata registry: name -> AgentInfo
-    agent_registry: Arc<RwLock<HashMap<String, AgentInfo>>>,
+    agent_registry: Arc<DashMap<String, AgentInfo>>,
     /// Capability index: capability -> list of agent names
-    capability_index: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    capability_index: Arc<DashMap<String, Vec<String>>>,
     /// Agent runtime status: name -> JSON status
-    agent_status: Arc<RwLock<HashMap<String, serde_json::Value>>>,
+    agent_status: Arc<DashMap<String, serde_json::Value>>,
     /// Message history for debugging (append-only)
-    history: Arc<RwLock<Vec<Msg>>>,
+    history: Arc<FastRwLock<Vec<Msg>>>,
     /// Next message ID counter
-    next_id: Arc<RwLock<u64>>,
+    next_id: Arc<FastMutex<u64>>,
 }
 
 impl MessageBus {
     /// Create a new message bus instance
     pub fn new() -> Self {
         Self {
-            agents: Arc::new(RwLock::new(HashMap::new())),
-            agent_registry: Arc::new(RwLock::new(HashMap::new())),
-            capability_index: Arc::new(RwLock::new(HashMap::new())),
-            agent_status: Arc::new(RwLock::new(HashMap::new())),
-            history: Arc::new(RwLock::new(Vec::new())),
-            next_id: Arc::new(RwLock::new(1)),
+            agents: Arc::new(DashMap::new()),
+            agent_registry: Arc::new(DashMap::new()),
+            capability_index: Arc::new(DashMap::new()),
+            agent_status: Arc::new(DashMap::new()),
+            history: Arc::new(FastRwLock::new(Vec::new())),
+            next_id: Arc::new(FastMutex::new(1)),
         }
     }
 
@@ -62,9 +65,8 @@ impl MessageBus {
     pub fn register_agent(&self, id: AgentId) -> mpsc::Receiver<Msg> {
         let (tx, rx) = mpsc::channel(100); // Buffer size of 100 messages
 
-        let mut agents = self.agents.write().unwrap();
         // Replace existing agent if present (old sender is dropped)
-        agents.insert(id, tx);
+        self.agents.insert(id, tx);
 
         rx
     }
@@ -73,8 +75,7 @@ impl MessageBus {
     ///
     /// If the agent is not found, does nothing (no panic).
     pub fn unregister_agent(&self, id: &AgentId) {
-        let mut agents = self.agents.write().unwrap();
-        agents.remove(id);
+        self.agents.remove(id);
     }
 
     /// Send a message through the bus
@@ -87,24 +88,22 @@ impl MessageBus {
     pub fn send(&self, msg: Msg) {
         // Record in history for debugging
         {
-            let mut history = self.history.write().unwrap();
+            let mut history = self.history.write();
             history.push(msg.clone());
         }
-
-        let agents = self.agents.read().unwrap();
 
         match &msg.to {
             Some(target_id) => {
                 // Direct message to specific agent
-                if let Some(sender) = agents.get(target_id) {
+                if let Some(sender) = self.agents.get(target_id) {
                     // try_send is non-blocking; ignores if channel full or closed
                     let _ = sender.try_send(msg);
                 }
             }
             None => {
                 // Broadcast to all agents
-                for sender in agents.values() {
-                    let _ = sender.try_send(msg.clone());
+                for sender in self.agents.iter() {
+                    let _ = sender.value().try_send(msg.clone());
                 }
             }
         }
@@ -112,13 +111,15 @@ impl MessageBus {
 
     /// Get list of registered agents
     pub fn list_agents(&self) -> Vec<AgentId> {
-        let agents = self.agents.read().unwrap();
-        agents.keys().cloned().collect()
+        self.agents
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     /// Get next unique message ID (monotonically increasing)
     pub fn next_message_id(&self) -> u64 {
-        let mut next_id = self.next_id.write().unwrap();
+        let mut next_id = self.next_id.lock();
         let id = *next_id;
         *next_id += 1;
         id
@@ -126,22 +127,22 @@ impl MessageBus {
 
     /// Get message history (for debugging)
     pub fn message_history(&self) -> Vec<Msg> {
-        let history = self.history.read().unwrap();
+        let history = self.history.read();
         history.clone()
     }
 
     /// Clear message history
     pub fn clear_history(&self) {
-        let mut history = self.history.write().unwrap();
+        let mut history = self.history.write();
         history.clear();
     }
 
     /// Drain messages addressed to a specific agent from history
     ///
     /// Returns all messages where `msg.to` matches the given agent ID,
-    /// and removes them from the history.
+    /// and removes them from history.
     pub fn drain_for(&self, agent_id: &AgentId) -> Vec<Msg> {
-        let mut history = self.history.write().unwrap();
+        let mut history = self.history.write();
         let (matching, remaining): (Vec<Msg>, Vec<Msg>) = history
             .drain(..)
             .partition(|msg| msg.to.as_ref() == Some(agent_id));
@@ -154,7 +155,7 @@ impl MessageBus {
     /// Returns the first message addressed to the agent if available,
     /// removing it from history.
     pub fn try_recv_for(&self, agent_id: &AgentId) -> Option<Msg> {
-        let mut history = self.history.write().unwrap();
+        let mut history = self.history.write();
         if let Some(pos) = history
             .iter()
             .position(|msg| msg.to.as_ref() == Some(agent_id))
@@ -198,59 +199,58 @@ impl MessageBus {
     /// Stores agent info for routing and capability discovery.
     pub fn register_agent_info(&self, id: AgentId, name: String, capabilities: Vec<String>) {
         // Update agent registry
-        {
-            let mut registry = self.agent_registry.write().unwrap();
-            registry.insert(
-                name.clone(),
-                AgentInfo {
-                    id,
-                    name: name.clone(),
-                    capabilities: capabilities.clone(),
-                    registered_at: Instant::now(),
-                },
-            );
-        }
+        self.agent_registry.insert(
+            name.clone(),
+            AgentInfo {
+                id,
+                name: name.clone(),
+                capabilities: capabilities.clone(),
+                registered_at: Instant::now(),
+            },
+        );
 
         // Update capability index
-        {
-            let mut index = self.capability_index.write().unwrap();
-            for cap in &capabilities {
-                index
-                    .entry(cap.clone())
-                    .or_default()
-                    .push(name.clone());
-            }
+        for cap in &capabilities {
+            self.capability_index
+                .entry(cap.clone())
+                .or_default()
+                .push(name.clone());
         }
     }
 
     /// Get list of registered agent names
     pub fn list_registered_agents(&self) -> Vec<String> {
-        let registry = self.agent_registry.read().unwrap();
-        registry.keys().cloned().collect()
+        self.agent_registry
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect()
     }
 
     /// Get agent info by name
     pub fn get_agent_info(&self, name: &str) -> Option<AgentInfo> {
-        let registry = self.agent_registry.read().unwrap();
-        registry.get(name).cloned()
+        self.agent_registry
+            .get(name)
+            .map(|entry| entry.value().clone())
     }
 
     /// Get list of agent names that have a specific capability
     pub fn agents_with_capability(&self, cap: &str) -> Vec<String> {
-        let index = self.capability_index.read().unwrap();
-        index.get(cap).cloned().unwrap_or_default()
+        self.capability_index
+            .get(cap)
+            .map(|entry| entry.value().clone())
+            .unwrap_or_default()
     }
 
     /// Update the runtime status of an agent
     pub fn update_agent_status(&self, name: &str, status: serde_json::Value) {
-        let mut map = self.agent_status.write().unwrap();
-        map.insert(name.to_string(), status);
+        self.agent_status.insert(name.to_string(), status);
     }
 
     /// Get the runtime status of an agent
     pub fn get_agent_status(&self, name: &str) -> Option<serde_json::Value> {
-        let map = self.agent_status.read().unwrap();
-        map.get(name).cloned()
+        self.agent_status
+            .get(name)
+            .map(|entry| entry.value().clone())
     }
 }
 

@@ -8,9 +8,9 @@
 //! - DualEmbeddingService unchanged
 
 use anyhow::Result;
+use std::sync::{Arc, Mutex};
 use syncore::router::SynCoreState;
 use syncore::vector::{Embeddings, HuggingFaceEmbeddings, SearchScope, VectorStore};
-use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 
 /// Helper: Create test state with dual stores
@@ -241,9 +241,9 @@ fn test_regression_no_new_dependencies() -> Result<()> {
     // this test will fail to compile
 
     // Verify key APEX 1.7 types are still importable
-    use syncore::vector::{Embeddings, Hit, SearchScope, VectorStore};
-    use syncore::vector::domain::EmbeddingDomain;
     use syncore::router::SynCoreState;
+    use syncore::vector::domain::EmbeddingDomain;
+    use syncore::vector::{Embeddings, Hit, SearchScope, VectorStore};
 
     // If these imports work, APEX 1.7 API is intact
     let _: Option<Box<dyn Embeddings>> = None;

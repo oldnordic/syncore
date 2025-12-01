@@ -24,8 +24,8 @@ pub use toon_error::ToonError;
 pub use toon_prompt::ToonPromptBuilder;
 pub use toon_result::{ToonResult, ToonStepResult};
 
+use crate::common::fast_map::FastHashMap;
 use crate::db::DbManager;
-use std::collections::{HashMap};
 
 /// Memory Service with short-term (RAM) and long-term (persistent) storage
 pub struct MemoryService {
@@ -109,7 +109,7 @@ impl MemoryService {
         };
 
         // Merge and deduplicate results
-        let mut entries_by_id: HashMap<String, (MemoryEntry, f32)> = HashMap::new();
+        let mut entries_by_id: FastHashMap<String, (MemoryEntry, f32)> = FastHashMap::default();
 
         // Add RAM results
         for entry in ram_results {
@@ -145,6 +145,11 @@ impl MemoryService {
             .collect()
     }
 
+    /// Get the embedding dimension used by this memory service
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
     /// Get cache statistics
     pub fn stats(&self) -> MemoryStats {
         let (ltm_nodes, ltm_edges) = if let Some(ref ltm) = self.ltm {
@@ -161,6 +166,7 @@ impl MemoryService {
         MemoryStats {
             ram_size: self.ram_cache.len(),
             ram_capacity: self.capacity,
+            dimension: self.dimension,
             ltm_nodes,
             ltm_edges,
         }
@@ -189,6 +195,7 @@ impl MemoryService {
 pub struct MemoryStats {
     pub ram_size: usize,
     pub ram_capacity: usize,
+    pub dimension: usize,
     pub ltm_nodes: usize,
     pub ltm_edges: usize,
 }

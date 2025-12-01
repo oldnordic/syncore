@@ -111,18 +111,16 @@ pub async fn execute_parser_analyze(
     // If persist=true, also index the file using CodeGraph (same as code_index)
     let persisted_count = if persist {
         let code_graph_conn = state.db_manager.code_graph_conn();
-        let mut code_graph = match CodeGraph::with_connection(
-            code_graph_conn,
-            Arc::clone(&state.general_store),
-        ) {
-            Ok(cg) => cg,
-            Err(e) => {
-                return Ok(wrap_error(
-                    "parser_analyze",
-                    &format!("Failed to initialize code graph for persistence: {}", e),
-                ));
-            }
-        };
+        let mut code_graph =
+            match CodeGraph::with_connection(code_graph_conn, Arc::clone(&state.general_store)) {
+                Ok(cg) => cg,
+                Err(e) => {
+                    return Ok(wrap_error(
+                        "parser_analyze",
+                        &format!("Failed to initialize code graph for persistence: {}", e),
+                    ));
+                }
+            };
 
         match code_graph.index_file(Path::new(file_path)) {
             Ok(count) => Some(count),
@@ -232,18 +230,16 @@ pub async fn execute_code_index(
     // REAL IMPLEMENTATION - Index file with persistent storage using DbManager
     // Use DbManager's long-lived connection instead of creating a new one
     let code_graph_conn = state.db_manager.code_graph_conn();
-    let mut code_graph = match CodeGraph::with_connection(
-        code_graph_conn,
-        Arc::clone(&state.general_store),
-    ) {
-        Ok(cg) => cg,
-        Err(e) => {
-            return Ok(wrap_error(
-                "code_index",
-                &format!("Failed to initialize code graph: {}", e),
-            ));
-        }
-    };
+    let mut code_graph =
+        match CodeGraph::with_connection(code_graph_conn, Arc::clone(&state.general_store)) {
+            Ok(cg) => cg,
+            Err(e) => {
+                return Ok(wrap_error(
+                    "code_index",
+                    &format!("Failed to initialize code graph: {}", e),
+                ));
+            }
+        };
 
     // Index the file with persistent storage
     let path = Path::new(file_path);
@@ -323,18 +319,16 @@ pub async fn execute_code_index_directory(
 
     // Use DbManager's long-lived connection instead of creating a new one
     let code_graph_conn = state.db_manager.code_graph_conn();
-    let mut code_graph = match CodeGraph::with_connection(
-        code_graph_conn,
-        Arc::clone(&state.general_store),
-    ) {
-        Ok(cg) => cg,
-        Err(e) => {
-            return Ok(wrap_error(
-                "code_index_directory",
-                &format!("Failed to initialize code graph: {}", e),
-            ));
-        }
-    };
+    let mut code_graph =
+        match CodeGraph::with_connection(code_graph_conn, Arc::clone(&state.general_store)) {
+            Ok(cg) => cg,
+            Err(e) => {
+                return Ok(wrap_error(
+                    "code_index_directory",
+                    &format!("Failed to initialize code graph: {}", e),
+                ));
+            }
+        };
 
     // Recursively find files matching pattern
     use glob::glob;

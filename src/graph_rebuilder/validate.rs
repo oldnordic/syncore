@@ -6,8 +6,8 @@
 //! - No orphan clusters from path mismatch
 //! - Diffusion returns >0.0 scores for connected nodes
 
+use crate::databases::neo4j::{find_orphan_entities, validate_structure};
 use crate::graph::Neo4jClient;
-use crate::databases::neo4j::{validate_structure, find_orphan_entities};
 use anyhow::Result;
 
 /// Statistics about node connectivity in the graph

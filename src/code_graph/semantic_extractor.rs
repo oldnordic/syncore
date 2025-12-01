@@ -11,7 +11,7 @@
 use anyhow::Result;
 use tree_sitter::{Node, Parser};
 
-use super::types::{EdgeType};
+use super::types::EdgeType;
 
 /// Semantic edge extractor for Rust code
 pub struct SemanticExtractor {

@@ -8,9 +8,9 @@
 //! - `rag_multihop`: Multi-hop graph diffusion from seed nodes
 //! - `help`: Show available commands
 
+use crate::databases::neo4j::{create_relationship, RelationType};
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::router::SynCoreState;
-use crate::databases::neo4j::{RelationType, create_relationship};
 use serde::{Deserialize, Serialize};
 
 /// Graph suite arguments

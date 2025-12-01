@@ -96,7 +96,10 @@ fn test_graph_bert_strategy_respects_graph_features() {
     features_rich.degree_out = 20;
     let emb_rich = model.embed_with_graph(&code_emb, &features_rich);
 
-    assert_ne!(emb_empty, emb_rich, "Graph features must influence embedding");
+    assert_ne!(
+        emb_empty, emb_rich,
+        "Graph features must influence embedding"
+    );
 }
 
 #[test]
@@ -112,10 +115,10 @@ fn test_graph_embedding_service_uses_graph_bert_when_enabled() {
     use syncore::code_graph::graph_embeddings::GraphEmbeddingStrategy;
     use syncore::vector::domain::{EmbeddingConfig, EmbeddingDomain};
 
-    // Verify GRAPH domain config
-    let graph_config = EmbeddingConfig::for_graph();
+    // Verify CODE domain config (used for graph embeddings)
+    let graph_config = EmbeddingConfig::for_code();
     assert_eq!(graph_config.dimension, 384);
-    assert_eq!(graph_config.domain, EmbeddingDomain::Graph);
+    assert_eq!(graph_config.domain, EmbeddingDomain::Code);
 
     // Verify GraphBertModel implements GraphEmbeddingStrategy
     let graph_bert: Box<dyn GraphEmbeddingStrategy> = Box::new(GraphBertModel::new().unwrap());
@@ -123,7 +126,11 @@ fn test_graph_embedding_service_uses_graph_bert_when_enabled() {
     let features = GraphFeatures::empty();
 
     let graph_emb = graph_bert.embed_with_graph(&code_emb, &features);
-    assert_eq!(graph_emb.len(), 384, "GraphBertModel produces 384-dim embeddings");
+    assert_eq!(
+        graph_emb.len(),
+        384,
+        "GraphBertModel produces 384-dim embeddings"
+    );
 }
 
 // ============================================================================
@@ -142,7 +149,11 @@ fn test_simple_feature_combiner_still_works() {
     let features = GraphFeatures::empty();
 
     let graph_emb = combiner.embed_with_graph(&code_emb, &features);
-    assert_eq!(graph_emb.len(), 384, "SimpleFeatureCombiner must still work");
+    assert_eq!(
+        graph_emb.len(),
+        384,
+        "SimpleFeatureCombiner must still work"
+    );
 }
 
 #[test]
@@ -150,7 +161,7 @@ fn test_code_and_general_domains_unchanged() {
     // Ensure CODE and GENERAL domains are NOT affected by Graph-BERT
     //
     // This test should PASS immediately (APEX 2.0-E behavior preserved)
-    use syncore::vector::domain::{EmbeddingDomain, EmbeddingConfig};
+    use syncore::vector::domain::{EmbeddingConfig, EmbeddingDomain};
 
     let code_config = EmbeddingConfig::for_code();
     let general_config = EmbeddingConfig::for_general();
@@ -162,8 +173,8 @@ fn test_code_and_general_domains_unchanged() {
     assert_eq!(general_config.model_name, "bge-m3");
     assert_eq!(general_config.dimension, 1024);
 
-    // GRAPH domain unchanged: all-MiniLM-L6-v2 (384 dims)
-    let graph_config = EmbeddingConfig::for_graph();
-    assert_eq!(graph_config.model_name, "all-MiniLM-L6-v2");
+    // CODE domain unchanged: BGE-small-en-v1.5 (384 dims)
+    let graph_config = EmbeddingConfig::for_code();
+    assert_eq!(graph_config.model_name, "BGE-small-en-v1.5");
     assert_eq!(graph_config.dimension, 384);
 }

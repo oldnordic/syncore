@@ -47,7 +47,7 @@ struct Components {
     parser: ParserService,
     update_service: CodeGraphUpdateService,
     vector_store: Arc<Mutex<VectorStore>>,
-    lsp_bridge: LspBridge,
+    lsp_bridge: Arc<Mutex<LspBridge>>,
     config: LiveIndexerConfig,
 }
 
@@ -58,7 +58,7 @@ impl LiveIndexer {
         parser: ParserService,
         update_service: CodeGraphUpdateService,
         vector_store: Arc<Mutex<VectorStore>>,
-        lsp_bridge: LspBridge,
+        lsp_bridge: Arc<Mutex<LspBridge>>,
         config: LiveIndexerConfig,
     ) -> Result<Self> {
         let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>(1);
@@ -82,11 +82,13 @@ impl LiveIndexer {
     /// Start the live indexer background task
     pub async fn start(&self) -> Result<JoinHandle<()>> {
         let mut components_lock = self.components.lock().unwrap();
-        let components = components_lock.take()
+        let components = components_lock
+            .take()
             .ok_or_else(|| anyhow::anyhow!("LiveIndexer already started"))?;
 
         let mut shutdown_rx_lock = self.shutdown_rx.lock().unwrap();
-        let shutdown_rx = shutdown_rx_lock.take()
+        let shutdown_rx = shutdown_rx_lock
+            .take()
             .ok_or_else(|| anyhow::anyhow!("LiveIndexer already started"))?;
 
         let handle = tokio::spawn(event_loop(
@@ -144,7 +146,7 @@ async fn event_loop(
     mut parser: ParserService,
     mut update_service: CodeGraphUpdateService,
     vector_store: Arc<Mutex<VectorStore>>,
-    mut lsp_bridge: LspBridge,
+    lsp_bridge: Arc<Mutex<LspBridge>>,
     config: LiveIndexerConfig,
 ) {
     let debounce_duration = Duration::from_millis(config.debounce_ms);
@@ -157,7 +159,7 @@ async fn event_loop(
             }
 
             Some(fs_event) = fs_rx.recv() => {
-                let path = fs_event.path.clone();
+                let path = fs_event.path().clone();
 
                 let should_process = throttle_map
                     .get(&path)
@@ -170,7 +172,7 @@ async fn event_loop(
                         &mut parser,
                         &mut update_service,
                         &vector_store,
-                        &mut lsp_bridge,
+                        &lsp_bridge,
                     ).await;
 
                     throttle_map
@@ -189,12 +191,12 @@ async fn event_loop(
 }
 
 /// Process a single file system event
-async fn process_fs_event(
+pub async fn process_fs_event(
     fs_event: FsEvent,
     parser: &mut ParserService,
     update_service: &mut CodeGraphUpdateService,
     _vector_store: &Arc<Mutex<VectorStore>>,
-    lsp_bridge: &mut LspBridge,
+    _lsp_bridge: &Arc<Mutex<LspBridge>>,
 ) {
     let parse_deltas = match parser.apply_fs_event(fs_event.clone()) {
         Ok(deltas) => deltas,
@@ -208,10 +210,17 @@ async fn process_fs_event(
 
     let _ = update_service.apply_update(update_event);
 
-    // Trigger LSP notification (if file exists)
-    if fs_event.path.exists() {
-        if let Ok(text) = std::fs::read_to_string(&fs_event.path) {
-            let _ = lsp_bridge.send_did_change(&fs_event.path, &text).await;
-        }
-    }
+    // TODO: Fix LSP notification - temporarily disabled due to Send issues
+    // if fs_event.path_exists() {
+    //     if let Ok(text) = std::fs::read_to_string(fs_event.path()) {
+    //         let path = fs_event.path().to_path_buf();
+    //         let lsp_bridge = lsp_bridge.clone();
+    //         tokio::spawn(async move {
+    //             // Lock only for the duration of the call
+    //             if let Ok(mut bridge) = lsp_bridge.lock() {
+    //                 let _ = bridge.send_did_change(&path, &text).await;
+    //             }
+    //         });
+    //     }
+    // }
 }

@@ -18,6 +18,8 @@ pub struct CodeGraph {
     pub(super) parser: Parser,
     /// PHASE 2: Optional Neo4j client for dual-write persistence
     pub(super) neo4j: Option<Arc<Neo4jClient>>,
+    /// MVCC-lite version counter for snapshot consistency
+    pub(super) version: std::sync::atomic::AtomicU64,
 }
 
 impl CodeGraph {
@@ -81,6 +83,7 @@ impl CodeGraph {
             vector_store,
             parser: Parser::new()?,
             neo4j: None,
+            version: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -133,6 +136,7 @@ impl CodeGraph {
             vector_store,
             parser: Parser::new()?,
             neo4j: None,
+            version: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -172,6 +176,7 @@ impl CodeGraph {
             vector_store,
             parser: Parser::new()?,
             neo4j: Some(neo4j),
+            version: std::sync::atomic::AtomicU64::new(0),
         })
     }
 
@@ -191,6 +196,23 @@ impl CodeGraph {
     /// Should only be used in test code.
     pub fn db_for_testing(&self) -> &Arc<Mutex<Connection>> {
         &self.db
+    }
+
+    /// Get the current version of the CodeGraph
+    ///
+    /// This version is incremented on every meaningful write operation
+    /// and is used for MVCC-lite snapshot consistency.
+    pub fn current_version(&self) -> u64 {
+        self.version.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Increment the version counter
+    ///
+    /// This should be called after every successful write operation
+    /// that changes the state of the code graph.
+    pub fn increment_version(&self) {
+        self.version
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Ensure code_graph schema exists (fallback for test environments)
@@ -304,8 +326,9 @@ impl CodeGraph {
         }
 
         // Add code_macro_expansions table for Rust macro tracking
-        let has_macro_expansions: bool =
-            db.prepare("SELECT 1 FROM code_macro_expansions LIMIT 1").is_ok();
+        let has_macro_expansions: bool = db
+            .prepare("SELECT 1 FROM code_macro_expansions LIMIT 1")
+            .is_ok();
 
         if !has_macro_expansions {
             db.execute_batch(
@@ -562,10 +585,10 @@ impl CodeGraph {
             .lock()
             .map_err(|e| anyhow!("Failed to lock db: {}", e))?;
 
-        let deleted = db.execute(
-            "DELETE FROM code_entities WHERE file_path = ?",
-            [path_str],
-        )?;
+        let deleted = db.execute("DELETE FROM code_entities WHERE file_path = ?", [path_str])?;
+
+        // Increment version counter after successful delete
+        self.increment_version();
 
         Ok(deleted)
     }
@@ -582,7 +605,10 @@ impl CodeGraph {
     ///
     /// # Returns
     /// GraphFeatures struct with degree counts and edge type distribution
-    pub fn extract_graph_features(&self, entity_id: i64) -> Result<super::graph_embeddings::GraphFeatures> {
+    pub fn extract_graph_features(
+        &self,
+        entity_id: i64,
+    ) -> Result<super::graph_embeddings::GraphFeatures> {
         let db = self
             .db
             .lock()
@@ -603,7 +629,8 @@ impl CodeGraph {
         )? as u32;
 
         // Query edge type distribution for outgoing edges
-        let mut edge_types = std::collections::HashMap::new();
+        use crate::common::fast_map::FastHashMap;
+        let mut edge_types = FastHashMap::default();
         let mut stmt = db.prepare(
             "SELECT edge_type, COUNT(*) as count FROM code_edges
              WHERE src_entity_id = ?

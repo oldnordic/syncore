@@ -12,12 +12,12 @@
 //! - `sequential_cycle`: Run sequential thinking cycles for complex task processing
 //! - `help`: Show available commands
 
-pub mod memory_commands;
-pub mod vector_commands;
-pub mod task_commands;
-pub mod sequential_commands;
 pub mod agent_commands;
 pub mod intellitask_commands;
+pub mod memory_commands;
+pub mod sequential_commands;
+pub mod task_commands;
+pub mod vector_commands;
 
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::router::SynCoreState;
@@ -172,15 +172,29 @@ impl MemorySuite {
             // IntelliTask commands (delegated to intellitask_commands module)
             "intellitask_list" => intellitask_commands::cmd_intellitask_list(self, args),
             "intellitask_get" => intellitask_commands::cmd_intellitask_get(self, args),
-            "intellitask_update_status" => intellitask_commands::cmd_intellitask_update_status(self, args),
-            "intellitask_next_ready" => intellitask_commands::cmd_intellitask_next_ready(self, args),
-            "intellitask_get_subtasks" => intellitask_commands::cmd_intellitask_get_subtasks(self, args),
-            "intellitask_subtask_stats" => intellitask_commands::cmd_intellitask_subtask_stats(self, args),
-            "intellitask_task_statistics" => intellitask_commands::cmd_intellitask_task_statistics(self, args),
-            "intellitask_prd_statistics" => intellitask_commands::cmd_intellitask_prd_statistics(self, args),
+            "intellitask_update_status" => {
+                intellitask_commands::cmd_intellitask_update_status(self, args)
+            }
+            "intellitask_next_ready" => {
+                intellitask_commands::cmd_intellitask_next_ready(self, args)
+            }
+            "intellitask_get_subtasks" => {
+                intellitask_commands::cmd_intellitask_get_subtasks(self, args)
+            }
+            "intellitask_subtask_stats" => {
+                intellitask_commands::cmd_intellitask_subtask_stats(self, args)
+            }
+            "intellitask_task_statistics" => {
+                intellitask_commands::cmd_intellitask_task_statistics(self, args)
+            }
+            "intellitask_prd_statistics" => {
+                intellitask_commands::cmd_intellitask_prd_statistics(self, args)
+            }
             "intellitask_generate" => intellitask_commands::cmd_intellitask_generate(self, args),
             "intellitask_subtasks" => intellitask_commands::cmd_intellitask_subtasks(self, args),
-            "intellitask_prioritize" => intellitask_commands::cmd_intellitask_prioritize(self, args),
+            "intellitask_prioritize" => {
+                intellitask_commands::cmd_intellitask_prioritize(self, args)
+            }
             "intellitask_next" => intellitask_commands::cmd_intellitask_next(self, args),
             "intellitask_save" => intellitask_commands::cmd_intellitask_save(self, args),
             "help" => self.cmd_help(),
@@ -193,7 +207,6 @@ impl MemorySuite {
             ),
         }
     }
-
 
     fn cmd_help(&self) -> SuiteResult {
         let commands = self.list_commands();

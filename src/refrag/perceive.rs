@@ -128,12 +128,11 @@ impl PerceiveSelector {
                     .fold(0.0_f32, f32::max);
 
                 for chunk in candidates.iter_mut() {
-                    let normalized_structural =
-                        if max_structural > 0.0 {
-                            chunk.structural_score / max_structural
-                        } else {
-                            0.0
-                        };
+                    let normalized_structural = if max_structural > 0.0 {
+                        chunk.structural_score / max_structural
+                    } else {
+                        0.0
+                    };
 
                     // Combined score = weighted sum
                     chunk.fusion_score = chunk.fusion_score * fusion_weight

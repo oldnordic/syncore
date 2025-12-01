@@ -81,11 +81,14 @@ pub async fn execute_agent_send(
     };
 
     if dry_run {
-        let result = wrap_success("agent_send", json!({
-            "dry_run": true,
-            "message": format!("[DRY RUN] Would send message to '{}': {}", to, message),
-            "sent": true
-        }));
+        let result = wrap_success(
+            "agent_send",
+            json!({
+                "dry_run": true,
+                "message": format!("[DRY RUN] Would send message to '{}': {}", to, message),
+                "sent": true
+            }),
+        );
         return Ok(result);
     }
 
@@ -143,11 +146,14 @@ pub async fn execute_agent_recv(
     };
 
     if dry_run {
-        let result = wrap_success("agent_recv", json!({
-            "dry_run": true,
-            "message": format!("[DRY RUN] Would receive messages for agent '{}'", agent),
-            "messages": []
-        }));
+        let result = wrap_success(
+            "agent_recv",
+            json!({
+                "dry_run": true,
+                "message": format!("[DRY RUN] Would receive messages for agent '{}'", agent),
+                "messages": []
+            }),
+        );
         return Ok(result);
     }
 
@@ -161,11 +167,13 @@ pub async fn execute_agent_recv(
     // 3. A persistent message queue that can be queried
     //
     // Returning an error instead of fake empty messages.
-    Ok(wrap_error("agent_recv",
+    Ok(wrap_error(
+        "agent_recv",
         "NotImplemented: MessageBus does not support message polling. \
         The current API only supports push-based message delivery via register_agent(). \
         To fix: Add get_messages() or poll_messages() method to MessageBus, \
-        or implement a persistent message queue that can be queried."))
+        or implement a persistent message queue that can be queried.",
+    ))
 }
 
 /// Execute agent_register tool
@@ -191,11 +199,14 @@ pub async fn execute_agent_register(
         .ok_or_else(|| anyhow::anyhow!("Missing 'capabilities' parameter"))?;
 
     if dry_run {
-        let result = wrap_success("agent_register", json!({
-            "dry_run": true,
-            "message": format!("[DRY RUN] Would register agent '{}' with {} capabilities", id, capabilities.len()),
-            "registered": true
-        }));
+        let result = wrap_success(
+            "agent_register",
+            json!({
+                "dry_run": true,
+                "message": format!("[DRY RUN] Would register agent '{}' with {} capabilities", id, capabilities.len()),
+                "registered": true
+            }),
+        );
         return Ok(result);
     }
 
@@ -343,11 +354,14 @@ pub async fn execute_agent_task(
         .ok_or_else(|| anyhow::anyhow!("Missing 'payload' parameter"))?;
 
     if dry_run {
-        let result = wrap_success("agent_task", json!({
-            "dry_run": true,
-            "message": format!("[DRY RUN] Would send task '{}' to agent '{}'", task_id, to),
-            "sent": true
-        }));
+        let result = wrap_success(
+            "agent_task",
+            json!({
+                "dry_run": true,
+                "message": format!("[DRY RUN] Would send task '{}' to agent '{}'", task_id, to),
+                "sent": true
+            }),
+        );
         return Ok(result);
     }
 
@@ -417,11 +431,14 @@ pub async fn execute_agent_result(
         .ok_or_else(|| anyhow::anyhow!("Missing 'result' parameter"))?;
 
     if dry_run {
-        let result = wrap_success("agent_result", json!({
-            "dry_run": true,
-            "message": format!("[DRY RUN] Would record result from '{}' for task '{}'", from, task_id),
-            "recorded": true
-        }));
+        let result = wrap_success(
+            "agent_result",
+            json!({
+                "dry_run": true,
+                "message": format!("[DRY RUN] Would record result from '{}' for task '{}'", from, task_id),
+                "recorded": true
+            }),
+        );
         return Ok(result);
     }
 

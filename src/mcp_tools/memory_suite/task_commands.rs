@@ -6,8 +6,8 @@
 //! Commands:
 //! - task_create: Create new task with goal and priority
 
-use crate::mcp_tools::SuiteResult;
 use super::{MemorySuite, MemorySuiteArgs};
+use crate::mcp_tools::SuiteResult;
 
 /// Execute task_create command
 pub fn cmd_task_create(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {

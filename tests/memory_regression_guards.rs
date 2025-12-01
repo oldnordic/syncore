@@ -42,33 +42,23 @@ fn test_semantic_memory_metadata_preserved() {
 
 #[test]
 fn test_triple_domain_config_unchanged() {
-    // Test that CODE/GENERAL/GRAPH domain configs remain intact (APEX 2.0-E)
+    // Test that CODE/GENERAL domain configs remain intact (APEX 2.0-E)
     let code_config = EmbeddingConfig::for_code();
     let general_config = EmbeddingConfig::for_general();
-    let graph_config = EmbeddingConfig::for_graph();
 
-    // APEX 2.0-E: CODE and GENERAL use BGE-M3 (1024 dims)
-    assert_eq!(code_config.model_name, "bge-m3");
-    assert_eq!(code_config.dimension, 1024);
+    // APEX 2.0-E: CODE uses BGE-small-en-v1.5 (384 dims)
+    assert_eq!(code_config.model_name, "BGE-small-en-v1.5");
+    assert_eq!(code_config.dimension, 384);
     assert_eq!(code_config.domain, EmbeddingDomain::Code);
 
-    assert_eq!(general_config.model_name, "bge-m3");
-    assert_eq!(general_config.dimension, 1024);
+    assert_eq!(general_config.model_name, "all-MiniLM-L6-v2");
+    assert_eq!(general_config.dimension, 384);
     assert_eq!(general_config.domain, EmbeddingDomain::General);
-
-    // GRAPH domain uses all-MiniLM-L6-v2 (384 dims)
-    assert_eq!(graph_config.model_name, "all-MiniLM-L6-v2");
-    assert_eq!(graph_config.dimension, 384);
-    assert_eq!(graph_config.domain, EmbeddingDomain::Graph);
 
     // Verify separate index paths
     assert_ne!(
         code_config.index_path, general_config.index_path,
         "CODE and GENERAL must use separate HNSW indices"
-    );
-    assert_ne!(
-        code_config.index_path, graph_config.index_path,
-        "CODE and GRAPH must use separate HNSW indices"
     );
 }
 

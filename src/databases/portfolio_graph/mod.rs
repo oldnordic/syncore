@@ -22,44 +22,24 @@
 //! 7. All operations namespace-aware
 //! 8. All entities use double label pattern: `:Patch:SynCore`
 
+pub mod reader;
 pub mod schema;
 pub mod writer;
-pub mod reader;
 
 // Re-export main types for convenience
 pub use schema::{
-    NodeLabel,
-    RelationType,
-    PatchProperties,
-    StepProperties,
-    TaskProperties,
+    portfolio_namespace, NodeLabel, PatchProperties, RelationType, StepProperties, TaskProperties,
     PORTFOLIO_PROJECT_LABEL,
-    portfolio_namespace,
 };
 
 pub use writer::{
-    upsert_patch,
-    upsert_step,
-    upsert_task,
-    create_for_task_relationship,
-    create_applies_to_relationship,
-    create_follows_relationship,
-    delete_patch,
-    delete_step,
-    delete_task,
+    create_applies_to_relationship, create_follows_relationship, create_for_task_relationship,
+    delete_patch, delete_step, delete_task, upsert_patch, upsert_step, upsert_task,
 };
 
 pub use reader::{
-    PatchResult,
-    StepResult,
-    TaskResult,
-    get_patch_by_id,
-    get_step_by_id,
-    get_task_by_id,
-    get_patches_for_task,
-    get_steps_for_task,
-    get_patch_files,
-    count_portfolio_nodes,
+    count_portfolio_nodes, get_patch_by_id, get_patch_files, get_patches_for_task, get_step_by_id,
+    get_steps_for_task, get_task_by_id, PatchResult, StepResult, TaskResult,
 };
 
 #[cfg(test)]

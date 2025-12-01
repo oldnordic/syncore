@@ -183,9 +183,8 @@ impl StorageAdapter for RealStorageAdapter {
         use crate::databases::rag_graph::get_embedding_text;
 
         let text = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                get_embedding_text(&self.neo4j, node_id).await
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async { get_embedding_text(&self.neo4j, node_id).await })
         })
         .context("Failed to query embedding text from Neo4j")?;
 
@@ -202,9 +201,8 @@ impl StorageAdapter for RealStorageAdapter {
         use crate::databases::rag_graph::get_neighbors;
 
         let neighbor_results = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                get_neighbors(&self.neo4j, node_id).await
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async { get_neighbors(&self.neo4j, node_id).await })
         })
         .map_err(|e| StorageError::GraphQueryFailed(format!("Neo4j query failed: {}", e)))?;
 

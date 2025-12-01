@@ -404,7 +404,12 @@ impl RagGraphAPI {
     ) -> Result<f32> {
         // PHASE 5: Use default 4-component weights (α=0.5, β=0.2, τ=0.1, γ=0.2)
         let fusion = FusionSimple::default();
-        let result = fusion.combine(vector_score, graph_score, temporal_score, graph_embedding_score);
+        let result = fusion.combine(
+            vector_score,
+            graph_score,
+            temporal_score,
+            graph_embedding_score,
+        );
 
         // Add debug info
         debug_info.insert("vector_score".to_string(), serde_json::json!(vector_score));

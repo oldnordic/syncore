@@ -6,7 +6,7 @@ use anyhow::Result;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use syncore::code_graph::CodeGraph;
-use syncore::vector::{VectorStore, HuggingFaceEmbeddings};
+use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 use tempfile::NamedTempFile;
 
 #[test]
@@ -19,7 +19,10 @@ fn test_function_bodies_are_indexed() -> Result<()> {
     let temp_db = NamedTempFile::new()?;
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = VectorStore::new(embeddings);
-    let mut code_graph = CodeGraph::new(temp_db.path().to_str().unwrap(), Arc::new(Mutex::new(vector_store)))?;
+    let mut code_graph = CodeGraph::new(
+        temp_db.path().to_str().unwrap(),
+        Arc::new(Mutex::new(vector_store)),
+    )?;
 
     // Index the fixture file with unique function body
     let unique_file = fixture_path.join("src/unique_feature.rs");
@@ -29,7 +32,10 @@ fn test_function_bodies_are_indexed() -> Result<()> {
     let results = code_graph.search_code("cosmic alignment", 5)?;
 
     // Assert that results are not empty
-    assert!(!results.is_empty(), "Should find matches for 'cosmic alignment'");
+    assert!(
+        !results.is_empty(),
+        "Should find matches for 'cosmic alignment'"
+    );
 
     // Assert that calculate_cosmic_alignment function is in top results
     let top_match = &results[0];
@@ -51,7 +57,10 @@ fn test_body_indexing_does_not_break_existing_entity_indexing() -> Result<()> {
     let temp_db = NamedTempFile::new()?;
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = VectorStore::new(embeddings);
-    let mut code_graph = CodeGraph::new(temp_db.path().to_str().unwrap(), Arc::new(Mutex::new(vector_store)))?;
+    let mut code_graph = CodeGraph::new(
+        temp_db.path().to_str().unwrap(),
+        Arc::new(Mutex::new(vector_store)),
+    )?;
 
     // Index a simple Rust file
     let fixture_path = Path::new("tests/fixtures/body_index_project");
@@ -60,11 +69,19 @@ fn test_body_indexing_does_not_break_existing_entity_indexing() -> Result<()> {
 
     // Verify entities were indexed (basic entity extraction still works)
     let results = code_graph.search_code("calculate", 10)?;
-    assert!(!results.is_empty(), "Should find entities with 'calculate' in name");
+    assert!(
+        !results.is_empty(),
+        "Should find entities with 'calculate' in name"
+    );
 
     // Verify we can find entities by function name (not just body content)
-    let has_cosmic_fn = results.iter().any(|r| r.entity.name.contains("calculate_cosmic_alignment"));
-    assert!(has_cosmic_fn, "Should find calculate_cosmic_alignment by name");
+    let has_cosmic_fn = results
+        .iter()
+        .any(|r| r.entity.name.contains("calculate_cosmic_alignment"));
+    assert!(
+        has_cosmic_fn,
+        "Should find calculate_cosmic_alignment by name"
+    );
 
     Ok(())
 }
@@ -79,7 +96,10 @@ fn test_code_search_prefers_implementation_over_reexport() -> Result<()> {
     let temp_db = NamedTempFile::new()?;
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = VectorStore::new(embeddings);
-    let mut code_graph = CodeGraph::new(temp_db.path().to_str().unwrap(), Arc::new(Mutex::new(vector_store)))?;
+    let mut code_graph = CodeGraph::new(
+        temp_db.path().to_str().unwrap(),
+        Arc::new(Mutex::new(vector_store)),
+    )?;
 
     // Index both implementation and re-export files
     let unique_file = fixture_path.join("src/unique_feature.rs");
@@ -95,8 +115,12 @@ fn test_code_search_prefers_implementation_over_reexport() -> Result<()> {
     assert!(!results.is_empty(), "Should find matches");
 
     // Find which result is the implementation vs re-export
-    let impl_result = results.iter().find(|r| r.entity.file_path.contains("unique_feature.rs"));
-    let reexport_result = results.iter().find(|r| r.entity.file_path.contains("imports.rs"));
+    let impl_result = results
+        .iter()
+        .find(|r| r.entity.file_path.contains("unique_feature.rs"));
+    let reexport_result = results
+        .iter()
+        .find(|r| r.entity.file_path.contains("imports.rs"));
 
     // Both should be found
     assert!(impl_result.is_some(), "Should find implementation");

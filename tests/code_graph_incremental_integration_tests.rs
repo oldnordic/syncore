@@ -12,7 +12,7 @@ use tempfile::TempDir;
 
 use syncore::code_graph::update_service::{CodeGraphUpdateEvent, CodeGraphUpdateService};
 use syncore::code_graph::CodeGraph;
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
 use syncore::parser_service::{ParseDelta, ParserService};
 use syncore::vector::{StubEmbeddings, VectorStore};
 
@@ -45,7 +45,8 @@ fn init_pipeline(root: PathBuf) -> anyhow::Result<Pipeline> {
     let parser = ParserService::new(language, root.clone())?;
 
     // Initialize CodeGraphUpdateService
-    let updater = CodeGraphUpdateService::new(root.clone(), graph)?;
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let updater = CodeGraphUpdateService::new(root.clone(), graph, reindex_mutex)?;
 
     Ok(Pipeline {
         root,
@@ -83,10 +84,7 @@ async fn test_full_fw_ip_cg_pipeline_new_file() -> anyhow::Result<()> {
     write_rust_file(&file_path, "fn new_function() {}\n")?;
 
     // Create FsEvent for Created
-    let fs_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let fs_event = FsEvent::Created(file_path.clone());
 
     // Use ParserService to produce ParseDelta
     let deltas = pipeline.parser.apply_fs_event(fs_event.clone())?;
@@ -135,10 +133,7 @@ async fn test_full_fw_ip_cg_pipeline_modify_file() -> anyhow::Result<()> {
     write_rust_file(&file_path, "fn original_name() {}\n")?;
 
     // FIRST: simulate initial index (Created)
-    let created_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let created_event = FsEvent::Created(file_path.clone());
 
     let created_deltas = pipeline.parser.apply_fs_event(created_event.clone())?;
     let created_delta = if !created_deltas.is_empty() {
@@ -159,10 +154,7 @@ async fn test_full_fw_ip_cg_pipeline_modify_file() -> anyhow::Result<()> {
     // THEN: modify the file
     write_rust_file(&file_path, "fn updated_name() {}\n")?;
 
-    let modified_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let modified_event = FsEvent::Modified(file_path.clone());
 
     let modified_deltas = pipeline.parser.apply_fs_event(modified_event.clone())?;
     let modified_delta = if !modified_deltas.is_empty() {
@@ -209,10 +201,7 @@ async fn test_full_fw_ip_cg_pipeline_delete_file() -> anyhow::Result<()> {
     write_rust_file(&file_path, "fn doomed() {}\n")?;
 
     // FIRST: index as created
-    let created_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let created_event = FsEvent::Created(file_path.clone());
 
     let created_deltas = pipeline.parser.apply_fs_event(created_event.clone())?;
     let created_delta = if !created_deltas.is_empty() {
@@ -233,10 +222,7 @@ async fn test_full_fw_ip_cg_pipeline_delete_file() -> anyhow::Result<()> {
     // THEN: delete the file
     fs::remove_file(&file_path)?;
 
-    let removed_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Removed,
-    };
+    let removed_event = FsEvent::Removed(file_path.clone());
 
     // For delete, ParseDelta is None (file no longer exists to parse)
     let affected = apply_pipeline_update(&mut pipeline.updater, removed_event, None)?;

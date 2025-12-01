@@ -311,3 +311,41 @@ fn test_message_bus_events() {
         "Should emit MessageBus events on insert"
     );
 }
+
+#[test]
+fn test_vectors_dir_integration() {
+    let temp_dir = TempDir::new().unwrap();
+    let db_path = temp_dir.path().join("test.db");
+    let vectors_dir = temp_dir.path().join("vectors");
+    std::fs::create_dir_all(&vectors_dir).unwrap();
+
+    let mut store = CodeGraphStore::new_with_paths(&db_path, &vectors_dir).unwrap();
+
+    // Verify vectors_dir is accessible
+    assert_eq!(store.vectors_dir(), &vectors_dir);
+
+    // Insert sample graph
+    let graph = create_sample_graph();
+    store.insert_graph(&graph).unwrap();
+
+    // Generate embeddings (should save to vectors_dir)
+    store.embed_functions().unwrap();
+
+    // Check that embeddings file was created
+    let embeddings_path = vectors_dir.join("default_embeddings.bin");
+    assert!(
+        embeddings_path.exists(),
+        "Embeddings file should be created in vectors_dir"
+    );
+
+    // Create new store instance and verify embeddings are loaded
+    let mut store2 = CodeGraphStore::new_with_paths(&db_path, &vectors_dir).unwrap();
+    store2.embed_functions().unwrap(); // Should load from disk instead of regenerating
+
+    // Verify semantic search works with loaded embeddings
+    let results = store2.search_similar_functions("process_data", 5).unwrap();
+    assert!(
+        !results.is_empty(),
+        "Semantic search should work with loaded embeddings"
+    );
+}

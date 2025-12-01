@@ -11,7 +11,7 @@ use tempfile::TempDir;
 
 use syncore::code_graph::update_service::{CodeGraphUpdateEvent, CodeGraphUpdateService};
 use syncore::code_graph::CodeGraph;
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
 use syncore::parser_service::ParseDelta;
 use syncore::vector::{StubEmbeddings, VectorStore};
 
@@ -37,14 +37,12 @@ async fn test_update_service_inserts_entities_for_new_file() {
         .expect("Failed to create CodeGraph");
 
     // Create update service
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Simulate FsEventKind::Created + ParseDelta with had_errors = false
-    let fs_event = FsEvent {
-        path: test_file.clone(),
-        kind: FsEventKind::Created,
-    };
+    let fs_event = FsEvent::Created(test_file.clone());
 
     let parse_delta = Some(ParseDelta {
         path: test_file.clone(),
@@ -70,7 +68,8 @@ async fn test_update_service_inserts_entities_for_new_file() {
     );
 
     // Verify entity exists in graph using existing query APIs
-    let entities = update_service.query_entities_by_path(&test_file)
+    let entities = update_service
+        .query_entities_by_path(&test_file)
         .expect("Failed to query entities");
 
     assert!(
@@ -104,15 +103,13 @@ async fn test_update_service_updates_entities_on_modify() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index initial content
     let create_event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: test_file.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(test_file.clone()),
         parse_delta: Some(ParseDelta {
             path: test_file.clone(),
             changed_ranges: vec![],
@@ -130,10 +127,7 @@ async fn test_update_service_updates_entities_on_modify() {
 
     // Apply modify event
     let modify_event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: test_file.clone(),
-            kind: FsEventKind::Modified,
-        },
+        fs_event: FsEvent::Modified(test_file.clone()),
         parse_delta: Some(ParseDelta {
             path: test_file.clone(),
             changed_ranges: vec![],
@@ -188,15 +182,13 @@ async fn test_update_service_removes_entities_on_delete() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index the file first
     let create_event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: test_file.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(test_file.clone()),
         parse_delta: Some(ParseDelta {
             path: test_file.clone(),
             changed_ranges: vec![],
@@ -212,17 +204,17 @@ async fn test_update_service_removes_entities_on_delete() {
     let entities_before = update_service
         .query_entities_by_path(&test_file)
         .expect("Failed to query entities");
-    assert!(!entities_before.is_empty(), "Should have entities before delete");
+    assert!(
+        !entities_before.is_empty(),
+        "Should have entities before delete"
+    );
 
     // Delete the file
     std::fs::remove_file(&test_file).expect("Failed to delete file");
 
     // Apply delete event
     let delete_event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: test_file.clone(),
-            kind: FsEventKind::Removed,
-        },
+        fs_event: FsEvent::Removed(test_file.clone()),
         parse_delta: None,
     };
 
@@ -264,15 +256,13 @@ async fn test_update_service_handles_rename_as_remove_and_insert() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Index at old path
     let create_event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: old_path.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(old_path.clone()),
         parse_delta: Some(ParseDelta {
             path: old_path.clone(),
             changed_ranges: vec![],
@@ -295,10 +285,7 @@ async fn test_update_service_handles_rename_as_remove_and_insert() {
 
     // Apply rename event (represented as Renamed with new path)
     let rename_event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: old_path.clone(),
-            kind: FsEventKind::Renamed(new_path.clone()),
-        },
+        fs_event: FsEvent::Removed(old_path.clone()),
         parse_delta: Some(ParseDelta {
             path: new_path.clone(),
             changed_ranges: vec![],
@@ -357,15 +344,13 @@ async fn test_update_service_ignores_unsupported_extensions() {
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store)
         .expect("Failed to create CodeGraph");
 
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)
         .expect("Failed to create CodeGraphUpdateService");
 
     // Try to index unsupported file
     let event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: test_file.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(test_file.clone()),
         parse_delta: None,
     };
 

@@ -21,30 +21,21 @@
 //! 7. All operations namespace-aware
 //! 8. All entities use double label pattern: `:ReasoningEpisode:CognitionGraph`
 
+pub mod reader;
 pub mod schema;
 pub mod writer;
-pub mod reader;
 
 // Re-export main types for convenience
 pub use schema::{
-    NodeLabel,
-    RelationType,
-    ReasoningEpisodeProperties,
+    cognition_namespace, NodeLabel, ReasoningEpisodeProperties, RelationType,
     COGNITION_PROJECT_LABEL,
-    cognition_namespace,
 };
 
-pub use writer::{
-    upsert_reasoning_episode,
-    create_uses_relationship,
-    delete_reasoning_episode,
-};
+pub use writer::{create_uses_relationship, delete_reasoning_episode, upsert_reasoning_episode};
 
 pub use reader::{
+    count_reasoning_episodes, fetch_related_episodes, get_reasoning_episode_by_id,
     ReasoningEpisodeResult,
-    get_reasoning_episode_by_id,
-    fetch_related_episodes,
-    count_reasoning_episodes,
 };
 
 #[cfg(test)]

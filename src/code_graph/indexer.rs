@@ -5,11 +5,10 @@ use rusqlite::Connection;
 use std::path::Path;
 use std::time::SystemTime;
 
-use super::body_extractor::{extract_body_snippet}; // APEX v1.7 Phase 3
+use super::body_extractor::extract_body_snippet; // APEX v1.7 Phase 3
 use super::graph::CodeGraph;
 use super::incremental::{
-    compute_file_sha256, get_file_mtime, get_stored_file_state, update_file_state,
-    FileIndexState,
+    compute_file_sha256, get_file_mtime, get_stored_file_state, update_file_state, FileIndexState,
 };
 use super::neo4j_writer::create_code_entity_node;
 use super::temporal_extractor::extract_temporal_metadata; // PHASE 3
@@ -114,13 +113,9 @@ impl CodeGraph {
         let mut edges = Vec::new();
         for func in &code_structure.functions {
             // APEX v1.7 Phase 3: Extract function body snippet
-            let body_snippet = extract_body_snippet(
-                file_path,
-                func.line_number,
-                func.end_line,
-            )
-            .ok()
-            .flatten();
+            let body_snippet = extract_body_snippet(file_path, func.line_number, func.end_line)
+                .ok()
+                .flatten();
 
             let entity = CodeEntity {
                 id: None,
@@ -170,13 +165,10 @@ impl CodeGraph {
             // Store methods
             for method in &class.methods {
                 // APEX v1.7 Phase 3: Extract method body snippet
-                let body_snippet = extract_body_snippet(
-                    file_path,
-                    method.line_number,
-                    method.end_line,
-                )
-                .ok()
-                .flatten();
+                let body_snippet =
+                    extract_body_snippet(file_path, method.line_number, method.end_line)
+                        .ok()
+                        .flatten();
 
                 let method_entity = CodeEntity {
                     id: None,
@@ -393,7 +385,9 @@ impl CodeGraph {
                 handle.spawn(async move {
                     // First create all entity nodes
                     for (entity_id, entity) in &entities_clone {
-                        if let Err(e) = create_code_entity_node(&neo4j_clone, *entity_id, entity).await {
+                        if let Err(e) =
+                            create_code_entity_node(&neo4j_clone, *entity_id, entity).await
+                        {
                             eprintln!(
                                 "[WARN] Failed to create Neo4j node for entity {}: {}",
                                 entity.name, e
@@ -428,6 +422,11 @@ impl CodeGraph {
             } else {
                 eprintln!("[WARN] No tokio runtime available, skipping Neo4j sync");
             }
+        }
+
+        // Increment version counter after successful indexing
+        if entities_indexed > 0 {
+            self.increment_version();
         }
 
         Ok(entities_indexed)
@@ -538,7 +537,9 @@ impl CodeGraph {
 
         // Get model name from vector store
         let model_version = {
-            let vs = self.vector_store.lock()
+            let vs = self
+                .vector_store
+                .lock()
                 .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
             vs.model_name().to_string()
         };

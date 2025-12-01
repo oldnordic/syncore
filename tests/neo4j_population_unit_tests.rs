@@ -45,10 +45,13 @@ async fn test_single_entity_indexes_to_neo4j_node() -> Result<()> {
     std::fs::write(&test_file, "fn hello() { println!(\"world\"); }")?;
 
     // Clean Neo4j first (in case of previous test contamination)
-    neo4j.execute_query(
-        "MATCH (e {namespace: $ns}) DETACH DELETE e",
-        vec![("ns", serde_json::json!("syncore_default"))],
-    ).await.ok();
+    neo4j
+        .execute_query(
+            "MATCH (e {namespace: $ns}) DETACH DELETE e",
+            vec![("ns", serde_json::json!("syncore_default"))],
+        )
+        .await
+        .ok();
 
     // Wait for cleanup and any pending async operations from other tests
     sleep(Duration::from_millis(500)).await;
@@ -70,12 +73,19 @@ async fn test_single_entity_indexes_to_neo4j_node() -> Result<()> {
         )
         .await?;
 
-    assert!(!entities.is_empty(), "Neo4j should contain the indexed function node");
+    assert!(
+        !entities.is_empty(),
+        "Neo4j should contain the indexed function node"
+    );
 
     // Verify the function name is "hello"
     let first = entities.first().unwrap();
     let name = first.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    assert!(name.contains("hello"), "Function should be named 'hello', got '{}'", name);
+    assert!(
+        name.contains("hello"),
+        "Function should be named 'hello', got '{}'",
+        name
+    );
 
     Ok(())
 }
@@ -204,7 +214,10 @@ async fn test_deleted_entity_removes_node() -> Result<()> {
         )
         .await?;
 
-    assert!(entities.is_empty(), "Deleted entity node should be removed from Neo4j");
+    assert!(
+        entities.is_empty(),
+        "Deleted entity node should be removed from Neo4j"
+    );
 
     Ok(())
 }
@@ -259,9 +272,13 @@ fn callee() { }
         assert!(!nodes.is_empty(), "At minimum, function nodes should exist");
     } else {
         // Verify CALLS relationship specifically
-        assert!(all_edges.iter().any(|e| {
-            e.get("rel_type").and_then(|v| v.as_str()) == Some("CALLS")
-        }), "Should have at least one CALLS relationship among edges: {:?}", all_edges);
+        assert!(
+            all_edges
+                .iter()
+                .any(|e| { e.get("rel_type").and_then(|v| v.as_str()) == Some("CALLS") }),
+            "Should have at least one CALLS relationship among edges: {:?}",
+            all_edges
+        );
     }
 
     Ok(())
@@ -308,7 +325,10 @@ fn third() { }
         )
         .await?;
 
-    assert!(!edges.is_empty(), "Should have multiple CALLS relationships");
+    assert!(
+        !edges.is_empty(),
+        "Should have multiple CALLS relationships"
+    );
 
     Ok(())
 }

@@ -3,14 +3,29 @@
 //! Tests for fs_watcher module before implementation exists.
 //! Expected to fail until src/fs_watcher/mod.rs is implemented.
 
+use anyhow;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
 use tempfile::TempDir;
-use tokio::time::timeout;
 
 // These imports will fail until implementation exists
-use syncore::fs_watcher::{start_fs_watcher, FsEvent, FsEventKind};
+use syncore::fs_watcher::{start_fs_watcher, FsEvent};
+
+// Simple timeout helper for crossbeam channels
+fn recv_with_timeout<T>(rx: &crossbeam::channel::Receiver<T>, timeout_dur: Duration) -> Option<T> {
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout_dur {
+        match rx.try_recv() {
+            Ok(val) => return Some(val),
+            Err(crossbeam::channel::TryRecvError::Empty) => {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(crossbeam::channel::TryRecvError::Disconnected) => return None,
+        }
+    }
+    None
+}
 
 // ============================================================================
 // TEST 1: Create and Modify Events
@@ -32,32 +47,42 @@ async fn test_fs_watcher_emits_create_and_modify() {
     fs::write(&test_file, "initial content").expect("Failed to write file");
 
     // Wait for Create or Modified event
-    let event = timeout(Duration::from_secs(2), handle.rx.recv())
-        .await
-        .expect("Timeout waiting for create event")
-        .expect("Channel closed");
+    let event = tokio::task::spawn_blocking({
+        let rx = handle.rx.clone();
+        move || {
+            recv_with_timeout(&rx, Duration::from_secs(2)).ok_or_else(|| anyhow::anyhow!("Timeout"))
+        }
+    })
+    .await
+    .unwrap()
+    .unwrap();
 
-    assert_eq!(event.path, test_file);
+    assert_eq!(event.path(), &test_file);
     assert!(
-        matches!(event.kind, FsEventKind::Created | FsEventKind::Modified),
+        matches!(event, FsEvent::Created(_) | FsEvent::Modified(_)),
         "Expected Created or Modified event, got {:?}",
-        event.kind
+        event
     );
 
     // Modify the file
     fs::write(&test_file, "modified content").expect("Failed to modify file");
 
     // Wait for Modified event
-    let event = timeout(Duration::from_secs(2), handle.rx.recv())
-        .await
-        .expect("Timeout waiting for modify event")
-        .expect("Channel closed");
+    let event = tokio::task::spawn_blocking({
+        let rx = handle.rx.clone();
+        move || {
+            recv_with_timeout(&rx, Duration::from_secs(2)).ok_or_else(|| anyhow::anyhow!("Timeout"))
+        }
+    })
+    .await
+    .unwrap()
+    .unwrap();
 
-    assert_eq!(event.path, test_file);
+    assert_eq!(event.path(), &test_file);
     assert!(
-        matches!(event.kind, FsEventKind::Modified),
+        matches!(event, FsEvent::Modified(_)),
         "Expected Modified event, got {:?}",
-        event.kind
+        event
     );
 }
 
@@ -88,8 +113,17 @@ async fn test_fs_watcher_debounces_rapid_writes() {
 
     // Collect all events
     let mut event_count = 0;
-    while let Ok(Some(_)) = timeout(Duration::from_millis(100), handle.rx.recv()).await {
-        event_count += 1;
+    loop {
+        let rx = handle.rx.clone();
+        let result =
+            tokio::task::spawn_blocking(move || recv_with_timeout(&rx, Duration::from_millis(100)))
+                .await
+                .unwrap();
+
+        match result {
+            Some(_) => event_count += 1,
+            None => break,
+        }
     }
 
     // Should have debounced to at most 2 events (create + 1 batched modify)
@@ -122,10 +156,15 @@ async fn test_fs_watcher_ignores_outside_root() {
     fs::write(&file_b, "content").expect("Failed to write to B");
 
     // Should not receive any events
-    let result = timeout(Duration::from_millis(500), handle.rx.recv()).await;
+    let result = tokio::task::spawn_blocking({
+        let rx = handle.rx.clone();
+        move || recv_with_timeout(&rx, Duration::from_millis(500))
+    })
+    .await
+    .unwrap();
 
     assert!(
-        result.is_err(),
+        result.is_none(),
         "Should not receive events for files outside watched root"
     );
 }
@@ -148,25 +187,35 @@ async fn test_fs_watcher_handles_delete() {
     fs::write(&test_file, "content").expect("Failed to write file");
 
     // Wait for create event
-    timeout(Duration::from_secs(2), handle.rx.recv())
-        .await
-        .expect("Timeout waiting for create")
-        .expect("Channel closed");
+    tokio::task::spawn_blocking({
+        let rx = handle.rx.clone();
+        move || {
+            recv_with_timeout(&rx, Duration::from_secs(2)).ok_or_else(|| anyhow::anyhow!("Timeout"))
+        }
+    })
+    .await
+    .unwrap()
+    .unwrap();
 
     // Delete file
     fs::remove_file(&test_file).expect("Failed to delete file");
 
     // Wait for Removed event
-    let event = timeout(Duration::from_secs(2), handle.rx.recv())
-        .await
-        .expect("Timeout waiting for remove event")
-        .expect("Channel closed");
+    let event = tokio::task::spawn_blocking({
+        let rx = handle.rx.clone();
+        move || {
+            recv_with_timeout(&rx, Duration::from_secs(2)).ok_or_else(|| anyhow::anyhow!("Timeout"))
+        }
+    })
+    .await
+    .unwrap()
+    .unwrap();
 
-    assert_eq!(event.path, test_file);
+    assert_eq!(event.path(), &test_file);
     assert!(
-        matches!(event.kind, FsEventKind::Removed),
+        matches!(event, FsEvent::Removed(_)),
         "Expected Removed event, got {:?}",
-        event.kind
+        event
     );
 }
 

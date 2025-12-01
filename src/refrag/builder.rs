@@ -102,7 +102,11 @@ impl HybridPromptBuilder {
         let mut output = String::from("## TOP-K RAW BLOCKS\n\n");
 
         for (idx, chunk) in self.raw_chunks.iter().enumerate() {
-            output.push_str(&format!("### Block {} (chunk_id: {})\n\n", idx + 1, chunk.chunk_id));
+            output.push_str(&format!(
+                "### Block {} (chunk_id: {})\n\n",
+                idx + 1,
+                chunk.chunk_id
+            ));
 
             // Markdown code block with language
             if let Some(ref lang) = chunk.language {
@@ -120,11 +124,7 @@ impl HybridPromptBuilder {
         let mut output = String::from("## COMPRESSED BLOCK SUMMARIES\n\n");
 
         for (idx, chunk) in self.compressed_chunks.iter().enumerate() {
-            output.push_str(&format!(
-                "{}. {}\n",
-                idx + 1,
-                chunk.content
-            ));
+            output.push_str(&format!("{}. {}\n", idx + 1, chunk.content));
         }
 
         output.push('\n');
@@ -147,7 +147,8 @@ impl HybridPromptBuilder {
 
         // Strategy: Convert lowest-scoring RAW chunks to COMPRESSED
         // Sort raw chunks by token count (largest first to reduce faster)
-        self.raw_chunks.sort_by(|a, b| b.token_count.cmp(&a.token_count));
+        self.raw_chunks
+            .sort_by(|a, b| b.token_count.cmp(&a.token_count));
 
         let mut total = current_total;
         let mut to_compress = Vec::new();
@@ -183,7 +184,11 @@ impl HybridPromptBuilder {
     pub fn total_tokens(&self) -> usize {
         let raw_tokens: usize = self.raw_chunks.iter().map(|c| c.token_count).sum();
         let compressed_tokens: usize = self.compressed_chunks.iter().map(|c| c.token_count).sum();
-        let query_tokens = self.query.as_ref().map(|q| self.estimate_tokens(q)).unwrap_or(0);
+        let query_tokens = self
+            .query
+            .as_ref()
+            .map(|q| self.estimate_tokens(q))
+            .unwrap_or(0);
 
         raw_tokens + compressed_tokens + query_tokens
     }
@@ -259,7 +264,13 @@ mod tests {
         let compressed_pos = prompt.find("file:test.rs").unwrap();
         let query_pos = prompt.find("test query").unwrap();
 
-        assert!(raw_pos < compressed_pos, "RAW should come before COMPRESSED");
-        assert!(compressed_pos < query_pos, "COMPRESSED should come before QUERY");
+        assert!(
+            raw_pos < compressed_pos,
+            "RAW should come before COMPRESSED"
+        );
+        assert!(
+            compressed_pos < query_pos,
+            "COMPRESSED should come before QUERY"
+        );
     }
 }

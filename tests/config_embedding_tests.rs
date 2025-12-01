@@ -17,8 +17,14 @@ fn test_default_embedding_backend_loads_from_config() -> Result<()> {
     let config: SyncoreConfig = toml::from_str(&config_str)?;
 
     // Check embeddings config
-    assert!(!config.embeddings.model.is_empty(), "Embedding model should be configured");
-    assert!(config.embeddings.dimensions > 0, "Embedding dimensions should be > 0");
+    assert!(
+        !config.embeddings.model.is_empty(),
+        "Embedding model should be configured"
+    );
+    assert!(
+        config.embeddings.dimensions > 0,
+        "Embedding dimensions should be > 0"
+    );
     assert!(config.embeddings.batch_size > 0, "Batch size should be > 0");
 
     // Validate reasonable values

@@ -40,8 +40,8 @@
 //! - Support for all EdgeType variants
 
 use crate::code_graph::EdgeType;
+use crate::databases::neo4j::{batch_create_relationships, RelationType};
 use crate::graph::Neo4jClient;
-use crate::databases::neo4j::{RelationType, batch_create_relationships};
 use anyhow::{Context, Result};
 
 /// BatchEdgePusher handles efficient batch edge creation in Neo4j

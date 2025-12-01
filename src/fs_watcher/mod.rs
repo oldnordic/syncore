@@ -4,36 +4,47 @@
 //! Provides debounced file change events via Tokio mpsc channel.
 
 use anyhow::Result;
+use crossbeam::channel::{self, Receiver, Sender};
 use notify::{recommended_watcher, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::PathBuf;
 use std::sync::mpsc as std_mpsc;
 use std::time::Duration;
-use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 // ============================================================================
 // Public Types
 // ============================================================================
 
-/// Filesystem event kind (simplified from notify)
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FsEventKind {
-    Created,
-    Modified,
-    Removed,
-    Renamed(PathBuf), // New path after rename
+/// Filesystem event (exact specification required)
+#[derive(Debug, Clone, PartialEq)]
+pub enum FsEvent {
+    Created(PathBuf),
+    Modified(PathBuf),
+    Removed(PathBuf),
 }
 
-/// Filesystem event with path and kind
-#[derive(Debug, Clone)]
-pub struct FsEvent {
-    pub path: PathBuf,
-    pub kind: FsEventKind,
+impl FsEvent {
+    /// Get the path from the event
+    pub fn path(&self) -> &PathBuf {
+        match self {
+            FsEvent::Created(path) => path,
+            FsEvent::Modified(path) => path,
+            FsEvent::Removed(path) => path,
+        }
+    }
+
+    /// Check if the file exists (for non-Removed events)
+    pub fn path_exists(&self) -> bool {
+        match self {
+            FsEvent::Created(_) | FsEvent::Modified(_) => self.path().exists(),
+            FsEvent::Removed(_) => false,
+        }
+    }
 }
 
 /// Handle to running filesystem watcher
 pub struct FsWatcherHandle {
-    pub rx: mpsc::Receiver<FsEvent>,
+    pub rx: Receiver<FsEvent>,
     _watcher: RecommendedWatcher,
     _worker: JoinHandle<()>,
 }
@@ -57,12 +68,12 @@ pub enum FsWatcherError {
 
 /// Start filesystem watcher on given root directory
 ///
-/// Returns handle with receiver channel for FsEvents.
+/// Returns handle with Crossbeam receiver channel for FsEvents.
 /// Debounces rapid writes with ~50ms window.
 /// Only emits events for paths inside watched root.
 pub fn start_fs_watcher(root: PathBuf) -> Result<FsWatcherHandle, FsWatcherError> {
-    // Create channels
-    let (tx, rx) = mpsc::channel::<FsEvent>(100);
+    // Create Crossbeam channels for lock-free operation
+    let (tx, rx) = channel::bounded::<FsEvent>(100);
     let (notify_tx, notify_rx) = std_mpsc::channel();
 
     // Create watcher
@@ -92,12 +103,12 @@ pub fn start_fs_watcher(root: PathBuf) -> Result<FsWatcherHandle, FsWatcherError
 /// Process events from notify watcher with debouncing
 async fn process_events(
     notify_rx: std_mpsc::Receiver<Result<Event, notify::Error>>,
-    tx: mpsc::Sender<FsEvent>,
+    tx: Sender<FsEvent>,
     root: PathBuf,
 ) {
     // Simple debounce: collect events for 50ms windows
     let debounce_duration = Duration::from_millis(50);
-    let mut last_events: std::collections::HashMap<PathBuf, FsEventKind> =
+    let mut last_events: std::collections::HashMap<PathBuf, FsEvent> =
         std::collections::HashMap::new();
 
     loop {
@@ -109,7 +120,7 @@ async fn process_events(
                 Ok(Ok(event)) => {
                     if let Some(fs_event) = convert_event(event, &root) {
                         // Update last event for this path (debounce duplicates)
-                        last_events.insert(fs_event.path.clone(), fs_event.kind);
+                        last_events.insert(fs_event.path().clone(), fs_event);
                     }
                 }
                 Ok(Err(e)) => {
@@ -124,10 +135,9 @@ async fn process_events(
             }
         }
 
-        // Emit debounced events
-        for (path, kind) in last_events.drain() {
-            let fs_event = FsEvent { path, kind };
-            if tx.send(fs_event).await.is_err() {
+        // Emit debounced events using Crossbeam sender
+        for (_, fs_event) in last_events.drain() {
+            if tx.send(fs_event).is_err() {
                 return; // Receiver dropped
             }
         }
@@ -146,15 +156,15 @@ fn convert_event(event: Event, root: &PathBuf) -> Option<FsEvent> {
         return None;
     }
 
-    let kind = match event.kind {
-        EventKind::Create(_) => FsEventKind::Created,
-        EventKind::Modify(_) => FsEventKind::Modified,
-        EventKind::Remove(_) => FsEventKind::Removed,
+    let fs_event = match event.kind {
+        EventKind::Create(_) => FsEvent::Created(path),
+        EventKind::Modify(_) => FsEvent::Modified(path),
+        EventKind::Remove(_) => FsEvent::Removed(path),
         EventKind::Access(_) => return None, // Ignore access events
-        EventKind::Any | EventKind::Other => FsEventKind::Modified, // Treat as modify
+        EventKind::Any | EventKind::Other => FsEvent::Modified(path), // Treat as modify
     };
 
-    Some(FsEvent { path, kind })
+    Some(fs_event)
 }
 
 // ============================================================================
@@ -166,14 +176,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_fs_event_kind_equality() {
-        assert_eq!(FsEventKind::Created, FsEventKind::Created);
-        assert_eq!(FsEventKind::Modified, FsEventKind::Modified);
-        assert_eq!(FsEventKind::Removed, FsEventKind::Removed);
-
+    fn test_fs_event_equality() {
         let path1 = PathBuf::from("/tmp/test");
         let path2 = PathBuf::from("/tmp/test");
-        assert_eq!(FsEventKind::Renamed(path1), FsEventKind::Renamed(path2));
+
+        assert_eq!(
+            FsEvent::Created(path1.clone()),
+            FsEvent::Created(path2.clone())
+        );
+        assert_eq!(
+            FsEvent::Modified(path1.clone()),
+            FsEvent::Modified(path2.clone())
+        );
+        assert_eq!(FsEvent::Removed(path1), FsEvent::Removed(path2));
     }
 
     #[test]

@@ -100,10 +100,7 @@ pub async fn execute_document_search(
         Ok(v) => v,
         Err(e) => return Ok(e),
     };
-    let limit = params
-        .get("limit")
-        .and_then(|l| l.as_u64())
-        .unwrap_or(5) as usize;
+    let limit = params.get("limit").and_then(|l| l.as_u64()).unwrap_or(5) as usize;
 
     if dry_run {
         let result = wrap_success(

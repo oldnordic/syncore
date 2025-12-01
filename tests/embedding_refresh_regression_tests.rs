@@ -10,7 +10,7 @@ use tokio::time::{sleep, Duration};
 
 use syncore::code_graph::{CodeGraph, RagGraphAPI};
 use syncore::embedding_refresh::{EmbeddingRefreshConfig, EmbeddingRefreshDaemon};
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
 use syncore::graph::Neo4jClient;
 use syncore::vector::{StubEmbeddings, VectorStore};
 
@@ -49,28 +49,28 @@ async fn test_embedding_refresh_does_not_break_sync_fusion_query() -> Result<()>
 
     // Run sync query before refresh
     let result_before = api.query("test", None, None, Some(10)).await?;
-    assert!(result_before.entities.len() >= 0, "Sync query should work before refresh");
+    assert!(
+        result_before.entities.len() >= 0,
+        "Sync query should work before refresh"
+    );
 
     // Start embedding refresh daemon
     let config = EmbeddingRefreshConfig::default();
-    let (daemon, tx) = EmbeddingRefreshDaemon::spawn(
-        code_store.clone(),
-        general_store.clone(),
-        config,
-    )?;
+    let (daemon, tx) =
+        EmbeddingRefreshDaemon::spawn(code_store.clone(), general_store.clone(), config)?;
 
     // Trigger refresh
-    let event = FsEvent {
-        path: root.join("src/test.rs"),
-        kind: FsEventKind::Modified,
-    };
-    tx.send(event).await?;
+    let event = FsEvent::Modified(root.join("src/test.rs"));
+    tx.send(event)?;
 
     sleep(Duration::from_millis(300)).await;
 
     // Run sync query after refresh
     let result_after = api.query("test", None, None, Some(10)).await?;
-    assert!(result_after.entities.len() >= 0, "Sync query should work after refresh");
+    assert!(
+        result_after.entities.len() >= 0,
+        "Sync query should work after refresh"
+    );
 
     daemon.shutdown().await?;
     Ok(())
@@ -95,18 +95,12 @@ async fn test_embedding_refresh_does_not_break_streaming_fusion_query() -> Resul
 
     // Start embedding refresh daemon
     let config = EmbeddingRefreshConfig::default();
-    let (daemon, tx) = EmbeddingRefreshDaemon::spawn(
-        code_store.clone(),
-        general_store.clone(),
-        config,
-    )?;
+    let (daemon, tx) =
+        EmbeddingRefreshDaemon::spawn(code_store.clone(), general_store.clone(), config)?;
 
     // Trigger refresh in background
-    let event = FsEvent {
-        path: root.join("src/test.rs"),
-        kind: FsEventKind::Modified,
-    };
-    tx.send(event).await?;
+    let event = FsEvent::Modified(root.join("src/test.rs"));
+    tx.send(event)?;
 
     // Run streaming query concurrently
     use syncore::code_graph::streaming::StreamingConfig;
@@ -148,24 +142,15 @@ async fn test_embedding_refresh_does_not_corrupt_dual_domain_separation() -> Res
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
     let config = EmbeddingRefreshConfig::default();
-    let (daemon, tx) = EmbeddingRefreshDaemon::spawn(
-        code_store.clone(),
-        general_store.clone(),
-        config,
-    )?;
+    let (daemon, tx) =
+        EmbeddingRefreshDaemon::spawn(code_store.clone(), general_store.clone(), config)?;
 
     // Send mixed CODE and GENERAL updates
-    let code_event = FsEvent {
-        path: root.join("src/code.rs"),
-        kind: FsEventKind::Modified,
-    };
-    let general_event = FsEvent {
-        path: root.join("docs/README.md"),
-        kind: FsEventKind::Modified,
-    };
+    let code_event = FsEvent::Modified(root.join("src/code.rs"));
+    let general_event = FsEvent::Modified(root.join("docs/README.md"));
 
-    tx.send(code_event).await?;
-    tx.send(general_event).await?;
+    tx.send(code_event)?;
+    tx.send(general_event)?;
 
     sleep(Duration::from_millis(400)).await;
 
@@ -174,12 +159,21 @@ async fn test_embedding_refresh_does_not_corrupt_dual_domain_separation() -> Res
     let general_count = general_store.lock().unwrap().len();
 
     assert!(code_count > 0, "CODE store should have CODE embeddings");
-    assert!(general_count > 0, "GENERAL store should have GENERAL embeddings");
+    assert!(
+        general_count > 0,
+        "GENERAL store should have GENERAL embeddings"
+    );
 
     // Verify no cross-contamination (both stores updated independently)
     // Each should have exactly 1 embedding from their respective domain
-    assert_eq!(code_count, 1, "CODE store should have exactly 1 CODE embedding");
-    assert_eq!(general_count, 1, "GENERAL store should have exactly 1 GENERAL embedding");
+    assert_eq!(
+        code_count, 1,
+        "CODE store should have exactly 1 CODE embedding"
+    );
+    assert_eq!(
+        general_count, 1,
+        "GENERAL store should have exactly 1 GENERAL embedding"
+    );
 
     daemon.shutdown().await?;
     Ok(())

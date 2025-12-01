@@ -6,7 +6,6 @@
 use once_cell::sync::Lazy;
 use std::path::PathBuf;
 
-
 /// Cached binary directory (where syncore executable is located)
 static BINARY_DIR: Lazy<PathBuf> = Lazy::new(find_binary_dir);
 
@@ -40,7 +39,10 @@ fn find_binary_dir() -> PathBuf {
     // Priority 2: Use executable's parent directory (same folder as binary)
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(parent) = exe_path.parent() {
-            eprintln!("[syncore] Using binary directory for data: {}", parent.display());
+            eprintln!(
+                "[syncore] Using binary directory for data: {}",
+                parent.display()
+            );
             return parent.to_path_buf();
         }
     }
@@ -48,7 +50,10 @@ fn find_binary_dir() -> PathBuf {
     // Priority 3: XDG standard location ~/.config/syncore
     if let Ok(home) = std::env::var("HOME") {
         let xdg_path = PathBuf::from(home).join(".config/syncore");
-        eprintln!("[syncore] Using XDG config directory: {}", xdg_path.display());
+        eprintln!(
+            "[syncore] Using XDG config directory: {}",
+            xdg_path.display()
+        );
         return xdg_path;
     }
 
@@ -84,29 +89,44 @@ pub fn main_db_path() -> String {
         }
         // If relative, resolve against binary directory
         let absolute = BINARY_DIR.join(&path);
-        eprintln!("[db_paths] main_db_path: Resolved relative MAIN_DB to: {}", absolute.display());
+        eprintln!(
+            "[db_paths] main_db_path: Resolved relative MAIN_DB to: {}",
+            absolute.display()
+        );
         return absolute.to_string_lossy().to_string();
     }
 
     // Priority 2: Try to get from global config
     if let Some(config) = crate::config::SyncoreConfig::try_global() {
         let path = &config.paths.db_path;
-        eprintln!("[db_paths] main_db_path: Found global config, db_path: {}", path);
+        eprintln!(
+            "[db_paths] main_db_path: Found global config, db_path: {}",
+            path
+        );
         let path_buf = PathBuf::from(path);
         if path_buf.is_absolute() {
-            eprintln!("[db_paths] main_db_path: Using absolute path from config: {}", path);
+            eprintln!(
+                "[db_paths] main_db_path: Using absolute path from config: {}",
+                path
+            );
             return path.clone();
         }
         // If relative, resolve against project root
         let absolute = BINARY_DIR.join(path);
-        eprintln!("[db_paths] main_db_path: Resolved relative path to: {}", absolute.display());
+        eprintln!(
+            "[db_paths] main_db_path: Resolved relative path to: {}",
+            absolute.display()
+        );
         return absolute.to_string_lossy().to_string();
     }
 
     // Priority 3: Fallback to default (binary directory)
     eprintln!("[db_paths] main_db_path: No env var or config, using binary directory");
     let default_path = BINARY_DIR.join("syncore.db");
-    eprintln!("[db_paths] main_db_path: Fallback path: {}", default_path.display());
+    eprintln!(
+        "[db_paths] main_db_path: Fallback path: {}",
+        default_path.display()
+    );
     default_path.to_string_lossy().to_string()
 }
 
@@ -146,36 +166,54 @@ pub fn intellitask_db_path() -> String {
 pub fn code_graph_db_path() -> String {
     // Priority 1: Check env var first
     if let Ok(path) = std::env::var("CODE_GRAPH_DB") {
-        eprintln!("[db_paths] code_graph_db_path: Using CODE_GRAPH_DB env var: {}", path);
+        eprintln!(
+            "[db_paths] code_graph_db_path: Using CODE_GRAPH_DB env var: {}",
+            path
+        );
         let path_buf = PathBuf::from(&path);
         if path_buf.is_absolute() {
             return path;
         }
         // If relative, resolve against binary directory
         let absolute = BINARY_DIR.join(&path);
-        eprintln!("[db_paths] code_graph_db_path: Resolved relative CODE_GRAPH_DB to: {}", absolute.display());
+        eprintln!(
+            "[db_paths] code_graph_db_path: Resolved relative CODE_GRAPH_DB to: {}",
+            absolute.display()
+        );
         return absolute.to_string_lossy().to_string();
     }
 
     // Priority 2: Try to get from global config
     if let Some(config) = crate::config::SyncoreConfig::try_global() {
         let path = &config.paths.code_graph_db;
-        eprintln!("[db_paths] code_graph_db_path: Found global config, code_graph_db: {}", path);
+        eprintln!(
+            "[db_paths] code_graph_db_path: Found global config, code_graph_db: {}",
+            path
+        );
         let path_buf = PathBuf::from(path);
         if path_buf.is_absolute() {
-            eprintln!("[db_paths] code_graph_db_path: Using absolute path from config: {}", path);
+            eprintln!(
+                "[db_paths] code_graph_db_path: Using absolute path from config: {}",
+                path
+            );
             return path.clone();
         }
         // If relative, resolve against project root
         let absolute = BINARY_DIR.join(path);
-        eprintln!("[db_paths] code_graph_db_path: Resolved relative path to: {}", absolute.display());
+        eprintln!(
+            "[db_paths] code_graph_db_path: Resolved relative path to: {}",
+            absolute.display()
+        );
         return absolute.to_string_lossy().to_string();
     }
 
     // Priority 3: Fallback to default (binary directory)
     eprintln!("[db_paths] code_graph_db_path: No env var or config, using binary directory");
     let default_path = BINARY_DIR.join("syncore_code_graph.db");
-    eprintln!("[db_paths] code_graph_db_path: Fallback path: {}", default_path.display());
+    eprintln!(
+        "[db_paths] code_graph_db_path: Fallback path: {}",
+        default_path.display()
+    );
     default_path.to_string_lossy().to_string()
 }
 
@@ -189,7 +227,9 @@ pub fn code_graph_db_path() -> String {
 /// shared knowledge across all projects using the same binary.
 ///
 /// **DEPRECATED**: Use `code_vector_index_path()` or `general_vector_index_path()` for domain-aware routing (APEX 1.7).
-#[deprecated(note = "Use code_vector_index_path() or general_vector_index_path() for domain-aware routing")]
+#[deprecated(
+    note = "Use code_vector_index_path() or general_vector_index_path() for domain-aware routing"
+)]
 pub fn vector_index_path() -> String {
     // Check env var first
     if let Ok(path) = std::env::var("VECTOR_INDEX_PATH") {

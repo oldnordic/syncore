@@ -3,7 +3,7 @@
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
 use super::code_graph_store::CodeGraphStore;
 

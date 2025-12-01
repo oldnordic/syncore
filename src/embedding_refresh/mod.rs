@@ -6,14 +6,15 @@
 //! and selectively re-embedding affected items.
 
 use anyhow::Result;
+use crossbeam::channel::{self, Receiver, Sender};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration};
 
-use crate::fs_watcher::{FsEvent, FsEventKind};
-use crate::vector::VectorStore;
+use crate::fs_watcher::FsEvent;
 use crate::vector::domain::EmbeddingDomain;
+use crate::vector::VectorStore;
 
 /// Configuration for embedding refresh daemon
 #[derive(Debug, Clone)]
@@ -47,25 +48,26 @@ impl EmbeddingRefreshDaemon {
         code_store: Arc<Mutex<VectorStore>>,
         general_store: Arc<Mutex<VectorStore>>,
         config: EmbeddingRefreshConfig,
-    ) -> Result<(Self, mpsc::Sender<FsEvent>)> {
-        let (event_tx, event_rx) = mpsc::channel(config.max_batch_size * 2);
+    ) -> Result<(Self, Sender<FsEvent>)> {
+        let (event_tx, event_rx) = channel::bounded(config.max_batch_size * 2);
         let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
 
         let task_handle = tokio::spawn(async move {
-            if let Err(e) = Self::run_daemon_loop(
-                event_rx,
-                shutdown_rx,
-                code_store,
-                general_store,
-                config,
-            )
-            .await
+            if let Err(e) =
+                Self::run_daemon_loop(event_rx, shutdown_rx, code_store, general_store, config)
+                    .await
             {
                 eprintln!("[EmbeddingRefreshDaemon] Error in daemon loop: {}", e);
             }
         });
 
-        Ok((Self { shutdown_tx, task_handle }, event_tx))
+        Ok((
+            Self {
+                shutdown_tx,
+                task_handle,
+            },
+            event_tx,
+        ))
     }
 
     /// Shutdown the daemon gracefully
@@ -77,7 +79,7 @@ impl EmbeddingRefreshDaemon {
 
     /// Main daemon loop
     async fn run_daemon_loop(
-        mut event_rx: mpsc::Receiver<FsEvent>,
+        event_rx: Receiver<FsEvent>,
         mut shutdown_rx: mpsc::Receiver<()>,
         code_store: Arc<Mutex<VectorStore>>,
         general_store: Arc<Mutex<VectorStore>>,
@@ -97,22 +99,23 @@ impl EmbeddingRefreshDaemon {
                     break;
                 }
 
-                // Receive event
-                Some(event) = event_rx.recv() => {
-                    batch.push(event);
-
-                    // Flush if batch is full
-                    if batch.len() >= config.max_batch_size {
-                        Self::process_batch(&batch, &code_store, &general_store).await;
-                        batch.clear();
-                    }
-                }
-
                 // Flush timer
                 _ = flush_timer.tick() => {
                     if !batch.is_empty() {
                         Self::process_batch(&batch, &code_store, &general_store).await;
                         batch.clear();
+                    }
+                }
+
+                // Try to receive events with timeout
+                _ = tokio::time::sleep(Duration::from_millis(10)) => {
+                    // Try to receive events in a small loop
+                    while let Ok(event) = event_rx.try_recv() {
+                        batch.push(event);
+                        if batch.len() >= config.max_batch_size {
+                            Self::process_batch(&batch, &code_store, &general_store).await;
+                            batch.clear();
+                        }
                     }
                 }
             }
@@ -142,20 +145,16 @@ impl EmbeddingRefreshDaemon {
         general_store: &Arc<Mutex<VectorStore>>,
     ) -> Result<()> {
         // Determine domain based on path
-        let domain = Self::classify_path(&event.path);
+        let domain = Self::classify_path(event.path());
 
-        match &event.kind {
-            FsEventKind::Created | FsEventKind::Modified => {
+        match event {
+            FsEvent::Created(_) | FsEvent::Modified(_) => {
                 // Re-embed the content
-                Self::refresh_embedding(&event.path, domain, code_store, general_store)?;
+                Self::refresh_embedding(event.path(), domain, code_store, general_store)?;
             }
-            FsEventKind::Removed => {
+            FsEvent::Removed(_) => {
                 // Handle deletion (currently no-op due to HNSW limitations)
                 // In production, would mark as deleted or remove from index
-            }
-            FsEventKind::Renamed(new_path) => {
-                // Treat as: delete old + insert new
-                Self::refresh_embedding(new_path, domain, code_store, general_store)?;
             }
         }
 

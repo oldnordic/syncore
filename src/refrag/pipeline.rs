@@ -77,10 +77,7 @@ impl RefragPipeline {
         let selection_result = selector.select_chunks(query, candidates)?;
 
         // Step 3: Expand selected as RAW, rejected as COMPRESSED
-        let expand_stage = ExpandStage::with_limit(
-            self.state.clone(),
-            self.config.max_tokens,
-        );
+        let expand_stage = ExpandStage::with_limit(self.state.clone(), self.config.max_tokens);
 
         let selected_ids: Vec<i64> = selection_result
             .selected
@@ -122,7 +119,9 @@ impl RefragPipeline {
         );
         metadata.insert(
             "candidates_retrieved".to_string(),
-            serde_json::to_value(selection_result.selected.len() + selection_result.rejected.len())?,
+            serde_json::to_value(
+                selection_result.selected.len() + selection_result.rejected.len(),
+            )?,
         );
 
         Ok(RefragResult {
@@ -200,7 +199,10 @@ mod tests {
         let temp_path = temp_dir.path().to_str().unwrap();
 
         std::env::set_var("DB_PATH", format!("{}/pipeline_test.db", temp_path));
-        std::env::set_var("CODE_GRAPH_DB", format!("{}/code_graph_pipeline.db", temp_path));
+        std::env::set_var(
+            "CODE_GRAPH_DB",
+            format!("{}/code_graph_pipeline.db", temp_path),
+        );
 
         let code_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
         let mut code_store = VectorStore::new(code_embeddings);

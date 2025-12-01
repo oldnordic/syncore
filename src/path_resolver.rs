@@ -217,7 +217,8 @@ mod tests {
 
     #[test]
     fn test_custom_exclusions() {
-        let resolver = PathResolver::with_exclusions(vec!["custom".to_string(), "build".to_string()]);
+        let resolver =
+            PathResolver::with_exclusions(vec!["custom".to_string(), "build".to_string()]);
         assert!(resolver.is_excluded(Path::new("custom/file.rs")));
         assert!(resolver.is_excluded(Path::new("build/output")));
         assert!(!resolver.is_excluded(Path::new("target/debug"))); // Not in custom list

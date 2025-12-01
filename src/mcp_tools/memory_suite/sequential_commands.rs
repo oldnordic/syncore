@@ -9,8 +9,8 @@
 //! - sequential_search: Search thought steps by semantic content
 //! - sequential_cycle: Run sequential thinking cycles with Ollama LLM
 
-use crate::mcp_tools::SuiteResult;
 use super::{MemorySuite, MemorySuiteArgs};
+use crate::mcp_tools::SuiteResult;
 
 /// Execute sequential_record command
 pub fn cmd_sequential_record(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {
@@ -34,10 +34,7 @@ pub fn cmd_sequential_record(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
     let reasoning = match args.reasoning {
         Some(ref r) => r,
         None => {
-            return SuiteResult::err(
-                "sequential_record",
-                "Missing required parameter: reasoning",
-            )
+            return SuiteResult::err("sequential_record", "Missing required parameter: reasoning")
         }
     };
 
@@ -63,9 +60,7 @@ pub fn cmd_sequential_record(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
                 "message": "Thought step recorded successfully"
             }),
         ),
-        Err(e) => {
-            SuiteResult::err("sequential_record", format!("Failed to record step: {}", e))
-        }
+        Err(e) => SuiteResult::err("sequential_record", format!("Failed to record step: {}", e)),
     }
 }
 
@@ -73,9 +68,7 @@ pub fn cmd_sequential_record(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
 pub fn cmd_sequential_get(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {
     let task_id = match args.task_id {
         Some(id) => id,
-        None => {
-            return SuiteResult::err("sequential_get", "Missing required parameter: task_id")
-        }
+        None => return SuiteResult::err("sequential_get", "Missing required parameter: task_id"),
     };
 
     use crate::portfolio::sequential_step::SequentialStep;
@@ -99,9 +92,7 @@ pub fn cmd_sequential_get(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteRe
 pub fn cmd_sequential_search(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {
     let query = match args.query {
         Some(ref q) => q,
-        None => {
-            return SuiteResult::err("sequential_search", "Missing required parameter: query")
-        }
+        None => return SuiteResult::err("sequential_search", "Missing required parameter: query"),
     };
 
     use crate::portfolio::sequential_step::SequentialStep;
@@ -150,9 +141,7 @@ pub fn cmd_sequential_cycle(suite: &MemorySuite, args: MemorySuiteArgs) -> Suite
     };
 
     let llm = match OllamaLanguageModel::new(config) {
-        Ok(llm) => {
-            Arc::new(Mutex::new(llm)) as Arc<Mutex<dyn crate::sequential::LanguageModel>>
-        }
+        Ok(llm) => Arc::new(Mutex::new(llm)) as Arc<Mutex<dyn crate::sequential::LanguageModel>>,
         Err(e) => {
             return SuiteResult::err(
                 "sequential_cycle",

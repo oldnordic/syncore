@@ -10,7 +10,7 @@ use tempfile::TempDir;
 
 use syncore::code_graph::update_service::{CodeGraphUpdateEvent, CodeGraphUpdateService};
 use syncore::code_graph::CodeGraph;
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
 use syncore::parser_service::ParseDelta;
 use syncore::vector::{StubEmbeddings, VectorStore};
 
@@ -44,10 +44,7 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
 
     // Index both files
     let event_a = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: file_a.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(file_a.clone()),
         parse_delta: Some(ParseDelta {
             path: file_a.clone(),
             changed_ranges: vec![],
@@ -56,10 +53,7 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
     };
 
     let event_b = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: file_b.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(file_b.clone()),
         parse_delta: Some(ParseDelta {
             path: file_b.clone(),
             changed_ranges: vec![],
@@ -67,8 +61,12 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
         }),
     };
 
-    update_service.apply_update(event_a).expect("Failed to index A");
-    update_service.apply_update(event_b).expect("Failed to index B");
+    update_service
+        .apply_update(event_a)
+        .expect("Failed to index A");
+    update_service
+        .apply_update(event_b)
+        .expect("Failed to index B");
 
     // Get initial state of file B
     let entities_b_before = update_service
@@ -80,10 +78,7 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
     std::fs::write(&file_a, "pub fn func_a_modified() {}").expect("Failed to modify A");
 
     let modify_event_a = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: file_a.clone(),
-            kind: FsEventKind::Modified,
-        },
+        fs_event: FsEvent::Modified(file_a.clone()),
         parse_delta: Some(ParseDelta {
             path: file_a.clone(),
             changed_ranges: vec![],
@@ -119,9 +114,7 @@ async fn test_incremental_updates_do_not_reindex_unrelated_files() {
         .expect("Failed to query A after");
 
     assert!(
-        entities_a_after
-            .iter()
-            .any(|e| e.name == "func_a_modified"),
+        entities_a_after.iter().any(|e| e.name == "func_a_modified"),
         "File A should have new function"
     );
 
@@ -146,8 +139,7 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
 
     std::fs::write(&file_caller, "pub fn caller() { callee::callee_func(); }")
         .expect("Failed to write caller");
-    std::fs::write(&file_callee, "pub fn callee_func() {}")
-        .expect("Failed to write callee");
+    std::fs::write(&file_callee, "pub fn callee_func() {}").expect("Failed to write callee");
 
     // Setup graph
     let db_path = root.join("test_graph.db");
@@ -163,10 +155,7 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
 
     // Index both files
     let event_caller = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: file_caller.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(file_caller.clone()),
         parse_delta: Some(ParseDelta {
             path: file_caller.clone(),
             changed_ranges: vec![],
@@ -175,10 +164,7 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
     };
 
     let event_callee = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: file_callee.clone(),
-            kind: FsEventKind::Created,
-        },
+        fs_event: FsEvent::Created(file_callee.clone()),
         parse_delta: Some(ParseDelta {
             path: file_callee.clone(),
             changed_ranges: vec![],
@@ -218,10 +204,7 @@ async fn test_incremental_updates_preserve_graph_connectivity() {
     .expect("Failed to modify caller");
 
     let modify_event = CodeGraphUpdateEvent {
-        fs_event: FsEvent {
-            path: file_caller.clone(),
-            kind: FsEventKind::Modified,
-        },
+        fs_event: FsEvent::Modified(file_caller.clone()),
         parse_delta: Some(ParseDelta {
             path: file_caller.clone(),
             changed_ranges: vec![],

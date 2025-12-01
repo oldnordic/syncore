@@ -3,15 +3,15 @@
 //! Tests for MemoryConfig integration into SyncoreConfig.
 
 use anyhow::Result;
+use std::env;
 use syncore::config::SyncoreConfig;
 use syncore::memory::MemoryConfig;
-use std::env;
 use tempfile::NamedTempFile;
 
 #[test]
 fn test_syncore_config_has_memory_field() {
     let config = SyncoreConfig::default();
-    
+
     // Should have memory field with default namespace
     assert_eq!(config.memory.default_namespace, "default");
     assert_eq!(config.memory.enable_semantic_search, true);

@@ -8,9 +8,9 @@
 //! 2. Memory Operations Tests (8 tests)
 //! 3. Namespace Isolation Tests (5 tests)
 
-use syncore::schema_migration::{get_schema_version, run_migrations, CURRENT_SCHEMA_VERSION};
 use rusqlite::Connection;
 use std::collections::HashSet;
+use syncore::schema_migration::{get_schema_version, run_migrations, CURRENT_SCHEMA_VERSION};
 
 // ============================================================================
 // PHASE 1: Schema Migration Tests (10 tests)
@@ -34,11 +34,26 @@ fn test_migration_005_adds_semantic_memory_columns() {
 
     assert!(columns.contains("summary"), "summary column must exist");
     assert!(columns.contains("namespace"), "namespace column must exist");
-    assert!(columns.contains("importance"), "importance column must exist");
-    assert!(columns.contains("created_at"), "created_at column must exist");
-    assert!(columns.contains("last_accessed"), "last_accessed column must exist");
-    assert!(columns.contains("access_count"), "access_count column must exist");
-    assert!(columns.contains("embedding_id"), "embedding_id column must exist");
+    assert!(
+        columns.contains("importance"),
+        "importance column must exist"
+    );
+    assert!(
+        columns.contains("created_at"),
+        "created_at column must exist"
+    );
+    assert!(
+        columns.contains("last_accessed"),
+        "last_accessed column must exist"
+    );
+    assert!(
+        columns.contains("access_count"),
+        "access_count column must exist"
+    );
+    assert!(
+        columns.contains("embedding_id"),
+        "embedding_id column must exist"
+    );
 }
 
 #[test]
@@ -55,7 +70,10 @@ fn test_migration_005_creates_memory_tags_table() {
         )
         .unwrap_or(false);
 
-    assert!(table_exists, "memory_tags table must exist after migration 005");
+    assert!(
+        table_exists,
+        "memory_tags table must exist after migration 005"
+    );
 }
 
 #[test]
@@ -72,7 +90,10 @@ fn test_migration_005_creates_memory_consolidations_table() {
         )
         .unwrap_or(false);
 
-    assert!(table_exists, "memory_consolidations table must exist after migration 005");
+    assert!(
+        table_exists,
+        "memory_consolidations table must exist after migration 005"
+    );
 }
 
 #[test]
@@ -89,7 +110,10 @@ fn test_migration_006_creates_namespace_composite_index() {
         )
         .unwrap_or(false);
 
-    assert!(index_exists, "idx_memory_k_namespace index must exist after migration 006");
+    assert!(
+        index_exists,
+        "idx_memory_k_namespace index must exist after migration 006"
+    );
 }
 
 #[test]
@@ -107,7 +131,10 @@ fn test_migration_006_drops_old_single_column_index() {
         )
         .unwrap_or(false);
 
-    assert!(!old_index_exists, "Old idx_memory_k single-column index must be removed");
+    assert!(
+        !old_index_exists,
+        "Old idx_memory_k single-column index must be removed"
+    );
 }
 
 #[test]
@@ -118,7 +145,10 @@ fn test_schema_version_reaches_6_after_migrations() {
 
     let version = get_schema_version(&conn).unwrap();
     assert_eq!(version, 6, "Schema version must be 6 after all migrations");
-    assert_eq!(CURRENT_SCHEMA_VERSION, 6, "CURRENT_SCHEMA_VERSION constant must be 6");
+    assert_eq!(
+        CURRENT_SCHEMA_VERSION, 6,
+        "CURRENT_SCHEMA_VERSION constant must be 6"
+    );
 }
 
 #[test]
@@ -130,7 +160,10 @@ fn test_migration_005_is_idempotent() {
     run_migrations(&conn).unwrap();
     let result = run_migrations(&conn);
 
-    assert!(result.is_ok(), "Migration 005 must be idempotent (safe to run twice)");
+    assert!(
+        result.is_ok(),
+        "Migration 005 must be idempotent (safe to run twice)"
+    );
 }
 
 #[test]
@@ -142,7 +175,10 @@ fn test_migration_006_is_idempotent() {
     run_migrations(&conn).unwrap();
     let result = run_migrations(&conn);
 
-    assert!(result.is_ok(), "Migration 006 must be idempotent (safe to run twice)");
+    assert!(
+        result.is_ok(),
+        "Migration 006 must be idempotent (safe to run twice)"
+    );
 }
 
 #[test]
@@ -162,10 +198,15 @@ fn test_migration_preserves_existing_memory_data() {
 
     // Verify old data still exists
     let value: String = conn
-        .query_row("SELECT v FROM memory WHERE k = 'test_key'", [], |row| row.get(0))
+        .query_row("SELECT v FROM memory WHERE k = 'test_key'", [], |row| {
+            row.get(0)
+        })
         .unwrap();
 
-    assert_eq!(value, "test_value", "Existing data must be preserved after migration");
+    assert_eq!(
+        value, "test_value",
+        "Existing data must be preserved after migration"
+    );
 }
 
 #[test]
@@ -235,15 +276,25 @@ fn test_memory_query_respects_namespace() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store same key in different namespaces (including default)
-    memory.store_with_metadata("key", "value_default", "default", &[], 0.5).unwrap();
-    memory.store_with_metadata("key", "value_ns1", "namespace1", &[], 0.5).unwrap();
-    memory.store_with_metadata("key", "value_ns2", "namespace2", &[], 0.5).unwrap();
+    memory
+        .store_with_metadata("key", "value_default", "default", &[], 0.5)
+        .unwrap();
+    memory
+        .store_with_metadata("key", "value_ns1", "namespace1", &[], 0.5)
+        .unwrap();
+    memory
+        .store_with_metadata("key", "value_ns2", "namespace2", &[], 0.5)
+        .unwrap();
 
     // Query should return default namespace value (not ns1 or ns2)
     let value = memory.query("key").unwrap();
 
     assert!(value.is_some(), "Query must work with namespace isolation");
-    assert_eq!(value.unwrap(), "value_default", "Query should return value from default namespace, not other namespaces");
+    assert_eq!(
+        value.unwrap(),
+        "value_default",
+        "Query should return value from default namespace, not other namespaces"
+    );
 }
 
 #[test]
@@ -258,15 +309,23 @@ fn test_memory_tags_stored_and_retrieved() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store with tags
-    memory.store_with_metadata("key", "value", "default", &["tag1", "tag2"], 0.5).unwrap();
+    memory
+        .store_with_metadata("key", "value", "default", &["tag1", "tag2"], 0.5)
+        .unwrap();
 
     // Retrieve and verify tags
     let entries = memory.query_recent(100, Some("default")).unwrap();
     let entry = entries.iter().find(|e| e.key == "key").unwrap();
 
     assert_eq!(entry.tags.len(), 2, "Must store 2 tags");
-    assert!(entry.tags.contains(&"tag1".to_string()), "Must contain tag1");
-    assert!(entry.tags.contains(&"tag2".to_string()), "Must contain tag2");
+    assert!(
+        entry.tags.contains(&"tag1".to_string()),
+        "Must contain tag1"
+    );
+    assert!(
+        entry.tags.contains(&"tag2".to_string()),
+        "Must contain tag2"
+    );
 }
 
 #[test]
@@ -281,7 +340,9 @@ fn test_memory_importance_stored_and_retrieved() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store with high importance
-    memory.store_with_metadata("key", "value", "default", &[], 0.9).unwrap();
+    memory
+        .store_with_metadata("key", "value", "default", &[], 0.9)
+        .unwrap();
 
     // Retrieve and verify importance
     let entries = memory.query_recent(100, Some("default")).unwrap();
@@ -301,7 +362,9 @@ fn test_memory_access_tracking() {
 
     let memory = Memory::new(db_path).unwrap();
 
-    memory.store_with_metadata("key", "value", "default", &[], 0.5).unwrap();
+    memory
+        .store_with_metadata("key", "value", "default", &[], 0.5)
+        .unwrap();
 
     // Small delay to ensure timestamps differ
     std::thread::sleep(std::time::Duration::from_millis(10));
@@ -315,8 +378,14 @@ fn test_memory_access_tracking() {
     let entries = memory.query_recent(100, Some("default")).unwrap();
     let entry = entries.iter().find(|e| e.key == "key").unwrap();
 
-    assert_eq!(entry.access_count, 3, "Access count must increment on each query");
-    assert!(entry.last_accessed >= entry.created_at, "last_accessed must be updated or equal");
+    assert_eq!(
+        entry.access_count, 3,
+        "Access count must increment on each query"
+    );
+    assert!(
+        entry.last_accessed >= entry.created_at,
+        "last_accessed must be updated or equal"
+    );
 }
 
 #[test]
@@ -331,14 +400,21 @@ fn test_memory_semantic_search() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store some memories
-    memory.store_with_metadata("key1", "machine learning", "default", &["ai"], 0.8).unwrap();
-    memory.store_with_metadata("key2", "database", "default", &["storage"], 0.5).unwrap();
+    memory
+        .store_with_metadata("key1", "machine learning", "default", &["ai"], 0.8)
+        .unwrap();
+    memory
+        .store_with_metadata("key2", "database", "default", &["storage"], 0.5)
+        .unwrap();
 
     // Semantic search should work if embeddings are enabled
     let result = memory.search_semantic("artificial intelligence", None, 5);
 
     // Should either work or gracefully handle disabled embeddings
-    assert!(result.is_ok() || result.is_err(), "semantic_search must handle embeddings state");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "semantic_search must handle embeddings state"
+    );
 }
 
 #[test]
@@ -353,13 +429,20 @@ fn test_memory_consolidation() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store duplicate-ish memories
-    memory.store_with_metadata("key1", "test value", "default", &[], 0.6).unwrap();
-    memory.store_with_metadata("key2", "test value", "default", &[], 0.4).unwrap();
+    memory
+        .store_with_metadata("key1", "test value", "default", &[], 0.6)
+        .unwrap();
+    memory
+        .store_with_metadata("key2", "test value", "default", &[], 0.4)
+        .unwrap();
 
     // Consolidation should work or gracefully fail if embeddings disabled
     let result = memory.consolidate_similar(0.9);
 
-    assert!(result.is_ok() || result.is_err(), "consolidate_similar must handle embeddings state");
+    assert!(
+        result.is_ok() || result.is_err(),
+        "consolidate_similar must handle embeddings state"
+    );
 }
 
 #[test]
@@ -374,9 +457,15 @@ fn test_memory_get_stats() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store in multiple namespaces
-    memory.store_with_metadata("key1", "value1", "ns1", &[], 0.5).unwrap();
-    memory.store_with_metadata("key2", "value2", "ns2", &[], 0.5).unwrap();
-    memory.store_with_metadata("key3", "value3", "ns2", &[], 0.5).unwrap();
+    memory
+        .store_with_metadata("key1", "value1", "ns1", &[], 0.5)
+        .unwrap();
+    memory
+        .store_with_metadata("key2", "value2", "ns2", &[], 0.5)
+        .unwrap();
+    memory
+        .store_with_metadata("key3", "value3", "ns2", &[], 0.5)
+        .unwrap();
 
     let (count, namespaces) = memory.get_stats().unwrap();
 
@@ -426,7 +515,9 @@ fn test_namespace_isolation_query() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store in namespace1 only (not in default)
-    memory.store_with_metadata("secret", "value_ns1", "namespace1", &[], 0.5).unwrap();
+    memory
+        .store_with_metadata("secret", "value_ns1", "namespace1", &[], 0.5)
+        .unwrap();
 
     // Query from default namespace should not see namespace1 data
     let value = memory.query("secret");
@@ -448,8 +539,12 @@ fn test_namespace_isolation_delete() {
     let memory = Memory::new(db_path).unwrap();
 
     // Store same key in 2 namespaces
-    memory.store_with_metadata("key", "value1", "default", &[], 0.5).unwrap();
-    memory.store_with_metadata("key", "value2", "other", &[], 0.5).unwrap();
+    memory
+        .store_with_metadata("key", "value1", "default", &[], 0.5)
+        .unwrap();
+    memory
+        .store_with_metadata("key", "value2", "other", &[], 0.5)
+        .unwrap();
 
     // Delete from default namespace
     memory.delete("key").unwrap();
@@ -492,8 +587,13 @@ fn test_namespace_prevents_single_key_uniqueness() {
     let memory = Memory::new(db_path).unwrap();
 
     // This should NOT fail (would fail with old single-column unique index)
-    memory.store_with_metadata("key", "v1", "ns1", &[], 0.5).unwrap();
+    memory
+        .store_with_metadata("key", "v1", "ns1", &[], 0.5)
+        .unwrap();
     let result = memory.store_with_metadata("key", "v2", "ns2", &[], 0.5);
 
-    assert!(result.is_ok(), "Namespace isolation must allow same key in different namespaces");
+    assert!(
+        result.is_ok(),
+        "Namespace isolation must allow same key in different namespaces"
+    );
 }

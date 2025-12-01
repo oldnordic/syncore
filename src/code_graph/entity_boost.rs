@@ -191,7 +191,12 @@ mod tests {
         // Function without body should only get type boost
         let type_only = apply_combined_boost(base_score, "function", false);
         assert!(type_only > base_score);
-        assert!(boosted > type_only, "Body adds extra boost: {} vs {}", boosted, type_only);
+        assert!(
+            boosted > type_only,
+            "Body adds extra boost: {} vs {}",
+            boosted,
+            type_only
+        );
 
         // Import with body (unlikely but possible)
         let import_boost = apply_combined_boost(base_score, "import", true);

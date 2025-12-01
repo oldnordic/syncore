@@ -21,7 +21,10 @@ fn test_vector_embeddings_still_work() -> Result<()> {
 
     assert_eq!(vec1.len(), 384);
     assert_eq!(vec2.len(), 384);
-    assert_ne!(vec1, vec2, "Different text should have different embeddings");
+    assert_ne!(
+        vec1, vec2,
+        "Different text should have different embeddings"
+    );
 
     Ok(())
 }
@@ -115,7 +118,6 @@ fn test_hnsw_index_isolated() -> Result<()> {
     Ok(())
 }
 
-
 /// Regression Test 9: MCP tool structure unchanged
 #[test]
 fn test_mcp_tools_structure() {
@@ -130,8 +132,8 @@ fn test_mcp_tools_structure() {
 fn test_no_module_conflicts() {
     // All core modules should still be accessible without conflicts
     use syncore::memory::Memory;
-    use syncore::vector::RealEmbeddings;
     use syncore::vector::hnsw::HnswVectorIndex;
+    use syncore::vector::RealEmbeddings;
 
     // Types should be distinct and not conflict
     let _embeddings_type: Option<RealEmbeddings> = None;

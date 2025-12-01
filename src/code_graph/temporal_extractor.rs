@@ -169,7 +169,6 @@ fn commit_touches_file(repo: &Repository, commit: &git2::Commit, file_path: &Pat
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
 
     #[test]
     fn test_extract_filesystem_temporal() -> Result<()> {

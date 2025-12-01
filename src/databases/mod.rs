@@ -12,7 +12,7 @@
 //! - portfolio_graph: Portfolio tracking (Patch, Step, Task nodes for change tracking and task management)
 //! - cognition_graph: Cognitive reasoning episodes (ReasoningEpisode nodes for LLM reasoning tracking)
 
-pub mod neo4j;
-pub mod rag_graph;
-pub mod portfolio_graph;
 pub mod cognition_graph;
+pub mod neo4j;
+pub mod portfolio_graph;
+pub mod rag_graph;

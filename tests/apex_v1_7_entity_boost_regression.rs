@@ -16,10 +16,7 @@ fn test_entity_boost_applied_in_search() -> Result<()> {
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
-    let mut code_graph = CodeGraph::new(
-        temp_db.path().to_str().unwrap(),
-        vector_store.clone(),
-    )?;
+    let mut code_graph = CodeGraph::new(temp_db.path().to_str().unwrap(), vector_store.clone())?;
 
     // Create test file with function and import
     let test_file = tempfile::Builder::new().suffix(".rs").tempfile()?;
@@ -74,10 +71,7 @@ fn test_body_snippet_boost_applied() -> Result<()> {
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
-    let mut code_graph = CodeGraph::new(
-        temp_db.path().to_str().unwrap(),
-        vector_store,
-    )?;
+    let mut code_graph = CodeGraph::new(temp_db.path().to_str().unwrap(), vector_store)?;
 
     // Create test file with detailed function
     let test_file = tempfile::Builder::new().suffix(".rs").tempfile()?;
@@ -129,7 +123,7 @@ fn calculate_timeout() -> u64 {
 
 #[test]
 fn test_boost_multipliers_correct() {
-    use syncore::code_graph::entity_boost::{compute_entity_type_boost, compute_body_boost};
+    use syncore::code_graph::entity_boost::{compute_body_boost, compute_entity_type_boost};
 
     // Verify boost multipliers match actual implementation
     // Implementation category (Function, Class, Method, Struct, Impl) = 1.35

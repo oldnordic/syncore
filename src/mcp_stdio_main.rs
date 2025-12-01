@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::env;
 use std::net::SocketAddr;
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
 
 use syncore::config::SyncoreConfig;
 use syncore::http_stream_server::HttpStreamServer;
@@ -10,12 +11,13 @@ use syncore::router::SynCoreState;
 use syncore::tools_cli::log_registered_tools;
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 // APEX 2.12 - Live indexing subsystems
-use syncore::fs_watcher::start_fs_watcher;
-use syncore::parser_service::ParserService;
 use syncore::code_graph::update_service::CodeGraphUpdateService;
+use syncore::embedding_refresh::{EmbeddingRefreshConfig, EmbeddingRefreshDaemon};
+use syncore::fs_watcher::start_fs_watcher;
+use syncore::ingestion::GlobalIngestionCoordinator;
 use syncore::live_indexer::{LiveIndexer, LiveIndexerConfig};
-use syncore::embedding_refresh::{EmbeddingRefreshDaemon, EmbeddingRefreshConfig};
 use syncore::lsp_bridge::LspBridge;
+use syncore::parser_service::ParserService;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -76,7 +78,9 @@ async fn main() -> Result<()> {
     use syncore::common::db_paths;
 
     // Create CODE domain store with BGE embeddings (optimized for code)
-    eprintln!("[syncore] Initializing CODE domain VectorStore (BGE-small-en-v1.5 for code entities)...");
+    eprintln!(
+        "[syncore] Initializing CODE domain VectorStore (BGE-small-en-v1.5 for code entities)..."
+    );
     let code_embeddings = Box::new(HuggingFaceEmbeddings::new_bge()?);
     let mut code_store = VectorStore::new(code_embeddings);
     let code_index_path = db_paths::code_vector_index_path();
@@ -86,10 +90,16 @@ async fn main() -> Result<()> {
     // BUGFIX #3: Load snapshot from disk to restore embeddings state
     // Without this, search_code() operates on empty vector store → poisoned locks
     if let Err(e) = code_store.load_snapshot() {
-        eprintln!("[syncore] Warning: Failed to load CODE vector snapshot: {}", e);
+        eprintln!(
+            "[syncore] Warning: Failed to load CODE vector snapshot: {}",
+            e
+        );
         eprintln!("[syncore] Will start with empty CODE vector store (bootstrap will rebuild)");
     } else {
-        eprintln!("[syncore] Successfully loaded CODE vector snapshot ({} vectors)", code_store.len());
+        eprintln!(
+            "[syncore] Successfully loaded CODE vector snapshot ({} vectors)",
+            code_store.len()
+        );
     }
 
     let code_store = std::sync::Arc::new(std::sync::Mutex::new(code_store));
@@ -99,15 +109,24 @@ async fn main() -> Result<()> {
     let general_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let mut general_store = VectorStore::new(general_embeddings);
     let general_index_path = db_paths::general_vector_index_path();
-    eprintln!("[syncore] GENERAL vector index path: {}", general_index_path);
+    eprintln!(
+        "[syncore] GENERAL vector index path: {}",
+        general_index_path
+    );
     general_store.set_index_path(general_index_path);
 
     // BUGFIX #3: Load snapshot from disk to restore embeddings state
     if let Err(e) = general_store.load_snapshot() {
-        eprintln!("[syncore] Warning: Failed to load GENERAL vector snapshot: {}", e);
+        eprintln!(
+            "[syncore] Warning: Failed to load GENERAL vector snapshot: {}",
+            e
+        );
         eprintln!("[syncore] Will start with empty GENERAL vector store");
     } else {
-        eprintln!("[syncore] Successfully loaded GENERAL vector snapshot ({} vectors)", general_store.len());
+        eprintln!(
+            "[syncore] Successfully loaded GENERAL vector snapshot ({} vectors)",
+            general_store.len()
+        );
     }
 
     let general_store = std::sync::Arc::new(std::sync::Mutex::new(general_store));
@@ -125,8 +144,8 @@ async fn main() -> Result<()> {
     // Initialize IntelliTask with Ollama backend
     {
         use std::sync::Arc;
-        use syncore::ollama::OllamaClient;
         use syncore::intellitask::IntelliTask;
+        use syncore::ollama::OllamaClient;
 
         eprintln!("Initializing IntelliTask with Ollama backend...");
 
@@ -185,23 +204,17 @@ async fn main() -> Result<()> {
 
     // Step 1: Create CodeGraph for UpdateService (matches test order)
     let code_graph_db_path = &config.paths.code_graph_db;
-    let code_graph = syncore::code_graph::CodeGraph::new(
-        code_graph_db_path,
-        state.code_store.clone(),
-    )?;
+    let code_graph =
+        syncore::code_graph::CodeGraph::new(code_graph_db_path, state.code_store.clone())?;
     eprintln!("[SynCore] CodeGraph created at {:?}", code_graph_db_path);
 
     // Step 2: Create CodeGraphUpdateService (wraps CodeGraph + DeltaEngine)
     // APEX 2.15: Pass reindex mutex to serialize DELETE+INSERT operations
-    let update_service = CodeGraphUpdateService::new(
-        project_root.clone(),
-        code_graph,
-        state.reindex_mutex.clone()
-    )?;
+    let update_service = CodeGraphUpdateService::new(code_graph, state.reindex_mutex.clone())?;
     eprintln!("[SynCore] CodeGraphUpdateService created (DeltaEngine initialized)");
 
     // Step 3: Create ParserService (Rust only for now)
-    let language = unsafe { tree_sitter_rust::language() };
+    let language = tree_sitter_rust::language();
     let parser = ParserService::new(language, project_root.clone())?;
     eprintln!("[SynCore] ParserService created (Rust language)");
 
@@ -209,33 +222,107 @@ async fn main() -> Result<()> {
     let lsp_bridge = LspBridge::disabled();
     eprintln!("[SynCore] LspBridge disabled (no LSP server)");
 
-    // Step 5: Start FsWatcher for LiveIndexer
+    // Step 5: Create Global Ingestion Coordinator (GIC)
+    let (gic, main_rx, low_prio_rx) = GlobalIngestionCoordinator::new();
+    eprintln!("[SynCore] Global Ingestion Coordinator created");
+
+    // Step 6: Start FsWatcher and connect to GIC
     let watcher_handle = start_fs_watcher(project_root.clone())?;
     let fs_rx = watcher_handle.rx;
     eprintln!("[SynCore] FsWatcher started for LiveIndexer");
 
-    // Step 6: Create and start LiveIndexer
+    // Connect FsWatcher to GIC in a background task
+    let gic_clone = gic.clone();
+    let fs_rx_for_gic = fs_rx.clone();
+    tokio::spawn(async move {
+        use crossbeam::channel::TryRecvError;
+        loop {
+            match fs_rx_for_gic.try_recv() {
+                Ok(fs_event) => {
+                    if let Err(e) = gic_clone.handle_fs_event(fs_event).await {
+                        eprintln!("[GIC] Error handling fs_event: {}", e);
+                    }
+                }
+                Err(TryRecvError::Empty) => {
+                    // No events, sleep briefly
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                }
+                Err(TryRecvError::Disconnected) => {
+                    eprintln!("[GIC] FsWatcher disconnected, stopping event handler");
+                    break;
+                }
+            }
+        }
+    });
+
+    // Step 7: Create and start LiveIndexer
     let indexer_config = LiveIndexerConfig {
         debounce_ms: 100,
         max_queue: 100,
         index_threads: 1,
     };
 
+    // Bridge crossbeam receiver to tokio receiver for LiveIndexer
+    let (tokio_tx, tokio_rx) = tokio::sync::mpsc::channel::<FsEvent>(100);
+    let fs_rx_clone = fs_rx.clone();
+    tokio::spawn(async move {
+        use crossbeam::channel::TryRecvError;
+        use std::time::Duration;
+        loop {
+            match fs_rx_clone.try_recv() {
+                Ok(fs_event) => {
+                    if tokio_tx.send(fs_event).await.is_err() {
+                        break;
+                    }
+                }
+                Err(TryRecvError::Empty) => {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                Err(TryRecvError::Disconnected) => {
+                    break;
+                }
+            }
+        }
+    });
+
+    // Clone values for priority consumer
+    let parser_clone = parser.clone();
+    let update_service_clone = update_service.clone();
+    let lsp_bridge_arc = Arc::new(Mutex::new(lsp_bridge));
+    let lsp_bridge_clone = lsp_bridge_arc.clone();
+    let code_store_clone = state.code_store.clone();
+
+    // LiveIndexer consumes from tokio_rx
     let indexer = LiveIndexer::new(
-        fs_rx,
-        parser,
-        update_service,
-        state.code_store.clone(),
-        lsp_bridge,
+        tokio_rx,
+        parser_clone.clone(),
+        update_service_clone.clone(),
+        code_store_clone.clone(),
+        lsp_bridge_clone.clone(),
         indexer_config,
     )?;
 
-    let indexer_handle = indexer
-        .start()
-        .await?;
+    let indexer_handle = indexer.start().await?;
     eprintln!("[SynCore] LiveIndexer started (background task spawned)");
 
-    // Step 7: Start EmbeddingRefreshDaemon (dual-domain: CODE + GENERAL)
+    // Phase 8: Create Priority-aware Ingestion Consumer
+    // Consumes from main_rx and low_prio_rx with fair priority routing
+    use syncore::fs_watcher::FsEvent;
+    use syncore::ingestion::PriorityIngestionConsumer;
+
+    let priority_consumer = PriorityIngestionConsumer::new(
+        main_rx,
+        low_prio_rx,
+        parser_clone,
+        update_service_clone,
+        code_store_clone,
+        lsp_bridge_clone,
+    );
+
+    let _priority_handle = priority_consumer.start().await?;
+    eprintln!("[SynCore] Phase 8: Priority-aware ingestion consumer started");
+
+    // Step 8: Start EmbeddingRefreshDaemon (dual-domain: CODE + GENERAL)
     let refresh_config = EmbeddingRefreshConfig::default();
     let (daemon, _daemon_tx) = EmbeddingRefreshDaemon::spawn(
         state.code_store.clone(),
@@ -244,7 +331,7 @@ async fn main() -> Result<()> {
     )?;
     eprintln!("[SynCore] EmbeddingRefreshDaemon spawned (dual-domain: CODE + GENERAL)");
 
-    // Step 8: Store handles to keep subsystems alive
+    // Step 9: Store handles to keep subsystems alive
     // Handles are kept in scope until program exits for graceful shutdown
     // Note: watcher_handle already moved (via fs_rx extraction), just keep other handles
     let _live_indexing_handles = (indexer_handle, daemon, _daemon_tx);

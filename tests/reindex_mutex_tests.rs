@@ -35,7 +35,10 @@ async fn simulate_index_file_with_tracking(
 
     // If prev > 0, another operation is already running (BAD!)
     if prev > 0 {
-        eprintln!("[TEST] ❌ CONCURRENCY DETECTED: {} operations running", prev + 1);
+        eprintln!(
+            "[TEST] ❌ CONCURRENCY DETECTED: {} operations running",
+            prev + 1
+        );
     }
 
     // Simulate DELETE phase
@@ -44,10 +47,7 @@ async fn simulate_index_file_with_tracking(
     let conn = Connection::open(code_graph_path)?;
 
     // DELETE
-    conn.execute(
-        "DELETE FROM code_entities WHERE file_path = ?",
-        [file_path],
-    )?;
+    conn.execute("DELETE FROM code_entities WHERE file_path = ?", [file_path])?;
 
     // Simulate processing delay
     sleep(Duration::from_millis(10)).await;
@@ -164,11 +164,8 @@ async fn test_manual_reindex_and_liveindexer_do_not_run_concurrently() -> Result
 
     // Verify all entities were inserted (no silent failures)
     let conn = Connection::open(&db_path)?;
-    let count: usize = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities",
-        [],
-        |row| row.get(0)
-    )?;
+    let count: usize =
+        conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
 
     assert_eq!(
         count, 10,
@@ -208,17 +205,17 @@ async fn test_sequential_operations_succeed_without_mutex() -> Result<()> {
 
     // Assert: All operations succeed
     let conn = Connection::open(&config.paths.code_graph_db)?;
-    let count: usize = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities",
-        [],
-        |row| row.get(0)
-    )?;
+    let count: usize =
+        conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
 
     assert_eq!(count, 5, "Sequential operations should succeed");
 
     // No UNIQUE errors should occur
     let has_unique_errors = check_for_unique_constraint_errors();
-    assert!(!has_unique_errors, "Sequential operations should not cause UNIQUE errors");
+    assert!(
+        !has_unique_errors,
+        "Sequential operations should not cause UNIQUE errors"
+    );
 
     Ok(())
 }
@@ -264,11 +261,8 @@ async fn test_high_concurrency_stress() -> Result<()> {
 
     // Assert: All 20 entities should exist
     let conn = Connection::open(db_path.as_ref())?;
-    let count: usize = conn.query_row(
-        "SELECT COUNT(*) FROM code_entities",
-        [],
-        |row| row.get(0)
-    )?;
+    let count: usize =
+        conn.query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))?;
 
     // THIS WILL FAIL IN PHASE 1
     assert_eq!(

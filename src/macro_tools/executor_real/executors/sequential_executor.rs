@@ -281,15 +281,16 @@ pub async fn execute_sequential_cycle(
     };
 
     let llm = match OllamaLanguageModel::new(config) {
-        Ok(llm) => {
-            Arc::new(Mutex::new(llm)) as Arc<Mutex<dyn crate::sequential::LanguageModel>>
-        }
+        Ok(llm) => Arc::new(Mutex::new(llm)) as Arc<Mutex<dyn crate::sequential::LanguageModel>>,
         Err(e) => {
-            return Ok(wrap_error("sequential_cycle", &format!(
-                "Failed to initialize Ollama language model with model '{}': {}. \
+            return Ok(wrap_error(
+                "sequential_cycle",
+                &format!(
+                    "Failed to initialize Ollama language model with model '{}': {}. \
                 Ensure Ollama is installed and the model is available (ollama pull {}).",
-                model_name, e, model_name
-            )));
+                    model_name, e, model_name
+                ),
+            ));
         }
     };
 

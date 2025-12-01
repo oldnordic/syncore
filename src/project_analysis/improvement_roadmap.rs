@@ -5,9 +5,8 @@
 
 use crate::project_analysis::{
     compute_risk_score, cycles::CyclesData, dead_code::DeadCodeData,
-    diagnostics::DiagnosticsManager,
-    unused_imports::UnusedImportsData, FileRiskInputs, HotspotInfo, PAEResponse,
-    ProjectAnalysisEngine, RefactorKind, RefactorSuggestion,
+    diagnostics::DiagnosticsManager, unused_imports::UnusedImportsData, FileRiskInputs,
+    HotspotInfo, PAEResponse, ProjectAnalysisEngine, RefactorKind, RefactorSuggestion,
 };
 
 /// Helper function to calculate risk score for a file

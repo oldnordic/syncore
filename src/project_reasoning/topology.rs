@@ -43,51 +43,27 @@ pub struct TopologySummary {
 impl ProjectAnalysisEngine {
     /// Build topology summary for project
     pub async fn build_topology(&self) -> Result<TopologySummary> {
-        // Get unified dependencies (this should work)
+        // Get unified dependencies
         let unified_deps = self.build_unified_dependency_summary(None, None)?;
 
-        // Build simple module summaries from unified deps
-        let modules: Vec<ModuleSummary> = unified_deps
-            .modules
-            .iter()
-            .map(|m| ModuleSummary {
-                file_path: m.file_path.clone(),
-                language: m.language.clone(),
-                entity_count: m.entity_count,
-                incoming_edges: m.incoming_edges,
-                outgoing_edges: m.outgoing_edges,
-                loc: None, // Placeholder
-            })
-            .collect();
+        // Get complexity dashboard for LOC data
+        let complexity = self.get_complexity_dashboard().await?;
 
-        // Count edge types from unified deps
-        let mut edge_counts = EdgeStats {
-            calls: 0,
-            imports: 0,
-            contains: 0,
-            implements: 0,
-        };
+        // Build comprehensive module summaries using integrated helper
+        let modules = self.build_module_summaries(&unified_deps, &complexity)?;
 
-        for dep in &unified_deps.dependencies {
-            for edge_type in &dep.edge_types {
-                match edge_type.as_str() {
-                    "CALLS" => edge_counts.calls += dep.edge_count,
-                    "IMPORTS" => edge_counts.imports += dep.edge_count,
-                    "CONTAINS" => edge_counts.contains += dep.edge_count,
-                    "IMPLEMENTS" => edge_counts.implements += dep.edge_count,
-                    _ => {}
-                }
-            }
-        }
+        // Count edge types using integrated helper
+        let edge_counts = self.count_edge_types(&unified_deps)?;
 
-        // Count cross-language links (simplified)
-        let cross_language_links = 0; // Placeholder
+        // Count cross-language links using integrated helper
+        let cross_language_links = self.count_cross_language_links(&unified_deps)?;
 
-        // Generate simple architecture warnings
-        let mut architecture_warnings = Vec::new();
-        if modules.is_empty() {
-            architecture_warnings.push("No modules found in project".to_string());
-        }
+        // Get architecture overview for warnings
+        let arch_overview = self.get_architecture_overview().await?;
+
+        // Generate comprehensive architecture warnings using integrated helper
+        let architecture_warnings =
+            self.generate_architecture_warnings(&modules, &arch_overview)?;
 
         Ok(TopologySummary {
             modules,

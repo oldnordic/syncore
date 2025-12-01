@@ -3,9 +3,9 @@
 //! These tests verify that parser_search (ripgrep) works correctly.
 //! These should mostly PASS (ripgrep already integrated), but verify behavior.
 
-use syncore::parser::RipgrepSearcher;
 use std::fs;
 use std::path::Path;
+use syncore::parser::RipgrepSearcher;
 use tempfile::TempDir;
 
 fn create_test_codebase() -> TempDir {
@@ -42,8 +42,8 @@ fn test_ripgrep_search_finds_pattern() {
     // Test that RipgrepSearcher finds patterns in codebase
     let test_dir = create_test_codebase();
 
-    let matches = RipgrepSearcher::search("TestStruct", test_dir.path(), 0)
-        .expect("Search should succeed");
+    let matches =
+        RipgrepSearcher::search("TestStruct", test_dir.path(), 0).expect("Search should succeed");
 
     assert!(
         !matches.is_empty(),
@@ -73,10 +73,7 @@ fn test_ripgrep_search_context_lines() {
 
     // With context=2, should see lines before and after the match
     // This is a basic check - actual context handling depends on RipgrepSearcher implementation
-    assert!(
-        matches[0].line_number > 0,
-        "Should have valid line number"
-    );
+    assert!(matches[0].line_number > 0, "Should have valid line number");
 }
 
 #[test]
@@ -84,9 +81,8 @@ fn test_ripgrep_search_no_matches_returns_empty() {
     // Test that no-match case returns empty Vec, not error
     let test_dir = create_test_codebase();
 
-    let matches =
-        RipgrepSearcher::search("NonexistentPattern_12345_XYZ", test_dir.path(), 0)
-            .expect("Search should succeed even with no matches");
+    let matches = RipgrepSearcher::search("NonexistentPattern_12345_XYZ", test_dir.path(), 0)
+        .expect("Search should succeed even with no matches");
 
     assert_eq!(
         matches.len(),
@@ -101,8 +97,8 @@ fn test_ripgrep_search_multiple_matches() {
     let test_dir = create_test_codebase();
 
     // "TestStruct" appears multiple times in the file
-    let matches = RipgrepSearcher::search("TestStruct", test_dir.path(), 0)
-        .expect("Search should succeed");
+    let matches =
+        RipgrepSearcher::search("TestStruct", test_dir.path(), 0).expect("Search should succeed");
 
     assert!(
         matches.len() >= 2,

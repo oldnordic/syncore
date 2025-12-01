@@ -18,8 +18,14 @@ fn test_dual_embedding_routing() -> Result<()> {
     // Override environment variables for isolated testing
     std::env::set_var("DB_PATH", format!("{}/test.db", temp_path));
     std::env::set_var("CODE_GRAPH_DB", format!("{}/test_code_graph.db", temp_path));
-    std::env::set_var("CODE_VECTOR_INDEX_PATH", format!("{}/code.index", temp_path));
-    std::env::set_var("GENERAL_VECTOR_INDEX_PATH", format!("{}/general.index", temp_path));
+    std::env::set_var(
+        "CODE_VECTOR_INDEX_PATH",
+        format!("{}/code.index", temp_path),
+    );
+    std::env::set_var(
+        "GENERAL_VECTOR_INDEX_PATH",
+        format!("{}/general.index", temp_path),
+    );
 
     // Create dual VectorStores
     let code_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
@@ -33,10 +39,8 @@ fn test_dual_embedding_routing() -> Result<()> {
     let general_store = Arc::new(Mutex::new(general_store));
 
     // Initialize state with dual stores
-    let state = SynCoreState::with_dual_stores(
-        Arc::clone(&code_store),
-        Arc::clone(&general_store),
-    )?;
+    let state =
+        SynCoreState::with_dual_stores(Arc::clone(&code_store), Arc::clone(&general_store))?;
 
     println!("✓ SynCoreState initialized with dual stores");
 
@@ -135,7 +139,11 @@ fn test_dual_embedding_routing() -> Result<()> {
     // Test 7: Search with Domain(Code) scope only searches CODE store
     {
         let code_lock = code_store.lock().unwrap();
-        let results = code_lock.search("function main", 5, SearchScope::Domain(EmbeddingDomain::Code))?;
+        let results = code_lock.search(
+            "function main",
+            5,
+            SearchScope::Domain(EmbeddingDomain::Code),
+        )?;
         drop(code_lock);
 
         // Results should only include CODE domain vectors (IDs 1, 2)
@@ -147,13 +155,20 @@ fn test_dual_embedding_routing() -> Result<()> {
                 hit.id
             );
         }
-        println!("✓ SearchScope::Domain(Code) only returns CODE vectors ({} results)", results.len());
+        println!(
+            "✓ SearchScope::Domain(Code) only returns CODE vectors ({} results)",
+            results.len()
+        );
     }
 
     // Test 8: Search with Domain(General) scope only searches GENERAL store
     {
         let general_lock = general_store.lock().unwrap();
-        let results = general_lock.search("meeting task", 5, SearchScope::Domain(EmbeddingDomain::General))?;
+        let results = general_lock.search(
+            "meeting task",
+            5,
+            SearchScope::Domain(EmbeddingDomain::General),
+        )?;
         drop(general_lock);
 
         // Results should only include GENERAL domain vectors (IDs 3, 4)
@@ -165,7 +180,10 @@ fn test_dual_embedding_routing() -> Result<()> {
                 hit.id
             );
         }
-        println!("✓ SearchScope::Domain(General) only returns GENERAL vectors ({} results)", results.len());
+        println!(
+            "✓ SearchScope::Domain(General) only returns GENERAL vectors ({} results)",
+            results.len()
+        );
     }
 
     // Test 9: Verify stores are physically separate (different Arc pointers)
@@ -265,15 +283,27 @@ fn test_dual_store_vector_counts() -> Result<()> {
     code_store.insert_text(3, None, "function bar() {}", "javascript_code")?;
 
     assert_eq!(code_store.len(), 3, "CODE store should have 3 vectors");
-    assert_eq!(general_store.len(), 0, "GENERAL store should still be empty");
+    assert_eq!(
+        general_store.len(),
+        0,
+        "GENERAL store should still be empty"
+    );
     println!("✓ CODE store len() = 3, GENERAL store len() = 0");
 
     // Insert into GENERAL store
     general_store.insert_text(10, None, "Document content", "documents")?;
     general_store.insert_text(11, None, "Step 1: Do something", "task_steps")?;
 
-    assert_eq!(code_store.len(), 3, "CODE store should still have 3 vectors");
-    assert_eq!(general_store.len(), 2, "GENERAL store should have 2 vectors");
+    assert_eq!(
+        code_store.len(),
+        3,
+        "CODE store should still have 3 vectors"
+    );
+    assert_eq!(
+        general_store.len(),
+        2,
+        "GENERAL store should have 2 vectors"
+    );
     println!("✓ CODE store len() = 3, GENERAL store len() = 2");
 
     println!("\n✅ Vector count test passed - stores maintain separate counts");
@@ -289,7 +319,10 @@ fn test_search_scope_routing() -> Result<()> {
 
     // Use unique names to avoid database locks from parallel test execution
     std::env::set_var("DB_PATH", format!("{}/scope_routing_test.db", temp_path));
-    std::env::set_var("CODE_GRAPH_DB", format!("{}/scope_routing_code_graph.db", temp_path));
+    std::env::set_var(
+        "CODE_GRAPH_DB",
+        format!("{}/scope_routing_code_graph.db", temp_path),
+    );
 
     // Create dual stores
     let code_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
@@ -302,10 +335,8 @@ fn test_search_scope_routing() -> Result<()> {
     general_store.set_index_path(format!("{}/scope_general.index", temp_path));
     let general_store = Arc::new(Mutex::new(general_store));
 
-    let state = SynCoreState::with_dual_stores(
-        Arc::clone(&code_store),
-        Arc::clone(&general_store),
-    )?;
+    let state =
+        SynCoreState::with_dual_stores(Arc::clone(&code_store), Arc::clone(&general_store))?;
 
     // Test SearchScope::Domain(Code) routes to code_store
     {
@@ -313,14 +344,15 @@ fn test_search_scope_routing() -> Result<()> {
             SearchScope::Domain(domain) | SearchScope::DomainTask(domain, _) => {
                 state.store_for_domain(domain)
             }
-            SearchScope::Global | SearchScope::Task(_) => {
-                Arc::clone(&state.general_store)
-            }
+            SearchScope::Global | SearchScope::Task(_) => Arc::clone(&state.general_store),
         };
 
         let code_ptr = Arc::as_ptr(&code_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(code_ptr, store_ptr, "Domain(Code) should route to code_store");
+        assert_eq!(
+            code_ptr, store_ptr,
+            "Domain(Code) should route to code_store"
+        );
         println!("✓ SearchScope::Domain(Code) routes to code_store");
     }
 
@@ -330,14 +362,15 @@ fn test_search_scope_routing() -> Result<()> {
             SearchScope::Domain(domain) | SearchScope::DomainTask(domain, _) => {
                 state.store_for_domain(domain)
             }
-            SearchScope::Global | SearchScope::Task(_) => {
-                Arc::clone(&state.general_store)
-            }
+            SearchScope::Global | SearchScope::Task(_) => Arc::clone(&state.general_store),
         };
 
         let general_ptr = Arc::as_ptr(&general_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(general_ptr, store_ptr, "Domain(General) should route to general_store");
+        assert_eq!(
+            general_ptr, store_ptr,
+            "Domain(General) should route to general_store"
+        );
         println!("✓ SearchScope::Domain(General) routes to general_store");
     }
 
@@ -347,14 +380,15 @@ fn test_search_scope_routing() -> Result<()> {
             SearchScope::Domain(domain) | SearchScope::DomainTask(domain, _) => {
                 state.store_for_domain(domain)
             }
-            SearchScope::Global | SearchScope::Task(_) => {
-                Arc::clone(&state.general_store)
-            }
+            SearchScope::Global | SearchScope::Task(_) => Arc::clone(&state.general_store),
         };
 
         let general_ptr = Arc::as_ptr(&general_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(general_ptr, store_ptr, "Global should default to general_store");
+        assert_eq!(
+            general_ptr, store_ptr,
+            "Global should default to general_store"
+        );
         println!("✓ SearchScope::Global defaults to general_store");
     }
 
@@ -364,14 +398,15 @@ fn test_search_scope_routing() -> Result<()> {
             SearchScope::Domain(domain) | SearchScope::DomainTask(domain, _) => {
                 state.store_for_domain(domain)
             }
-            SearchScope::Global | SearchScope::Task(_) => {
-                Arc::clone(&state.general_store)
-            }
+            SearchScope::Global | SearchScope::Task(_) => Arc::clone(&state.general_store),
         };
 
         let general_ptr = Arc::as_ptr(&general_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(general_ptr, store_ptr, "Task should default to general_store");
+        assert_eq!(
+            general_ptr, store_ptr,
+            "Task should default to general_store"
+        );
         println!("✓ SearchScope::Task defaults to general_store");
     }
 
@@ -381,14 +416,15 @@ fn test_search_scope_routing() -> Result<()> {
             SearchScope::Domain(domain) | SearchScope::DomainTask(domain, _) => {
                 state.store_for_domain(domain)
             }
-            SearchScope::Global | SearchScope::Task(_) => {
-                Arc::clone(&state.general_store)
-            }
+            SearchScope::Global | SearchScope::Task(_) => Arc::clone(&state.general_store),
         };
 
         let code_ptr = Arc::as_ptr(&code_store);
         let store_ptr = Arc::as_ptr(&store);
-        assert_eq!(code_ptr, store_ptr, "DomainTask(Code, _) should route to code_store");
+        assert_eq!(
+            code_ptr, store_ptr,
+            "DomainTask(Code, _) should route to code_store"
+        );
         println!("✓ SearchScope::DomainTask(Code, _) routes to code_store");
     }
 

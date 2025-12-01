@@ -1,6 +1,6 @@
 //! RAG query engine
 
-use super::config::{RagGraphConfig};
+use super::config::RagGraphConfig;
 use super::hopgraph::HopGraphTransformer;
 use super::storage::StorageAdapter;
 use super::types::{NodeId, RagGraphResult};
@@ -41,23 +41,43 @@ impl RagQuery {
             anyhow::bail!("Query text cannot be empty");
         }
 
-        // Generate seed nodes based on backend mode
+        // Generate seed nodes based on backend mode and config
         let seed_nodes = if let Some(ref storage) = self.storage {
-            // Real mode: use storage adapter for vector search
+            // Real mode: use storage adapter for vector search with config.top_k
             storage
-                .seed_nodes_from_query(query_text, 5)?
+                .seed_nodes_from_query(query_text, self.config.top_k)?
                 .into_iter()
                 .map(|(id, _score)| id)
                 .collect()
         } else {
-            // Mock mode: deterministic hash-based seeds
-            self.generate_seed_nodes(query_text)
+            // Mock mode: deterministic hash-based seeds, respecting config.top_k
+            let mut seeds = self.generate_seed_nodes(query_text);
+            // Limit seeds to config.top_k if needed
+            if seeds.len() > self.config.top_k {
+                seeds.truncate(self.config.top_k);
+            }
+            seeds
         };
 
-        // Run multi-hop reasoning with HopGraph
+        // Run multi-hop reasoning with HopGraph (uses config internally)
         let result = self.transformer.multi_hop_reasoning(&seed_nodes)?;
 
         Ok(result)
+    }
+
+    /// Get the current configuration
+    pub fn config(&self) -> &RagGraphConfig {
+        &self.config
+    }
+
+    /// Update configuration
+    pub fn update_config(&mut self, config: RagGraphConfig) {
+        self.config = config.clone();
+        if let Some(ref storage) = self.storage {
+            self.transformer = HopGraphTransformer::with_storage(config.clone(), storage.clone());
+        } else {
+            self.transformer = HopGraphTransformer::new(config.clone());
+        }
     }
 
     /// Generate deterministic seed nodes from query text

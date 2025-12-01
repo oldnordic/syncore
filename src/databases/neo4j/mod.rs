@@ -18,44 +18,22 @@
 //! 7. All operations namespace-aware
 //! 8. All entities use double label pattern: `:Function:CodeGraph`
 
+pub mod reader;
 pub mod schema;
 pub mod writer;
-pub mod reader;
 
 // Re-export main types for convenience
-pub use schema::{
-    NodeLabel,
-    RelationType,
-    NodeProperties,
-    PROJECT_LABEL,
-    project_namespace,
-};
+pub use schema::{project_namespace, NodeLabel, NodeProperties, RelationType, PROJECT_LABEL};
 
 pub use writer::{
-    upsert_entity,
-    create_relationship,
-    update_git_metadata,
-    batch_upsert_entities,
-    batch_create_relationships,
-    delete_entity,
-    delete_file_entities,
-    upsert_file_by_path,
-    create_file_dependency,
+    batch_create_relationships, batch_upsert_entities, create_file_dependency, create_relationship,
+    delete_entity, delete_file_entities, update_git_metadata, upsert_entity, upsert_file_by_path,
 };
 
 pub use reader::{
-    EntityResult,
-    GraphStats,
-    get_entity_by_id,
-    get_file_entities,
-    get_function_callees,
-    get_function_callers,
-    find_entities_by_name,
-    get_entities_by_type,
-    count_entities_by_type,
-    get_neighbors,
-    find_orphan_entities,
-    validate_structure,
+    count_entities_by_type, find_entities_by_name, find_orphan_entities, get_entities_by_type,
+    get_entity_by_id, get_file_entities, get_function_callees, get_function_callers, get_neighbors,
+    validate_structure, EntityResult, GraphStats,
 };
 
 #[cfg(test)]

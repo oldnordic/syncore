@@ -160,7 +160,10 @@ mod tests {
         let general_ptr = Arc::as_ptr(&service.general_store());
 
         // Stores must be different instances
-        assert_ne!(code_ptr, general_ptr, "CODE and GENERAL stores must be separate");
+        assert_ne!(
+            code_ptr, general_ptr,
+            "CODE and GENERAL stores must be separate"
+        );
     }
 
     #[test]
@@ -190,20 +193,30 @@ mod tests {
     fn test_dual_service_embed_code_domain() {
         let service = DualEmbeddingService::new().unwrap();
 
-        let embedding = service.embed("fn main() {}", EmbeddingDomain::Code).unwrap();
+        let embedding = service
+            .embed("fn main() {}", EmbeddingDomain::Code)
+            .unwrap();
 
         assert_eq!(embedding.len(), 384);
-        assert!(embedding.iter().any(|&x| x != 0.0), "Embedding should not be all zeros");
+        assert!(
+            embedding.iter().any(|&x| x != 0.0),
+            "Embedding should not be all zeros"
+        );
     }
 
     #[test]
     fn test_dual_service_embed_general_domain() {
         let service = DualEmbeddingService::new().unwrap();
 
-        let embedding = service.embed("This is a document", EmbeddingDomain::General).unwrap();
+        let embedding = service
+            .embed("This is a document", EmbeddingDomain::General)
+            .unwrap();
 
         assert_eq!(embedding.len(), 384);
-        assert!(embedding.iter().any(|&x| x != 0.0), "Embedding should not be all zeros");
+        assert!(
+            embedding.iter().any(|&x| x != 0.0),
+            "Embedding should not be all zeros"
+        );
     }
 
     #[test]
@@ -216,7 +229,10 @@ mod tests {
         let code_ptr = Arc::as_ptr(&code_store);
         let general_ptr = Arc::as_ptr(&general_store);
 
-        assert_ne!(code_ptr, general_ptr, "Domain routing must return different stores");
+        assert_ne!(
+            code_ptr, general_ptr,
+            "Domain routing must return different stores"
+        );
     }
 
     #[test]
@@ -227,10 +243,17 @@ mod tests {
         let mut general_cfg = EmbeddingConfig::for_general();
         general_cfg.index_path = "custom_general.index".to_string();
 
-        let service = DualEmbeddingService::with_configs(code_cfg.clone(), general_cfg.clone()).unwrap();
+        let service =
+            DualEmbeddingService::with_configs(code_cfg.clone(), general_cfg.clone()).unwrap();
 
-        assert_eq!(service.config(EmbeddingDomain::Code).index_path, "custom_code.index");
-        assert_eq!(service.config(EmbeddingDomain::General).index_path, "custom_general.index");
+        assert_eq!(
+            service.config(EmbeddingDomain::Code).index_path,
+            "custom_code.index"
+        );
+        assert_eq!(
+            service.config(EmbeddingDomain::General).index_path,
+            "custom_general.index"
+        );
     }
 
     #[test]
@@ -251,8 +274,7 @@ mod tests {
         let code_config = service.config(EmbeddingDomain::Code);
 
         assert_eq!(
-            code_config.model_name,
-            "BGE-small-en-v1.5",
+            code_config.model_name, "BGE-small-en-v1.5",
             "CODE domain must use BGE-small-en-v1.5 for code-specific embeddings"
         );
         assert_eq!(code_config.dimension, 384);
@@ -265,8 +287,7 @@ mod tests {
         let general_config = service.config(EmbeddingDomain::General);
 
         assert_eq!(
-            general_config.model_name,
-            "all-MiniLM-L6-v2",
+            general_config.model_name, "all-MiniLM-L6-v2",
             "GENERAL domain must continue using all-MiniLM-L6-v2"
         );
         assert_eq!(general_config.dimension, 384);
@@ -280,8 +301,7 @@ mod tests {
         let general_model = service.config(EmbeddingDomain::General).model_name.clone();
 
         assert_ne!(
-            code_model,
-            general_model,
+            code_model, general_model,
             "CODE and GENERAL domains must use different embedding models"
         );
     }

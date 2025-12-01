@@ -203,6 +203,17 @@ impl ToonController {
 
         Ok(None)
     }
+
+    /// Get the maximum context tokens for prompts
+    pub fn max_context_tokens(&self) -> usize {
+        self.max_context_tokens
+    }
+
+    /// Check if a prompt would fit within context limits
+    pub fn can_fit_prompt(&self, prompt: &str) -> bool {
+        let estimated_tokens = prompt.len() / 4;
+        estimated_tokens <= self.max_context_tokens
+    }
 }
 
 #[cfg(test)]

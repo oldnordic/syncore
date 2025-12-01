@@ -84,7 +84,7 @@ pub fn ensure_schema(db_path: &str) -> anyhow::Result<()> {
 
     // Check if namespace isolation fix has been applied (v4 migration)
     let mut stmt = db.prepare(
-        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_memory_k_namespace'"
+        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_memory_k_namespace'",
     )?;
     let has_namespace_index = stmt.exists([])?;
 

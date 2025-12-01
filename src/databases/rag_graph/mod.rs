@@ -18,33 +18,20 @@
 //! 7. All operations namespace-aware
 //! 8. All entities use double label pattern: `:Embedding:SynCore`
 
+pub mod reader;
 pub mod schema;
 pub mod writer;
-pub mod reader;
 
 // Re-export main types for convenience
-pub use schema::{
-    NodeLabel,
-    RelationType,
-    EmbeddingProperties,
-    RAG_PROJECT_LABEL,
-    rag_namespace,
-};
+pub use schema::{rag_namespace, EmbeddingProperties, NodeLabel, RelationType, RAG_PROJECT_LABEL};
 
 pub use writer::{
-    upsert_embedding,
-    create_relationship,
-    batch_upsert_embeddings,
-    delete_embedding,
+    batch_upsert_embeddings, create_relationship, delete_embedding, upsert_embedding,
 };
 
 pub use reader::{
-    EmbeddingResult,
+    count_embeddings, get_embedding_by_id, get_embedding_text, get_neighbors, EmbeddingResult,
     NeighborResult,
-    get_embedding_by_id,
-    get_neighbors,
-    get_embedding_text,
-    count_embeddings,
 };
 
 #[cfg(test)]

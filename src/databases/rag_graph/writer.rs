@@ -8,18 +8,17 @@
 //! - Idempotent (uses MERGE)
 //! - Namespace isolated
 
-use anyhow::Result;
+use super::schema::{
+    rag_namespace, EmbeddingProperties, NodeLabel, RelationType, RAG_PROJECT_LABEL,
+};
 use crate::graph::Neo4jClient;
-use super::schema::{NodeLabel, EmbeddingProperties, RelationType, RAG_PROJECT_LABEL, rag_namespace};
+use anyhow::Result;
 
 /// Create or update an embedding node
 ///
 /// Uses MERGE for idempotency - safe to call multiple times.
 /// Schema: :Embedding:SynCore with RAG-specific properties
-pub async fn upsert_embedding(
-    client: &Neo4jClient,
-    props: EmbeddingProperties,
-) -> Result<()> {
+pub async fn upsert_embedding(client: &Neo4jClient, props: EmbeddingProperties) -> Result<()> {
     // Use double label pattern: :Embedding:SynCore
     let query = format!(
         r#"

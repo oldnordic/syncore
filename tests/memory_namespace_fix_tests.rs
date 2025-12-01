@@ -10,7 +10,7 @@ use tempfile::NamedTempFile;
 #[test]
 fn test_query_with_namespace_isolates_keys() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Store same key in two namespaces
@@ -30,7 +30,7 @@ fn test_query_with_namespace_isolates_keys() -> Result<()> {
 #[test]
 fn test_query_with_namespace_none_uses_default() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Store in default namespace via store()
@@ -46,7 +46,7 @@ fn test_query_with_namespace_none_uses_default() -> Result<()> {
 #[test]
 fn test_delete_with_namespace_isolates_keys() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Store same key in two namespaces
@@ -69,7 +69,7 @@ fn test_delete_with_namespace_isolates_keys() -> Result<()> {
 #[test]
 fn test_delete_with_namespace_none_uses_default() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     memory.store("mykey", "myvalue")?;
@@ -84,7 +84,7 @@ fn test_delete_with_namespace_none_uses_default() -> Result<()> {
 #[test]
 fn test_store_backward_compat_uses_default_namespace() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Old API: store() should write to default namespace
@@ -100,7 +100,7 @@ fn test_store_backward_compat_uses_default_namespace() -> Result<()> {
 #[test]
 fn test_query_backward_compat_uses_default_namespace() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Store via new API in default namespace
@@ -116,7 +116,7 @@ fn test_query_backward_compat_uses_default_namespace() -> Result<()> {
 #[test]
 fn test_delete_backward_compat_uses_default_namespace() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     memory.store("key1", "value1")?;
@@ -131,7 +131,7 @@ fn test_delete_backward_compat_uses_default_namespace() -> Result<()> {
 #[test]
 fn test_namespace_allows_duplicate_keys() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Store same key in 3 different namespaces
@@ -140,9 +140,18 @@ fn test_namespace_allows_duplicate_keys() -> Result<()> {
     memory.store_with_metadata("dup", "v3", "default", &[], 0.5)?;
 
     // All should be retrievable independently
-    assert_eq!(memory.query_with_namespace("dup", Some("ns1"))?, Some("v1".to_string()));
-    assert_eq!(memory.query_with_namespace("dup", Some("ns2"))?, Some("v2".to_string()));
-    assert_eq!(memory.query_with_namespace("dup", Some("default"))?, Some("v3".to_string()));
+    assert_eq!(
+        memory.query_with_namespace("dup", Some("ns1"))?,
+        Some("v1".to_string())
+    );
+    assert_eq!(
+        memory.query_with_namespace("dup", Some("ns2"))?,
+        Some("v2".to_string())
+    );
+    assert_eq!(
+        memory.query_with_namespace("dup", Some("default"))?,
+        Some("v3".to_string())
+    );
 
     Ok(())
 }
@@ -150,7 +159,7 @@ fn test_namespace_allows_duplicate_keys() -> Result<()> {
 #[test]
 fn test_update_overwrites_within_namespace() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Store and update in same namespace
@@ -166,7 +175,7 @@ fn test_update_overwrites_within_namespace() -> Result<()> {
 #[test]
 fn test_cache_respects_namespace() -> Result<()> {
     let temp = NamedTempFile::new()?;
-    
+
     let memory = Memory::new(temp.path().to_str().unwrap())?;
 
     // Store same key in two namespaces

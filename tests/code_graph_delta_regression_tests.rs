@@ -11,7 +11,7 @@ use tempfile::TempDir;
 
 use syncore::code_graph::update_service::{CodeGraphUpdateEvent, CodeGraphUpdateService};
 use syncore::code_graph::CodeGraph;
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
 use syncore::parser_service::{ParseDelta, ParserService};
 use syncore::vector::{StubEmbeddings, VectorStore};
 
@@ -38,7 +38,8 @@ fn init_pipeline(root: PathBuf) -> Result<Pipeline> {
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let updater = CodeGraphUpdateService::new(root.clone(), graph)?;
+    let updater =
+        CodeGraphUpdateService::new(root.clone(), graph, Arc::new(std::sync::Mutex::new(())))?;
 
     Ok(Pipeline {
         root,
@@ -66,10 +67,7 @@ async fn test_delta_never_touches_unrelated_files() -> Result<()> {
 
     // Index both files
     for file in &[&file_a, &file_b] {
-        let event = FsEvent {
-            path: (*file).clone(),
-            kind: FsEventKind::Created,
-        };
+        let event = FsEvent::Created(file.to_path_buf());
         let deltas = pipeline.parser.apply_fs_event(event.clone())?;
         let update_event = CodeGraphUpdateEvent {
             fs_event: event,
@@ -85,10 +83,7 @@ async fn test_delta_never_touches_unrelated_files() -> Result<()> {
     // Modify only file A
     write_rust_file(&file_a, "pub fn func_a() { println!(\"modified\"); }")?;
 
-    let event = FsEvent {
-        path: file_a.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let event = FsEvent::Modified(file_a.clone());
     let deltas = pipeline.parser.apply_fs_event(event.clone())?;
     let update_event = CodeGraphUpdateEvent {
         fs_event: event,
@@ -126,10 +121,7 @@ async fn test_delta_preserves_domain_routing() -> Result<()> {
     write_rust_file(&file_path, "pub fn test() {}")?;
 
     // Create and apply update
-    let event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let event = FsEvent::Created(file_path.clone());
     let deltas = pipeline.parser.apply_fs_event(event.clone())?;
     let update_event = CodeGraphUpdateEvent {
         fs_event: event,
@@ -141,7 +133,10 @@ async fn test_delta_preserves_domain_routing() -> Result<()> {
 
     // Verify entities exist
     let entities = pipeline.updater.query_entities_by_path(&file_path)?;
-    assert!(!entities.is_empty(), "Should have entities in code_entities");
+    assert!(
+        !entities.is_empty(),
+        "Should have entities in code_entities"
+    );
 
     Ok(())
 }
@@ -180,10 +175,7 @@ async fn test_delta_works_with_empty_changed_ranges() -> Result<()> {
     write_rust_file(&file_path, "pub fn test() {}")?;
 
     // Create ParseDelta with empty changed_ranges
-    let event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let event = FsEvent::Modified(file_path.clone());
 
     let parse_delta = ParseDelta {
         path: file_path.clone(),
@@ -217,10 +209,7 @@ async fn test_delta_idempotent_on_repeated_updates() -> Result<()> {
 
     // Apply same update twice
     for _ in 0..2 {
-        let event = FsEvent {
-            path: file_path.clone(),
-            kind: FsEventKind::Created,
-        };
+        let event = FsEvent::Created(file_path.clone());
         let deltas = pipeline.parser.apply_fs_event(event.clone())?;
         let update_event = CodeGraphUpdateEvent {
             fs_event: event,
@@ -254,10 +243,7 @@ async fn test_delta_handles_file_deletion() -> Result<()> {
     write_rust_file(&file_path, "pub fn will_be_deleted() {}")?;
 
     // Index file
-    let created_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Created,
-    };
+    let created_event = FsEvent::Created(file_path.clone());
     let created_deltas = pipeline.parser.apply_fs_event(created_event.clone())?;
     let event = CodeGraphUpdateEvent {
         fs_event: created_event,
@@ -267,15 +253,15 @@ async fn test_delta_handles_file_deletion() -> Result<()> {
 
     // Verify entity exists
     let entities_before = pipeline.updater.query_entities_by_path(&file_path)?;
-    assert!(!entities_before.is_empty(), "Should have entities before delete");
+    assert!(
+        !entities_before.is_empty(),
+        "Should have entities before delete"
+    );
 
     // Delete file
     fs::remove_file(&file_path)?;
 
-    let removed_event = FsEvent {
-        path: file_path.clone(),
-        kind: FsEventKind::Removed,
-    };
+    let removed_event = FsEvent::Removed(file_path.clone());
     let event = CodeGraphUpdateEvent {
         fs_event: removed_event,
         parse_delta: None, // No delta for deleted file

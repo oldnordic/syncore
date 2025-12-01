@@ -91,8 +91,7 @@ pub async fn execute_logs_tail(
         ));
     }
 
-    let file = File::open(path)
-        .map_err(|e| anyhow::anyhow!("Failed to open log file: {}", e))?;
+    let file = File::open(path).map_err(|e| anyhow::anyhow!("Failed to open log file: {}", e))?;
     let reader = BufReader::new(file);
 
     // Read all lines

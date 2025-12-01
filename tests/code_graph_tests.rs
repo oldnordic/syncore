@@ -7,8 +7,11 @@ use syncore::vector::VectorStore;
 #[test]
 fn test_entity_type_conversion() {
     assert_eq!(EntityType::Function.as_str(), "function");
-    assert_eq!(EntityType::from_str("function"), Some(EntityType::Function));
-    assert_eq!(EntityType::from_str("invalid"), None);
+    assert_eq!(
+        EntityType::try_parse("function"),
+        Some(EntityType::Function)
+    );
+    assert_eq!(EntityType::try_parse("invalid"), None);
 }
 
 #[test]

@@ -14,10 +14,9 @@
 //! - `EmbeddingConfig`: Domain-specific configuration (model, index path, dimension)
 //! - `DomainRouter`: Routes namespace strings to domains
 
-use anyhow::{Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-
 
 /// Embedding domain - CODE or GENERAL
 ///
@@ -232,7 +231,10 @@ mod tests {
         let code_path = EmbeddingDomain::Code.default_index_path();
         let general_path = EmbeddingDomain::General.default_index_path();
 
-        assert_ne!(code_path, general_path, "Domains must have separate indices");
+        assert_ne!(
+            code_path, general_path,
+            "Domains must have separate indices"
+        );
         assert!(code_path.contains("code"));
         assert!(general_path.contains("general"));
     }
@@ -438,8 +440,12 @@ mod tests {
     fn test_embedding_service_domain_routing() {
         let service = MockEmbeddingService::new();
 
-        let code_vec = service.embed("fn main() {}", EmbeddingDomain::Code).unwrap();
-        let general_vec = service.embed("fn main() {}", EmbeddingDomain::General).unwrap();
+        let code_vec = service
+            .embed("fn main() {}", EmbeddingDomain::Code)
+            .unwrap();
+        let general_vec = service
+            .embed("fn main() {}", EmbeddingDomain::General)
+            .unwrap();
 
         // Different domains produce different embeddings for same text
         assert_ne!(code_vec[0], general_vec[0]);

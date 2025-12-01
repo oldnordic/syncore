@@ -205,7 +205,22 @@ pub struct AutonomyManager {
 }
 
 impl AutonomyManager {
+    /// Create AutonomyManager using DbManager's database connection
+    pub fn with_db_manager(
+        taskmaster: Arc<Mutex<Tasks>>,
+        logger: Arc<MarkdownLogger>,
+        db_manager: &crate::db::DbManager,
+    ) -> Self {
+        let heartbeat =
+            HeartbeatMonitor::with_connection(taskmaster, logger, db_manager.main_conn());
+
+        Self { heartbeat }
+    }
+
+    /// Legacy constructor - deprecated, use with_db_manager instead
+    #[deprecated(note = "Use with_db_manager() with DbManager instead")]
     pub fn new(taskmaster: Arc<Mutex<Tasks>>, logger: Arc<MarkdownLogger>, db_path: &str) -> Self {
+        #[allow(deprecated)]
         let heartbeat = HeartbeatMonitor::new(taskmaster, logger, db_path);
 
         Self { heartbeat }
@@ -255,12 +270,15 @@ mod tests {
         ));
         let _logger = Arc::new(MarkdownLogger::new(db_path));
 
-        let _manager = AutonomyManager::new(
+        // Create DbManager for the new constructor
+        let db_manager = crate::db::DbManager::new(db_path, db_path).unwrap();
+
+        let _manager = AutonomyManager::with_db_manager(
             Arc::new(Mutex::new(
                 Tasks::new(&format!("{}_tasks", db_path)).unwrap(),
             )),
             Arc::new(MarkdownLogger::new(db_path)),
-            &format!("{}_tasks", db_path),
+            &db_manager,
         );
 
         // Test that manager was created successfully

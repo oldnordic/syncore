@@ -3,12 +3,13 @@
 //! Maintains per-file parse state and applies incremental edits using tree-sitter.
 //! Produces parse deltas with changed ranges for downstream consumers.
 
+use crate::common::fast_map::FastHashMap;
 use anyhow::{Context, Result};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tree_sitter::{Language, Parser, Range, Tree};
 
-use crate::fs_watcher::{FsEvent, FsEventKind};
+use crate::fs_watcher::FsEvent;
 
 // ============================================================================
 // Public Types
@@ -23,17 +24,19 @@ pub struct ParseDelta {
 }
 
 /// Parsed file state (tree + source)
+#[derive(Clone)]
 struct ParsedFileState {
     tree: Tree,
     source: String,
 }
 
 /// Parser service for incremental parsing
+#[derive(Clone)]
 pub struct ParserService {
-    parser: Parser,
+    parser: Arc<Mutex<Parser>>,
     language: Language,
     root: PathBuf,
-    file_states: HashMap<PathBuf, ParsedFileState>,
+    file_states: FastHashMap<PathBuf, ParsedFileState>,
 }
 
 // ============================================================================
@@ -49,29 +52,32 @@ impl ParserService {
             .context("Failed to set parser language")?;
 
         Ok(Self {
-            parser,
+            parser: Arc::new(Mutex::new(parser)),
             language,
             root,
-            file_states: HashMap::new(),
+            file_states: FastHashMap::default(),
         })
     }
 
     /// Apply filesystem event and produce parse deltas
     pub fn apply_fs_event(&mut self, event: FsEvent) -> Result<Vec<ParseDelta>> {
-        match event.kind {
-            FsEventKind::Created | FsEventKind::Modified => {
-                self.parse_or_reparse(event.path)
-            }
-            FsEventKind::Removed => {
-                self.remove_file(event.path);
+        match event {
+            FsEvent::Created(path) | FsEvent::Modified(path) => self.parse_or_reparse(path),
+            FsEvent::Removed(path) => {
+                self.remove_file(path);
                 Ok(vec![])
             }
-            FsEventKind::Renamed(new_path) => {
-                // Handle as remove old + create new
-                self.remove_file(event.path);
-                self.parse_or_reparse(new_path)
-            }
         }
+    }
+
+    /// Get the language this parser service handles
+    pub fn language(&self) -> Language {
+        self.language
+    }
+
+    /// Get the root directory this parser service operates on
+    pub fn root(&self) -> &PathBuf {
+        &self.root
     }
 
     /// Parse or incrementally reparse a file
@@ -108,6 +114,8 @@ impl ParserService {
     fn full_parse(&mut self, path: &Path, source: &str) -> Result<ParseDelta> {
         let tree = self
             .parser
+            .lock()
+            .unwrap()
             .parse(source, None)
             .context("Failed to parse file")?;
 
@@ -148,19 +156,12 @@ impl ParserService {
         old_source: &str,
         new_source: &str,
     ) -> Result<ParseDelta> {
-
         // Compute simple diff (byte-level)
         let edit_start = Self::common_prefix_len(old_source, new_source);
         let edit_old_end = old_source.len()
-            - Self::common_suffix_len(
-                &old_source[edit_start..],
-                &new_source[edit_start..],
-            );
+            - Self::common_suffix_len(&old_source[edit_start..], &new_source[edit_start..]);
         let edit_new_end = new_source.len()
-            - Self::common_suffix_len(
-                &old_source[edit_start..],
-                &new_source[edit_start..],
-            );
+            - Self::common_suffix_len(&old_source[edit_start..], &new_source[edit_start..]);
 
         // Apply edit to old tree
         let mut new_tree = old_tree.clone();
@@ -181,15 +182,15 @@ impl ParserService {
         // Incremental parse with old tree
         let new_tree = self
             .parser
+            .lock()
+            .unwrap()
             .parse(new_source, Some(&new_tree))
             .context("Failed to incremental parse")?;
 
         let had_errors = new_tree.root_node().has_error();
 
         // Compute changed ranges
-        let changed_ranges = new_tree
-            .changed_ranges(old_tree)
-            .collect::<Vec<_>>();
+        let changed_ranges = new_tree.changed_ranges(old_tree).collect::<Vec<_>>();
 
         // Update state
         self.file_states.insert(
@@ -222,10 +223,7 @@ impl ParserService {
 
     /// Helper: Common prefix length
     fn common_prefix_len(a: &str, b: &str) -> usize {
-        a.bytes()
-            .zip(b.bytes())
-            .take_while(|(x, y)| x == y)
-            .count()
+        a.bytes().zip(b.bytes()).take_while(|(x, y)| x == y).count()
     }
 
     /// Helper: Common suffix length

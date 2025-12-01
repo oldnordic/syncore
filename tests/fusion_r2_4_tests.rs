@@ -33,12 +33,18 @@ fn test_simple_fusion_linear_weights() {
     let graph_score = 0.4;
     let temporal_score = 0.0;
 
-    // Expected: 0.6*0.8 + 0.3*0.4 + 0.1*0.0 = 0.48 + 0.12 + 0.0 = 0.60
-    let result = fusion.combine(vector_score, graph_score, temporal_score);
+    // Expected: 0.5*0.8 + 0.2*0.4 + 0.1*0.0 + 0.2*0.0 = 0.40 + 0.08 + 0.0 + 0.0 = 0.48
+    let graph_embedding_score = 0.0;
+    let result = fusion.combine(
+        vector_score,
+        graph_score,
+        temporal_score,
+        graph_embedding_score,
+    );
 
     assert!(
-        (result - 0.60).abs() < 0.001,
-        "Linear fusion should be 0.60, got {}",
+        (result - 0.48).abs() < 0.001,
+        "Linear fusion should be 0.48, got {}",
         result
     );
 }

@@ -34,7 +34,10 @@ fn test_identical_embeddings_produce_same_results() {
     assert_eq!(results.len(), 2);
 
     // Both should have same distance (identical vectors)
-    assert!((results[0].1 - results[1].1).abs() < 0.001, "Distances should be identical");
+    assert!(
+        (results[0].1 - results[1].1).abs() < 0.001,
+        "Distances should be identical"
+    );
 }
 
 /// Test 2: Deterministic neighbor ordering with fixed seed
@@ -137,11 +140,7 @@ fn test_recall_at_10_accuracy() {
     let hnsw_ids: Vec<i64> = hnsw_results.iter().map(|(id, _)| *id).collect();
     let gt_ids: Vec<i64> = gt_results.iter().map(|(id, _)| *id).collect();
 
-    let recall = hnsw_ids
-        .iter()
-        .filter(|id| gt_ids.contains(id))
-        .count() as f32
-        / 10.0;
+    let recall = hnsw_ids.iter().filter(|id| gt_ids.contains(id)).count() as f32 / 10.0;
 
     // Recall should be >= 80% for well-tuned HNSW
     assert!(

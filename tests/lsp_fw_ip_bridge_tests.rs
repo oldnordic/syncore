@@ -6,7 +6,7 @@
 use std::time::Duration;
 use tempfile::TempDir;
 
-use syncore::fs_watcher::{FsEvent, FsEventKind};
+use syncore::fs_watcher::FsEvent;
 use syncore::lsp_bridge::{on_fs_event_update_lsp, LspBridge, LspStatus};
 use syncore::parser_service::ParserService;
 
@@ -42,10 +42,7 @@ async fn test_fs_event_did_open_sent_for_new_file() {
     std::fs::write(&test_file, code).expect("Failed to write file");
 
     // Simulate FsEvent for Created
-    let event = FsEvent {
-        path: test_file.clone(),
-        kind: FsEventKind::Created,
-    };
+    let event = FsEvent::Created(test_file.clone());
 
     // Call helper to update LSP
     let result = on_fs_event_update_lsp(&bridge, &parser, &event).await;
@@ -90,10 +87,7 @@ async fn test_fs_event_did_change_sent_for_modify() {
     let initial_code = "fn main() {}";
     std::fs::write(&test_file, initial_code).expect("Failed to write file");
 
-    let create_event = FsEvent {
-        path: test_file.clone(),
-        kind: FsEventKind::Created,
-    };
+    let create_event = FsEvent::Created(test_file.clone());
 
     on_fs_event_update_lsp(&bridge, &parser, &create_event)
         .await
@@ -108,10 +102,7 @@ async fn test_fs_event_did_change_sent_for_modify() {
     let modified_code = "fn main() { println!(\"modified\"); }";
     std::fs::write(&test_file, modified_code).expect("Failed to modify file");
 
-    let modify_event = FsEvent {
-        path: test_file.clone(),
-        kind: FsEventKind::Modified,
-    };
+    let modify_event = FsEvent::Modified(test_file.clone());
 
     // Call helper for didChange
     let result = on_fs_event_update_lsp(&bridge, &parser, &modify_event).await;
@@ -147,16 +138,10 @@ async fn test_fs_event_delete_does_not_panic() {
     let deleted_file = root.join("deleted.rs");
 
     // Simulate delete event
-    let event = FsEvent {
-        path: deleted_file.clone(),
-        kind: FsEventKind::Removed,
-    };
+    let event = FsEvent::Removed(deleted_file.clone());
 
     // Should not panic, should gracefully handle
     let result = on_fs_event_update_lsp(&bridge, &parser, &event).await;
 
-    assert!(
-        result.is_ok(),
-        "Delete event should be handled gracefully"
-    );
+    assert!(result.is_ok(), "Delete event should be handled gracefully");
 }

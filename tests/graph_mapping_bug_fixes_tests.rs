@@ -19,8 +19,8 @@
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use syncore::graph::Neo4jClient;
-use syncore::router::SynCoreState;
 use syncore::memory::Memory;
+use syncore::router::SynCoreState;
 use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
@@ -85,17 +85,39 @@ async fn test_bug1_graph_suite_query_returns_entity_properties() -> Result<()> {
 
     let row = &result[0];
     assert_eq!(row["id"], serde_json::json!(999001), "id should be 999001");
-    assert_eq!(row["name"], serde_json::json!("test_function"), "name should not be null");
-    assert_eq!(row["path"], serde_json::json!("/tmp/test.rs"), "path should not be null");
-    assert_eq!(row["entity_type"], serde_json::json!("function"), "entity_type should not be null");
-    assert_eq!(row["start_line"], serde_json::json!(10), "start_line should be 10");
-    assert_eq!(row["signature"], serde_json::json!("fn test_function()"), "signature should not be null");
+    assert_eq!(
+        row["name"],
+        serde_json::json!("test_function"),
+        "name should not be null"
+    );
+    assert_eq!(
+        row["path"],
+        serde_json::json!("/tmp/test.rs"),
+        "path should not be null"
+    );
+    assert_eq!(
+        row["entity_type"],
+        serde_json::json!("function"),
+        "entity_type should not be null"
+    );
+    assert_eq!(
+        row["start_line"],
+        serde_json::json!(10),
+        "start_line should be 10"
+    );
+    assert_eq!(
+        row["signature"],
+        serde_json::json!("fn test_function()"),
+        "signature should not be null"
+    );
 
     // Cleanup
-    client.execute_query(
-        "MATCH (n:Function:SynCore {id: 999001, namespace: 'SynCore'}) DELETE n",
-        vec![]
-    ).await?;
+    client
+        .execute_query(
+            "MATCH (n:Function:SynCore {id: 999001, namespace: 'SynCore'}) DELETE n",
+            vec![],
+        )
+        .await?;
 
     Ok(())
 }
@@ -106,10 +128,12 @@ async fn test_bug1_returns_node_object_with_properties() -> Result<()> {
     let client = Neo4jClient::connect("bolt://localhost:7687", "neo4j", "testpassword123").await?;
 
     // Cleanup any existing test data first
-    client.execute_query(
-        "MATCH (n:Struct:SynCore {id: 999002, namespace: 'SynCore'}) DELETE n",
-        vec![]
-    ).await?;
+    client
+        .execute_query(
+            "MATCH (n:Struct:SynCore {id: 999002, namespace: 'SynCore'}) DELETE n",
+            vec![],
+        )
+        .await?;
 
     let cypher_create = r#"
         CREATE (s:Struct:SynCore {
@@ -135,17 +159,31 @@ async fn test_bug1_returns_node_object_with_properties() -> Result<()> {
     let node_obj = &row["n"];
 
     // Node should be an object (not null)
-    assert!(node_obj.is_object(), "Node 'n' should be an object, not null: {:?}", node_obj);
+    assert!(
+        node_obj.is_object(),
+        "Node 'n' should be an object, not null: {:?}",
+        node_obj
+    );
 
     // Properties should be extractable from node object
-    assert_eq!(node_obj["name"], serde_json::json!("TestStruct"), "node.name should be accessible");
-    assert_eq!(node_obj["path"], serde_json::json!("/tmp/test_struct.rs"), "node.path should be accessible");
+    assert_eq!(
+        node_obj["name"],
+        serde_json::json!("TestStruct"),
+        "node.name should be accessible"
+    );
+    assert_eq!(
+        node_obj["path"],
+        serde_json::json!("/tmp/test_struct.rs"),
+        "node.path should be accessible"
+    );
 
     // Cleanup
-    client.execute_query(
-        "MATCH (n:Struct:SynCore {id: 999002, namespace: 'SynCore'}) DELETE n",
-        vec![]
-    ).await?;
+    client
+        .execute_query(
+            "MATCH (n:Struct:SynCore {id: 999002, namespace: 'SynCore'}) DELETE n",
+            vec![],
+        )
+        .await?;
 
     Ok(())
 }
@@ -192,9 +230,21 @@ async fn test_bug2_graph_suite_relationship_query_succeeds() -> Result<()> {
     assert_eq!(result.len(), 1, "Should return exactly 1 relationship");
 
     let row = &result[0];
-    assert_eq!(row["caller"], serde_json::json!("caller_fn"), "caller should be caller_fn");
-    assert_eq!(row["rel_type"], serde_json::json!("CALLS"), "relationship type should be CALLS");
-    assert_eq!(row["callee"], serde_json::json!("callee_fn"), "callee should be callee_fn");
+    assert_eq!(
+        row["caller"],
+        serde_json::json!("caller_fn"),
+        "caller should be caller_fn"
+    );
+    assert_eq!(
+        row["rel_type"],
+        serde_json::json!("CALLS"),
+        "relationship type should be CALLS"
+    );
+    assert_eq!(
+        row["callee"],
+        serde_json::json!("callee_fn"),
+        "callee should be callee_fn"
+    );
 
     // Cleanup
     client.execute_query(
@@ -235,7 +285,11 @@ async fn test_bug2_relationship_query_with_count_aggregation() -> Result<()> {
     assert_eq!(result.len(), 1, "Should return 1 aggregated result");
 
     let row = &result[0];
-    assert_eq!(row["rel_type"], serde_json::json!("CALLS"), "rel_type should be CALLS");
+    assert_eq!(
+        row["rel_type"],
+        serde_json::json!("CALLS"),
+        "rel_type should be CALLS"
+    );
     assert_eq!(row["count"], serde_json::json!(2), "count should be 2");
 
     // Cleanup
@@ -253,7 +307,7 @@ async fn test_bug2_relationship_query_with_count_aggregation() -> Result<()> {
 
 #[tokio::test]
 async fn test_bug3_mapping_suite_search_finds_indexed_files() -> Result<()> {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
 
     // Setup: Create SynCoreState and populate file_nodes
     let state = create_test_state()?;
@@ -275,7 +329,10 @@ async fn test_bug3_mapping_suite_search_finds_indexed_files() -> Result<()> {
     let results = mapping.search_related("test_search_file rust")?;
 
     // Assert: Search should find the indexed file
-    assert!(!results.is_empty(), "Search should return at least 1 result, got 0");
+    assert!(
+        !results.is_empty(),
+        "Search should return at least 1 result, got 0"
+    );
     assert!(
         results.iter().any(|n| n.path == "/tmp/test_search_file.rs"),
         "Search results should include /tmp/test_search_file.rs"
@@ -283,7 +340,10 @@ async fn test_bug3_mapping_suite_search_finds_indexed_files() -> Result<()> {
 
     // Cleanup: Remove from file_nodes table
     state.tasks.with_db(|conn| {
-        conn.execute("DELETE FROM file_nodes WHERE path = '/tmp/test_search_file.rs'", [])?;
+        conn.execute(
+            "DELETE FROM file_nodes WHERE path = '/tmp/test_search_file.rs'",
+            [],
+        )?;
         Ok(())
     })?;
 
@@ -296,7 +356,7 @@ async fn test_bug3_mapping_suite_search_finds_indexed_files() -> Result<()> {
 
 #[tokio::test]
 async fn test_bug4_mapping_suite_get_finds_indexed_file() -> Result<()> {
-    use syncore::portfolio::mapping_tool::{MappingTool, FileNode};
+    use syncore::portfolio::mapping_tool::{FileNode, MappingTool};
 
     // Setup: Create SynCoreState and populate file_nodes
     let state = create_test_state()?;
@@ -318,18 +378,32 @@ async fn test_bug4_mapping_suite_get_finds_indexed_file() -> Result<()> {
     let result = mapping.get_file("/tmp/test_get_file.rs")?;
 
     // Assert: File should be found
-    assert!(result.is_some(), "get_file() should return Some(node), got None (found=false)");
+    assert!(
+        result.is_some(),
+        "get_file() should return Some(node), got None (found=false)"
+    );
 
     let node = result.unwrap();
     assert_eq!(node.path, "/tmp/test_get_file.rs", "Path should match");
     assert_eq!(node.kind, "module", "Kind should be 'module'");
-    assert_eq!(node.language, Some("rust".to_string()), "Language should be rust");
-    assert_eq!(node.imports, vec!["std::collections::HashMap"], "Imports should match");
+    assert_eq!(
+        node.language,
+        Some("rust".to_string()),
+        "Language should be rust"
+    );
+    assert_eq!(
+        node.imports,
+        vec!["std::collections::HashMap"],
+        "Imports should match"
+    );
     assert_eq!(node.exports, vec!["Config"], "Exports should match");
 
     // Cleanup: Remove from file_nodes table
     state.tasks.with_db(|conn| {
-        conn.execute("DELETE FROM file_nodes WHERE path = '/tmp/test_get_file.rs'", [])?;
+        conn.execute(
+            "DELETE FROM file_nodes WHERE path = '/tmp/test_get_file.rs'",
+            [],
+        )?;
         Ok(())
     })?;
 
@@ -348,7 +422,10 @@ async fn test_bug4_mapping_suite_get_returns_none_for_missing_file() -> Result<(
     let result = mapping.get_file("/nonexistent/path/file.rs")?;
 
     // Assert: Should correctly return None (found=false is correct here)
-    assert!(result.is_none(), "get_file() should return None for non-existent files");
+    assert!(
+        result.is_none(),
+        "get_file() should return None for non-existent files"
+    );
 
     Ok(())
 }

@@ -15,7 +15,7 @@
 //! ISOLATION REQUIREMENT: This benchmark does NOT modify SynCore state or databases.
 //! It creates standalone HNSW indices for comparison only.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use syncore::vector::hnsw::{HnswConfig, HnswVectorIndex};
 use syncore::vector::traits::VectorIndex;
 
@@ -78,11 +78,7 @@ fn generate_test_vectors(count: usize, dim: usize, seed: u64) -> Vec<Vec<f32>> {
 }
 
 /// Calculate recall@k: how many of the HNSW top-k results are in ground truth top-k?
-fn calculate_recall(
-    hnsw_results: &[(i64, f32)],
-    ground_truth: &[(i64, f32)],
-    k: usize,
-) -> f32 {
+fn calculate_recall(hnsw_results: &[(i64, f32)], ground_truth: &[(i64, f32)], k: usize) -> f32 {
     let hnsw_ids: Vec<i64> = hnsw_results.iter().take(k).map(|(id, _)| *id).collect();
     let gt_ids: Vec<i64> = ground_truth.iter().take(k).map(|(id, _)| *id).collect();
 
@@ -112,11 +108,7 @@ fn cosine_distance(v1: &[f32], v2: &[f32]) -> f32 {
 }
 
 /// Brute-force ground truth search
-fn brute_force_search(
-    vectors: &[Vec<f32>],
-    query: &[f32],
-    k: usize,
-) -> Vec<(i64, f32)> {
+fn brute_force_search(vectors: &[Vec<f32>], query: &[f32], k: usize) -> Vec<(i64, f32)> {
     let mut results: Vec<(i64, f32)> = vectors
         .iter()
         .enumerate()
@@ -146,7 +138,9 @@ fn bench_insertion(c: &mut Criterion) {
                     let mut index = HnswVectorIndex::new(hnsw_config, 42).unwrap();
 
                     for (i, vec) in vectors.iter().enumerate() {
-                        index.add(black_box(i as i64), black_box(vec.clone())).unwrap();
+                        index
+                            .add(black_box(i as i64), black_box(vec.clone()))
+                            .unwrap();
                     }
                 });
             },
@@ -173,9 +167,7 @@ fn bench_search(c: &mut Criterion) {
             BenchmarkId::new("search_k10", config.name),
             &config,
             |b, _| {
-                b.iter(|| {
-                    index.search(black_box(&query), black_box(10)).unwrap()
-                });
+                b.iter(|| index.search(black_box(&query), black_box(10)).unwrap());
             },
         );
     }

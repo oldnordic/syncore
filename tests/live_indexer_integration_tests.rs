@@ -32,16 +32,24 @@ async fn test_full_pipeline_file_create_modify_delete() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph)?;
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let lsp_bridge = LspBridge::disabled();
+    let lsp_bridge = Arc::new(Mutex::new(LspBridge::disabled()));
 
     // Start FsWatcher
     let watcher_handle = start_fs_watcher(root.clone())?;
-    let fs_rx = watcher_handle.rx;
+    let (fs_tx, fs_rx) = tokio::sync::mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
+
+    // Bridge crossbeam channel to tokio channel
+    let _bridge_handle = tokio::spawn(async move {
+        while let Ok(event) = watcher_handle.rx.recv() {
+            let _ = fs_tx.send(event).await;
+        }
+    });
 
     let config = LiveIndexerConfig {
         debounce_ms: 100,
@@ -105,16 +113,24 @@ async fn test_pipeline_triggers_hnsw_reembedding() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph)?;
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let lsp_bridge = LspBridge::disabled();
+    let lsp_bridge = Arc::new(Mutex::new(LspBridge::disabled()));
 
     // Start FsWatcher
     let watcher_handle = start_fs_watcher(root.clone())?;
-    let fs_rx = watcher_handle.rx;
+
+    // Convert crossbeam receiver to tokio receiver
+    let (fs_tx, fs_rx) = tokio::sync::mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
+    let _bridge_handle = tokio::spawn(async move {
+        while let Ok(event) = watcher_handle.rx.recv() {
+            let _ = fs_tx.send(event).await;
+        }
+    });
 
     let config = LiveIndexerConfig {
         debounce_ms: 100,
@@ -155,7 +171,10 @@ async fn test_pipeline_triggers_hnsw_reembedding() -> Result<()> {
     };
 
     // HNSW should have been updated with new entity embedding
-    assert!(vectors_after >= vectors_before, "HNSW should be updated after modification");
+    assert!(
+        vectors_after >= vectors_before,
+        "HNSW should be updated after modification"
+    );
 
     indexer.shutdown().await?;
 
@@ -177,16 +196,24 @@ async fn test_pipeline_produces_lsp_notifications() -> Result<()> {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph)?;
+    let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
+    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
     // Use disabled LSP bridge (real LSP would require rust-analyzer running)
-    let lsp_bridge = LspBridge::disabled();
+    let lsp_bridge = Arc::new(Mutex::new(LspBridge::disabled()));
 
     let watcher_handle = start_fs_watcher(root.clone())?;
-    let fs_rx = watcher_handle.rx;
+
+    // Convert crossbeam receiver to tokio receiver
+    let (fs_tx, fs_rx) = tokio::sync::mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
+    let _bridge_handle = tokio::spawn(async move {
+        while let Ok(event) = watcher_handle.rx.recv() {
+            let _ = fs_tx.send(event).await;
+        }
+    });
 
     let config = LiveIndexerConfig {
         debounce_ms: 100,

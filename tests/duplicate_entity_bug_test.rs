@@ -38,7 +38,10 @@ fn test_duplicate_entity_rejection() -> Result<()> {
     writeln!(file, "pub struct MyStruct {{}}")?;
     writeln!(file)?;
     writeln!(file, "impl Debug for MyStruct {{")?;
-    writeln!(file, "    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{")?;
+    writeln!(
+        file,
+        "    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {{"
+    )?;
     writeln!(file, "        write!(f, \"MyStruct\")")?;
     writeln!(file, "    }}")?;
     writeln!(file, "}}")?;
@@ -68,7 +71,7 @@ fn test_duplicate_entity_rejection() -> Result<()> {
                     HAVING cnt > 1
                 )",
                 [],
-                |row| row.get(0)
+                |row| row.get(0),
             )?;
 
             assert_eq!(
@@ -100,7 +103,8 @@ fn test_duplicate_entity_rejection() -> Result<()> {
 #[test]
 fn test_edge_extractor_file_no_duplicates() -> Result<()> {
     // Arrange: Index the actual edge_extractor.rs file that failed in production
-    let edge_extractor_path = "/home/feanor/Projects/SynCore/syncore/src/code_graph/edge_extractor.rs";
+    let edge_extractor_path =
+        "/home/feanor/Projects/SynCore/syncore/src/code_graph/edge_extractor.rs";
 
     if !std::path::Path::new(edge_extractor_path).exists() {
         // Skip test if file doesn't exist (e.g., in CI)
@@ -120,7 +124,10 @@ fn test_edge_extractor_file_no_duplicates() -> Result<()> {
     // Assert: Should succeed
     match result {
         Ok(count) => {
-            eprintln!("Successfully indexed {} entities from edge_extractor.rs", count);
+            eprintln!(
+                "Successfully indexed {} entities from edge_extractor.rs",
+                count
+            );
 
             // Verify no duplicates
             let conn = Connection::open(&db_path)?;
@@ -132,7 +139,7 @@ fn test_edge_extractor_file_no_duplicates() -> Result<()> {
                     HAVING cnt > 1
                 )",
                 [],
-                |row| row.get(0)
+                |row| row.get(0),
             )?;
 
             assert_eq!(
@@ -192,7 +199,7 @@ fn test_normal_file_indexing_still_works() -> Result<()> {
     let db_count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM code_entities WHERE entity_type = 'function'",
         [],
-        |row| row.get(0)
+        |row| row.get(0),
     )?;
 
     assert_eq!(db_count, 2, "Database should contain 2 function entities");

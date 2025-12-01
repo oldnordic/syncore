@@ -3,9 +3,9 @@
 //! THE ONLY place where RAG graph reads from Neo4j happen.
 //! Provides type-safe queries for embedding retrieval and neighbor discovery.
 
-use anyhow::Result;
-use crate::graph::Neo4jClient;
 use super::schema::{rag_namespace, RelationType};
+use crate::graph::Neo4jClient;
+use anyhow::Result;
 
 /// Result of an embedding query
 #[derive(Debug, Clone)]
@@ -56,19 +56,14 @@ pub async fn get_embedding_by_id(client: &Neo4jClient, id: i64) -> Result<Option
         )
         .await?;
 
-    Ok(results
-        .first()
-        .and_then(EmbeddingResult::from_neo4j_value))
+    Ok(results.first().and_then(EmbeddingResult::from_neo4j_value))
 }
 
 /// Get neighbors of an embedding (any relationship)
 ///
 /// Returns list of (neighbor_id, weight, rel_type) tuples.
 /// Sorted by neighbor_id for deterministic ordering.
-pub async fn get_neighbors(
-    client: &Neo4jClient,
-    entity_id: i64,
-) -> Result<Vec<NeighborResult>> {
+pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<NeighborResult>> {
     let query = r#"
         MATCH (e {id: $entity_id, namespace: $ns})-[r]-(neighbor)
         WHERE neighbor.namespace = $ns
@@ -92,7 +87,10 @@ pub async fn get_neighbors(
         .iter()
         .filter_map(|record| {
             let id = record.get("neighbor_id")?.as_i64()?;
-            let weight = record.get("weight").and_then(|v| v.as_f64()).map(|w| w as f32);
+            let weight = record
+                .get("weight")
+                .and_then(|v| v.as_f64())
+                .map(|w| w as f32);
             let rel_type = record
                 .get("rel_type")
                 .and_then(|v| v.as_str())

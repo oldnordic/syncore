@@ -93,8 +93,7 @@ fn test_parse_publish_diagnostics_payload() {
     }"#;
 
     // Helper function to parse (will be in lsp_bridge module)
-    let events =
-        syncore::lsp_bridge::parse_publish_diagnostics(payload).expect("Failed to parse");
+    let events = syncore::lsp_bridge::parse_publish_diagnostics(payload).expect("Failed to parse");
 
     assert_eq!(events.len(), 1, "Should parse one diagnostic");
 

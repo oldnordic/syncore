@@ -17,14 +17,7 @@ fn test_stub_embeddings_used_in_tests_only() {
     // We allow it in vector.rs (definition) but not in test instantiations
 
     let test_blocks = std::process::Command::new("rg")
-        .args(&[
-            r"#\[cfg\(test\)\]",
-            "--type",
-            "rust",
-            "src/",
-            "-A",
-            "50",
-        ])
+        .args(&[r"#\[cfg\(test\)\]", "--type", "rust", "src/", "-A", "50"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -82,13 +75,7 @@ fn test_stub_embeddings_used_in_tests_only() {
 fn test_no_real_embeddings_in_docstrings() {
     // Find all doc comments that mention RealEmbeddings
     let doc_search = std::process::Command::new("rg")
-        .args(&[
-            r"///.*RealEmbeddings",
-            "--type",
-            "rust",
-            "src/",
-            "-n",
-        ])
+        .args(&[r"///.*RealEmbeddings", "--type", "rust", "src/", "-n"])
         .output()
         .expect("Failed to execute ripgrep");
 
@@ -350,14 +337,7 @@ fn test_no_accidental_real_model_invocations_in_tests() {
 
     for file in test_files {
         let test_blocks = std::process::Command::new("rg")
-            .args(&[
-                r"#\[cfg\(test\)\]",
-                "--type",
-                "rust",
-                file,
-                "-A",
-                "30",
-            ])
+            .args(&[r"#\[cfg\(test\)\]", "--type", "rust", file, "-A", "30"])
             .output()
             .expect("Failed to execute ripgrep");
 

@@ -11,7 +11,7 @@ use super::continuity_engine::{
 use super::intent_classifier::{classify_intent, QueryIntent};
 use super::pattern_engine::{recommend_patterns_for_query, ReasoningPattern};
 use super::plan_engine::{generate_plan, Plan};
-use super::plan_executor::{ExecutionResult};
+use super::plan_executor::ExecutionResult;
 use super::reasoning_ledger::fetch_recent_episodes_sql;
 use super::router_logic::{route_query, RoutingDecision};
 use super::self_consistency::{evaluate_self_consistency, SelfConsistencyResult};

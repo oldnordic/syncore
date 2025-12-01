@@ -86,13 +86,24 @@ impl LtmAdapter {
         dot_product / (norm_a * norm_b)
     }
 
+    /// Get the embedding dimension for this adapter
+    pub fn get_dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// Get the current capacity (number of stored entries)
+    pub fn get_capacity(&self) -> usize {
+        let mock_vectors = self.mock_vectors.lock().unwrap();
+        mock_vectors.len()
+    }
+
     /// Serialize tags to JSON string
     fn serialize_tags(tags: &[String]) -> String {
         serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string())
     }
 
     /// Deserialize tags from JSON string
-    fn deserialize_tags(json: &str) -> Vec<String> {
+    pub fn deserialize_tags(json: &str) -> Vec<String> {
         serde_json::from_str(json).unwrap_or_else(|_| vec![])
     }
 
@@ -106,7 +117,7 @@ impl LtmAdapter {
     }
 
     /// Deserialize embedding from binary blob
-    fn deserialize_embedding(bytes: &[u8]) -> Vec<f32> {
+    pub fn deserialize_embedding(bytes: &[u8]) -> Vec<f32> {
         let mut embedding = Vec::with_capacity(bytes.len() / 4);
         for chunk in bytes.chunks_exact(4) {
             let val = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);

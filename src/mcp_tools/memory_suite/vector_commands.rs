@@ -7,8 +7,8 @@
 //! - vector_insert: Insert text into vector store with namespace
 //! - vector_search: Semantic search in vector store
 
-use crate::mcp_tools::SuiteResult;
 use super::{MemorySuite, MemorySuiteArgs};
+use crate::mcp_tools::SuiteResult;
 
 /// Execute vector_insert command
 pub fn cmd_vector_insert(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {

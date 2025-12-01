@@ -7,6 +7,7 @@ use syncore::mcp::handle_mcp_request;
 use syncore::mcp::MCPRequest;
 use syncore::memory::Memory;
 use syncore::router::SynCoreState;
+use syncore::snapshots::SnapshotHandle;
 use syncore::tasks::Tasks;
 use syncore::vector::{RealEmbeddings, VectorStore};
 
@@ -43,6 +44,9 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Create MCP request to insert vector
@@ -117,6 +121,9 @@ async fn test_vector_insert_should_handle_missing_text() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Create request missing text parameter
@@ -183,6 +190,9 @@ async fn test_vector_insert_should_handle_valid_scopes() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Test valid scopes
@@ -254,6 +264,9 @@ async fn test_vector_insert_should_store_in_vector_store() {
         neo4j: None,
         hnsw_ready: Arc::new(AtomicBool::new(false)),
         intellitask: None,
+        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
+        snapshot_update_task: Arc::new(Mutex::new(None)),
     };
 
     // Insert a document

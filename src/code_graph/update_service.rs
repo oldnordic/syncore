@@ -9,12 +9,12 @@
 //! with changed_ranges are reindexed, not the entire file.
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use crate::code_graph::delta::CodeGraphDeltaEngine;
 use crate::code_graph::{CodeEntity, CodeGraph, EntityType};
-use crate::fs_watcher::{FsEvent, FsEventKind};
+use crate::fs_watcher::FsEvent;
 use crate::parser_service::ParseDelta;
 
 // ============================================================================
@@ -29,11 +29,10 @@ pub struct CodeGraphUpdateEvent {
 }
 
 /// Service that applies incremental code graph updates
+#[derive(Clone)]
 pub struct CodeGraphUpdateService {
     graph: Arc<Mutex<CodeGraph>>,
     delta_engine: CodeGraphDeltaEngine,
-    #[allow(dead_code)]
-    root: PathBuf,
     /// APEX 2.15: Reindex mutex to serialize DELETE+INSERT operations
     reindex_mutex: Arc<std::sync::Mutex<()>>,
 }
@@ -44,7 +43,7 @@ pub struct CodeGraphUpdateService {
 
 impl CodeGraphUpdateService {
     /// Create a new update service
-    pub fn new(root: PathBuf, graph: CodeGraph, reindex_mutex: Arc<std::sync::Mutex<()>>) -> Result<Self> {
+    pub fn new(graph: CodeGraph, reindex_mutex: Arc<std::sync::Mutex<()>>) -> Result<Self> {
         // APEX 2.6-CG-GRAPH-DELTA: Wrap graph in Arc<Mutex<>> and initialize delta engine
         let graph_arc = Arc::new(Mutex::new(graph));
         let delta_engine = CodeGraphDeltaEngine::new(graph_arc.clone());
@@ -52,7 +51,6 @@ impl CodeGraphUpdateService {
         Ok(Self {
             graph: graph_arc,
             delta_engine,
-            root,
             reindex_mutex,
         })
     }
@@ -62,18 +60,20 @@ impl CodeGraphUpdateService {
     /// APEX 2.6-CG-GRAPH-DELTA: Now uses delta engine for selective reindexing.
     /// Returns the number of affected entities (inserted, updated, or deleted).
     pub fn apply_update(&mut self, event: CodeGraphUpdateEvent) -> Result<u64> {
-        let file_path = &event.fs_event.path;
+        let file_path = event.fs_event.path();
 
         // Check if file extension is supported
         if !self.is_supported_file(file_path) {
             return Ok(0);
         }
 
-        match event.fs_event.kind {
-            FsEventKind::Created | FsEventKind::Modified => {
+        match event.fs_event {
+            FsEvent::Created(_) | FsEvent::Modified(_) => {
                 // APEX 2.6: Use delta engine if parse_delta is available
                 if let Some(parse_delta) = event.parse_delta {
-                    let ast_delta = self.delta_engine.compute_ast_delta(file_path, &parse_delta)?;
+                    let ast_delta = self
+                        .delta_engine
+                        .compute_ast_delta(file_path, &parse_delta)?;
                     self.delta_engine.apply_delta(&ast_delta)?;
                     // Return approximate count (delta doesn't track exact count)
                     Ok(1)
@@ -81,24 +81,18 @@ impl CodeGraphUpdateService {
                     // Fallback: full file reindex (no delta available)
                     // APEX 2.15: Acquire reindex mutex to prevent UNIQUE constraint collisions
                     let _reindex_lock = self.reindex_mutex.lock().expect("reindex mutex poisoned");
-                    let mut graph = self.graph.lock().map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
+                    let mut graph = self
+                        .graph
+                        .lock()
+                        .map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
                     let count = graph.index_file(file_path)?;
                     Ok(count as u64)
                 }
             }
-            FsEventKind::Removed => {
+            FsEvent::Removed(_) => {
                 // For delete: remove entities for the file
                 let deleted = self.delete_entities_for_file(file_path)?;
                 Ok(deleted)
-            }
-            FsEventKind::Renamed(ref new_path) => {
-                // For rename: delete old path, index new path
-                // APEX 2.15: Acquire reindex mutex to prevent UNIQUE constraint collisions
-                let _reindex_lock = self.reindex_mutex.lock().expect("reindex mutex poisoned");
-                self.delete_entities_for_file(file_path)?;
-                let mut graph = self.graph.lock().map_err(|e| anyhow::anyhow!("Failed to lock graph: {}", e))?;
-                let count = graph.index_file(new_path)?;
-                Ok(count as u64)
             }
         }
     }
@@ -197,10 +191,9 @@ pub fn on_parse_delta_update_graph(
     deltas: Vec<ParseDelta>,
 ) -> Result<u64> {
     // Extract the first ParseDelta if available
-    let parse_delta = match fs_event.kind {
-        FsEventKind::Created | FsEventKind::Modified => deltas.first().cloned(),
-        FsEventKind::Removed => None, // File no longer exists
-        FsEventKind::Renamed(_) => deltas.first().cloned(),
+    let parse_delta = match fs_event {
+        FsEvent::Created(_) | FsEvent::Modified(_) => deltas.first().cloned(),
+        FsEvent::Removed(_) => None, // File no longer exists
     };
 
     // Create update event

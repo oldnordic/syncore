@@ -34,11 +34,8 @@ impl CodeGraph {
                     // APEX v1.7: Apply combined entity type + body boost
                     let has_body = entity.body_snippet.is_some();
                     let entity_kind = entity.entity_type.as_str();
-                    let boosted_score = super::entity_boost::apply_combined_boost(
-                        hit.score,
-                        entity_kind,
-                        has_body,
-                    );
+                    let boosted_score =
+                        super::entity_boost::apply_combined_boost(hit.score, entity_kind, has_body);
 
                     matches.push(CodeMatch {
                         entity,

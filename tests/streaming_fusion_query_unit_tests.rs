@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 use tokio::time::{timeout, Duration};
 
-use syncore::code_graph::streaming::{RagStreamingChunk, StreamingConfig};
 use syncore::code_graph::rag_graph_api::RagGraphAPI;
+use syncore::code_graph::streaming::{RagStreamingChunk, StreamingConfig};
 use syncore::code_graph::CodeGraph;
 use syncore::graph::Neo4jClient;
 use syncore::vector::{StubEmbeddings, VectorStore};
@@ -181,8 +181,14 @@ async fn test_stream_empty_query_returns_final_empty_chunk() -> Result<()> {
         .expect("Should receive final chunk quickly")
         .expect("Channel should not be closed");
 
-    assert!(chunk.is_final, "Empty query should return final chunk immediately");
-    assert!(chunk.ranked_entities.is_empty(), "Empty query should have no entities");
+    assert!(
+        chunk.is_final,
+        "Empty query should return final chunk immediately"
+    );
+    assert!(
+        chunk.ranked_entities.is_empty(),
+        "Empty query should have no entities"
+    );
 
     Ok(())
 }
@@ -202,7 +208,9 @@ async fn test_stream_does_not_block_when_no_results() -> Result<()> {
     let config = StreamingConfig::default();
 
     // Query should return immediately even with no indexed data
-    let mut rx = api.query_streaming("nonexistent_function", 10, config).await?;
+    let mut rx = api
+        .query_streaming("nonexistent_function", 10, config)
+        .await?;
 
     // Collect all chunks until we get the final one
     let mut final_chunk = None;

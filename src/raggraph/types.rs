@@ -1,6 +1,5 @@
 //! Core RagGraph types
 
-
 pub type NodeId = i64;
 
 /// RagGraph node with diffusion score

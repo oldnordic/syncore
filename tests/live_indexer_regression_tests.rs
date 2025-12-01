@@ -39,11 +39,18 @@ async fn test_indexer_never_calls_full_reindex_unnecessarily() -> Result<()> {
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let lsp_bridge = LspBridge::disabled();
+    let lsp_bridge = Arc::new(Mutex::new(LspBridge::disabled()));
 
-    // Start FsWatcher
+    // Start FsWatcher and bridge to tokio channel
     let watcher_handle = start_fs_watcher(root.clone())?;
-    let fs_rx = watcher_handle.rx;
+    let (fs_tx, fs_rx) = tokio::sync::mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
+
+    // Bridge crossbeam channel to tokio channel
+    let _bridge_handle = tokio::spawn(async move {
+        while let Ok(event) = watcher_handle.rx.recv() {
+            let _ = fs_tx.send(event).await;
+        }
+    });
 
     let config = LiveIndexerConfig {
         debounce_ms: 100,
@@ -137,10 +144,17 @@ async fn test_indexer_never_blocks_main_thread() -> Result<()> {
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let lsp_bridge = LspBridge::disabled();
+    let lsp_bridge = Arc::new(Mutex::new(LspBridge::disabled()));
 
     let watcher_handle = start_fs_watcher(root.clone())?;
-    let fs_rx = watcher_handle.rx;
+    let (fs_tx, fs_rx) = tokio::sync::mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
+
+    // Bridge crossbeam channel to tokio channel
+    let _bridge_handle = tokio::spawn(async move {
+        while let Ok(event) = watcher_handle.rx.recv() {
+            let _ = fs_tx.send(event).await;
+        }
+    });
 
     let config = LiveIndexerConfig {
         debounce_ms: 50,
@@ -213,11 +227,18 @@ async fn test_indexer_never_interferes_with_fusion_query() -> Result<()> {
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let lsp_bridge = LspBridge::disabled();
+    let lsp_bridge = Arc::new(Mutex::new(LspBridge::disabled()));
 
-    // Start FsWatcher
+    // Start FsWatcher and bridge to tokio channel
     let watcher_handle = start_fs_watcher(root.clone())?;
-    let fs_rx = watcher_handle.rx;
+    let (fs_tx, fs_rx) = tokio::sync::mpsc::channel::<syncore::fs_watcher::FsEvent>(100);
+
+    // Bridge crossbeam channel to tokio channel
+    let _bridge_handle = tokio::spawn(async move {
+        while let Ok(event) = watcher_handle.rx.recv() {
+            let _ = fs_tx.send(event).await;
+        }
+    });
 
     let config = LiveIndexerConfig {
         debounce_ms: 50,

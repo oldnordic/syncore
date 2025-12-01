@@ -4,14 +4,19 @@ use crate::logger::{CogLogger, MarkdownLogger};
 use crate::memory::Memory;
 use crate::message_bus::MessageBus;
 use crate::protocol::{SynCoreMsg, SynCoreTool};
+use crate::snapshots::{
+    CodeGraphMetadata, MemoryMetadata, SnapshotHandle, SnapshotView, VectorStoreMetadata,
+};
 use crate::storage::{create_read_pool, FaissPool, FaissQueue, ReadPool, WriteQueue};
 use crate::tasks::Tasks;
 use crate::vector::domain::EmbeddingDomain;
 use crate::vector::dual_service::DualEmbeddingService;
+use crate::vector::traits::VectorIndex;
 use crate::vector::{SearchScope, VectorStore};
 use anyhow::Result;
-use std::sync::atomic::{AtomicBool};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 #[derive(Clone)]
 pub struct SynCoreState {
@@ -38,6 +43,10 @@ pub struct SynCoreState {
     /// Prevents UNIQUE constraint collisions between manual reindex and LiveIndexer
     /// Uses std::sync::Mutex for compatibility with sync code (blocking)
     pub reindex_mutex: Arc<std::sync::Mutex<()>>,
+    /// MVCC snapshot handle for zero-blocking reads
+    pub snapshot_handle: Arc<SnapshotHandle>,
+    /// Debounced snapshot update task handle (for cancellation)
+    pub snapshot_update_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl SynCoreState {
@@ -79,11 +88,7 @@ impl SynCoreState {
 
         // Create Memory using DbManager's main connection with embeddings
         let main_cache_path = format!("{}_cache", main_db_path);
-        let memory = Memory::with_embeddings(
-            db_manager.main_conn(),
-            &main_cache_path,
-            embeddings,
-        )?;
+        let memory = Memory::with_embeddings(db_manager.main_conn(), &main_cache_path, embeddings)?;
 
         // Create Tasks using DbManager's main connection
         let tasks = Tasks::with_connection(db_manager.main_conn())?;
@@ -106,6 +111,8 @@ impl SynCoreState {
             intellitask: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+            snapshot_handle: Arc::new(SnapshotHandle::default()),
+            snapshot_update_task: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -168,6 +175,8 @@ impl SynCoreState {
             intellitask: None, // Initialized separately via set_intellitask()
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+            snapshot_handle: Arc::new(SnapshotHandle::default()),
+            snapshot_update_task: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -213,6 +222,8 @@ impl SynCoreState {
             intellitask: None, // Initialized separately via set_intellitask()
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+            snapshot_handle: Arc::new(SnapshotHandle::default()),
+            snapshot_update_task: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -281,6 +292,124 @@ impl SynCoreState {
         self
     }
 
+    /// Get current snapshot (zero-blocking read)
+    pub fn get_snapshot(&self) -> Arc<SnapshotView> {
+        self.snapshot_handle.load()
+    }
+
+    /// Update snapshot with current domain metadata (synchronous)
+    pub fn update_snapshot(&self) -> Result<()> {
+        // Get current metadata from all domains
+
+        // Get CodeGraph metadata
+        let code_graph_metadata = self.get_code_graph_metadata()?;
+
+        // Get VectorStore metadata
+        let vector_metadata = self.get_vector_store_metadata()?;
+
+        // Get Memory metadata
+        let memory_metadata = self.get_memory_metadata()?;
+
+        // Create new snapshot
+        let new_snapshot = SnapshotView::new(code_graph_metadata, vector_metadata, memory_metadata);
+
+        // Atomically swap in new snapshot
+        self.snapshot_handle.store(Arc::new(new_snapshot));
+
+        Ok(())
+    }
+
+    /// Request debounced snapshot update (for bulk operations)
+    pub fn request_snapshot_update(&self) -> Result<()> {
+        // Cancel any pending update task
+        {
+            let mut task_guard = self.snapshot_update_task.lock().unwrap();
+            if let Some(task) = task_guard.take() {
+                task.abort();
+            }
+        }
+
+        // Clone state for the async task
+        let state_clone = self.clone();
+
+        // Spawn new debounced update task
+        let task = tokio::spawn(async move {
+            // Wait for debounce period (100ms to match LiveIndexer)
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+            // Update snapshot
+            if let Err(e) = state_clone.update_snapshot() {
+                eprintln!("Failed to update snapshot: {}", e);
+            }
+        });
+
+        // Store task handle
+        let mut task_guard = self.snapshot_update_task.lock().unwrap();
+        *task_guard = Some(task);
+
+        Ok(())
+    }
+
+    /// Get CodeGraph metadata from database
+    fn get_code_graph_metadata(&self) -> Result<CodeGraphMetadata> {
+        // Get database path from DbManager to create temporary CodeGraph
+        let code_graph_db_path = db_paths::code_graph_db_path();
+
+        // Create temporary CodeGraph instance to get version
+        let code_graph =
+            crate::code_graph::CodeGraph::new(&code_graph_db_path, self.code_store.clone())?;
+
+        // Query entity count directly from database
+        let conn = self.db_manager.code_graph_conn();
+        let conn_lock = conn.lock().unwrap();
+        let entity_count: i64 = conn_lock
+            .query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))
+            .unwrap_or(0);
+
+        let version = code_graph.current_version();
+
+        Ok(CodeGraphMetadata {
+            entity_count: entity_count as usize,
+            last_updated: SystemTime::now(),
+            version,
+        })
+    }
+
+    /// Get VectorStore metadata
+    fn get_vector_store_metadata(&self) -> Result<VectorStoreMetadata> {
+        // Get metadata from code store (primary store)
+        let store = self.code_store.lock().unwrap();
+        let vector_count = store.len();
+        let dimension = store.dimension().unwrap_or(384); // Default to 384 if not set
+        let version = store.current_version();
+
+        Ok(VectorStoreMetadata {
+            dimension,
+            vector_count,
+            hnsw_ready: self.hnsw_ready.load(Ordering::Relaxed),
+            last_updated: SystemTime::now(),
+            version,
+        })
+    }
+
+    /// Get Memory metadata
+    fn get_memory_metadata(&self) -> Result<MemoryMetadata> {
+        // Query entry count directly from database
+        let conn = self.db_manager.main_conn();
+        let conn_lock = conn.lock().unwrap();
+        let entry_count: i64 = conn_lock
+            .query_row("SELECT COUNT(*) FROM memory", [], |row| row.get(0))
+            .unwrap_or(0);
+
+        let version = self.memory.current_version();
+
+        Ok(MemoryMetadata {
+            entry_count: entry_count as usize,
+            last_updated: SystemTime::now(),
+            version,
+        })
+    }
+
     /// Create a minimal state with only FAISS infrastructure (for testing)
     pub fn faiss_only(path: &str) -> Self {
         // Use unique temp paths to avoid lock conflicts in tests
@@ -333,6 +462,8 @@ impl SynCoreState {
             intellitask: None, // Test context - LLM not required
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+            snapshot_handle: Arc::new(SnapshotHandle::default()),
+            snapshot_update_task: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -404,9 +535,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
                     state.store_for_domain(*domain)
                 }
                 // Global and Task scopes default to GENERAL store for backward compatibility
-                SearchScope::Global | SearchScope::Task(_) => {
-                    Arc::clone(&state.general_store)
-                }
+                SearchScope::Global | SearchScope::Task(_) => Arc::clone(&state.general_store),
             };
 
             let store_lock = store.lock().unwrap();
@@ -444,7 +573,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
             let max_cycles: Option<usize> = rmp_serde::from_slice(&msg.args)?;
             let sequential_core = crate::sequential::SequentialCore::new(
                 state.tasks.clone(),
-                state.general_store.clone(),  // GENERAL domain: sequential reasoning
+                state.general_store.clone(), // GENERAL domain: sequential reasoning
                 state.memory.clone(),
                 Arc::new(Mutex::new(crate::sequential::DemoLanguageModel::new())),
                 state.logger.clone(),
@@ -518,7 +647,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
 
             // Create indexer with state's vector store using unified path
             let db_path = db_paths::code_graph_db_path();
-            let mut indexer = DirectoryIndexer::new(&db_path, state.code_store.clone())?;  // CODE domain: code indexing
+            let mut indexer = DirectoryIndexer::new(&db_path, state.code_store.clone())?; // CODE domain: code indexing
 
             // Index directory
             let response = indexer.index_directory(&request)?;

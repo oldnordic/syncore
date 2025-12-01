@@ -3,18 +3,15 @@
 //! THE ONLY place where portfolio graph writes to Neo4j happen.
 //! Follows same patterns as canonical Neo4j and RAG graph modules.
 
-use anyhow::Result;
-use crate::graph::Neo4jClient;
 use super::schema::{
-    NodeLabel, PatchProperties, StepProperties, TaskProperties,
-    RelationType, PORTFOLIO_PROJECT_LABEL, GRAPH_DOMAIN, portfolio_namespace
+    portfolio_namespace, NodeLabel, PatchProperties, RelationType, StepProperties, TaskProperties,
+    GRAPH_DOMAIN, PORTFOLIO_PROJECT_LABEL,
 };
+use crate::graph::Neo4jClient;
+use anyhow::Result;
 
 /// Create or update a Patch node
-pub async fn upsert_patch(
-    client: &Neo4jClient,
-    props: PatchProperties,
-) -> Result<()> {
+pub async fn upsert_patch(client: &Neo4jClient, props: PatchProperties) -> Result<()> {
     let query = format!(
         r#"
         MERGE (p:{}:{} {{id: $id, namespace: $ns}})
@@ -43,10 +40,7 @@ pub async fn upsert_patch(
 }
 
 /// Create or update a Step node
-pub async fn upsert_step(
-    client: &Neo4jClient,
-    props: StepProperties,
-) -> Result<()> {
+pub async fn upsert_step(client: &Neo4jClient, props: StepProperties) -> Result<()> {
     let query = format!(
         r#"
         MERGE (s:{}:{} {{id: $id, namespace: $ns}})
@@ -77,10 +71,7 @@ pub async fn upsert_step(
 }
 
 /// Create or update a Task node
-pub async fn upsert_task(
-    client: &Neo4jClient,
-    props: TaskProperties,
-) -> Result<()> {
+pub async fn upsert_task(client: &Neo4jClient, props: TaskProperties) -> Result<()> {
     let query = format!(
         r#"
         MERGE (t:{}:{} {{id: $id, namespace: $ns}})
@@ -145,7 +136,7 @@ pub async fn create_for_task_relationship(
 /// Note: File nodes use path as the global key (not namespace-filtered)
 pub async fn create_applies_to_relationship(
     client: &Neo4jClient,
-   patch_id: i64,
+    patch_id: i64,
     file_path: &str,
 ) -> Result<()> {
     let query = format!(

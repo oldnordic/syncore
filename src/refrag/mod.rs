@@ -6,18 +6,18 @@
 //! - ExpandStage: Selective expansion (RAW vs COMPRESSED)
 //! - HybridPromptBuilder: Assemble final LLM prompts
 
-pub mod types;
-pub mod compression;
-pub mod perceive;
-pub mod expand;
 pub mod builder;
+pub mod compression;
+pub mod expand;
+pub mod perceive;
 pub mod pipeline;
+pub mod types;
 
 // Re-exports for convenient API access
-pub use compression::ChunkCompressionLayer;
-pub use perceive::{PerceiveSelector, SelectionPolicy, SelectionResult};
-pub use expand::{ExpandStage, ExpandedChunk, ChunkFormat};
 pub use builder::HybridPromptBuilder;
+pub use compression::ChunkCompressionLayer;
+pub use expand::{ChunkFormat, ExpandStage, ExpandedChunk};
+pub use perceive::{PerceiveSelector, SelectionPolicy, SelectionResult};
 pub use pipeline::{RefragPipeline, RefragResult};
 pub use types::{ChunkMetadata, Domain};
 

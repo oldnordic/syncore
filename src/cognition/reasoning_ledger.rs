@@ -159,7 +159,7 @@ pub fn fetch_recent_episodes_sql(
 /// * `episode` - Episode to store
 pub async fn store_episode_graph(neo4j: &Neo4jClient, episode: &ReasoningEpisode) -> Result<()> {
     use crate::databases::cognition_graph::{
-        upsert_reasoning_episode, create_uses_relationship, ReasoningEpisodeProperties,
+        create_uses_relationship, upsert_reasoning_episode, ReasoningEpisodeProperties,
     };
 
     // Create Episode node

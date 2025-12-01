@@ -9,9 +9,11 @@
 //! - Validated against schema
 //! - Idempotent (uses MERGE)
 
-use anyhow::Result;
+use super::schema::{
+    project_namespace, NodeLabel, NodeProperties, RelationType, GRAPH_DOMAIN, PROJECT_LABEL,
+};
 use crate::graph::Neo4jClient;
-use super::schema::{NodeLabel, NodeProperties, RelationType, PROJECT_LABEL, GRAPH_DOMAIN, project_namespace};
+use anyhow::Result;
 
 /// Create or update a code entity node
 ///
@@ -67,7 +69,10 @@ pub async fn upsert_entity(
                 ("file_sha256", serde_json::json!(props.file_sha256)),
                 ("mtime", serde_json::json!(props.mtime)),
                 ("created_at", serde_json::json!(props.created_at)),
-                ("last_modified_at", serde_json::json!(props.last_modified_at)),
+                (
+                    "last_modified_at",
+                    serde_json::json!(props.last_modified_at),
+                ),
                 ("change_count", serde_json::json!(props.change_count)),
                 ("author_count", serde_json::json!(props.author_count)),
                 ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),

@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
 use tokio::time::{timeout, Duration};
 
-use syncore::code_graph::streaming::{RagStreamingChunk, StreamingConfig};
 use syncore::code_graph::rag_graph_api::RagGraphAPI;
+use syncore::code_graph::streaming::{RagStreamingChunk, StreamingConfig};
 use syncore::code_graph::CodeGraph;
 use syncore::graph::Neo4jClient;
 use syncore::vector::{StubEmbeddings, VectorStore};
@@ -79,7 +79,10 @@ pub fn calculate_product(a: i32, b: i32) -> i32 {
     }
 
     // Verify we got multiple chunks
-    assert!(chunks.len() >= 2, "Should receive at least 2 chunks (intermediate + final)");
+    assert!(
+        chunks.len() >= 2,
+        "Should receive at least 2 chunks (intermediate + final)"
+    );
 
     // Verify final chunk has consolidated results
     let final_chunk = chunks.last().unwrap();

@@ -112,8 +112,8 @@ impl SequentialStep {
         // Neo4j integration: Use canonical portfolio_graph module
         if let Some(neo4j) = &self.state.neo4j {
             use crate::databases::portfolio_graph::{
-                upsert_step, create_for_task_relationship,
-                upsert_task, StepProperties, TaskProperties
+                create_for_task_relationship, upsert_step, upsert_task, StepProperties,
+                TaskProperties,
             };
 
             let neo4j = neo4j.clone();
@@ -124,19 +124,27 @@ impl SequentialStep {
             tokio::task::block_in_place(|| {
                 tokio::runtime::Handle::current().block_on(async move {
                     // Create Step node
-                    let _ = upsert_step(&neo4j, StepProperties {
-                        id: step_id_val,
-                        step_number: step_num as i64,
-                        metadata: None,
-                    }).await;
+                    let _ = upsert_step(
+                        &neo4j,
+                        StepProperties {
+                            id: step_id_val,
+                            step_number: step_num as i64,
+                            metadata: None,
+                        },
+                    )
+                    .await;
 
                     // Create FOR_TASK relationship if task_id exists
                     if let Some(task_id) = task_id_opt {
                         // Ensure Task node exists
-                        let _ = upsert_task(&neo4j, TaskProperties {
-                            id: task_id,
-                            metadata: None,
-                        }).await;
+                        let _ = upsert_task(
+                            &neo4j,
+                            TaskProperties {
+                                id: task_id,
+                                metadata: None,
+                            },
+                        )
+                        .await;
 
                         // Create relationship
                         let _ = create_for_task_relationship(&neo4j, step_id_val, task_id).await;
