@@ -87,9 +87,9 @@ impl ProjectAnalysisEngine {
 
         // Exclude public entities if requested
         if exclude_public {
-            query.push_str(&format!(
-                " AND (ce.signature NOT LIKE 'pub %' AND ce.signature NOT LIKE 'pub(crate)%')"
-            ));
+            query.push_str(
+                " AND (ce.signature NOT LIKE 'pub %' AND ce.signature NOT LIKE 'pub(crate)%')",
+            );
         }
 
         query.push_str(" ORDER BY ce.file_path, ce.line_start");
@@ -267,8 +267,8 @@ impl ProjectAnalysisEngine {
         // Check if Clippy also reports this as dead code
         let clippy_diagnostics = diagnostics.query_diagnostics_in_range(
             &entity.file_path,
-            entity.line_start as i32,
-            entity.line_start as i32,
+            entity.line_start,
+            entity.line_start,
         )?;
 
         // Look for clippy::dead_code warnings at this location

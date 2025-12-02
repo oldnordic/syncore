@@ -29,25 +29,11 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: memory.clone(),
-        tasks: tasks.clone(),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
+
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
+
+    state.graph_backend = None;
 
     // Create MCP request to insert vector
     let request = MCPRequest {
@@ -98,25 +84,11 @@ async fn test_vector_insert_should_handle_missing_text() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: memory.clone(),
-        tasks: tasks.clone(),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
+
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
+
+    state.graph_backend = None;
 
     // Create request missing text parameter
     let request = MCPRequest {
@@ -167,25 +139,11 @@ async fn test_vector_insert_should_handle_valid_scopes() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: memory.clone(),
-        tasks: tasks.clone(),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
+
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
+
+    state.graph_backend = None;
 
     // Test valid scopes
     let valid_scopes = vec!["global", "task"];
@@ -233,25 +191,11 @@ async fn test_vector_insert_should_store_in_vector_store() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: memory.clone(),
-        tasks: tasks.clone(),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(syncore::snapshots::SnapshotHandle::default()),
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
+
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
+
+    state.graph_backend = None;
 
     // Insert a document
     let insert_request = MCPRequest {

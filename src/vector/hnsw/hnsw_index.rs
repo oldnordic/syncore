@@ -301,7 +301,7 @@ impl VectorIndex for HnswVectorIndex {
                 let distance_sq = n.distance * n.distance;
                 let cosine_sim = 1.0 - (distance_sq / 2.0);
                 // Clamp to [-1, 1] to handle numerical errors
-                let cosine_sim = cosine_sim.max(-1.0).min(1.0);
+                let cosine_sim = cosine_sim.clamp(-1.0, 1.0);
                 (id, cosine_sim)
             })
             .collect();

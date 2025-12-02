@@ -60,7 +60,19 @@ pub async fn get_entity_by_id(client: &Neo4jClient, id: i64) -> Result<Option<En
         MATCH (e {id: $id, namespace: $ns, graph_domain: $graph_domain})
         RETURN e.id as id,
                e.name as name,
-               labels(e)[0] as label,
+               CASE 
+                   WHEN 'Function' IN labels(e) THEN 'Function'
+                   WHEN 'Struct' IN labels(e) THEN 'Struct'
+                   WHEN 'Enum' IN labels(e) THEN 'Enum'
+                   WHEN 'Trait' IN labels(e) THEN 'Trait'
+                   WHEN 'Module' IN labels(e) THEN 'Module'
+                   WHEN 'File' IN labels(e) THEN 'File'
+                   WHEN 'Impl' IN labels(e) THEN 'Impl'
+                   WHEN 'Import' IN labels(e) THEN 'Import'
+                   WHEN 'Constant' IN labels(e) THEN 'Constant'
+                   WHEN 'TypeAlias' IN labels(e) THEN 'TypeAlias'
+                   ELSE labels(e)[0]
+               END as label,
                e.path as path,
                e.start_line as start_line,
                e.end_line as end_line,
@@ -93,7 +105,19 @@ pub async fn get_file_entities(client: &Neo4jClient, file_path: &str) -> Result<
         WHERE e.path = $path
         RETURN e.id as id,
                e.name as name,
-               labels(e)[0] as label,
+               CASE 
+                   WHEN 'Function' IN labels(e) THEN 'Function'
+                   WHEN 'Struct' IN labels(e) THEN 'Struct'
+                   WHEN 'Enum' IN labels(e) THEN 'Enum'
+                   WHEN 'Trait' IN labels(e) THEN 'Trait'
+                   WHEN 'Module' IN labels(e) THEN 'Module'
+                   WHEN 'File' IN labels(e) THEN 'File'
+                   WHEN 'Impl' IN labels(e) THEN 'Impl'
+                   WHEN 'Import' IN labels(e) THEN 'Import'
+                   WHEN 'Constant' IN labels(e) THEN 'Constant'
+                   WHEN 'TypeAlias' IN labels(e) THEN 'TypeAlias'
+                   ELSE labels(e)[0]
+               END as label,
                e.path as path,
                e.start_line as start_line,
                e.end_line as end_line,
@@ -103,19 +127,25 @@ pub async fn get_file_entities(client: &Neo4jClient, file_path: &str) -> Result<
                e.last_modified_at as last_modified_at,
                e.change_count as change_count,
                e.author_count as author_count
-        ORDER BY e.start_line
+          ORDER BY e.start_line, e.id
     "#;
 
-    let results = client
-        .execute_query(
-            query,
-            vec![
-                ("path", serde_json::json!(file_path)),
-                ("ns", serde_json::json!(project_namespace(client))),
-                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
-            ],
-        )
-        .await?;
+    let params = vec![
+        ("path", serde_json::json!(file_path)),
+        ("ns", serde_json::json!(project_namespace(client))),
+        ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+    ];
+
+    // Debug: Print what we're about to execute
+    eprintln!("DEBUG: get_file_entities query: {}", query);
+    eprintln!("DEBUG: get_file_entities params: {:?}", params);
+
+    let results = client.execute_query(query, params).await?;
+
+    eprintln!("DEBUG: get_file_entities returned {} results", results.len());
+    for (i, result) in results.iter().enumerate() {
+        eprintln!("DEBUG: get_file_entities result {}: {:?}", i, result);
+    }
 
     Ok(results.iter().filter_map(EntityResult::from_neo4j_value).collect())
 }
@@ -130,17 +160,30 @@ pub async fn get_function_callees(
         WHERE callee.namespace = $ns
           AND callee.graph_domain = $graph_domain
         RETURN callee.id as id,
-               callee.name as name,
-               labels(callee)[0] as label,
-               callee.path as path,
-               callee.start_line as start_line,
-               callee.end_line as end_line,
-               callee.signature as signature,
-               callee.body_snippet as body_snippet,
-               callee.created_at as created_at,
-               callee.last_modified_at as last_modified_at,
-               callee.change_count as change_count,
-               callee.author_count as author_count
+                callee.name as name,
+                CASE 
+                    WHEN 'Function' IN labels(callee) THEN 'Function'
+                    WHEN 'Struct' IN labels(callee) THEN 'Struct'
+                    WHEN 'Enum' IN labels(callee) THEN 'Enum'
+                    WHEN 'Trait' IN labels(callee) THEN 'Trait'
+                    WHEN 'Module' IN labels(callee) THEN 'Module'
+                    WHEN 'File' IN labels(callee) THEN 'File'
+                    WHEN 'Impl' IN labels(callee) THEN 'Impl'
+                    WHEN 'Import' IN labels(callee) THEN 'Import'
+                    WHEN 'Constant' IN labels(callee) THEN 'Constant'
+                    WHEN 'TypeAlias' IN labels(callee) THEN 'TypeAlias'
+                    ELSE labels(callee)[0]
+                END as label,
+                callee.path as path,
+                callee.start_line as start_line,
+                callee.end_line as end_line,
+                callee.signature as signature,
+                callee.body_snippet as body_snippet,
+                callee.created_at as created_at,
+                callee.last_modified_at as last_modified_at,
+                callee.change_count as change_count,
+                callee.author_count as author_count
+        ORDER BY callee.name, callee.id
     "#;
 
     let results = client
@@ -167,17 +210,30 @@ pub async fn get_function_callers(
         WHERE caller.namespace = $ns
           AND caller.graph_domain = $graph_domain
         RETURN caller.id as id,
-               caller.name as name,
-               labels(caller)[0] as label,
-               caller.path as path,
-               caller.start_line as start_line,
-               caller.end_line as end_line,
-               caller.signature as signature,
-               caller.body_snippet as body_snippet,
-               caller.created_at as created_at,
-               caller.last_modified_at as last_modified_at,
-               caller.change_count as change_count,
-               caller.author_count as author_count
+                caller.name as name,
+                CASE 
+                    WHEN 'Function' IN labels(caller) THEN 'Function'
+                    WHEN 'Struct' IN labels(caller) THEN 'Struct'
+                    WHEN 'Enum' IN labels(caller) THEN 'Enum'
+                    WHEN 'Trait' IN labels(caller) THEN 'Trait'
+                    WHEN 'Module' IN labels(caller) THEN 'Module'
+                    WHEN 'File' IN labels(caller) THEN 'File'
+                    WHEN 'Impl' IN labels(caller) THEN 'Impl'
+                    WHEN 'Import' IN labels(caller) THEN 'Import'
+                    WHEN 'Constant' IN labels(caller) THEN 'Constant'
+                    WHEN 'TypeAlias' IN labels(caller) THEN 'TypeAlias'
+                    ELSE labels(caller)[0]
+                END as label,
+                caller.path as path,
+                caller.start_line as start_line,
+                caller.end_line as end_line,
+                caller.signature as signature,
+                caller.body_snippet as body_snippet,
+                caller.created_at as created_at,
+                caller.last_modified_at as last_modified_at,
+                caller.change_count as change_count,
+                caller.author_count as author_count
+        ORDER BY caller.name, caller.id
     "#;
 
     let results = client
@@ -197,19 +253,33 @@ pub async fn get_function_callers(
 /// Get entities by name (exact match)
 pub async fn find_entities_by_name(client: &Neo4jClient, name: &str) -> Result<Vec<EntityResult>> {
     let query = r#"
-        MATCH (e {name: $name, namespace: $ns, graph_domain: $graph_domain})
+        MATCH (e {namespace: $ns, graph_domain: $graph_domain})
+        WHERE e.name STARTS WITH $name
         RETURN e.id as id,
-               e.name as name,
-               labels(e)[0] as label,
-               e.path as path,
-               e.start_line as start_line,
-               e.end_line as end_line,
-               e.signature as signature,
-               e.body_snippet as body_snippet,
-               e.created_at as created_at,
-               e.last_modified_at as last_modified_at,
-               e.change_count as change_count,
-               e.author_count as author_count
+                e.name as name,
+                CASE 
+                    WHEN 'Function' IN labels(e) THEN 'Function'
+                    WHEN 'Struct' IN labels(e) THEN 'Struct'
+                    WHEN 'Enum' IN labels(e) THEN 'Enum'
+                    WHEN 'Trait' IN labels(e) THEN 'Trait'
+                    WHEN 'Module' IN labels(e) THEN 'Module'
+                    WHEN 'File' IN labels(e) THEN 'File'
+                    WHEN 'Impl' IN labels(e) THEN 'Impl'
+                    WHEN 'Import' IN labels(e) THEN 'Import'
+                    WHEN 'Constant' IN labels(e) THEN 'Constant'
+                    WHEN 'TypeAlias' IN labels(e) THEN 'TypeAlias'
+                    ELSE labels(e)[0]
+                END as label,
+                e.path as path,
+                e.start_line as start_line,
+                e.end_line as end_line,
+                e.signature as signature,
+                e.body_snippet as body_snippet,
+                e.created_at as created_at,
+                e.last_modified_at as last_modified_at,
+                e.change_count as change_count,
+                e.author_count as author_count
+        ORDER BY e.path, e.start_line, e.id
     "#;
 
     let results = client
@@ -235,19 +305,31 @@ pub async fn get_entities_by_type(
         r#"
         MATCH (e:{} {{namespace: $ns, graph_domain: $graph_domain}})
         RETURN e.id as id,
-               e.name as name,
-               labels(e)[0] as label,
-               e.path as path,
-               e.start_line as start_line,
-               e.end_line as end_line,
-               e.signature as signature,
-               e.body_snippet as body_snippet,
-               e.created_at as created_at,
-               e.last_modified_at as last_modified_at,
-               e.change_count as change_count,
-               e.author_count as author_count
-        LIMIT 100
-        "#,
+                e.name as name,
+                CASE 
+                    WHEN 'Function' IN labels(e) THEN 'Function'
+                    WHEN 'Struct' IN labels(e) THEN 'Struct'
+                    WHEN 'Enum' IN labels(e) THEN 'Enum'
+                    WHEN 'Trait' IN labels(e) THEN 'Trait'
+                    WHEN 'Module' IN labels(e) THEN 'Module'
+                    WHEN 'File' IN labels(e) THEN 'File'
+                    WHEN 'Impl' IN labels(e) THEN 'Impl'
+                    WHEN 'Import' IN labels(e) THEN 'Import'
+                    WHEN 'Constant' IN labels(e) THEN 'Constant'
+                    WHEN 'TypeAlias' IN labels(e) THEN 'TypeAlias'
+                    ELSE labels(e)[0]
+                END as label,
+                e.path as path,
+                e.start_line as start_line,
+                e.end_line as end_line,
+                e.signature as signature,
+                e.body_snippet as body_snippet,
+                e.created_at as created_at,
+                e.last_modified_at as last_modified_at,
+                e.change_count as change_count,
+                e.author_count as author_count
+        ORDER BY e.name, e.path, e.start_line, e.id
+         "#,
         label.as_str()
     );
 
@@ -268,7 +350,19 @@ pub async fn get_entities_by_type(
 pub async fn count_entities_by_type(client: &Neo4jClient) -> Result<Vec<(String, i64)>> {
     let query = r#"
         MATCH (e {namespace: $ns, graph_domain: $graph_domain})
-        WITH labels(e)[0] as label, count(e) as count
+        WITH CASE 
+                WHEN 'Function' IN labels(e) THEN 'Function'
+                WHEN 'Struct' IN labels(e) THEN 'Struct'
+                WHEN 'Enum' IN labels(e) THEN 'Enum'
+                WHEN 'Trait' IN labels(e) THEN 'Trait'
+                WHEN 'Module' IN labels(e) THEN 'Module'
+                WHEN 'File' IN labels(e) THEN 'File'
+                WHEN 'Impl' IN labels(e) THEN 'Impl'
+                WHEN 'Import' IN labels(e) THEN 'Import'
+                WHEN 'Constant' IN labels(e) THEN 'Constant'
+                WHEN 'TypeAlias' IN labels(e) THEN 'TypeAlias'
+                ELSE labels(e)[0]
+            END as label, count(e) as count
         RETURN label, count
         ORDER BY count DESC
     "#;
@@ -301,7 +395,19 @@ pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<E
           AND neighbor.graph_domain = $graph_domain
         RETURN DISTINCT neighbor.id as id,
                         neighbor.name as name,
-                        labels(neighbor)[0] as label,
+                        CASE 
+                            WHEN 'Function' IN labels(neighbor) THEN 'Function'
+                            WHEN 'Struct' IN labels(neighbor) THEN 'Struct'
+                            WHEN 'Enum' IN labels(neighbor) THEN 'Enum'
+                            WHEN 'Trait' IN labels(neighbor) THEN 'Trait'
+                            WHEN 'Module' IN labels(neighbor) THEN 'Module'
+                            WHEN 'File' IN labels(neighbor) THEN 'File'
+                            WHEN 'Impl' IN labels(neighbor) THEN 'Impl'
+                            WHEN 'Import' IN labels(neighbor) THEN 'Import'
+                            WHEN 'Constant' IN labels(neighbor) THEN 'Constant'
+                            WHEN 'TypeAlias' IN labels(neighbor) THEN 'TypeAlias'
+                            ELSE labels(neighbor)[0]
+                        END as label,
                         neighbor.path as path,
                         neighbor.start_line as start_line,
                         neighbor.end_line as end_line,
@@ -311,6 +417,7 @@ pub async fn get_neighbors(client: &Neo4jClient, entity_id: i64) -> Result<Vec<E
                         neighbor.last_modified_at as last_modified_at,
                         neighbor.change_count as change_count,
                         neighbor.author_count as author_count
+        ORDER BY neighbor.name, neighbor.id
     "#;
 
     let results = client
@@ -333,18 +440,31 @@ pub async fn find_orphan_entities(client: &Neo4jClient) -> Result<Vec<EntityResu
         MATCH (e {namespace: $ns, graph_domain: $graph_domain})
         WHERE NOT EXISTS { (e)--() }
         RETURN e.id as id,
-               e.name as name,
-               labels(e)[0] as label,
-               e.path as path,
-               e.start_line as start_line,
-               e.end_line as end_line,
-               e.signature as signature,
-               e.body_snippet as body_snippet,
-               e.created_at as created_at,
-               e.last_modified_at as last_modified_at,
-               e.change_count as change_count,
-               e.author_count as author_count
-        LIMIT 100
+                e.name as name,
+                CASE 
+                    WHEN 'Function' IN labels(e) THEN 'Function'
+                    WHEN 'Struct' IN labels(e) THEN 'Struct'
+                    WHEN 'Enum' IN labels(e) THEN 'Enum'
+                    WHEN 'Trait' IN labels(e) THEN 'Trait'
+                    WHEN 'Module' IN labels(e) THEN 'Module'
+                    WHEN 'File' IN labels(e) THEN 'File'
+                    WHEN 'Impl' IN labels(e) THEN 'Impl'
+                    WHEN 'Import' IN labels(e) THEN 'Import'
+                    WHEN 'Constant' IN labels(e) THEN 'Constant'
+                    WHEN 'TypeAlias' IN labels(e) THEN 'TypeAlias'
+                    ELSE labels(e)[0]
+                END as label,
+                e.path as path,
+                e.start_line as start_line,
+                e.end_line as end_line,
+                e.signature as signature,
+                e.body_snippet as body_snippet,
+                e.created_at as created_at,
+                e.last_modified_at as last_modified_at,
+                e.change_count as change_count,
+                e.author_count as author_count
+        ORDER BY e.name, e.id
+         LIMIT 100
     "#;
 
     let results = client

@@ -6,9 +6,7 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 use std::sync::{Arc, Mutex};
-use syncore::code_graph::{
-    IndexApplication, LanguageParser, PythonLanguageParser, RustLanguageParser,
-};
+use syncore::code_graph::{IndexApplication, PythonLanguageParser, RustLanguageParser};
 use syncore::vector::{HuggingFaceEmbeddings, VectorStore};
 
 /// Helper function to ensure code graph schema exists
@@ -273,7 +271,7 @@ fn test_database_connection_errors() -> Result<()> {
 
 #[test]
 fn test_vector_store_errors() -> Result<()> {
-    let temp_dir = TempDir::new()?;
+    let _temp_dir = TempDir::new()?;
 
     // Test with corrupted embeddings (if possible)
     // This is mainly to ensure error handling doesn't panic
@@ -337,8 +335,8 @@ fn test_very_large_files() -> Result<()> {
     let result = app.index_file(&large_rs);
     match result {
         Ok(count) => {
-            // If it succeeds, count should be reasonable
-            assert!(count >= 0);
+            // If parsing succeeds, count might be 0 or partial
+            // count is always non-negative by type definition
         }
         Err(_) => {
             // Error is acceptable for very large files

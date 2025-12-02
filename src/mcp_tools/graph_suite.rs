@@ -8,7 +8,7 @@
 //! - `rag_multihop`: Multi-hop graph diffusion from seed nodes
 //! - `help`: Show available commands
 
-use crate::databases::neo4j::{create_relationship, RelationType};
+use crate::databases::neo4j::RelationType as Neo4jRelationType;
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
@@ -75,9 +75,9 @@ impl GraphSuite {
             None => return SuiteResult::err("query", "Missing required parameter: cypher"),
         };
 
-        let neo4j = match &self.state.neo4j {
-            Some(n) => n.clone(),
-            None => return SuiteResult::err("query", "Neo4j not connected"),
+        let backend = match &self.state.graph_backend {
+            Some(b) => b.clone(),
+            None => return SuiteResult::err("query", "Graph backend not available"),
         };
 
         // Convert params to Vec<(String, serde_json::Value)>
@@ -91,7 +91,7 @@ impl GraphSuite {
         // Execute query synchronously using block_in_place
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(async { neo4j.execute_query(&cypher, params).await })
+                .block_on(async { backend.execute_query(&cypher, params).await })
         });
 
         match result {
@@ -113,9 +113,9 @@ impl GraphSuite {
             None => return SuiteResult::err("insert", "Missing required parameter: cypher"),
         };
 
-        let neo4j = match &self.state.neo4j {
-            Some(n) => n.clone(),
-            None => return SuiteResult::err("insert", "Neo4j not connected"),
+        let backend = match &self.state.graph_backend {
+            Some(b) => b.clone(),
+            None => return SuiteResult::err("insert", "Graph backend not available"),
         };
 
         let params: Vec<(&str, serde_json::Value)> = args
@@ -127,7 +127,7 @@ impl GraphSuite {
 
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(async { neo4j.execute_query(&cypher, params).await })
+                .block_on(async { backend.execute_query(&cypher, params).await })
         });
 
         match result {
@@ -158,13 +158,13 @@ impl GraphSuite {
             None => return SuiteResult::err("relate", "Missing required parameter: rel_type"),
         };
 
-        let neo4j = match &self.state.neo4j {
-            Some(n) => n.clone(),
-            None => return SuiteResult::err("relate", "Neo4j not connected"),
+        let backend = match &self.state.graph_backend {
+            Some(b) => b.clone(),
+            None => return SuiteResult::err("relate", "Graph backend not available"),
         };
 
         // Parse relationship type string to canonical RelationType
-        let rel_type = match RelationType::try_parse(&rel_type_str) {
+        let rel_type = match crate::graph::backend::RelationType::try_parse(&rel_type_str) {
             Some(rt) => rt,
             None => {
                 return SuiteResult::err(
@@ -177,7 +177,7 @@ impl GraphSuite {
         // Use canonical create_relationship (handles namespace, :SynCore filtering, idempotency)
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(async { create_relationship(&*neo4j, from_id, to_id, rel_type).await })
+                .block_on(async { backend.create_relationship(from_id, to_id, rel_type).await })
         });
 
         match result {

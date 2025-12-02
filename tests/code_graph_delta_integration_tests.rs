@@ -41,7 +41,7 @@ fn init_pipeline(root: PathBuf) -> Result<Pipeline> {
     let parser = ParserService::new(language, root.clone())?;
 
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let updater = CodeGraphUpdateService::new(root.clone(), graph, reindex_mutex)?;
+    let updater = CodeGraphUpdateService::new(graph, reindex_mutex)?;
 
     Ok(Pipeline {
         root,

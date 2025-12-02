@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CogState {
@@ -11,14 +12,14 @@ pub enum CogState {
     Reflect,
 }
 
-impl ToString for CogState {
-    fn to_string(&self) -> String {
+impl fmt::Display for CogState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CogState::Think => "Think".to_string(),
-            CogState::Decide => "Decide".to_string(),
-            CogState::Act => "Act".to_string(),
-            CogState::Observe => "Observe".to_string(),
-            CogState::Reflect => "Reflect".to_string(),
+            CogState::Think => write!(f, "Think"),
+            CogState::Decide => write!(f, "Decide"),
+            CogState::Act => write!(f, "Act"),
+            CogState::Observe => write!(f, "Observe"),
+            CogState::Reflect => write!(f, "Reflect"),
         }
     }
 }

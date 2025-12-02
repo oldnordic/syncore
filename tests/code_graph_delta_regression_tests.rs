@@ -38,8 +38,7 @@ fn init_pipeline(root: PathBuf) -> Result<Pipeline> {
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
 
-    let updater =
-        CodeGraphUpdateService::new(root.clone(), graph, Arc::new(std::sync::Mutex::new(())))?;
+    let updater = CodeGraphUpdateService::new(graph, Arc::new(std::sync::Mutex::new(())))?;
 
     Ok(Pipeline {
         root,

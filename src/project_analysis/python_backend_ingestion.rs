@@ -115,7 +115,7 @@ impl PythonBackendIngestion {
                 }
             } else if path.is_dir() {
                 // Recursively check subdirectories (but limit depth to avoid infinite loops)
-                if path.file_name().map_or(false, |name| name != "target" && name != "node_modules")
+                if path.file_name().is_some_and(|name| name != "target" && name != "node_modules")
                     && self.has_python_files(&path)?
                 {
                     return Ok(true);

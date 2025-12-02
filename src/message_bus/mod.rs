@@ -152,11 +152,10 @@ impl MessageBus {
     /// removing it from history.
     pub fn try_recv_for(&self, agent_id: &AgentId) -> Option<Msg> {
         let mut history = self.history.write();
-        if let Some(pos) = history.iter().position(|msg| msg.to.as_ref() == Some(agent_id)) {
-            Some(history.remove(pos))
-        } else {
-            None
-        }
+        history
+            .iter()
+            .position(|msg| msg.to.as_ref() == Some(agent_id))
+            .map(|pos| history.remove(pos))
     }
 
     /// Wait for a message addressed to the agent with timeout

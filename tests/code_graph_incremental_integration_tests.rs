@@ -46,7 +46,7 @@ fn init_pipeline(root: PathBuf) -> anyhow::Result<Pipeline> {
 
     // Initialize CodeGraphUpdateService
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let updater = CodeGraphUpdateService::new(root.clone(), graph, reindex_mutex)?;
+    let updater = CodeGraphUpdateService::new(graph, reindex_mutex)?;
 
     Ok(Pipeline {
         root,

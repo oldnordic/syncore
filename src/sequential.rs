@@ -243,7 +243,7 @@ impl SequentialCore {
                     result.score
                 ));
             }
-            context.push_str("\n");
+            context.push('\n');
         }
 
         // 3. Similar tasks from history

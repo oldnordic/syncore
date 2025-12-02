@@ -35,6 +35,8 @@ pub struct SynCoreState {
     pub faiss_queue: Option<Arc<FaissQueue>>,
     pub faiss_pool: Option<Arc<FaissPool>>,
     pub neo4j: Option<Arc<Neo4jClient>>,
+    /// Graph backend selector for unified access to Neo4j or SQLiteGraph
+    pub graph_backend: Option<Arc<dyn crate::graph::GraphBackend>>,
     /// IntelliTask AI-powered task management (requires LLM backend)
     pub intellitask: Option<Arc<crate::intellitask::IntelliTask>>,
     /// HNSW index warmup status - true when index is ready for fast search
@@ -105,6 +107,7 @@ impl SynCoreState {
             faiss_queue: None,
             faiss_pool: None,
             neo4j: None,
+            graph_backend: None,
             intellitask: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
@@ -166,7 +169,8 @@ impl SynCoreState {
             faiss_queue: None,
             faiss_pool: None,
             neo4j: None,
-            intellitask: None, // Initialized separately via set_intellitask()
+            graph_backend: None,
+            intellitask: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
             snapshot_handle: Arc::new(SnapshotHandle::default()),
@@ -213,6 +217,7 @@ impl SynCoreState {
             faiss_queue: None,
             faiss_pool: None,
             neo4j: None,
+            graph_backend: None,
             intellitask: None, // Initialized separately via set_intellitask()
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
@@ -229,8 +234,70 @@ impl SynCoreState {
 
     /// Add Neo4j client to state (builder pattern)
     pub fn with_neo4j(mut self, client: Arc<Neo4jClient>) -> Self {
-        self.neo4j = Some(client);
+        self.neo4j = Some(client.clone());
+        // Also set graph_backend to use Neo4j
+        self.graph_backend = Some(Arc::new(crate::graph::Neo4jBackend::new((*client).clone()))
+            as Arc<dyn crate::graph::GraphBackend>);
         self
+    }
+
+    /// Add graph backend from config (Task 4 requirement)
+    ///
+    /// This is the preferred method for setting up graph backends as it:
+    /// 1. Uses configuration-driven backend selection
+    /// 2. Supports both SQLiteGraph and Neo4j based on config
+    /// 3. Applies fallback behavior (SQLiteGraph default for invalid configs)
+    /// 4. Maintains backward compatibility with existing with_neo4j() method
+    ///
+    /// # Arguments
+    /// * `config` - SyncoreConfig containing graph backend configuration
+    ///
+    /// # Returns
+    /// Self with configured graph backend, or unchanged if backend creation fails
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::config::SyncoreConfig;
+    ///
+    /// let config = SyncoreConfig::load_with_env("config/syncore.toml")?;
+    /// let state = SynCoreState::with_dual_stores(code_store, general_store)?
+    ///     .with_graph_backend_from_config(&config)?;
+    /// ```
+    pub async fn with_graph_backend_from_config(
+        mut self,
+        config: &crate::config::SyncoreConfig,
+    ) -> Result<Self> {
+        use crate::graph::backend_selector::backend_from_config;
+
+        // Create graph backend from configuration
+        match backend_from_config(config, "syncore_default").await {
+            Ok(backend) => {
+                // Store the backend
+                self.graph_backend = Some(backend);
+
+                // If Neo4j backend was created, also store Neo4j client for compatibility
+                if matches!(config.graph.backend, crate::config::GraphBackend::Neo4j) {
+                    // Try to create Neo4j client from config for backward compatibility
+                    if let Ok(neo4j_client) = crate::graph::Neo4jClient::connect(
+                        &config.graph.uri,
+                        &config.graph.user,
+                        &config.graph.password,
+                    )
+                    .await
+                    {
+                        self.neo4j = Some(Arc::new(neo4j_client));
+                    }
+                }
+
+                Ok(self)
+            }
+            Err(e) => {
+                // Log the error but don't fail the entire state creation
+                eprintln!("Warning: Failed to create graph backend from config: {}. Using no graph backend.", e);
+                Ok(self)
+            }
+        }
     }
 
     /// Add IntelliTask AI-powered task management (builder pattern)
@@ -450,6 +517,7 @@ impl SynCoreState {
             faiss_queue: Some(FaissQueue::new(128)),
             faiss_pool: Some(FaissPool::new(path, 8)),
             neo4j: None,
+            graph_backend: None,
             intellitask: None, // Test context - LLM not required
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),

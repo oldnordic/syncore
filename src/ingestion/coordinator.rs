@@ -208,7 +208,7 @@ impl GlobalIngestionCoordinator {
     /// Check if path matches a glob pattern
     fn matches_glob(&self, path: &str, pattern: &str) -> bool {
         // Extract just the filename for glob matching
-        let filename = path.split('/').last().unwrap_or(path);
+        let filename = path.split('/').next_back().unwrap_or(path);
 
         // Simple glob matching - can be enhanced with proper glob crate
         if pattern.contains('*') {

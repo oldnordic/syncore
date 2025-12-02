@@ -49,11 +49,7 @@ impl ToonPromptBuilder {
 
         // Estimate token usage (rough: 4 chars = 1 token)
         let current_tokens = prompt.len() / 4;
-        let remaining_tokens = if current_tokens < self.max_context_tokens {
-            self.max_context_tokens - current_tokens
-        } else {
-            0
-        };
+        let remaining_tokens = self.max_context_tokens.saturating_sub(current_tokens);
 
         // Memory entries (limited by remaining tokens)
         if !memory.is_empty() {

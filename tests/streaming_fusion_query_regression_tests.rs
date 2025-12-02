@@ -9,7 +9,7 @@ use tempfile::TempDir;
 use tokio::time::{timeout, Duration};
 
 use syncore::code_graph::rag_graph_api::RagGraphAPI;
-use syncore::code_graph::streaming::{RagStreamingChunk, StreamingConfig};
+use syncore::code_graph::streaming::StreamingConfig;
 use syncore::code_graph::CodeGraph;
 use syncore::graph::Neo4jClient;
 use syncore::vector::{StubEmbeddings, VectorStore};
@@ -43,9 +43,10 @@ async fn test_streaming_does_not_break_sync_query() -> Result<()> {
     let root = temp_dir.path().to_path_buf();
     let api = create_test_api(root).await?;
 
-    // First, verify sync query still works
+    // First, verify sync query still works (may be empty in test)
     let sync_result = api.query("test query", None, None, Some(10)).await?;
-    assert!(sync_result.entities.len() >= 0, "Sync query should work");
+    // Sync query should complete without error, even if no results
+    assert!(sync_result.entities.len() >= 0, "Sync query should complete");
 
     // Then verify streaming query also works
     let config = StreamingConfig::default();
@@ -63,7 +64,11 @@ async fn test_streaming_does_not_break_sync_query() -> Result<()> {
 
     // Finally, verify sync query still works after streaming
     let sync_result_after = api.query("test query", None, None, Some(10)).await?;
-    assert!(sync_result_after.entities.len() >= 0, "Sync query should still work after streaming");
+    // Sync query should complete without error, even if no results
+    assert!(
+        sync_result_after.entities.len() >= 0,
+        "Sync query should still complete after streaming"
+    );
 
     Ok(())
 }

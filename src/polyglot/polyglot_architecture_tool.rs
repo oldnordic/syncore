@@ -1,5 +1,6 @@
 use crate::polyglot::polyglot_model::{UnifiedEdge, UnifiedEntity};
 use serde_json::{json, Value};
+use std::fmt;
 
 pub fn generate_architecture_overview(
     entities: Vec<UnifiedEntity>,
@@ -20,18 +21,18 @@ pub fn generate_architecture_overview(
     .to_string()
 }
 
-// Add a to_string implementation for LanguageType
-impl ToString for crate::polyglot::polyglot_model::LanguageType {
-    fn to_string(&self) -> String {
+// Add a Display implementation for LanguageType
+impl fmt::Display for crate::polyglot::polyglot_model::LanguageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            crate::polyglot::polyglot_model::LanguageType::Rust => "Rust".to_string(),
-            crate::polyglot::polyglot_model::LanguageType::Python => "Python".to_string(),
-            crate::polyglot::polyglot_model::LanguageType::Java => "Java".to_string(),
-            crate::polyglot::polyglot_model::LanguageType::TypeScript => "TypeScript".to_string(),
-            crate::polyglot::polyglot_model::LanguageType::JavaScript => "JavaScript".to_string(),
-            crate::polyglot::polyglot_model::LanguageType::Go => "Go".to_string(),
-            crate::polyglot::polyglot_model::LanguageType::C => "C".to_string(),
-            crate::polyglot::polyglot_model::LanguageType::Cpp => "C++".to_string(),
+            crate::polyglot::polyglot_model::LanguageType::Rust => write!(f, "Rust"),
+            crate::polyglot::polyglot_model::LanguageType::Python => write!(f, "Python"),
+            crate::polyglot::polyglot_model::LanguageType::Java => write!(f, "Java"),
+            crate::polyglot::polyglot_model::LanguageType::TypeScript => write!(f, "TypeScript"),
+            crate::polyglot::polyglot_model::LanguageType::JavaScript => write!(f, "JavaScript"),
+            crate::polyglot::polyglot_model::LanguageType::Go => write!(f, "Go"),
+            crate::polyglot::polyglot_model::LanguageType::C => write!(f, "C"),
+            crate::polyglot::polyglot_model::LanguageType::Cpp => write!(f, "C++"),
         }
     }
 }

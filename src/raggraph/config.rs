@@ -3,18 +3,13 @@
 use serde::{Deserialize, Serialize};
 
 /// Backend mode for RagGraph storage
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum RaggraphBackendMode {
     /// Use mock storage (deterministic hash-based seeds and synthetic graphs)
+    #[default]
     Mock,
     /// Use real storage (HNSW vector search + Neo4j graph database)
     Real,
-}
-
-impl Default for RaggraphBackendMode {
-    fn default() -> Self {
-        Self::Mock
-    }
 }
 
 /// Configuration for RagGraph operations

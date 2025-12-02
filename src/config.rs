@@ -68,7 +68,42 @@ impl Default for PathsConfig {
     }
 }
 
-/// Neo4j database configuration
+/// Graph database backend selection
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GraphBackend {
+    Neo4j,
+    SqliteGraph,
+}
+
+impl Default for GraphBackend {
+    fn default() -> Self {
+        Self::SqliteGraph
+    }
+}
+
+/// Graph database configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphConfig {
+    #[serde(default)]
+    pub backend: GraphBackend,
+    #[serde(default = "default_graph_path")]
+    pub path: String,
+    #[serde(default = "default_neo4j_uri")]
+    pub uri: String,
+    #[serde(default = "default_neo4j_user")]
+    pub user: String,
+    #[serde(default = "default_neo4j_password")]
+    pub password: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_graph_path() -> String {
+    "syncore_code_graph.db".to_string()
+}
+
+/// Neo4j database configuration (legacy compatibility)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Neo4jConfig {
     #[serde(default = "default_neo4j_uri")]
@@ -92,6 +127,19 @@ fn default_neo4j_password() -> String {
 }
 fn default_true() -> bool {
     true
+}
+
+impl Default for GraphConfig {
+    fn default() -> Self {
+        Self {
+            backend: GraphBackend::default(),
+            path: default_graph_path(),
+            uri: default_neo4j_uri(),
+            user: default_neo4j_user(),
+            password: default_neo4j_password(),
+            enabled: default_true(),
+        }
+    }
 }
 
 impl Default for Neo4jConfig {
@@ -365,6 +413,8 @@ pub struct SyncoreConfig {
     #[serde(default)]
     pub paths: PathsConfig,
     #[serde(default)]
+    pub graph: GraphConfig,
+    #[serde(default)]
     pub neo4j: Neo4jConfig,
     #[serde(default)]
     pub indexing: IndexingConfig,
@@ -384,21 +434,71 @@ pub struct SyncoreConfig {
 }
 
 impl SyncoreConfig {
-    /// Load configuration from a TOML file
+    /// Load configuration from a TOML file with graceful fallback
+    ///
+    /// CONFIG PRECEDENCE (Task 4B):
+    /// 1. config/syncore.toml (PRIMARY)
+    /// 2. Built-in defaults (LAST RESORT)
+    ///
+    /// Behavior:
+    /// - If config file exists and is valid → load it completely
+    /// - If config file does NOT exist → return default config with SQLiteGraph
+    /// - If config file is malformed → fall back to SQLiteGraph defaults
+    /// - Environment variables are NOT applied here (use load_with_env for overrides)
     pub fn load(path: &str) -> anyhow::Result<Self> {
-        let content = fs::read_to_string(path)?;
-        let config: SyncoreConfig = toml::from_str(&content)?;
-        Ok(config)
+        match fs::read_to_string(path) {
+            Ok(content) => {
+                // Config file exists, try to parse it
+                match toml::from_str::<SyncoreConfig>(&content) {
+                    Ok(mut config) => {
+                        // Validate backend configuration
+                        if !Self::is_valid_backend(&config.graph.backend) {
+                            eprintln!("Warning: Invalid graph backend in config file, falling back to SQLiteGraph");
+                            config.graph.backend = GraphBackend::SqliteGraph;
+                        }
+                        Ok(config)
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: Malformed config file '{}': {}", path, e);
+                        eprintln!("Falling back to default configuration with SQLiteGraph backend");
+                        Ok(Self::default())
+                    }
+                }
+            }
+            Err(_) => {
+                // Config file doesn't exist, use defaults
+                eprintln!("Config file not found at {}, using defaults", path);
+                Ok(Self::default())
+            }
+        }
     }
 
     /// Load configuration with environment variable overrides
+    ///
+    /// CONFIG PRECEDENCE (Task 4B):
+    /// 1. config/syncore.toml (PRIMARY)
+    /// 2. Environment variables (OPTIONAL OVERRIDES)
+    /// 3. Built-in defaults (LAST RESORT)
+    ///
+    /// Environment variables ONLY override individual fields, never replace missing config files.
     pub fn load_with_env(path: &str) -> anyhow::Result<Self> {
         let mut config = Self::load(path)?;
         config.apply_env_overrides();
         Ok(config)
     }
 
-    /// Apply environment variable overrides
+    /// Validate graph backend value
+    fn is_valid_backend(backend: &GraphBackend) -> bool {
+        matches!(backend, GraphBackend::SqliteGraph | GraphBackend::Neo4j)
+    }
+
+    /// Apply environment variable overrides (OPTIONAL overrides only)
+    ///
+    /// Environment variables MUST:
+    /// - Only override fields individually
+    /// - NEVER replace missing config files  
+    /// - NEVER be required for default behavior
+    /// - Gracefully handle invalid values with fallbacks
     pub fn apply_env_overrides(&mut self) {
         // Path overrides
         if let Ok(val) = std::env::var("DB_PATH") {
@@ -414,15 +514,81 @@ impl SyncoreConfig {
             self.paths.logs_dir = val;
         }
 
-        // Neo4j overrides
-        if let Ok(val) = std::env::var("NEO4J_URI") {
+        // Graph overrides - support both old and new environment variable names
+        // Graceful fallback for invalid values instead of panic
+        if let Ok(val) = std::env::var("SYNC_GRAPH_BACKEND") {
+            match val.to_lowercase().as_str() {
+                "neo4j" => self.graph.backend = GraphBackend::Neo4j,
+                "sqlite" | "sqlitegraph" => self.graph.backend = GraphBackend::SqliteGraph,
+                _ => {
+                    eprintln!(
+                        "Warning: Invalid SYNC_GRAPH_BACKEND: '{}', falling back to SQLiteGraph",
+                        val
+                    );
+                    self.graph.backend = GraphBackend::SqliteGraph;
+                }
+            }
+        } else if let Ok(val) = std::env::var("GRAPH_BACKEND") {
+            // Legacy support
+            match val.to_lowercase().as_str() {
+                "neo4j" => self.graph.backend = GraphBackend::Neo4j,
+                "sqlitegraph" => self.graph.backend = GraphBackend::SqliteGraph,
+                _ => {
+                    eprintln!(
+                        "Warning: Invalid GRAPH_BACKEND: '{}', falling back to SQLiteGraph",
+                        val
+                    );
+                    self.graph.backend = GraphBackend::SqliteGraph;
+                }
+            }
+        }
+
+        if let Ok(val) = std::env::var("SYNC_SQLITE_DB_PATH") {
+            self.graph.path = val;
+        } else if let Ok(val) = std::env::var("GRAPH_PATH") {
+            // Legacy support
+            self.graph.path = val;
+        }
+
+        if let Ok(val) = std::env::var("SYNC_NEO4J_URI") {
+            self.graph.uri = val.clone();
+            self.neo4j.uri = val;
+        } else if let Ok(val) = std::env::var("GRAPH_URI") {
+            // Legacy support
+            self.graph.uri = val.clone();
             self.neo4j.uri = val;
         }
-        if let Ok(val) = std::env::var("NEO4J_USER") {
+
+        if let Ok(val) = std::env::var("SYNC_NEO4J_USER") {
+            self.graph.user = val.clone();
+            self.neo4j.user = val;
+        } else if let Ok(val) = std::env::var("GRAPH_USER") {
+            // Legacy support
+            self.graph.user = val.clone();
             self.neo4j.user = val;
         }
-        if let Ok(val) = std::env::var("NEO4J_PASS") {
+
+        if let Ok(val) = std::env::var("SYNC_NEO4J_PASSWORD") {
+            self.graph.password = val.clone();
             self.neo4j.password = val;
+        } else if let Ok(val) = std::env::var("GRAPH_PASS") {
+            // Legacy support
+            self.graph.password = val.clone();
+            self.neo4j.password = val;
+        }
+
+        // Neo4j overrides (legacy compatibility)
+        if let Ok(val) = std::env::var("NEO4J_URI") {
+            self.neo4j.uri = val.clone();
+            self.graph.uri = val;
+        }
+        if let Ok(val) = std::env::var("NEO4J_USER") {
+            self.neo4j.user = val.clone();
+            self.graph.user = val;
+        }
+        if let Ok(val) = std::env::var("NEO4J_PASS") {
+            self.neo4j.password = val.clone();
+            self.graph.password = val;
         }
 
         // LLM overrides
@@ -504,6 +670,43 @@ impl SyncoreConfig {
         }
 
         false
+    }
+
+    /// Default configuration for SQLite-only testing (Task 4 requirement)
+    ///
+    /// Creates a configuration optimized for testing with SQLiteGraph backend:
+    /// - Backend: SQLiteGraph (embedded, no external dependencies)
+    /// - In-memory database: :memory: for fast test isolation
+    /// - All optional features disabled
+    /// - Minimal logging
+    ///
+    /// # Returns
+    ///
+    /// SyncoreConfig with SQLiteGraph backend and test-optimized settings
+    pub fn default_sqlite_test() -> Self {
+        let mut config = Self::default();
+
+        // Force SQLiteGraph backend
+        config.graph.backend = GraphBackend::SqliteGraph;
+
+        // Use in-memory database for fast test isolation
+        config.graph.path = ":memory:".to_string();
+
+        // Disable Neo4j features
+        config.graph.enabled = false;
+        config.neo4j.enabled = false;
+
+        // Use in-memory database for main DB as well
+        config.paths.db_path = ":memory:".to_string();
+        config.paths.code_graph_db = ":memory:".to_string();
+
+        // Minimal logging for tests
+        config.paths.logs_dir = "/tmp/syncore_test_logs".to_string();
+
+        // Disable optional features for clean testing
+        config.llm.backend = "test".to_string();
+
+        config
     }
 }
 

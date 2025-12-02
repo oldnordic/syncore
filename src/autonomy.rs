@@ -243,7 +243,7 @@ mod tests {
             std::path::Path::new(db_path).parent().unwrap_or_else(|| std::path::Path::new("/tmp"));
         let _logger = Arc::new(MarkdownLogger::new(logs_dir));
 
-        let db_manager = DbManager::new(db_path, format!("{}_code_graph", db_path)).unwrap();
+        let db_manager = DbManager::new(db_path, &format!("{}_code_graph", db_path)).unwrap();
 
         let _monitor = HeartbeatMonitor::with_connection(
             Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap())),

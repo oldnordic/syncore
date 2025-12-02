@@ -36,7 +36,7 @@ fn create_test_components(
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
     let update_service =
-        CodeGraphUpdateService::new(root.clone(), code_graph, Arc::new(std::sync::Mutex::new(())))?;
+        CodeGraphUpdateService::new(code_graph, Arc::new(std::sync::Mutex::new(())))?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;

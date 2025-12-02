@@ -407,13 +407,11 @@ impl RealEmbeddings {
         }
 
         // Simple IDF calculation using word presence in vocabulary
-        let idf = if self.word_vectors.contains_key(token) {
-            1.0 // Known words get standard IDF
+        if self.word_vectors.contains_key(token) {
+            return 1.0; // Known words get standard IDF
         } else {
-            2.0 // Unknown words get higher IDF to reflect rarity
-        };
-
-        idf
+            return 2.0; // Unknown words get higher IDF to reflect rarity
+        }
     }
 
     /// Get the vocabulary size for this embedding model
@@ -738,7 +736,7 @@ impl VectorStore {
         // Phase 7 optimization: Update task_index for O(1) task_id filtering
         if let Some(task_id_val) = task_id {
             let mut task_idx = self.task_index.write();
-            task_idx.entry(task_id_val).or_insert_with(Vec::new).push(vector_index);
+            task_idx.entry(task_id_val).or_default().push(vector_index);
         }
 
         // Insert into HNSW index or queue for later
@@ -1047,7 +1045,7 @@ impl VectorStore {
         let similarity = dot_product / (mag_a * mag_b);
 
         // Clamp to [-1.0, 1.0] to handle floating point precision issues
-        similarity.max(-1.0).min(1.0)
+        similarity.clamp(-1.0, 1.0)
     }
 
     /// Public wrapper for cosine similarity (for testing)
@@ -1070,7 +1068,7 @@ impl VectorStore {
         let hnsw_path = Path::new(&self.index_path);
         {
             let hnsw = self.hnsw.read();
-            if hnsw.len() > 0 {
+            if !hnsw.is_empty() {
                 hnsw.save_to_disk(hnsw_path)?;
             }
         }
@@ -1109,7 +1107,7 @@ impl VectorStore {
             // Try to load existing HNSW index from disk
             let load_result = hnsw.load_from_disk(hnsw_path);
 
-            if load_result.is_ok() && hnsw.len() > 0 {
+            if load_result.is_ok() && !hnsw.is_empty() {
                 // HNSW snapshot loaded successfully - mark as Hot
                 self.warmup_controller.mark_hot();
                 self.hnsw_ready.store(true, std::sync::atomic::Ordering::SeqCst);

@@ -600,6 +600,7 @@ async fn test_project_complexity_dashboard_basic() {
 
     // Check statistics
     assert!(
+        data.stats.unused_import_ratio >= 0.0,
         // Distribution means and ratios are always >= 0.0 by definition
         "Unused import ratio should be non-negative"
     );
@@ -643,6 +644,7 @@ async fn test_project_improvement_roadmap_basic() -> anyhow::Result<()> {
 
     // Verify summary
     assert!(
+        data.summary.files_affected >= 0,
         // Counts and improvements are always >= 0 by definition
         "Should have non-negative files affected"
     );
@@ -716,6 +718,7 @@ async fn test_project_refactor_action_plan_basic() {
 
     // Check high-risk hotspots (may be empty in test data, but structure should exist)
     assert!(
+        data.high_risk_hotspots.len() >= 0,
         // Vector lengths are always >= 0 by definition
         "Should have module refactor ops vector"
     );
@@ -730,6 +733,7 @@ async fn test_project_refactor_action_plan_basic() {
         assert!(!dead_entity.name.is_empty(), "Dead entity should have name");
         assert!(!dead_entity.file_path.is_empty(), "Dead entity should have file path");
         assert!(
+            dead_entity.line_start >= 0,
             // line_start is u32, so always >= 0 by definition
             "Dead entity should have valid line start"
         );

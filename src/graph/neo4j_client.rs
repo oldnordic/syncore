@@ -112,8 +112,8 @@ impl Neo4jClient {
                     if let Some(as_pos) = col.to_uppercase().rfind(" AS ") {
                         Some(col[as_pos + 4..].trim().to_string())
                     } else {
-                        // No alias, use the expression itself (simplified)
-                        Some(col.split('.').last().unwrap_or(col).trim().to_string())
+                        // No alias, use expression itself (simplified)
+                        Some(col.split('.').next_back().unwrap_or(col).trim().to_string())
                     }
                 })
                 .collect()

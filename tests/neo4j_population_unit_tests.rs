@@ -66,14 +66,18 @@ async fn test_single_entity_indexes_to_neo4j_node() -> Result<()> {
     // Query Neo4j to verify node exists (namespace is "syncore_default")
     let params = vec![("ns", serde_json::json!("syncore_default"))];
 
-    let entities = neo4j
-        .execute_query("MATCH (e:Function {namespace: $ns}) RETURN e.name as name", params)
+    // Query for the specific function that was indexed
+    let exact_entities = neo4j
+        .execute_query(
+            "MATCH (e:Function:CodeGraph {name: 'hello', namespace: 'code_syncore_default'}) RETURN e.name as name, e.namespace as namespace",
+            vec![],
+        )
         .await?;
 
-    assert!(!entities.is_empty(), "Neo4j should contain the indexed function node");
+    assert!(!exact_entities.is_empty(), "Neo4j should contain the indexed function node");
 
     // Verify the function name is "hello"
-    let first = entities.first().unwrap();
+    let first = exact_entities.first().unwrap();
     let name = first.get("name").and_then(|v| v.as_str()).unwrap_or("");
     assert!(name.contains("hello"), "Function should be named 'hello', got '{}'", name);
 
@@ -110,10 +114,13 @@ fn third() { }
     sleep(Duration::from_millis(200)).await; // Allow batch processing
 
     // Verify all 3 nodes exist
-    let params = vec![("ns", serde_json::json!("default"))];
+    let params = vec![("ns", serde_json::json!("syncore_default"))];
 
     let entities = neo4j
-        .execute_query("MATCH (e:Function {namespace: $ns}) RETURN count(e) as count", params)
+        .execute_query(
+            "MATCH (e:Function:CodeGraph {namespace: $ns}) RETURN count(e) as count",
+            params,
+        )
         .await?;
 
     // Extract count from result
@@ -148,11 +155,11 @@ async fn test_entity_update_replaces_node_no_duplicates() -> Result<()> {
 
     // Verify only ONE node exists (no duplicates)
     let params =
-        vec![("ns", serde_json::json!("default")), ("name", serde_json::json!("original"))];
+        vec![("ns", serde_json::json!("syncore_default")), ("name", serde_json::json!("original"))];
 
     let entities = neo4j
         .execute_query(
-            "MATCH (e:Function {namespace: $ns}) WHERE e.name = $name RETURN count(e) as count",
+            "MATCH (e:Function:CodeGraph {namespace: $ns}) WHERE e.name = $name RETURN count(e) as count",
             params,
         )
         .await?;
@@ -187,10 +194,14 @@ async fn test_deleted_entity_removes_node() -> Result<()> {
     sleep(Duration::from_millis(100)).await;
 
     // Verify "remove" function node is gone
-    let params = vec![("ns", serde_json::json!("default")), ("name", serde_json::json!("remove"))];
+    let params =
+        vec![("ns", serde_json::json!("syncore_default")), ("name", serde_json::json!("remove"))];
 
     let entities = neo4j
-        .execute_query("MATCH (e:Function {namespace: $ns}) WHERE e.name = $name RETURN e", params)
+        .execute_query(
+            "MATCH (e:Function:CodeGraph {namespace: $ns}) WHERE e.name = $name RETURN e",
+            params,
+        )
         .await?;
 
     assert!(entities.is_empty(), "Deleted entity node should be removed from Neo4j");
@@ -226,7 +237,7 @@ fn callee() { }
     sleep(Duration::from_millis(200)).await;
 
     // Verify CALLS relationship exists
-    let params = vec![("ns", serde_json::json!("default"))];
+    let params = vec![("ns", serde_json::json!("syncore_default"))];
 
     // First check if any relationships exist at all
     let all_edges = neo4j
@@ -240,7 +251,10 @@ fn callee() { }
         // Edge extraction might not be working for this simple case
         // Check if at least the nodes were created
         let nodes = neo4j
-            .execute_query("MATCH (e:Function {namespace: $ns}) RETURN count(e) as count", params)
+            .execute_query(
+                "MATCH (e:Function:CodeGraph {namespace: $ns}) RETURN count(e) as count",
+                params,
+            )
             .await?;
         assert!(!nodes.is_empty(), "At minimum, function nodes should exist");
     } else {
@@ -289,11 +303,11 @@ fn third() { }
     sleep(Duration::from_millis(300)).await;
 
     // Verify multiple CALLS relationships exist
-    let params = vec![("ns", serde_json::json!("default"))];
+    let params = vec![("ns", serde_json::json!("syncore_default"))];
 
     let edges = neo4j
         .execute_query(
-            "MATCH (a:Function {namespace: $ns})-[:CALLS]->(b:Function {namespace: $ns}) RETURN count(*) as count",
+            "MATCH (a:Function:CodeGraph {namespace: $ns})-[:CALLS]->(b:Function:CodeGraph {namespace: $ns}) RETURN count(*) as count",
             params,
         )
         .await?;

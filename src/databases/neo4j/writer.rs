@@ -25,10 +25,11 @@ pub async fn upsert_entity(
     label: NodeLabel,
     props: NodeProperties,
 ) -> Result<()> {
-    // Use double label pattern: :Function:SynCore
+    // Use triple label pattern: :code:Function:CodeGraph
+    // This ensures entity type label is at position [1] for reader
     let query = format!(
         r#"
-        MERGE (e:{}:{} {{id: $id, namespace: $ns}})
+        MERGE (e:{}:{}:{} {{id: $id, namespace: $ns}})
         SET e.name = $name,
             e.path = $path,
             e.start_line = $start_line,
@@ -47,6 +48,7 @@ pub async fn upsert_entity(
             e.graph_domain = $graph_domain,
             e.project = $project_label
         "#,
+        GRAPH_DOMAIN,
         label.as_str(),
         PROJECT_LABEL
     );
@@ -252,27 +254,58 @@ pub async fn delete_file_entities(client: &Neo4jClient, file_path: &str) -> Resu
 /// Use this for file-level dependency tracking where full entity properties aren't needed.
 /// Distinct from upsert_entity() which tracks detailed code entities with IDs.
 pub async fn upsert_file_by_path(client: &Neo4jClient, file_path: &str) -> Result<()> {
+    let ns = project_namespace(client);
+
+    // Generate a deterministic ID for File nodes based on path hash
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    file_path.hash(&mut hasher);
+    let file_id = hasher.finish() as i64;
+
+    // Use MERGE with ID to ensure File nodes have required properties for EntityResult
     let query = format!(
         r#"
         MERGE (f:{}:{} {{path: $path, namespace: $ns}})
-        SET f.graph_domain = $graph_domain,
+        SET f.id = $id,
+            f.name = $name,
+            f.graph_domain = $graph_domain,
             f.project = $project_label
+        RETURN f.id as id,
+               f.name as name,
+               f.path as path,
+               f.namespace as namespace,
+               f.graph_domain as graph_domain,
+               f.project as project
         "#,
-        NodeLabel::File.as_str(),
-        PROJECT_LABEL
+        GRAPH_DOMAIN,
+        NodeLabel::File.as_str()
     );
 
-    client
-        .execute_query(
-            &query,
-            vec![
-                ("path", serde_json::json!(file_path)),
-                ("ns", serde_json::json!(project_namespace(client))),
-                ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
-                ("project_label", serde_json::json!(PROJECT_LABEL)),
-            ],
-        )
-        .await?;
+    let params = vec![
+        ("path", serde_json::json!(file_path)),
+        ("ns", serde_json::json!(ns)),
+        ("id", serde_json::json!(file_id)),
+        (
+            "name",
+            serde_json::json!(std::path::Path::new(file_path)
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()),
+        ),
+        ("graph_domain", serde_json::json!(GRAPH_DOMAIN)),
+        ("project_label", serde_json::json!(PROJECT_LABEL)),
+    ];
+
+    // Debug: Print what we're about to execute
+    eprintln!("DEBUG: Executing Neo4j MERGE with ID: {}", query);
+    eprintln!("DEBUG: With params: {:?}", params);
+
+    let results = client.execute_query(&query, params).await?;
+    eprintln!("DEBUG: MERGE returned {} results", results.len());
+    for (i, result) in results.iter().enumerate() {
+        eprintln!("DEBUG: Result {}: {:?}", i, result);
+    }
 
     Ok(())
 }
@@ -297,10 +330,10 @@ pub async fn create_file_dependency(
             b.project = $project_label
         MERGE (a)-[:{}]->(b)
         "#,
+        GRAPH_DOMAIN,
         NodeLabel::File.as_str(),
-        PROJECT_LABEL,
+        GRAPH_DOMAIN,
         NodeLabel::File.as_str(),
-        PROJECT_LABEL,
         RelationType::DependsOn.as_str()
     );
 

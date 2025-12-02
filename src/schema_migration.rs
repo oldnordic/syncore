@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use rusqlite::Connection;
 
 /// Current schema version
-pub const CURRENT_SCHEMA_VERSION: i32 = 5;
+pub const CURRENT_SCHEMA_VERSION: i32 = 6;
 
 /// Get the current schema version from the database
 /// Returns 0 if version table doesn't exist (brand new database)
@@ -92,6 +92,10 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
     if current_version < 5 {
         migration_005_memory_extended_fields(conn).context("Failed to run migration 005")?;
+    }
+
+    if current_version < 6 {
+        migration_006_code_graph_nullable_lines(conn).context("Failed to run migration 006")?;
     }
 
     // Verify we're at the expected version
@@ -231,6 +235,19 @@ fn migration_005_memory_extended_fields(conn: &Connection) -> Result<()> {
         conn,
         5,
         "Add extended memory fields (namespace, summary, importance, created_at, last_accessed, access_count)",
+    )?;
+    Ok(())
+}
+
+/// Migration 006: Allow NULL values for line_start and line_end in code_entities
+fn migration_006_code_graph_nullable_lines(conn: &Connection) -> Result<()> {
+    conn.execute_batch(include_str!("../migrations/06_code_graph_nullable_lines.sql"))
+        .context("Failed to apply migration 006: Code graph nullable lines")?;
+
+    set_schema_version(
+        conn,
+        6,
+        "Allow NULL values for line_start and line_end in code_entities (File entities)",
     )?;
     Ok(())
 }

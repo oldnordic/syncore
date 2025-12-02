@@ -60,26 +60,9 @@ fn sync_function() -> i32 {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: Arc::new(memory),
-        tasks: Arc::new(tasks),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(SnapshotHandle::default()),
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
 
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
 
     // Create MCP request to search for async patterns
     let request = MCPRequest {
@@ -138,26 +121,9 @@ async fn test_parser_search_code_should_handle_missing_pattern() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: Arc::new(memory),
-        tasks: Arc::new(tasks),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(SnapshotHandle::default()),
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
 
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
 
     // Create request missing pattern parameter
     let request = MCPRequest {
@@ -205,26 +171,9 @@ async fn test_parser_search_code_should_handle_nonexistent_path() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: Arc::new(memory),
-        tasks: Arc::new(tasks),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(SnapshotHandle::default()),
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
 
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
 
     // Create request for nonexistent path
     let request = MCPRequest {
@@ -295,26 +244,9 @@ async fn test_parser_search_code_should_support_file_patterns() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: Arc::new(memory),
-        tasks: Arc::new(tasks),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(SnapshotHandle::default()),
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
 
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
 
     // Test different search patterns
     let test_cases = vec![("rust_function", true), ("async", true), ("nonexistent_pattern", false)];
@@ -411,26 +343,9 @@ fn cleanup_function() {
     let general_embeddings = Box::new(RealEmbeddings::new(384).unwrap());
     let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
 
-    let state = SynCoreState {
-        db_manager,
-        memory: Arc::new(memory),
-        tasks: Arc::new(tasks),
-        code_store,
-        general_store,
-        logger: Arc::new(syncore::logger::MarkdownLogger::new("./logs")),
-        message_bus: None,
-        write_queue: None,
-        read_pool: None,
-        faiss_queue: None,
-        faiss_pool: None,
-        neo4j: None,
-        hnsw_ready: Arc::new(AtomicBool::new(false)),
-        intellitask: None,
-        reindex_mutex: Arc::new(std::sync::Mutex::new(())),
-        snapshot_handle: Arc::new(SnapshotHandle::default()),
+    let mut state = SynCoreState::with_dual_stores(code_store, general_store).unwrap();
 
-        snapshot_update_task: Arc::new(Mutex::new(None)),
-    };
+    state.logger = Arc::new(syncore::logger::MarkdownLogger::new("./logs"));
 
     // Create MCP request to search with context
     let request = MCPRequest {

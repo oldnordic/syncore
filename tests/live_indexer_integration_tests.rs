@@ -33,7 +33,7 @@ async fn test_full_pipeline_file_create_modify_delete() -> Result<()> {
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
+    let update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
@@ -108,7 +108,7 @@ async fn test_pipeline_triggers_hnsw_reembedding() -> Result<()> {
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let mut update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
+    let mut update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;
@@ -182,7 +182,7 @@ async fn test_pipeline_produces_lsp_notifications() -> Result<()> {
 
     let code_graph = CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let update_service = CodeGraphUpdateService::new(root.clone(), code_graph, reindex_mutex)?;
+    let update_service = CodeGraphUpdateService::new(code_graph, reindex_mutex)?;
 
     let language = unsafe { tree_sitter_rust::language() };
     let parser = ParserService::new(language, root.clone())?;

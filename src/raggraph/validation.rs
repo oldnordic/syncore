@@ -69,7 +69,7 @@ pub fn validate_vector_index(
     })?;
 
     // Check index is not empty
-    if index_lock.len() == 0 {
+    if index_lock.is_empty() {
         return Err(ValidationError::VectorIndexEmpty.into());
     }
 

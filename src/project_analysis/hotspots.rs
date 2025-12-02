@@ -143,11 +143,7 @@ impl ProjectAnalysisEngine {
                 fan_in: fan_in as u32,
                 fan_out: fan_out as u32,
                 entity_count: entity_count as u32,
-                loc: if max_line.is_some() && max_line.unwrap() > 0 {
-                    Some(max_line.unwrap() as u32)
-                } else {
-                    None
-                },
+                loc: max_line.filter(|&line| line > 0).map(|line| line as u32),
                 score,
             })
         })?;

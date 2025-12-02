@@ -116,8 +116,7 @@ pub async fn run_validate(config: &GraphCliConfig) -> Result<bool> {
 
 /// Run graph rebuild - extract edges from source and push to Neo4j
 pub async fn run_rebuild(config: &GraphCliConfig) -> Result<()> {
-    let source_dir =
-        config.source_dir.as_ref().map(|p| p.clone()).unwrap_or_else(|| PathBuf::from("src"));
+    let source_dir = config.source_dir.clone().unwrap_or_else(|| PathBuf::from("src"));
 
     println!("Connecting to Neo4j at {}...", config.neo4j_uri);
 

@@ -73,7 +73,7 @@ SynCore is an MCP (Model Context Protocol) server exposing **65 tools** for:
 
 - **Single-node only** - No distributed mode
 - **No authentication** - Designed for local use
-- **Neo4j required for graph features** - Some tools fail silently without it
+- **SQLiteGraph is default backend** - Neo4j optional for advanced graph features
 - **Ollama required for AI features** - IntelliTask, sequential_cycle need it
 - **~500MB RAM after startup** - Two HuggingFace embedding models loaded (BGE + MiniLM)
 - **Graph features partially tested** - Neo4j sync works but entity population needs validation
@@ -102,24 +102,89 @@ Add to `~/.config/claude/mcp_settings.json`:
     "args": [],
     "env": {
       "DB_PATH": "/path/to/syncore.db",
-      "NEO4J_URI": "bolt://127.0.0.1:7687",
-      "NEO4J_USER": "neo4j",
-      "NEO4J_PASS": "your_password"
+      "SYNC_GRAPH_BACKEND": "sqlite"
     }
   }
 }
 ```
 
+**For Neo4j backend:**
+```json
+{
+  "syncore": {
+    "command": "/path/to/syncore/target/release/syncore_mcp_stdio",
+    "args": [],
+    "env": {
+      "DB_PATH": "/path/to/syncore.db",
+      "SYNC_GRAPH_BACKEND": "neo4j",
+      "SYNC_NEO4J_PASSWORD": "your_password"
+    }
+  }
+}
+```
+
+### Configuration (Task 4B)
+
+SynCore supports **configuration-driven backend selection** with SQLiteGraph as the default:
+
+```bash
+# Default: Uses embedded SQLiteGraph (no config file needed)
+./target/release/syncore_mcp_stdio
+
+# With config file (recommended)
+mkdir -p config
+cat > config/syncore.toml << EOF
+[graph]
+backend = "sqlite"
+sqlite_db_path = "syncore_code_graph.db"
+EOF
+./target/release/syncore_mcp_stdio
+
+# Optional environment variable override
+export SYNC_GRAPH_BACKEND="neo4j"
+export SYNC_NEO4J_PASSWORD="your_password"
+./target/release/syncore_mcp_stdio
+```
+
+**Configuration File**: Create `config/syncore.toml` for persistent settings:
+
+```toml
+[graph]
+backend = "sqlite"  # Default: embedded SQLite
+sqlite_db_path = "syncore_code_graph.db"
+
+# To use Neo4j:
+# backend = "neo4j"
+# neo4j_uri = "bolt://127.0.0.1:7687"
+# neo4j_user = "neo4j"
+# neo4j_password = ""
+```
+
+**Configuration Precedence**: 
+1. `config/syncore.toml` (primary)
+2. Environment variables (optional overrides)
+3. Built-in defaults (fallback)
+
+**Fallback Behavior**: Invalid configurations automatically fall back to SQLiteGraph with safe defaults.
+
 ### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DB_PATH` | `syncore.db` | SQLite database path |
+| **Graph Backend (NEW in Task 4)** |
+| `SYNC_GRAPH_BACKEND` | `sqlite` | Graph backend: `sqlite` or `neo4j` |
+| `SYNC_SQLITE_DB_PATH` | `syncore_code_graph.db` | SQLite graph database path |
+| `SYNC_NEO4J_URI` | `bolt://127.0.0.1:7687` | Neo4j connection URI |
+| `SYNC_NEO4J_USER` | `neo4j` | Neo4j username |
+| `SYNC_NEO4J_PASSWORD` | (required for Neo4j) | Neo4j password |
+| **Core Configuration** |
+| `DB_PATH` | `syncore.db` | Main SQLite database path |
 | `HTTP_PORT` | `3001` | HTTP streaming server port |
-| `NEO4J_URI` | `bolt://127.0.0.1:7687` | Neo4j connection |
-| `NEO4J_USER` | `neo4j` | Neo4j username |
-| `NEO4J_PASS` | (required for graph) | Neo4j password |
 | `RUST_LOG` | `info` | Log level |
+| **Legacy Variables (Supported)** |
+| `NEO4J_URI` | `bolt://127.0.0.1:7687` | Neo4j connection (legacy) |
+| `NEO4J_USER` | `neo4j` | Neo4j username (legacy) |
+| `NEO4J_PASS` | (required for graph) | Neo4j password (legacy) |
 
 ## All Tools (42 in memory_suite + 23 standalone)
 

@@ -77,8 +77,8 @@ impl ProjectAnalysisEngine {
         // Sort by some priority metric and limit
         suggestions.sort_by(|a, b| {
             // Simple priority: files with more issues first
-            let a_score = self.calculate_suggestion_priority(&a);
-            let b_score = self.calculate_suggestion_priority(&b);
+            let a_score = self.calculate_suggestion_priority(a);
+            let b_score = self.calculate_suggestion_priority(b);
             b_score.partial_cmp(&a_score).unwrap_or(std::cmp::Ordering::Equal)
         });
 

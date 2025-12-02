@@ -21,7 +21,7 @@ use crate::memory::Memory;
 use crate::vector::VectorStore;
 
 /// Cross-domain consistency report
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CrossDomainReport {
     /// Code entities that exist but have no corresponding vector embedding
     pub missing_nodes: Vec<String>,
@@ -49,22 +49,6 @@ pub struct CrossDomainReport {
 
     /// Neo4j relationships missing compared to SQLite (if Neo4j available)
     pub neo4j_missing_relationships: Vec<String>,
-}
-
-impl Default for CrossDomainReport {
-    fn default() -> Self {
-        Self {
-            missing_nodes: Vec::new(),
-            orphan_vectors: Vec::new(),
-            memory_without_vectors: Vec::new(),
-            vectors_without_memory: Vec::new(),
-            dangling_edges: Vec::new(),
-            corrupted_snapshots: Vec::new(),
-            mismatched_checksums: Vec::new(),
-            neo4j_missing_nodes: Vec::new(),
-            neo4j_missing_relationships: Vec::new(),
-        }
-    }
 }
 
 impl CrossDomainReport {

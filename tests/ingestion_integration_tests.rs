@@ -36,12 +36,9 @@ async fn test_gic_liveindexer_wiring() {
     )
     .unwrap();
     let reindex_mutex = Arc::new(std::sync::Mutex::new(()));
-    let update_service = syncore::code_graph::update_service::CodeGraphUpdateService::new(
-        temp_dir.path().to_path_buf(),
-        graph,
-        reindex_mutex,
-    )
-    .unwrap();
+    let update_service =
+        syncore::code_graph::update_service::CodeGraphUpdateService::new(graph, reindex_mutex)
+            .unwrap();
     let lsp_bridge = Arc::new(std::sync::Mutex::new(syncore::lsp_bridge::LspBridge::disabled()));
     let indexer_config = LiveIndexerConfig::default();
 
