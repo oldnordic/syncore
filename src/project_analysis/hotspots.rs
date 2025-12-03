@@ -59,7 +59,7 @@ impl ProjectAnalysisEngine {
         min_loc: Option<u32>,
     ) -> Result<Vec<HotspotInfo>> {
         // STEP A: Exclude build artifacts from hotspot analysis
-        let mut query = r#"
+        let mut query = "
             SELECT
                 file_path,
                 COUNT(DISTINCT ce.id) as entity_count,
@@ -77,7 +77,7 @@ impl ProjectAnalysisEngine {
               AND file_path NOT LIKE '%/.venv/%'
               AND file_path NOT LIKE '%/dist/%'
               AND file_path NOT LIKE '%/build/%'
-        "#.to_string();
+        ".to_string();
 
         let mut where_clauses = Vec::new();
         let mut params = Vec::new();

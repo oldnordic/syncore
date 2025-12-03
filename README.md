@@ -64,8 +64,8 @@ SynCore is an MCP (Model Context Protocol) server exposing **65 tools** for:
 
 ### What's Experimental
 
-- **IntelliTask AI features** - Requires Ollama running locally, quality depends on model
-- **Sequential reasoning** - `sequential_cycle` requires Ollama
+- **IntelliTask AI features** - Requires LLM backend (GGUFEngine or Test), quality depends on model
+- **Sequential reasoning** - `sequential_cycle` requires LLM backend
 - **Agent message bus** - Works but not heavily tested in production
 - **RAGGraph multi-hop** - Works but scoring may need tuning
 
@@ -74,7 +74,7 @@ SynCore is an MCP (Model Context Protocol) server exposing **65 tools** for:
 - **Single-node only** - No distributed mode
 - **No authentication** - Designed for local use
 - **SQLiteGraph is default backend** - Neo4j optional for advanced graph features
-- **Ollama required for AI features** - IntelliTask, sequential_cycle need it
+- **LLM backend required for AI features** - IntelliTask, sequential_cycle need GGUFEngine or Test backend
 - **~500MB RAM after startup** - Two HuggingFace embedding models loaded (BGE + MiniLM)
 - **Graph features partially tested** - Neo4j sync works but entity population needs validation
 
@@ -230,10 +230,10 @@ sqlite_db_path = "syncore_code_graph.db"
 | `intellitask_task_statistics` | Overall task statistics | Low |
 | `intellitask_prd_statistics` | PRD-specific statistics | Low |
 | `intellitask_save` | Save task breakdown to DB | Low |
-| `intellitask_generate` | **Requires Ollama** - AI task breakdown from PRD | High |
-| `intellitask_subtasks` | **Requires Ollama** - Generate subtasks | High |
-| `intellitask_prioritize` | **Requires Ollama** - AI task prioritization | High |
-| `intellitask_next` | **Requires Ollama** - AI next task suggestion | High |
+| `intellitask_generate` | **Requires LLM backend** - AI task breakdown from PRD | High |
+| `intellitask_subtasks` | **Requires LLM backend** - Generate subtasks | High |
+| `intellitask_prioritize` | **Requires LLM backend** - AI task prioritization | High |
+| `intellitask_next` | **Requires LLM backend** - AI next task suggestion | High |
 
 **Sequential Reasoning (4 commands):**
 | Command | Description | Cost |
@@ -241,7 +241,7 @@ sqlite_db_path = "syncore_code_graph.db"
 | `sequential_record` | Record thought step in reasoning chain | Low |
 | `sequential_get` | Get thought steps for task | Low |
 | `sequential_search` | Search thought steps semantically | Medium |
-| `sequential_cycle` | **Requires Ollama** - Run reasoning cycle | Very High |
+| `sequential_cycle` | **Requires LLM backend** - Run reasoning cycle | Very High |
 
 **Agent Coordination (8 commands):**
 | Command | Description | Cost |
@@ -464,7 +464,7 @@ Note: HNSW indexing reduces search to 1-10ms after warmup, but initial queries u
 
 **Optional:**
 - Neo4j 5.x (for graph features - `graph_*`, `code_graph_*`, `raggraph_*`)
-- Ollama (for AI features - `intellitask_generate/subtasks/prioritize/next`, `sequential_cycle`)
+- LLM backend (GGUFEngine for AI features - `intellitask_generate/subtasks/prioritize/next`, `sequential_cycle`)
 
 ## CLI Tool
 

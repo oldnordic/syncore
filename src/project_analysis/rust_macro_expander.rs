@@ -71,6 +71,7 @@ impl RustMacroExpander {
             // vec![a, b, c] pattern
             vec_pattern: Regex::new(r"vec!\s*\[\s*([^]]+)\s*\]")?,
             // format!("...", args) pattern - capture the format string in group 1
+            #[allow(clippy::unnecessary_raw_string_hashes)]
             format_pattern: Regex::new(r#"format!\s*\(\s*"([^"]*)"[^)]*\)"#)?,
             // log macros: info!, warn!, error!, debug!, trace!
             log_pattern: Regex::new(r"(info|warn|error|debug|trace)!\s*\([^)]*\)")?,
@@ -465,11 +466,11 @@ mod tests {
     #[test]
     fn test_extract_macro_bodies() -> Result<()> {
         let expander = RustMacroExpander::new()?;
-        let source = r#"
+        let source = "
         macro_rules! my_macro {
             ($x:expr) => { $x * 2 }
         }
-        "#;
+        ";
         let bodies = expander.extract_macro_bodies(source)?;
 
         assert_eq!(bodies.len(), 1);
@@ -508,11 +509,11 @@ mod tests {
     #[test]
     fn test_multiple_macros() -> Result<()> {
         let expander = RustMacroExpander::new()?;
-        let source = r#"
+        let source = "
         let v = vec![1, 2, 3];
-        info!("created vector: {:?}", v);
+        info!(\"created vector: {:?}\", v);
         assert!(v.len() > 0);
-        "#;
+        ";
         let context = expander.expand_simple_macro_invocations(source)?;
 
         assert_eq!(context.expansions.len(), 3);

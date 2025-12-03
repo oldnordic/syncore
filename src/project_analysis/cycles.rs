@@ -49,7 +49,7 @@ impl ProjectAnalysisEngine {
         conn: &rusqlite::Connection,
     ) -> Result<HashMap<String, Vec<(String, String)>>> {
         let mut stmt = conn.prepare(
-            r#"
+            "
             SELECT DISTINCT
                 e1.file_path as from_file,
                 e2.file_path as to_file,
@@ -59,7 +59,7 @@ impl ProjectAnalysisEngine {
             JOIN code_entities e2 ON ce.dst_entity_id = e2.id
             WHERE e1.file_path != e2.file_path
             ORDER BY e1.file_path, e2.file_path
-            "#,
+            ",
         )?;
 
         let rows = stmt.query_map([], |row| {

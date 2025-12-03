@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_cleanup_request_defaults() {
-        let json = r#"{}"#;
+        let json = "{}";
         let request: CleanupExcludedRequest = serde_json::from_str(json).unwrap();
         assert!(!request.dry_run);
         assert!(request.excluded_dirs.is_none());
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_cleanup_request_with_options() {
-        let json = r#"{"dry_run": true, "excluded_dirs": ["custom", "dirs"]}"#;
+        let json = "{\"dry_run\": true, \"excluded_dirs\": [\"custom\", \"dirs\"]}";
         let request: CleanupExcludedRequest = serde_json::from_str(json).unwrap();
         assert!(request.dry_run);
         assert_eq!(request.excluded_dirs.unwrap(), vec!["custom", "dirs"]);

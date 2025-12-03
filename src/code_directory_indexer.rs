@@ -119,7 +119,6 @@ impl DirectoryIndexer {
                 Err(e) => {
                     // Log error but continue processing other files
                     eprintln!("Warning: Failed to index file {}: {}", file_path.display(), e);
-                    continue;
                 }
             }
         }

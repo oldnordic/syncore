@@ -71,6 +71,15 @@ sha2 = "0.10"
 reqwest = { version = "0.12", features = ["json", "blocking"] }  # APEX 2.0-E: Ollama HTTP client
 async-trait = "0.1"
 futures = "0.3"
+# Candle dependencies for local model inference
+candle-core = "0.9"
+candle-transformers = "0.9"
+candle-nn = "0.9"
+tokenizers = "0.21"
+rand_chacha = "0.3"
+hf-hub = "0.4"
+# mistral.rs for real GGUF support
+mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

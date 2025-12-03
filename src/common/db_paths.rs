@@ -28,12 +28,11 @@ fn find_binary_dir() -> PathBuf {
         if path.is_absolute() {
             eprintln!("[syncore] Using SYNCORE_DATA_DIR: {}", path.display());
             return path;
-        } else {
-            eprintln!(
-                "[syncore] WARNING: SYNCORE_DATA_DIR is not absolute ({}), falling back",
-                path.display()
-            );
         }
+        eprintln!(
+            "[syncore] WARNING: SYNCORE_DATA_DIR is not absolute ({}), falling back",
+            path.display()
+        );
     }
 
     // Priority 2: Use executable's parent directory (same folder as binary)

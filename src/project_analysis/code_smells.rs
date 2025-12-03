@@ -96,7 +96,7 @@ impl ProjectAnalysisEngine {
         conn: &rusqlite::Connection,
         limit: usize,
     ) -> Result<Vec<FileCodeSmell>> {
-        let query = r#"
+        let query = "
             WITH file_metrics AS (
                 SELECT 
                     ce.file_path,
@@ -113,7 +113,7 @@ impl ProjectAnalysisEngine {
             FROM file_metrics
             ORDER BY loc DESC
             LIMIT ?
-        "#;
+        ";
 
         let mut stmt = conn.prepare(query)?;
         let rows = stmt.query_map([limit as i64], |row| {

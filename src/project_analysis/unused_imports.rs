@@ -62,7 +62,7 @@ impl ProjectAnalysisEngine {
         file_path: Option<&str>,
         limit: Option<u32>,
     ) -> Result<Vec<UnusedImportInfo>> {
-        let mut query = r#"
+        let mut query = "
             SELECT 
                 ce.file_path,
                 ce.name,
@@ -84,7 +84,7 @@ impl ProjectAnalysisEngine {
                     OR ce.signature LIKE '%' || ce.name || '%'
                 )
             )
-        "#
+        "
         .to_string();
 
         let mut params = Vec::new();

@@ -115,7 +115,7 @@ impl RefragSuite {
     }
 
     fn handle_help(&self) -> SuiteResult {
-        let help_text = r#"
+        let help_text = "
 REFRAG Suite - Selective Expansion Pipeline
 
 Commands:
@@ -124,10 +124,10 @@ Commands:
   help        Show this help message
 
 Examples:
-  refrag_suite query {"query": "implement authentication"}
-  refrag_suite query {"query": "error handling", "top_k_raw": 10, "max_tokens": 8000}
-  refrag_suite configure {"top_k_raw": 7, "policy": "GraphPriority"}
-"#;
+  refrag_suite query {\"query\": \"implement authentication\"}
+  refrag_suite query {\"query\": \"error handling\", \"top_k_raw\": 10, \"max_tokens\": 8000}
+  refrag_suite configure {\"top_k_raw\": 7, \"policy\": \"GraphPriority\"}
+";
         SuiteResult::ok("help", json!({"message": help_text}))
     }
 }

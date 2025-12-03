@@ -221,7 +221,7 @@ fn default_include_extensions() -> Vec<String> {
 }
 
 fn default_max_file_size() -> usize {
-    1048576
+    1_048_576
 } // 1MB
 
 impl Default for IndexingConfig {

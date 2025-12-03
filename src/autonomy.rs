@@ -283,7 +283,7 @@ mod tests {
         let db_path = temp_db.path().to_str().unwrap();
 
         let _taskmaster = Arc::new(Mutex::new(Tasks::new(&format!("{}_tasks", db_path)).unwrap()));
-        let cutoff_time = Some(1234567890);
+        let cutoff_time = Some(1_234_567_890);
 
         // Create DbManager for with_connection
         let db_manager = crate::db::DbManager::new(db_path, db_path).unwrap();

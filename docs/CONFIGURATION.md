@@ -40,9 +40,9 @@ dimensions = 384
 batch_size = 32
 
 [llm]
-backend = "ollama"
-model = "qwen2.5-coder:3b"
-url = "http://localhost:11434"
+backend = "gguf_engine"
+model = "qwen2.5-mini"
+url = "local"
 timeout_seconds = 30
 ```
 

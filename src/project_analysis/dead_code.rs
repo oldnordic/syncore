@@ -59,7 +59,7 @@ impl ProjectAnalysisEngine {
         exclude_public: bool,
         limit: Option<u32>,
     ) -> Result<Vec<DeadCodeInfo>> {
-        let mut query = r#"
+        let mut query = "
             SELECT 
                 ce.id,
                 ce.name,
@@ -71,7 +71,7 @@ impl ProjectAnalysisEngine {
             LEFT JOIN code_edges ce_in ON ce.id = ce_in.dst_entity_id
             WHERE ce_in.dst_entity_id IS NULL
             AND ce.entity_type NOT IN ('import', 'module')
-        "#
+        "
         .to_string();
 
         let mut params = Vec::new();

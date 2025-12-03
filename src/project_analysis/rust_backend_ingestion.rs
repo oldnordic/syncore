@@ -237,27 +237,27 @@ mod tests {
         let ingestion =
             RustBackendIngestion::new(Arc::new(DbManager::new(":memory:", ":memory:")?));
 
-        let json_str = r#"
+        let json_str = "
         {
-            "message": {
-                "message": "unused variable: `x`",
-                "level": "warning",
-                "spans": [
+            \"message\": {
+                \"message\": \"unused variable: `x`\",
+                \"level\": \"warning\",
+                \"spans\": [
                     {
-                        "file_name": "src/main.rs",
-                        "line_start": 10,
-                        "column_start": 5,
-                        "line_end": 10,
-                        "column_end": 6
+                        \"file_name\": \"src/main.rs\",
+                        \"line_start\": 10,
+                        \"column_start\": 5,
+                        \"line_end\": 10,
+                        \"column_end\": 6
                     }
                 ]
             },
-            "level": "warning",
-            "code": {
-                "code": "unused_variables"
+            \"level\": \"warning\",
+            \"code\": {
+                \"code\": \"unused_variables\"
             }
         }
-        "#;
+        ";
 
         let json: Value = serde_json::from_str(json_str)?;
         let diagnostic = ingestion
@@ -283,24 +283,24 @@ mod tests {
         let ingestion =
             RustBackendIngestion::new(Arc::new(DbManager::new(":memory:", ":memory:")?));
 
-        let json_str = r#"
+        let json_str = "
         {
-            "message": {
-                "message": "some warning",
-                "level": "warning",
-                "spans": [
+            \"message\": {
+                \"message\": \"some warning\",
+                \"level\": \"warning\",
+                \"spans\": [
                     {
-                        "file_name": "Cargo.toml",
-                        "line_start": 1,
-                        "column_start": 1,
-                        "line_end": 1,
-                        "column_end": 1
+                        \"file_name\": \"Cargo.toml\",
+                        \"line_start\": 1,
+                        \"column_start\": 1,
+                        \"line_end\": 1,
+                        \"column_end\": 1
                     }
                 ]
             },
-            "level": "warning"
+            \"level\": \"warning\"
         }
-        "#;
+        ";
 
         let json: Value = serde_json::from_str(json_str)?;
         let diagnostic = ingestion.parse_clippy_diagnostic(json, project_root)?;

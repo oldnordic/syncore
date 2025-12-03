@@ -16,7 +16,7 @@ impl ProjectAnalysisEngine {
         entity_threshold: u32,
     ) -> Result<Vec<RefactorSuggestion>> {
         let mut stmt = conn.prepare(
-            r#"
+            "
             SELECT 
                 file_path,
                 COUNT(*) as entity_count,
@@ -27,7 +27,7 @@ impl ProjectAnalysisEngine {
             GROUP BY file_path
             HAVING entity_count >= ?1 OR max_line >= ?2
             ORDER BY entity_count DESC, max_line DESC
-            "#,
+            ",
         )?;
 
         let suggestions =
@@ -70,7 +70,7 @@ impl ProjectAnalysisEngine {
         fan_in_threshold: u32,
     ) -> Result<Vec<RefactorSuggestion>> {
         let mut stmt = conn.prepare(
-            r#"
+            "
             SELECT 
                 e1.file_path,
                 COUNT(DISTINCT ce_in.dst_entity_id) as fan_in,
@@ -83,7 +83,7 @@ impl ProjectAnalysisEngine {
             GROUP BY e1.file_path
             HAVING fan_in >= ?1 AND fan_in > fan_out * 2
             ORDER BY fan_in DESC
-            "#,
+            ",
         )?;
 
         let suggestions = stmt.query_map([fan_in_threshold as i64], |row| {
@@ -120,7 +120,7 @@ impl ProjectAnalysisEngine {
         conn: &rusqlite::Connection,
     ) -> Result<Vec<RefactorSuggestion>> {
         let mut stmt = conn.prepare(
-            r#"
+            "
             SELECT DISTINCT
                 e1.file_path as file1,
                 e2.file_path as file2,
@@ -135,7 +135,7 @@ impl ProjectAnalysisEngine {
             GROUP BY e1.file_path, e2.file_path
             HAVING cycle_strength >= 2
             ORDER BY cycle_strength DESC
-            "#,
+            ",
         )?;
 
         let suggestions = stmt.query_map([], |row| {
@@ -175,7 +175,7 @@ impl ProjectAnalysisEngine {
         conn: &rusqlite::Connection,
     ) -> Result<Vec<RefactorSuggestion>> {
         let mut stmt = conn.prepare(
-            r#"
+            "
             SELECT 
                 file_path,
                 COUNT(*) as dead_count
@@ -188,7 +188,7 @@ impl ProjectAnalysisEngine {
             GROUP BY file_path
             HAVING dead_count >= 3
             ORDER BY dead_count DESC
-            "#,
+            ",
         )?;
 
         let suggestions = stmt.query_map([], |row| {
@@ -224,7 +224,7 @@ impl ProjectAnalysisEngine {
         fan_out_threshold: u32,
     ) -> Result<Vec<RefactorSuggestion>> {
         let mut stmt = conn.prepare(
-            r#"
+            "
             SELECT 
                 e1.file_path,
                 COUNT(DISTINCT e2.file_path) as distinct_deps,
@@ -238,7 +238,7 @@ impl ProjectAnalysisEngine {
             GROUP BY e1.file_path
             HAVING distinct_deps >= ?1
             ORDER BY distinct_deps DESC
-            "#,
+            ",
         )?;
 
         let suggestions = stmt.query_map([fan_out_threshold as i64], |row| {

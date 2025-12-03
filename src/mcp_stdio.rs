@@ -71,7 +71,8 @@ mod tests {
 
     #[test]
     fn test_mcp_request_parsing() {
-        let request_json = r#"{"jsonrpc":"2.0","method":"mcp.describe","params":null,"id":1}"#;
+        let request_json =
+            "{\"jsonrpc\":\"2.0\",\"method\":\"mcp.describe\",\"params\":null,\"id\":1}";
         let request: MCPRequest = serde_json::from_str(request_json).unwrap();
 
         assert_eq!(request.jsonrpc, "2.0");

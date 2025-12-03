@@ -131,3 +131,30 @@ ai-dev-tasks/
 # Backup databases
 *.db.backup
 syncore.db_cache/
+
+# Model files and binaries
+models/
+*.gguf
+*.bin
+*.safetensors
+*.onnx
+*.tflite
+
+# All markdown files except allowed ones
+*.md
+!README.md
+!CHANGELOG.md
+!MANUAL.md
+
+# Binary executables
+*.exe
+*.out
+*.app
+*.deb
+*.rpm
+
+# Shell scripts (except build/install scripts)
+*.sh
+!build.sh
+!install.sh
+!setup.sh

@@ -19,6 +19,7 @@ impl CodeGraph {
     /// # Arguments
     /// * `caller_id` - Entity ID of the calling function
     /// * `callee_id` - Entity ID of the called function
+    #[allow(clippy::similar_names)]
     pub async fn upsert_call_edge(&self, caller_id: i64, callee_id: i64) -> Result<()> {
         self.upsert_edge(caller_id, callee_id, EdgeType::Calls).await
     }

@@ -58,7 +58,7 @@ impl ProjectAnalysisEngine {
         root: Option<&str>,
         max_modules: Option<u32>,
     ) -> Result<Vec<ModuleInfo>> {
-        let mut query = r#"
+        let mut query = "
             SELECT 
                 file_path,
                 COUNT(*) as entity_count,
@@ -67,7 +67,7 @@ impl ProjectAnalysisEngine {
             FROM code_entities ce
             LEFT JOIN code_edges ce_in ON ce.id = ce_in.dst_entity_id
             LEFT JOIN code_edges ce_out ON ce.id = ce_out.src_entity_id
-        "#.to_string();
+        ".to_string();
 
         let mut params = Vec::new();
         let param_idx = 1;
@@ -137,7 +137,7 @@ impl ProjectAnalysisEngine {
         let placeholders = (0..modules.len()).map(|_| "?").collect::<Vec<_>>().join(",");
 
         let query = format!(
-            r#"
+            "
             SELECT DISTINCT
                 e1.file_path as from_file,
                 e2.file_path as to_file,
@@ -149,7 +149,7 @@ impl ProjectAnalysisEngine {
             AND e2.file_path IN ({})
             AND e1.file_path != e2.file_path
             ORDER BY e1.file_path, e2.file_path
-            "#,
+            ",
             placeholders, placeholders
         );
 

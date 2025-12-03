@@ -219,7 +219,7 @@ impl ProjectAnalysisEngine {
     ) -> Result<Vec<FileComplexityInfo>> {
         // Get all files with their entity counts and LOC
         let mut stmt = conn.prepare(
-            r#"
+            "
             SELECT 
                 file_path,
                 COUNT(*) as entity_count,
@@ -228,7 +228,7 @@ impl ProjectAnalysisEngine {
             GROUP BY file_path
             HAVING entity_count > 0 OR MAX(line_end) > 0
             ORDER BY entity_count DESC
-            "#,
+            ",
         )?;
 
         let file_rows = stmt.query_map([], |row| {

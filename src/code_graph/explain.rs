@@ -146,6 +146,7 @@ impl FunctionExplainer {
     }
 
     /// Explain a function by parsing the file and analyzing the code graph
+    #[allow(clippy::similar_names)]
     pub fn explain(
         &self,
         function_name: &str,

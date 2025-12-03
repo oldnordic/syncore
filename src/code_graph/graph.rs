@@ -225,7 +225,7 @@ impl CodeGraph {
         if !has_table {
             // Create code_graph schema inline
             db.execute_batch(
-                r#"
+                "
                 PRAGMA foreign_keys=ON;
 
                 CREATE TABLE IF NOT EXISTS code_entities (
@@ -270,7 +270,7 @@ impl CodeGraph {
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_code_embeddings_vector ON code_embeddings(vector_id);
-            "#,
+            ",
             )?;
         }
 
@@ -280,12 +280,12 @@ impl CodeGraph {
 
         if !has_created_at {
             db.execute_batch(
-                r#"
+                "
                 ALTER TABLE code_entities ADD COLUMN created_at INTEGER;
                 ALTER TABLE code_entities ADD COLUMN last_modified_at INTEGER;
                 ALTER TABLE code_entities ADD COLUMN change_count INTEGER;
                 ALTER TABLE code_entities ADD COLUMN author_count INTEGER;
-                "#,
+                ",
             )?;
         }
 
@@ -295,9 +295,9 @@ impl CodeGraph {
 
         if !has_body_snippet {
             db.execute_batch(
-                r#"
+                "
                 ALTER TABLE code_entities ADD COLUMN body_snippet TEXT;
-                "#,
+                ",
             )?;
         }
 
@@ -307,7 +307,7 @@ impl CodeGraph {
 
         if !has_file_index_state {
             db.execute_batch(
-                r#"
+                "
                 CREATE TABLE IF NOT EXISTS file_index_state (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     file_path TEXT NOT NULL UNIQUE,
@@ -318,7 +318,7 @@ impl CodeGraph {
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_file_index_state_path ON file_index_state(file_path);
-                "#,
+                ",
             )?;
         }
 
@@ -328,7 +328,7 @@ impl CodeGraph {
 
         if !has_macro_expansions {
             db.execute_batch(
-                r#"
+                "
                 CREATE TABLE IF NOT EXISTS code_macro_expansions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     file_path TEXT NOT NULL,
@@ -341,7 +341,7 @@ impl CodeGraph {
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_macro_expansions_file ON code_macro_expansions(file_path);
-                "#,
+                ",
             )?;
         }
 
