@@ -4,6 +4,10 @@
 **/*.rs.bk
 *.pdb
 
+# Binaries
+syncore
+syncore_mcp_stdio
+
 # Database files (generated at runtime)
 *.db
 *.db-shm
@@ -61,9 +65,17 @@ RECOMMENDED_CLAUDE_CONFIG.json
 vector.index.*
 *.vectors
 *.meta
+*.hnsw.*
+*.index.*
 
 # Code graph databases
 *_code_graph.db
+syncore.db
+syncore_code_graph.db
+
+# Snapshots and test directories
+/snapshots/
+/tests/tmp/
 
 # Memory test artifacts
 :memory:*
@@ -81,6 +93,8 @@ vector.index.*
 *.tmp
 *.bak
 *.orig
+*.lock
+/temp_workspace/
 
 # OS generated
 .DS_Store
@@ -117,3 +131,30 @@ ai-dev-tasks/
 # Backup databases
 *.db.backup
 syncore.db_cache/
+
+# Model files and binaries
+models/
+*.gguf
+*.bin
+*.safetensors
+*.onnx
+*.tflite
+
+# All markdown files except allowed ones
+*.md
+!README.md
+!CHANGELOG.md
+!MANUAL.md
+
+# Binary executables
+*.exe
+*.out
+*.app
+*.deb
+*.rpm
+
+# Shell scripts (except build/install scripts)
+*.sh
+!build.sh
+!install.sh
+!setup.sh
