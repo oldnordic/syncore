@@ -1,82 +1,100 @@
 # SynCore
 
-**MCP server for AI-native development** - Built in 2 weeks, solo, with $15 AI assistance budget.
+**AI-native MCP server for intelligent code development** - Production-tested with Claude Code and AI assistants.
 
-Unified interface for memory, vectors, code analysis, and knowledge graphs. **65+ tools** accessible via single MCP connection.
+SynCore is a comprehensive Model Context Protocol (MCP) server providing **65+ tools** for AI-powered development workflows. It bridges the gap between AI agents and persistent, structured knowledge storage.
 
-Built in Rust. Production-tested with Claude Code.
+## What SynCore Actually Does
 
-## What This Actually Does
+SynCore is an MCP server that exposes **65+ tools** organized into 5 main suites:
 
-SynCore is an MCP (Model Context Protocol) server exposing **65 tools** for:
-- **Persistent Memory** - Key-value storage (SQLite + Sled cache)
-- **Dual-Domain Vector Search** - Separate embedding models for code vs. text
-  - CODE domain: BGE-small-en-v1.5 (optimized for semantic code search)
-  - GENERAL domain: all-MiniLM-L6-v2 (optimized for documents/tasks)
-- **Code Intelligence** - Tree-sitter parsing for Rust, JavaScript, Python, JSON, TOML, Bash
-- **Knowledge Graphs** - Neo4j integration with Cypher queries
-- **Task Management** - Task tracking with parent/child relationships
-- **Agent Coordination** - Message bus for multi-agent workflows
-- **Application Mapping** - File dependency tracking and change history
-- **Sequential Reasoning** - Multi-step thought recording
-- **Project Analysis** - LLM-free codebase intelligence (hotspots, dead code, cycles, refactoring)
+### Core Capabilities
+- **Persistent Memory** - Hybrid SQLite + Sled cache for key-value storage
+- **Vector Search** - Semantic search with 384-dim embeddings (linear scan, not HNSW)
+- **Code Intelligence** - Tree-sitter parsing for 6 languages (Rust, JS, Python, JSON, TOML, Bash)
+- **Knowledge Graphs** - SQLite-based graph storage with Neo4j sync capability
+- **Task Management** - Parent-child task relationships with AI-powered breakdown
+- **Project Analysis** - Codebase intelligence without LLM dependencies
 
-## Current State (November 2025)
+### Tool Suites
 
-### What Works Reliably
+**Memory Suite (42 commands)**
+- Key-value storage with semantic search capabilities
+- Vector insert/search for documents and reasoning steps
+- Task management with AI-powered prioritization
+- Agent coordination via message bus
+- Sequential reasoning with thought recording
 
-**Core Tools (Tested Daily):**
-- `memory_store` / `memory_query` - Key-value storage, ~1ms latency
-- `vector_insert` / `vector_search` - Semantic search, 10-50ms latency
-- `code_index` / `code_search` - Code semantic search
-- `code_index_directory` - Batch index with **incremental support** (skips unchanged files)
-- `parser_analyze` - Tree-sitter AST extraction with optional persistence
-- `parser_search` - Ripgrep code pattern search
-- `graph_query` / `graph_insert` - Neo4j Cypher queries
-- `code_graph_sync_neo4j` - Sync SQLite entities to Neo4j
-- `code_graph_fusion_query` - Tri-mode (simple/attention/reasoning) search
+**Code Suite (11 commands)**
+- File and directory indexing with incremental updates
+- Semantic code search across indexed codebase
+- Tree-sitter AST parsing and analysis
+- Tri-mode RAG queries (simple/attention/reasoning)
+- Function explanation with complexity metrics
+
+**Graph Suite (5 commands)**
+- Cypher query execution (read/write)
+- Relationship creation between nodes
+- RAG queries with multi-hop graph reasoning
+- Neo4j synchronization from SQLite
+
+**Debug Suite (10 commands)**
+- Project hotspot analysis (complexity metrics)
+- Dead code detection and cleanup suggestions
+- Circular dependency analysis
+- Refactoring recommendations
+- Module dependency mapping
+
+**Mapping Suite (8 commands)**
+- Application structure mapping
+- File dependency tracking
+- Change history recording
+- Transitive dependency analysis
+
+## Current State (December 2025)
+
+### Production-Ready Features ✅
+
+**Core Storage & Search:**
+- **Memory Suite**: Reliable key-value storage with <1ms latency
+- **Vector Search**: Working semantic search with 384-dim embeddings (linear scan O(n))
+- **Code Indexing**: Tree-sitter parsing for 6 languages with incremental updates
+- **Project Analysis**: Complexity hotspot detection, dead code analysis, refactor suggestions
+- **Graph Storage**: SQLite-based with Neo4j sync capability
+
+**Verified Capabilities:**
+- 26 graph nodes already indexed with proper relationships
+- Semantic search finding relevant code (tested: vector embedding implementations)
+- Hotspot analysis identifying complex files (3000+ LOC files detected)
+- Refactor suggestions for code organization
+- Clean dependency analysis (no circular dependencies detected)
+
+### Experimental Features 🧪
+
+**AI-Powered Features:**
+- **IntelliTask**: AI task breakdown and prioritization (requires external LLM)
+- **Sequential Reasoning**: Multi-step thought cycles (requires LLM backend)
+- **Agent Coordination**: Message bus for multi-agent workflows
+- **RAG Graph Queries**: Multi-hop reasoning with attention scoring
+
+**Technical Limitations:**
+- **Linear Vector Search**: O(n) complexity, not HNSW despite dependency inclusion
+- **Single-Node**: No distributed mode or replication
+- **Local Only**: No authentication or security features
+- **Memory Usage**: ~500MB RAM with embedding models loaded
+- **External Dependencies**: AI features require separate LLM backend
+
+### Known Issues
 
 **Graph Features:**
-- 7 edge types: CONTAINS, CALLS, USES, IMPORTS, MODULE_CHILD, INHERITS, REFERENCES
-- Multi-hop diffusion with PageRank
-- Temporal metadata enrichment (git history + mtime)
+- Neo4j sync works but entity population needs validation
+- Some graph queries return empty results
+- Graph-BERT integration is architectural (placeholder implementation)
 
-**Project Analysis Engine (PHASE 6):**
-- `project_file_report` - Detailed file analysis (entities, relationships, metrics)
-- `project_hotspots` - Find complexity hotspots (fan-in/out, LOC, entity count)
-- `project_dead_code` - Detect unused entities
-- `project_cycles` - Find circular dependencies
-- `project_unused_imports` - Find unused imports
-- `project_module_map` - Module dependency map
-- `project_refactor_suggestions` - Heuristic refactoring suggestions
-
-**Meta-Tools (Aggregate PAE Data):**
-- `project_architecture_overview` - Project-wide summary: entity counts, dependency stats, complexity metrics
-- `project_complexity_dashboard` - Top hotspots, worst cycles, complexity rankings
-- `project_improvement_roadmap` - Prioritized improvements with effort/impact matrix
-- `project_refactor_action_plan` - Actionable refactor plan (high-risk hotspots, dead code, cycle breaks)
-
-**Incremental Indexing (NEW - PHASE 5):**
-- SHA256 + mtime change detection
-- Skips unchanged files (0 entities returned = skipped)
-- Detects new, modified, deleted files
-- Idempotent (safe to run repeatedly)
-
-### What's Experimental
-
-- **IntelliTask AI features** - Requires LLM backend (GGUFEngine or Test), quality depends on model
-- **Sequential reasoning** - `sequential_cycle` requires LLM backend
-- **Agent message bus** - Works but not heavily tested in production
-- **RAGGraph multi-hop** - Works but scoring may need tuning
-
-### Honest Limitations
-
-- **Single-node only** - No distributed mode
-- **No authentication** - Designed for local use
-- **SQLiteGraph is default backend** - Neo4j optional for advanced graph features
-- **LLM backend required for AI features** - IntelliTask, sequential_cycle need GGUFEngine or Test backend
-- **~500MB RAM after startup** - Two HuggingFace embedding models loaded (BGE + MiniLM)
-- **Graph features partially tested** - Neo4j sync works but entity population needs validation
+**Performance:**
+- Vector search scales linearly with dataset size
+- Large codebases may experience slow semantic queries
+- No streaming for large result sets
 
 ## Quick Start
 

@@ -145,6 +145,8 @@ models/
 !README.md
 !CHANGELOG.md
 !MANUAL.md
+!ARCHITECTURE.md
+!LICENSE
 
 # Binary executables
 *.exe

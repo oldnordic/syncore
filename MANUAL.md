@@ -2,6 +2,10 @@
 
 Practical guide to using SynCore MCP tools with real examples.
 
+**Last Updated**: December 2025
+**Version**: 0.2.0
+**Status**: Production-Ready Core Features, Experimental AI Features
+
 ## Table of Contents
 
 1. [Memory Tools](#memory-tools)
