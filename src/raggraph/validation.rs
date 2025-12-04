@@ -4,7 +4,7 @@
 //! and available. Fails fast with clear errors instead of silently falling back to mocks.
 
 use super::config::RaggraphBackendMode;
-use crate::graph::Neo4jClient;
+use crate::graph::{GraphBackend, Neo4jClient};
 use crate::vector::traits::VectorIndex;
 use anyhow::{Context, Result};
 use std::sync::{Arc, Mutex};
@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 /// Validation error for RagGraph real mode configuration
 #[derive(Debug)]
 pub enum ValidationError {
-    Neo4jUnavailable(String),
+    GraphBackendUnavailable(String),
     VectorIndexEmpty,
     DimensionMismatch {
         expected: usize,
@@ -24,8 +24,8 @@ pub enum ValidationError {
 impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationError::Neo4jUnavailable(msg) => {
-                write!(f, "Neo4j connection unavailable: {}. Check NEO4J_URI, NEO4J_USER, NEO4J_PASS environment variables.", msg)
+            ValidationError::GraphBackendUnavailable(msg) => {
+                write!(f, "RagGraph real mode requires a working graph backend (SQLiteGraph by default). Check GRAPH_BACKEND configuration: {}", msg)
             }
             ValidationError::VectorIndexEmpty => {
                 write!(f, "Vector index is empty. Real mode requires a populated HNSW index with embeddings.")
@@ -45,7 +45,22 @@ impl std::fmt::Display for ValidationError {
 
 impl std::error::Error for ValidationError {}
 
-/// Validate Neo4j connectivity with a simple health check query
+/// Validate generic graph backend connectivity with a simple health check query
+pub async fn validate_graph_backend(backend: &dyn GraphBackend) -> Result<()> {
+    // Use backend-agnostic health check: try to get basic statistics
+    // This works for both SQLiteGraph (returns empty result) and Neo4j (returns stats)
+    let query = "MATCH (n) RETURN count(n) as node_count LIMIT 1";
+
+    backend
+        .execute_query(query, vec![])
+        .await
+        .context("Failed to execute graph backend health check")
+        .map_err(|e| ValidationError::GraphBackendUnavailable(e.to_string()))?;
+
+    Ok(())
+}
+
+/// Validate Neo4j connectivity with a simple health check query (legacy support)
 pub async fn validate_neo4j(client: &Neo4jClient) -> Result<()> {
     // Simple query to verify connection is alive and database is accessible
     let query = "RETURN 1 as health_check";
@@ -54,7 +69,7 @@ pub async fn validate_neo4j(client: &Neo4jClient) -> Result<()> {
         .execute_query(query, vec![])
         .await
         .context("Failed to execute Neo4j health check")
-        .map_err(|e| ValidationError::Neo4jUnavailable(e.to_string()))?;
+        .map_err(|e| ValidationError::GraphBackendUnavailable(e.to_string()))?;
 
     Ok(())
 }
@@ -87,11 +102,41 @@ pub fn validate_vector_index(
     Ok(())
 }
 
-/// Validate complete real mode backend configuration
+/// Validate complete real mode backend configuration (generic GraphBackend version)
 ///
 /// This should be called before executing any RAGGraph query in REAL mode.
 /// If validation fails, returns a clear error that should be surfaced to the user.
 pub async fn validate_real_backend(
+    backend_mode: RaggraphBackendMode,
+    graph_backend: Option<&dyn GraphBackend>,
+    vector_index: Option<&Arc<Mutex<dyn VectorIndex>>>,
+    expected_dim: usize,
+) -> Result<()> {
+    // Only validate in REAL mode
+    if backend_mode != RaggraphBackendMode::Real {
+        return Ok(());
+    }
+
+    // Validate Graph Backend
+    let backend = graph_backend.ok_or_else(|| {
+        ValidationError::BackendMisconfigured("Graph backend not provided for REAL mode".to_string())
+    })?;
+    validate_graph_backend(backend).await?;
+
+    // Validate Vector Index
+    let index = vector_index.ok_or_else(|| {
+        ValidationError::BackendMisconfigured("Vector index not provided for REAL mode".to_string())
+    })?;
+    validate_vector_index(index, expected_dim)?;
+
+    Ok(())
+}
+
+/// Legacy validation function for Neo4j-specific backends (deprecated)
+///
+/// Use the generic validate_real_backend instead.
+#[deprecated(note = "Use generic validate_real_backend with GraphBackend instead")]
+pub async fn validate_real_backend_neo4j(
     backend_mode: RaggraphBackendMode,
     neo4j_client: Option<&Neo4jClient>,
     vector_index: Option<&Arc<Mutex<dyn VectorIndex>>>,
@@ -124,10 +169,10 @@ mod tests {
 
     #[test]
     fn test_validation_error_display() {
-        let err = ValidationError::Neo4jUnavailable("connection refused".to_string());
+        let err = ValidationError::GraphBackendUnavailable("connection refused".to_string());
         let msg = err.to_string();
-        assert!(msg.contains("Neo4j connection unavailable"));
-        assert!(msg.contains("NEO4J_URI"));
+        assert!(msg.contains("Graph backend unavailable"));
+        assert!(msg.contains("GRAPH_BACKEND"));
     }
 
     #[test]

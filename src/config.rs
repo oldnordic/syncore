@@ -407,6 +407,35 @@ impl Default for HttpConfig {
     }
 }
 
+/// Reasoning backend configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReasoningConfig {
+    #[serde(default = "default_reasoning_backend")]
+    pub backend: String,
+    #[serde(default = "default_reasoning_namespace")]
+    pub namespace: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_reasoning_backend() -> String {
+    "sqlite".to_string()
+}
+
+fn default_reasoning_namespace() -> String {
+    "syncore_default".to_string()
+}
+
+impl Default for ReasoningConfig {
+    fn default() -> Self {
+        Self {
+            backend: default_reasoning_backend(),
+            namespace: default_reasoning_namespace(),
+            enabled: default_true(),
+        }
+    }
+}
+
 /// Main SynCore configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyncoreConfig {
@@ -431,6 +460,9 @@ pub struct SyncoreConfig {
     /// APEX 2.0-M-FIX: Memory configuration
     #[serde(default)]
     pub memory: MemoryConfig,
+    /// PHASE ST-12: Reasoning configuration
+    #[serde(default)]
+    pub reasoning: ReasoningConfig,
 }
 
 impl SyncoreConfig {

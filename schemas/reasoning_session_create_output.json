@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reasoning Session Create Output",
+  "description": "Output from creating a new reasoning session",
+  "type": "object",
+  "required": ["session_id", "root_node_id"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "ID of the created reasoning session"
+    },
+    "root_node_id": {
+      "type": "string", 
+      "description": "ID of the created root node"
+    }
+  },
+  "additionalProperties": false
+}

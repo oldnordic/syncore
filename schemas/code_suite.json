@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Code Suite",
+  "description": "Arguments for code suite operations",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "Command to execute"
+    },
+    "file_path": {
+      "type": "string",
+      "description": "Path to code file"
+    },
+    "directory": {
+      "type": "string",
+      "description": "Directory path"
+    },
+    "pattern": {
+      "type": "string",
+      "description": "Search pattern"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "description": "Perform a dry run without making changes"
+    },
+    "query": {
+      "type": "string",
+      "description": "Search query"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Result limit"
+    },
+    "context_lines": {
+      "type": "integer",
+      "description": "Context lines for search"
+    },
+    "persist": {
+      "type": "boolean",
+      "description": "Persist to database"
+    }
+  },
+  "required": ["command"]
+}

@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Debug Suite",
+  "description": "Arguments for debug suite operations",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "Command to execute",
+      "enum": [
+        "logs_tail",
+        "tool_metadata_list",
+        "llm_health",
+        "project_file_report",
+        "project_module_map",
+        "project_hotspots",
+        "project_cycles",
+        "project_dead_code",
+        "project_unused_imports",
+        "project_refactor_suggestions",
+        "project_code_smells",
+        "project_cleanup_excluded",
+        "help"
+      ]
+    },
+    "file_path": {
+      "type": "string",
+      "description": "Path to file for analysis"
+    },
+    "n": {
+      "type": "integer",
+      "description": "Number of log entries to retrieve",
+      "minimum": 1,
+      "default": 50
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Result limit for analysis",
+      "minimum": 1
+    },
+    "root": {
+      "type": "string",
+      "description": "Root directory for project analysis"
+    },
+    "max_modules": {
+      "type": "integer",
+      "description": "Maximum modules to analyze",
+      "minimum": 1
+    },
+    "max_cycles": {
+      "type": "integer",
+      "description": "Maximum circular dependencies to detect",
+      "minimum": 1
+    },
+    "max_depth": {
+      "type": "integer",
+      "description": "Maximum depth for analysis",
+      "minimum": 1
+    },
+    "min_loc": {
+      "type": "integer",
+      "description": "Minimum lines of code threshold",
+      "minimum": 1
+    },
+    "min_fan_in": {
+      "type": "integer",
+      "description": "Minimum fan-in threshold",
+      "minimum": 0
+    },
+    "min_fan_out": {
+      "type": "integer",
+      "description": "Minimum fan-out threshold",
+      "minimum": 0
+    },
+    "min_entity_count": {
+      "type": "integer",
+      "description": "Minimum entity count threshold",
+      "minimum": 1
+    },
+    "exclude_public": {
+      "type": "boolean",
+      "description": "Exclude public entities from analysis",
+      "default": false
+    },
+    "loc_threshold": {
+      "type": "integer",
+      "description": "Lines of code threshold for refactor analysis",
+      "minimum": 1
+    },
+    "fan_in_threshold": {
+      "type": "integer",
+      "description": "Fan-in threshold for refactor analysis",
+      "minimum": 0
+    },
+    "fan_out_threshold": {
+      "type": "integer",
+      "description": "Fan-out threshold for refactor analysis",
+      "minimum": 0
+    },
+    "entity_threshold": {
+      "type": "integer",
+      "description": "Entity count threshold for refactor analysis",
+      "minimum": 1
+    }
+  },
+  "required": ["command"]
+}

@@ -1,4 +1,3 @@
-use std::fs;
 use syncore::cognition::{CogState, CogStep, Task};
 
 #[test]

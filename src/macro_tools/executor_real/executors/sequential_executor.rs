@@ -1,15 +1,11 @@
-//! Sequential Reasoning Tools Executor
+//! Sequential Tools Executor
 //!
-//! Handles execution of sequential reasoning and thought step management tools.
-//! Extracted from executor_real.rs giant match statement (lines 830-1097).
-//!
-//! Tools:
-//! - sequential_record: Record a thought step in the reasoning chain
-//! - sequential_get: Get all thought steps for a task
-//! - sequential_search: Search thought steps by semantic content
-//! - sequential_cycle: Run sequential reasoning cycles with LLM integration
+//! Handles execution of all sequential tools by routing through memory_suite.
+//! Extracted from executor_real.rs giant match statement (Phase 6.12).
 
 use crate::mcp::types::ErrorType;
+use crate::mcp_tools::memory_suite::{MemorySuite, MemorySuiteArgs};
+use crate::mcp_tools::SuiteDispatcher;
 use crate::router::SynCoreState;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -20,6 +16,26 @@ fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Va
         Some(v) if !v.is_empty() => Ok(v),
         _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
+}
+
+/// Helper: Extract optional string parameter
+fn param_str_opt(params: &Value, key: &str) -> Option<String> {
+    params.get(key).and_then(|v| v.as_str()).map(|s| s.to_string())
+}
+
+/// Helper: Extract optional i64 parameter
+fn param_i64_opt(params: &Value, key: &str) -> Option<i64> {
+    params.get(key).and_then(|v| v.as_i64())
+}
+
+/// Helper: Extract optional i32 parameter
+fn param_i32_opt(params: &Value, key: &str) -> Option<i32> {
+    params.get(key).and_then(|v| v.as_i64()).map(|v| v as i32)
+}
+
+/// Helper: Extract optional usize parameter
+fn param_usize_opt(params: &Value, key: &str) -> Option<usize> {
+    params.get(key).and_then(|v| v.as_u64()).map(|v| v as usize)
 }
 
 /// Helper: Wrap error response
@@ -46,9 +62,132 @@ fn wrap_success(tool: &str, data: Value) -> Value {
     })
 }
 
-/// Helper: Wrap error with state access
-fn wrap_error(tool: &str, error: &str) -> Value {
-    wrap_error_static(tool, error)
+/// Route sequential tool through memory suite
+async fn route_through_memory_suite(
+    tool: &str,
+    state: &Arc<SynCoreState>,
+    params: &Value,
+    dry_run: bool,
+) -> anyhow::Result<Value> {
+    // Create memory suite
+    let memory_suite = MemorySuite::new((**state).clone());
+
+    // Convert tool name to memory suite command
+    let command = tool.strip_prefix("sequential_")
+        .unwrap_or(tool);
+
+    // Build MemorySuiteArgs from params
+    let mut suite_args = MemorySuiteArgs {
+        command: command.to_string(),
+        key: param_str_opt(params, "key"),
+        value: param_str_opt(params, "value"),
+        text: param_str_opt(params, "text"),
+        query: param_str_opt(params, "query"),
+        limit: param_usize_opt(params, "limit"),
+        namespace: param_str_opt(params, "namespace"),
+        goal: param_str_opt(params, "goal"),
+        priority: param_i32_opt(params, "priority").map(|p| p as i32),
+        task_id: param_i64_opt(params, "task_id"),
+        depends_on_task_id: param_i64_opt(params, "depends_on_task_id"),
+        step_number: param_i32_opt(params, "step_number"),
+        thought: param_str_opt(params, "thought"),
+        reasoning: param_str_opt(params, "reasoning"),
+        action: param_str_opt(params, "action"),
+        observation: param_str_opt(params, "observation"),
+        max_cycles: param_usize_opt(params, "max_cycles"),
+        sequence_id: param_str_opt(params, "sequence_id"),
+        context: param_str_opt(params, "context"),
+        depth: param_i32_opt(params, "depth"),
+        max_steps: param_usize_opt(params, "max_steps"),
+        to: param_str_opt(params, "to"),
+        from: param_str_opt(params, "from"),
+        agent: param_str_opt(params, "agent"),
+        id: param_str_opt(params, "id"),
+        message: param_str_opt(params, "message"),
+        capabilities: params.get("capabilities").and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
+        status: params.get("status").cloned(),
+        task_type: param_str_opt(params, "task_type"),
+        payload: params.get("payload").cloned(),
+        result: params.get("result").cloned(),
+        timeout_ms: params.get("timeout_ms").and_then(|v| v.as_u64()),
+        prd_content: param_str_opt(params, "prd_content"),
+        parent_task_id: param_str_opt(params, "parent_task_id"),
+        parent_task_json: param_str_opt(params, "parent_task_json"),
+        tasks_json: param_str_opt(params, "tasks_json"),
+        business_context: param_str_opt(params, "business_context"),
+        completed_tasks: params.get("completed_tasks").and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
+        remaining_tasks_json: param_str_opt(params, "remaining_tasks_json"),
+        breakdown_json: param_str_opt(params, "breakdown_json"),
+        parent_id: param_i64_opt(params, "parent_id"),
+        prd_title: param_str_opt(params, "prd_title"),
+        keywords: params.get("keywords").and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
+        tags: params.get("tags").and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
+        min_importance: params.get("min_importance").and_then(|v| v.as_f64()).map(|v| v as f32),
+        unix_timestamp: params.get("unix_timestamp").and_then(|v| v.as_u64()),
+        seconds: params.get("seconds").and_then(|v| v.as_u64()),
+        threshold: params.get("threshold").and_then(|v| v.as_f64()).map(|v| v as f32),
+        dry_run: Some(dry_run),
+    };
+
+    // Execute through memory suite
+    let result = memory_suite.execute(suite_args);
+
+    // Convert SuiteResult to executor response
+    if result.success {
+        Ok(wrap_success(tool, result.data))
+    } else {
+        let error_msg = result.error.unwrap_or_else(|| "Unknown error".to_string());
+        Ok(wrap_error_static(tool, &error_msg))
+    }
+}
+
+/// Execute sequential_next tool
+pub async fn execute_sequential_next(
+    state: &Arc<SynCoreState>,
+    params: &Value,
+    dry_run: bool,
+) -> anyhow::Result<Value> {
+    route_through_memory_suite("sequential_next", state, params, dry_run).await
+}
+
+/// Execute sequential_run tool
+pub async fn execute_sequential_run(
+    state: &Arc<SynCoreState>,
+    params: &Value,
+    dry_run: bool,
+) -> anyhow::Result<Value> {
+    route_through_memory_suite("sequential_run", state, params, dry_run).await
+}
+
+/// Execute sequential_reason tool
+pub async fn execute_sequential_reason(
+    state: &Arc<SynCoreState>,
+    params: &Value,
+    dry_run: bool,
+) -> anyhow::Result<Value> {
+    route_through_memory_suite("sequential_reason", state, params, dry_run).await
+}
+
+/// Execute sequential_status tool
+pub async fn execute_sequential_status(
+    state: &Arc<SynCoreState>,
+    params: &Value,
+    dry_run: bool,
+) -> anyhow::Result<Value> {
+    route_through_memory_suite("sequential_status", state, params, dry_run).await
+}
+
+/// Execute sequential_reset tool
+pub async fn execute_sequential_reset(
+    state: &Arc<SynCoreState>,
+    params: &Value,
+    dry_run: bool,
+) -> anyhow::Result<Value> {
+    route_through_memory_suite("sequential_reset", state, params, dry_run).await
 }
 
 /// Execute sequential_record tool
@@ -57,62 +196,7 @@ pub async fn execute_sequential_record(
     params: &Value,
     dry_run: bool,
 ) -> anyhow::Result<Value> {
-    // Parse required parameters
-    let task_id = params.get("task_id").and_then(|t| t.as_i64());
-    let step_number = match params.get("step_number").and_then(|v| v.as_i64()) {
-        Some(v) => v as i32,
-        None => {
-            return Ok(wrap_error_static("sequential_record", "Missing 'step_number' parameter"))
-        }
-    };
-    let thought = match param_str("sequential_record", params, "thought") {
-        Ok(v) => v,
-        Err(e) => return Ok(e),
-    };
-    let reasoning = match param_str("sequential_record", params, "reasoning") {
-        Ok(v) => v,
-        Err(e) => return Ok(e),
-    };
-    let action = params.get("action").and_then(|a| a.as_str());
-    let observation = params.get("observation").and_then(|o| o.as_str());
-
-    if dry_run {
-        let result = wrap_success(
-            "sequential_record",
-            json!({
-                "dry_run": true,
-                "message": "[DRY RUN] Would record thought step",
-                "step_id": 1
-            }),
-        );
-        return Ok(result);
-    }
-
-    // Record step using SequentialStep
-    use crate::portfolio::sequential_step::{SequentialStep, ThoughtStep};
-    let sequential = SequentialStep::new((**state).clone());
-
-    let step = ThoughtStep {
-        task_id,
-        step_number,
-        thought: thought.to_string(),
-        action: action.map(|s| s.to_string()),
-        observation: observation.map(|s| s.to_string()),
-        reasoning: reasoning.to_string(),
-    };
-
-    let step_id = sequential
-        .record_step(&step)
-        .map_err(|e| anyhow::anyhow!("Failed to record step: {}", e))?;
-
-    Ok(wrap_success(
-        "sequential_record",
-        json!({
-            "success": true,
-            "step_id": step_id,
-            "message": "Thought step recorded successfully"
-        }),
-    ))
+    route_through_memory_suite("sequential_record", state, params, dry_run).await
 }
 
 /// Execute sequential_get tool
@@ -121,42 +205,7 @@ pub async fn execute_sequential_get(
     params: &Value,
     dry_run: bool,
 ) -> anyhow::Result<Value> {
-    // PARAMETER VALIDATION - MUST BE FIRST
-    let task_id = match params.get("task_id").and_then(|v| v.as_i64()) {
-        Some(v) => v,
-        None => return Ok(wrap_error_static("sequential_get", "Missing 'task_id' parameter")),
-    };
-
-    if dry_run {
-        let result = wrap_success(
-            "sequential_get",
-            json!({
-                "dry_run": true,
-                "message": format!("[DRY RUN] Would get steps for task: {}", task_id),
-                "task_id": task_id,
-                "steps": [],
-                "count": 0
-            }),
-        );
-        return Ok(result);
-    }
-
-    // Get steps using SequentialStep
-    use crate::portfolio::sequential_step::SequentialStep;
-    let sequential = SequentialStep::new((**state).clone());
-
-    let steps = sequential
-        .get_steps_for_task(task_id)
-        .map_err(|e| anyhow::anyhow!("Failed to get steps: {}", e))?;
-
-    Ok(wrap_success(
-        "sequential_get",
-        json!({
-            "task_id": task_id,
-            "steps": steps,
-            "count": steps.len()
-        }),
-    ))
+    route_through_memory_suite("sequential_get", state, params, dry_run).await
 }
 
 /// Execute sequential_search tool
@@ -165,61 +214,7 @@ pub async fn execute_sequential_search(
     params: &Value,
     dry_run: bool,
 ) -> anyhow::Result<Value> {
-    let query = match param_str("sequential_search", params, "query") {
-        Ok(v) => v,
-        Err(e) => return Ok(e),
-    };
-
-    if dry_run {
-        let result = wrap_success(
-            "sequential_search",
-            json!({
-                "dry_run": true,
-                "message": format!("[DRY RUN] Would search for: {}", query),
-                "query": query,
-                "results": [],
-                "count": 0
-            }),
-        );
-        return Ok(result);
-    }
-
-    // Search steps using SequentialStep with 3s timeout
-    use crate::portfolio::sequential_step::SequentialStep;
-    use std::time::Duration;
-
-    let sequential = SequentialStep::new((**state).clone());
-    let query_owned = query.to_string();
-
-    let results = match tokio::time::timeout(
-        Duration::from_secs(3),
-        tokio::task::spawn_blocking(move || sequential.search_steps(&query_owned)),
-    )
-    .await
-    {
-        Ok(Ok(Ok(steps))) => steps,
-        Ok(Ok(Err(e))) => {
-            return Ok(wrap_error("sequential_search", &format!("IoError: Search failed: {}", e)))
-        }
-        Ok(Err(e)) => {
-            return Ok(wrap_error("sequential_search", &format!("Internal: Task failed: {}", e)))
-        }
-        Err(_) => {
-            return Ok(wrap_error(
-                "sequential_search",
-                "Timeout: sequential_search exceeded 3 seconds",
-            ))
-        }
-    };
-
-    Ok(wrap_success(
-        "sequential_search",
-        json!({
-            "query": query,
-            "results": results,
-            "count": results.len()
-        }),
-    ))
+    route_through_memory_suite("sequential_search", state, params, dry_run).await
 }
 
 /// Execute sequential_cycle tool
@@ -228,98 +223,5 @@ pub async fn execute_sequential_cycle(
     params: &Value,
     dry_run: bool,
 ) -> anyhow::Result<Value> {
-    let max_cycles =
-        params.get("max_cycles").and_then(|m| m.as_u64()).map(|m| m as usize).unwrap_or(1);
-
-    if dry_run {
-        let result = wrap_success(
-            "sequential_cycle",
-            json!({
-                "dry_run": true,
-                "message": "[DRY RUN] Would run sequential reasoning cycle",
-                "max_cycles": max_cycles,
-                "success": true
-            }),
-        );
-        return Ok(result);
-    }
-
-    // REAL IMPLEMENTATION - Run actual sequential reasoning cycle
-    use crate::ollama::OllamaConfig;
-    use crate::sequential::{OllamaLanguageModel, SequentialCore};
-    use std::sync::Mutex;
-
-    // Create Ollama configuration
-    let model_name =
-        std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:3B".to_string());
-
-    let config = OllamaConfig {
-        model: model_name.clone(),
-        temperature: 0.7,
-        max_tokens: 2000,
-        timeout_secs: 60,
-    };
-
-    let llm = match OllamaLanguageModel::new(config) {
-        Ok(llm) => Arc::new(Mutex::new(llm)) as Arc<Mutex<dyn crate::sequential::LanguageModel>>,
-        Err(e) => {
-            return Ok(wrap_error(
-                "sequential_cycle",
-                &format!(
-                    "Failed to initialize Ollama language model with model '{}': {}. \
-                Ensure Ollama is installed and the model is available (ollama pull {}).",
-                    model_name, e, model_name
-                ),
-            ));
-        }
-    };
-
-    // Create sequential reasoning engine
-    let reasoning = SequentialCore::new(
-        Arc::clone(&state.tasks),
-        Arc::clone(&state.general_store),
-        Arc::clone(&state.memory),
-        llm,
-        state.logger.clone(),
-    );
-
-    // Execute the reasoning cycle
-    match reasoning.run_cycle() {
-        Ok(result) => {
-            use crate::sequential::CycleResult;
-            match result {
-                CycleResult::Completed {
-                    task_id,
-                    thought,
-                    decision,
-                    actions,
-                    action_results,
-                    reflection,
-                } => Ok(wrap_success(
-                    "sequential_cycle",
-                    json!({
-                        "success": true,
-                        "task_id": task_id,
-                        "thought": thought,
-                        "decision": decision,
-                        "actions": actions,
-                        "action_results": action_results,
-                        "reflection": reflection,
-                        "message": "Sequential reasoning cycle completed successfully"
-                    }),
-                )),
-                CycleResult::NoTasks => Ok(wrap_success(
-                    "sequential_cycle",
-                    json!({
-                        "success": true,
-                        "cycles": 0,
-                        "message": "No tasks available for processing"
-                    }),
-                )),
-            }
-        }
-        Err(e) => {
-            Ok(wrap_error("sequential_cycle", &format!("Sequential reasoning cycle failed: {}", e)))
-        }
-    }
+    route_through_memory_suite("sequential_cycle", state, params, dry_run).await
 }

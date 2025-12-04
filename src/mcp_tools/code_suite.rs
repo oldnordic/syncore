@@ -15,9 +15,11 @@
 //! - `help`: Show available commands
 
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
+use crate::mcp_tools::streaming::OutputLimiter;
 use crate::query::{PipelineExecutor, QueryConstraints, QueryPlanner};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::path::Path;
 
 /// Code suite arguments
@@ -684,7 +686,36 @@ impl SuiteDispatcher for CodeSuite {
             Err(e) => return SuiteResult::err(command, format!("Invalid arguments: {}", e)),
         };
         suite_args.command = command.to_string();
-        self.execute(suite_args)
+
+        let result = self.execute(suite_args);
+
+        // Apply streaming contract enforcement to successful responses
+        if result.success {
+            let limiter = OutputLimiter::default();
+            let result_json = json!({
+                "command": command,
+                "data": result.data
+            });
+
+            match limiter.apply_json(&result_json) {
+                Ok(limited_json) => {
+                    // Extract the limited data back
+                    if let Some(limited_data) = limited_json.get("data") {
+                        SuiteResult {
+                            success: true,
+                            command: command.to_string(),
+                            data: limited_data.clone(),
+                            error: None,
+                        }
+                    } else {
+                        result
+                    }
+                },
+                Err(_) => result, // Fallback to original result on error
+            }
+        } else {
+            result
+        }
     }
 
     fn list_commands(&self) -> Vec<&'static str> {

@@ -1,0 +1,77 @@
+{
+  "analysis_timestamp": "2025-12-03T12:00:00Z",
+  "phase": "M.2_in_progress",
+  "runtime_tools": {
+    "total_count": 34,
+    "individual_tools": [
+      "document_search",
+      "document_index", 
+      "vector_insert",
+      "vector_search",
+      "code_search",
+      "code_index",
+      "code_index_directory",
+      "graph_query",
+      "graph_insert",
+      "graph_relate",
+      "graph_suite",
+      "memory_query",
+      "memory_store",
+      "parser_search",
+      "parser_analyze",
+      "task_create",
+      "task_list",
+      "task_get",
+      "task_update",
+      "task_next",
+      "debug_suite",
+      "mapping_suite",
+      "reasoning_session_create",
+      "reasoning_branch_expand",
+      "reasoning_tree_get",
+      "reasoning_tree_prune",
+      "intellitask_generate",
+      "intellitask_subtasks",
+      "intellitask_prioritize",
+      "intellitask_next",
+      "intellitask_save",
+      "intellitask_get",
+      "intellitask_list",
+      "intellitask_update_status"
+    ]
+  },
+  "canonical_suites": {
+    "total_suites": 5,
+    "suite_names": [
+      "code_suite",
+      "graph_suite", 
+      "memory_suite",
+      "debug_suite",
+      "mapping_suite"
+    ]
+  },
+  "discrepancies": {
+    "mismatch_1": "Runtime exposes 34 individual tools, canonical schemas define 5 suites",
+    "mismatch_2": "Some runtime tools match suite names (graph_suite, debug_suite, mapping_suite) but others don't",
+    "mismatch_3": "Canonical schemas expect suite-based interface but runtime implements individual tools",
+    "missing_suites": ["code_suite", "memory_suite"],
+    "orphaned_tools": [
+      "document_search",
+      "document_index",
+      "vector_insert", 
+      "vector_search",
+      "code_search",
+      "code_index",
+      "code_index_directory",
+      "graph_query",
+      "graph_insert",
+      "graph_relate",
+      "memory_query",
+      "memory_store",
+      "parser_search",
+      "parser_analyze"
+    ]
+  },
+  "alignment_status": "NEEDS_REALIGNMENT",
+  "recommended_action": "Update canonical schemas to match runtime individual tool approach"
+}

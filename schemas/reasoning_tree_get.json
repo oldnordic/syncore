@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reasoning Tree Get",
+  "description": "Retrieve reasoning tree for a session",
+  "type": "object",
+  "required": ["session_id"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "ID of reasoning session",
+      "minLength": 1,
+      "maxLength": 100
+    }
+  },
+  "additionalProperties": false
+}

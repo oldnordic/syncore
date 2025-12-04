@@ -14,7 +14,7 @@ use serde_json::Value;
 use std::sync::{Arc, Mutex};
 
 /// SQLiteGraph backend implementation
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SQLiteGraphBackend {
     code_graph: Arc<CodeGraph>,
     namespace: String,

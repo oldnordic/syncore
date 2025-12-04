@@ -17,7 +17,8 @@ use syncore::cognition::intent_classifier::QueryIntent;
 use syncore::cognition::pattern_engine::ReasoningPattern;
 use syncore::cognition::reasoning_ledger::ReasoningEpisode;
 use syncore::cognition::self_consistency::{
-    evaluate_self_consistency, SelfConsistencyIssueKind, SelfConsistencySeverity,
+    evaluate_self_consistency, SelfConsistencyConfig, SelfConsistencyIssueKind,
+    SelfConsistencySeverity,
 };
 
 static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -76,13 +77,15 @@ fn test_repeated_failed_sequence_detected() -> Result<()> {
 
     let result = evaluate_self_consistency(
         "apply patch",
-        &QueryIntent::Symbolic,
-        "simple",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &recommended_patterns,
-        &episodes,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Symbolic,
+            selected_mode: "simple",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &recommended_patterns,
+            ledger_episodes: &episodes,
+        },
     );
 
     // Should detect repeated failure
@@ -140,13 +143,15 @@ fn test_conflicting_pattern_with_better_success_rate() -> Result<()> {
 
     let result = evaluate_self_consistency(
         "test",
-        &QueryIntent::Symbolic,
-        "simple",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &recommended_patterns,
-        &episodes,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Symbolic,
+            selected_mode: "simple",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &recommended_patterns,
+            ledger_episodes: &episodes,
+        },
     );
 
     // Should detect conflict
@@ -176,13 +181,15 @@ fn test_graph_inconsistency_when_no_graph_entities_present() -> Result<()> {
 
     let result = evaluate_self_consistency(
         "query graph",
-        &QueryIntent::Semantic,
-        "reasoning",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &recommended_patterns,
-        &episodes,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Semantic,
+            selected_mode: "reasoning",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &recommended_patterns,
+            ledger_episodes: &episodes,
+        },
     );
 
     // Should detect graph inconsistency
@@ -229,13 +236,15 @@ fn test_namespace_mismatch() -> Result<()> {
 
     let result = evaluate_self_consistency(
         "test",
-        &QueryIntent::Symbolic,
-        "simple",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &recommended_patterns,
-        &episodes,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Symbolic,
+            selected_mode: "simple",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &recommended_patterns,
+            ledger_episodes: &episodes,
+        },
     );
 
     // Should detect namespace mismatch
@@ -276,13 +285,15 @@ fn test_tool_order_suspicious_against_success_patterns() -> Result<()> {
 
     let result = evaluate_self_consistency(
         "analyze code",
-        &QueryIntent::Semantic,
-        "attention",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &recommended_patterns,
-        &episodes,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Semantic,
+            selected_mode: "attention",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &recommended_patterns,
+            ledger_episodes: &episodes,
+        },
     );
 
     // Should detect suspicious ordering
@@ -326,13 +337,15 @@ fn test_missing_required_step_detected() -> Result<()> {
 
     let result = evaluate_self_consistency(
         "trace flow",
-        &QueryIntent::Causal,
-        "reasoning",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &recommended_patterns,
-        &episodes,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Causal,
+            selected_mode: "reasoning",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &recommended_patterns,
+            ledger_episodes: &episodes,
+        },
     );
 
     // Should detect missing step
@@ -408,13 +421,15 @@ fn test_potential_loop_detected_from_continuity() -> Result<()> {
 
     let result = evaluate_self_consistency(
         "test",
-        &QueryIntent::Symbolic,
-        "simple",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &recommended_patterns,
-        &episodes,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Symbolic,
+            selected_mode: "simple",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &recommended_patterns,
+            ledger_episodes: &episodes,
+        },
     );
 
     // Should detect potential loop
@@ -436,13 +451,15 @@ fn test_score_decreases_with_issue_severity() -> Result<()> {
 
     let result_clean = evaluate_self_consistency(
         "test",
-        &QueryIntent::Symbolic,
-        "simple",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &Vec::new(),
-        &Vec::new(),
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Symbolic,
+            selected_mode: "simple",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &Vec::new(),
+            ledger_episodes: &Vec::new(),
+        },
     );
 
     // Scenario 2: Create episodes that will trigger warnings
@@ -460,13 +477,15 @@ fn test_score_decreases_with_issue_severity() -> Result<()> {
 
     let result_warn = evaluate_self_consistency(
         "test",
-        &QueryIntent::Symbolic,
-        "simple",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &Vec::new(),
-        &episodes_warn,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Symbolic,
+            selected_mode: "simple",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &Vec::new(),
+            ledger_episodes: &episodes_warn,
+        },
     );
 
     // Scenario 3: Multiple failures (errors)
@@ -508,13 +527,15 @@ fn test_score_decreases_with_issue_severity() -> Result<()> {
 
     let result_error = evaluate_self_consistency(
         "test",
-        &QueryIntent::Symbolic,
-        "simple",
-        &planned_tools,
-        &context_bundle,
-        &continuity,
-        &Vec::new(),
-        &episodes_error,
+        SelfConsistencyConfig {
+            intent: &QueryIntent::Symbolic,
+            selected_mode: "simple",
+            planned_tools: &planned_tools,
+            context_bundle: &context_bundle,
+            continuity: &continuity,
+            recommended_patterns: &Vec::new(),
+            ledger_episodes: &episodes_error,
+        },
     );
 
     // Scores should decrease with severity

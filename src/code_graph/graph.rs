@@ -13,6 +13,7 @@ use std::sync::{Arc, Mutex};
 type EntityQueryRow = (i64, String, String, Option<String>, Option<String>);
 
 /// Main code graph structure for indexing and searching code
+#[derive(Debug)]
 pub struct CodeGraph {
     pub(super) db: Arc<Mutex<Connection>>,
     pub(super) vector_store: Arc<Mutex<VectorStore>>,

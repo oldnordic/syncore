@@ -129,26 +129,80 @@ async fn main() -> Result<()> {
         state = state.with_message_bus(bus);
     }
 
-    // Initialize IntelliTask with Ollama backend
+    // Configure graph backend from configuration (Phase G4 requirement)
+    {
+        eprintln!("Loading graph backend configuration...");
+        let config = SyncoreConfig::load_with_env("config/syncore.toml")
+            .unwrap_or_else(|e| {
+                eprintln!("Warning: Failed to load config, using defaults: {}", e);
+                let mut config = SyncoreConfig::default();
+                config.apply_env_overrides();
+                config
+            });
+
+        // Apply configuration-driven backend selection
+        state = match state.clone().with_graph_backend_from_config(&config).await {
+            Ok(updated_state) => {
+                eprintln!("Graph backend configured: {:?}", config.graph.backend);
+                updated_state
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to configure graph backend: {}", e);
+                // Continue without graph backend - raggraph methods will create fallback SQLiteGraph
+                state
+            }
+        };
+    }
+
+    // Initialize IntelliTask with Candle GGUFEngine backend
     {
         use std::sync::Arc;
         use syncore::intellitask::IntelliTask;
-        use syncore::ollama::OllamaClient;
+        use syncore::llm::LanguageModel;
+        use syncore::models::gguf_engine::GGUFEngine;
 
-        eprintln!("Initializing IntelliTask with Ollama backend...");
+        eprintln!("Initializing IntelliTask with REAL GGUFEngine backend...");
 
-        match OllamaClient::new_default() {
-            Ok(ollama) => {
-                let intellitask = Arc::new(IntelliTask::new(ollama));
-                state = state.with_intellitask(intellitask);
-                eprintln!("IntelliTask initialized successfully");
-            }
-            Err(e) => {
-                eprintln!("IntelliTask initialization failed: {}", e);
-                eprintln!("IntelliTask AI features will be unavailable");
-                eprintln!("Ensure Ollama is running for production");
-            }
+        // Use LlmFactory to get real model (fixed to load real GGUF instead of test)
+        use syncore::llm::factory::{LlmFactory, LlmConfig, LlmBackend};
+
+        let config = LlmConfig {
+            backend: LlmBackend::GGUFEngine,
+            model: std::env::var("SYNC_LLM_MODEL_PATH")
+                .unwrap_or_else(|_| "qwen2.5-0.5b".to_string()),
+            url: "".to_string(),
+            timeout_seconds: 30,
+        };
+
+        let llm_model: Arc<dyn LanguageModel> = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                match LlmFactory::from_config(&config).await {
+                    Ok(model_box) => Ok::<Arc<dyn LanguageModel>, anyhow::Error>(Arc::from(model_box)),
+                    Err(e) => {
+                        eprintln!("❌ Failed to create LLM from config: {}", e);
+                        // Legitimate fallback only if factory completely fails
+                        Ok::<Arc<dyn LanguageModel>, anyhow::Error>(Arc::new(GGUFEngine::new_test()) as Arc<dyn LanguageModel>)
+                    }
+                }
+            })
+        })?;
+
+        if llm_model.backend_name() != "gguf_engine" ||
+           (llm_model.backend_name() == "gguf_engine" &&
+            llm_model.complete(&syncore::llm::Prompt::new("test", "test"))
+                .map(|c| c.text.starts_with("GGUFEngine response to:"))
+                .unwrap_or(true)) {
+            eprintln!("⚠️  Using test GGUFEngine backend as fallback");
+        } else {
+            eprintln!("✅ Successfully loaded REAL GGUFEngine backend via factory");
         }
+
+        // Store LLM model in state for MCP handlers
+        state = state.with_llm_model(llm_model.clone());
+
+        let intellitask = Arc::new(IntelliTask::new(llm_model));
+        state = state.with_intellitask(intellitask);
+        eprintln!("IntelliTask initialized successfully with Candle backend");
     }
 
     // Connect to Neo4j if available
@@ -453,6 +507,11 @@ async fn main() -> Result<()> {
     }
 
     eprintln!("Starting STDIO server (Claude Code interface)...");
+
+    // Enable backwards compatibility mode for stdio by default
+    // This allows clients that don't send notifications/initialized to work
+    std::env::set_var("MCP_BACKWARDS_COMPATIBLE", "true");
+    eprintln!("[SynCore] MCP_BACKWARDS_COMPATIBLE mode enabled for stdio transport");
 
     // Run rmcp-based stdio server (blocks until shutdown)
     // If STDIO closes, HTTP server continues running

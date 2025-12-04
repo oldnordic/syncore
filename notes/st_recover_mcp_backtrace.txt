@@ -1,0 +1,69 @@
+MCP server error: ConnectionClosed("initialized request")
+STDIO server error: connection closed: initialized request
+
+Stack backtrace:
+   0: anyhow::error::<impl core::convert::From<E> for anyhow::Error>::from
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.100/src/backtrace.rs:27:14
+   1: <core::result::Result<T,F> as core::ops::try_trait::FromResidual<core::result::Result<core::convert::Infallible,E>>>::from_residual
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/result.rs:2177:27
+   2: syncore::mcp_server::server::run_mcp_stdio_server::{{closure}}
+             at ./src/mcp_server/server.rs:2365:19
+   3: syncore_mcp_stdio::main::{{closure}}
+             at ./src/mcp_stdio_main.rs:459:39
+   4: <core::pin::Pin<P> as core::future::future::Future>::poll
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/future/future.rs:133:9
+   5: tokio::runtime::park::CachedParkThread::block_on::{{closure}}
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/runtime/park.rs:285:71
+   6: tokio::task::coop::with_budget
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/task/coop/mod.rs:167:5
+   7: tokio::task::coop::budget
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/task/coop/mod.rs:133:5
+   8: tokio::runtime::park::CachedParkThread::block_on
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/runtime/park.rs:285:31
+   9: tokio::runtime::context::blocking::BlockingRegionGuard::block_on
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949b5b557f/tokio-1.48.0/src/runtime/context/blocking.rs:66:14
+  10: tokio::runtime::scheduler::multi_thread::MultiThread::block_on::{{closure}}
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/runtime/scheduler/multi_thread/mod.rs:87:22
+  11: tokio::runtime::context::runtime::enter_runtime
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/runtime/context/runtime.rs:65:16
+  12: tokio::runtime::scheduler::multi_thread::MultiThread::block_on
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/runtime/scheduler/multi_thread/mod.rs:86:9
+  13: tokio::runtime::runtime::Runtime::block_on_inner
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/runtime/runtime.rs:370:50
+  14: tokio::runtime::runtime::Runtime::block_on
+             at /home/feanor/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.48.0/src/runtime/runtime.rs:340:18
+  15: syncore_mcp_stdio::main
+             at ./src/mcp_stdio_main.rs:470:7
+  16: core::ops::function::FnOnce::call_once
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core/src/ops/function.rs:250:5
+  17: std::sys::backtrace::__rust_begin_short_backtrace
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/sys/backtrace.rs:158:18
+  18: std::rt::lang_start::{{closure}}
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:206:18
+  19: core::ops::function::impls::<impl core::ops::function::FnOnce<A> for &F>::call_once
+             at /rustc/ed61e7d7e242494fb7057f2657300d9e77bb4fcb/library/core/src/ops/function.rs:287:21
+  20: std::panicking::catch_unwind::do_call
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panicking.rs:590:40
+  21: std::panicking::catch_unwind
+             at /home/feanor/.rustup/toolchains/stable-x/rustc/ed61e7d7e242494fb7057f2657300d9e77bb4fcb/library/std/src/panicking.rs:553:19
+  22: std::panic::catch_unwind
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panic.rs:359:14
+  23: std::rt::lang_start_internal::{{closure}}
+             at /home/feanor/.rustup/toolchains/stable-x86/rustc/ed61e7d7e242494fb7057f2657300d9e77bb4fcb/library/std/src/rt.rs:175:24
+  24: std::panicking::catch_unwind::do_call
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panicking.rs:590:40
+  25: std::panicking::catch_unwind
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panicking.rs:553:19
+  26: std::panic::catch_unwind
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/panic.rs:359:14
+  27: std::rt::lang_start_internal
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:171:5
+  28: std::rt::lang_start
+             at /home/feanor/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/std/src/rt.rs:205:5
+  29: main
+  30: <unknown>
+  31: __libc_start_main
+  32: _start
+
+CRASH LOCATION: src/mcp_server/server.rs:2365:19
+ERROR: ConnectionClosed("initialized request")

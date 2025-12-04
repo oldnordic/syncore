@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -10,6 +10,11 @@ pub static RPC_INFLIGHT: AtomicU64 = AtomicU64::new(0);
 pub static VEC_POINTS_TOTAL: AtomicU64 = AtomicU64::new(0);
 pub static TASKS_OPEN_TOTAL: AtomicU64 = AtomicU64::new(0);
 pub static VEC_SNAPSHOTS_TOTAL: AtomicU64 = AtomicU64::new(0);
+
+// Global reasoning metrics snapshot
+lazy_static::lazy_static! {
+    pub static ref REASONING_METRICS: Arc<Mutex<Option<crate::reasoning::metrics::ReasoningMetricsSnapshot>>> = Arc::new(Mutex::new(None));
+}
 
 // Simple latency histogram (bucketed)
 #[derive(Default)]
@@ -87,8 +92,17 @@ pub async fn start_metrics_server(addr: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Update global reasoning metrics snapshot
+pub fn update_reasoning_metrics(snapshot: crate::reasoning::metrics::ReasoningMetricsSnapshot) {
+    let mut global_snapshot = REASONING_METRICS.lock().unwrap();
+    *global_snapshot = Some(snapshot);
+}
+
 fn get_all_metrics() -> serde_json::Value {
-    serde_json::json!({
+    // Get reasoning metrics snapshot if available
+    let reasoning_snapshot = REASONING_METRICS.lock().unwrap().clone();
+
+    let mut metrics = serde_json::json!({
         "counters": {
             "syncore_rpc_inflight": RPC_INFLIGHT.load(Ordering::Relaxed),
             "syncore_vec_points": VEC_POINTS_TOTAL.load(Ordering::Relaxed),
@@ -96,7 +110,14 @@ fn get_all_metrics() -> serde_json::Value {
             "syncore_vec_snapshots_total": VEC_SNAPSHOTS_TOTAL.load(Ordering::Relaxed),
         },
         "latency_buckets": LATENCY_HIST.get_metrics()
-    })
+    });
+
+    // Add reasoning metrics block if available
+    if let Some(snapshot) = reasoning_snapshot {
+        metrics["reasoning"] = serde_json::to_value(snapshot).unwrap_or_default();
+    }
+
+    metrics
 }
 
 // Macro for easy timing

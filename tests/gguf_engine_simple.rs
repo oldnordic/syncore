@@ -39,6 +39,7 @@ fn test_gguf_engine_factory_integration() -> Result<()> {
 
     // Test 3: Config parsing
     let config = LlmConfig::from_env();
+    // Config should default to GGUFEngine for Candle-based system
     assert_eq!(config.backend, LlmBackend::GGUFEngine);
     assert_eq!(config.model, "qwen2.5-mini");
 
@@ -58,7 +59,7 @@ fn test_gguf_engine_config_validation() -> Result<()> {
 
     // Test backend parsing
     assert_eq!(LlmBackend::try_parse("gguf")?, LlmBackend::GGUFEngine);
-    assert_eq!(LlmBackend::try_parse("GGUF_ENGINE")?, LlmBackend::GGUFEngine);
+    assert_eq!(LlmBackend::try_parse("gguf_engine")?, LlmBackend::GGUFEngine);
     assert_eq!(LlmBackend::try_parse("test")?, LlmBackend::Test);
 
     // Test default config

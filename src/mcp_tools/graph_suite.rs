@@ -10,8 +10,10 @@
 
 use crate::databases::neo4j::RelationType as Neo4jRelationType;
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
+use crate::mcp_tools::streaming::OutputLimiter;
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 /// Graph suite arguments
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,7 +204,7 @@ impl GraphSuite {
 
         use crate::raggraph::{
             validate_real_backend, RagGraphConfig, RagQuery, RaggraphBackendMode,
-            RealStorageAdapter,
+            RealStorageAdapter, SQLiteGraphStorageAdapter,
         };
         use std::sync::{Arc, Mutex};
 
@@ -210,42 +212,66 @@ impl GraphSuite {
         let config = RagGraphConfig::from_env();
 
         let query_engine = if config.backend_mode == RaggraphBackendMode::Real {
-            // Real mode: requires VectorStore + Neo4j
-            if let Some(ref neo4j) = self.state.neo4j {
-                // Use CODE domain store for graph operations (code entities)
-                let vector_index =
-                    self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+            // Real mode: requires VectorStore + GraphBackend
+            let vector_index =
+                self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
 
-                let dimension = {
-                    use crate::vector::VectorIndex;
-                    let store = self.state.code_store.lock().unwrap();
-                    VectorIndex::dimension(&*store).unwrap_or(384)
+            let dimension = {
+                use crate::vector::VectorIndex;
+                let store = self.state.code_store.lock().unwrap();
+                VectorIndex::dimension(&*store).unwrap_or(384)
+            };
+
+            // Use SQLiteGraph as the default graph backend
+            let graph_backend = if let Some(ref backend) = self.state.graph_backend {
+                backend.clone()
+            } else {
+                // Fallback: create SQLiteGraph backend
+                use crate::graph::backend_selector::create_default_graph_backend;
+                let graph_config = crate::config::GraphConfig {
+                    backend: crate::config::GraphBackend::SqliteGraph,
+                    path: crate::common::db_paths::code_graph_db_path(),
+                    uri: String::new(),
+                    user: String::new(),
+                    password: String::new(),
+                    enabled: true,
                 };
 
-                // Validate backend
-                let validation_result = tokio::task::block_in_place(|| {
+                let backend_result = tokio::task::block_in_place(|| {
                     tokio::runtime::Handle::current().block_on(async {
-                        validate_real_backend(
-                            config.backend_mode,
-                            Some(&**neo4j),
-                            Some(&vector_index),
-                            dimension,
-                        )
-                        .await
+                        create_default_graph_backend(&graph_config).await
                     })
                 });
-
-                if let Err(e) = validation_result {
-                    return SuiteResult::err("rag_query", format!("Validation failed: {}", e));
+                match backend_result {
+                    Ok(backend) => backend,
+                    Err(e) => return SuiteResult::err("rag_query", format!("Failed to create SQLiteGraph backend: {}", e)),
                 }
+            };
 
-                let storage =
-                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
+            // Validate backend
+            let validation_result = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    validate_real_backend(
+                        config.backend_mode,
+                        Some(graph_backend.as_ref() as &dyn crate::graph::GraphBackend),
+                        Some(&vector_index),
+                        dimension,
+                    )
+                    .await
+                })
+            });
 
-                RagQuery::with_storage(config.clone(), storage)
-            } else {
-                return SuiteResult::err("rag_query", "Neo4j not available for real mode");
+            if let Err(e) = validation_result {
+                return SuiteResult::err("rag_query", format!("Validation failed: {}", e));
             }
+
+            let storage = Arc::new(SQLiteGraphStorageAdapter::new(
+                vector_index,
+                graph_backend,
+                dimension,
+            ));
+
+            RagQuery::with_storage(config.clone(), storage)
         } else {
             // Mock mode
             RagQuery::new()
@@ -274,7 +300,7 @@ impl GraphSuite {
 
         use crate::raggraph::{
             validate_real_backend, HopGraphTransformer, RagGraphConfig, RaggraphBackendMode,
-            RealStorageAdapter,
+            RealStorageAdapter, SQLiteGraphStorageAdapter,
         };
         use std::sync::{Arc, Mutex};
 
@@ -282,42 +308,66 @@ impl GraphSuite {
         let config = RagGraphConfig::from_env();
 
         let transformer = if config.backend_mode == RaggraphBackendMode::Real {
-            // Real mode: requires VectorStore + Neo4j
-            if let Some(ref neo4j) = self.state.neo4j {
-                // Use CODE domain store for graph operations (code entities)
-                let vector_index =
-                    self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+            // Real mode: requires VectorStore + GraphBackend
+            let vector_index =
+                self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
 
-                let dimension = {
-                    use crate::vector::VectorIndex;
-                    let store = self.state.code_store.lock().unwrap();
-                    VectorIndex::dimension(&*store).unwrap_or(384)
+            let dimension = {
+                use crate::vector::VectorIndex;
+                let store = self.state.code_store.lock().unwrap();
+                VectorIndex::dimension(&*store).unwrap_or(384)
+            };
+
+            // Use SQLiteGraph as the default graph backend
+            let graph_backend = if let Some(ref backend) = self.state.graph_backend {
+                backend.clone()
+            } else {
+                // Fallback: create SQLiteGraph backend
+                use crate::graph::backend_selector::create_default_graph_backend;
+                let graph_config = crate::config::GraphConfig {
+                    backend: crate::config::GraphBackend::SqliteGraph,
+                    path: crate::common::db_paths::code_graph_db_path(),
+                    uri: String::new(),
+                    user: String::new(),
+                    password: String::new(),
+                    enabled: true,
                 };
 
-                // Validate backend
-                let validation_result = tokio::task::block_in_place(|| {
+                let backend_result = tokio::task::block_in_place(|| {
                     tokio::runtime::Handle::current().block_on(async {
-                        validate_real_backend(
-                            config.backend_mode,
-                            Some(&**neo4j),
-                            Some(&vector_index),
-                            dimension,
-                        )
-                        .await
+                        create_default_graph_backend(&graph_config).await
                     })
                 });
-
-                if let Err(e) = validation_result {
-                    return SuiteResult::err("rag_multihop", format!("Validation failed: {}", e));
+                match backend_result {
+                    Ok(backend) => backend,
+                    Err(e) => return SuiteResult::err("rag_multihop", format!("Failed to create SQLiteGraph backend: {}", e)),
                 }
+            };
 
-                let storage =
-                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
+            // Validate backend
+            let validation_result = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    validate_real_backend(
+                        config.backend_mode,
+                        Some(graph_backend.as_ref() as &dyn crate::graph::GraphBackend),
+                        Some(&vector_index),
+                        dimension,
+                    )
+                    .await
+                })
+            });
 
-                HopGraphTransformer::with_storage(config.clone(), storage)
-            } else {
-                return SuiteResult::err("rag_multihop", "Neo4j not available for real mode");
+            if let Err(e) = validation_result {
+                return SuiteResult::err("rag_multihop", format!("Validation failed: {}", e));
             }
+
+            let storage = Arc::new(SQLiteGraphStorageAdapter::new(
+                vector_index,
+                graph_backend,
+                dimension,
+            ));
+
+            HopGraphTransformer::with_storage(config.clone(), storage)
         } else {
             // Mock mode
             HopGraphTransformer::new(config)
@@ -340,7 +390,7 @@ impl GraphSuite {
             "help",
             serde_json::json!({
                 "suite": "graph_suite",
-                "description": "Neo4j graph operations and RAG reasoning",
+                "description": "SQLiteGraph graph operations and RAG reasoning",
                 "commands": {
                     "query": {
                         "description": "Execute a Cypher read query",
@@ -375,7 +425,35 @@ impl SuiteDispatcher for GraphSuite {
             Err(e) => return SuiteResult::err(command, format!("Invalid arguments: {}", e)),
         };
         suite_args.command = command.to_string();
-        self.execute(suite_args)
+
+        let result = self.execute(suite_args);
+
+        // Apply streaming contract enforcement to successful responses
+        if result.success {
+            let limiter = OutputLimiter::default();
+            let result_json = json!({
+                "command": command,
+                "data": result.data
+            });
+
+            match limiter.apply_json(&result_json) {
+                Ok(limited_json) => {
+                    if let Some(limited_data) = limited_json.get("data") {
+                        SuiteResult {
+                            success: true,
+                            command: command.to_string(),
+                            data: limited_data.clone(),
+                            error: None,
+                        }
+                    } else {
+                        result
+                    }
+                },
+                Err(_) => result, // Fallback to original on error
+            }
+        } else {
+            result
+        }
     }
 
     fn list_commands(&self) -> Vec<&'static str> {

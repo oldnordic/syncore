@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Suite Result",
+  "description": "Standard result format for suite operations",
+  "type": "object",
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether the operation succeeded"
+    },
+    "command": {
+      "type": "string",
+      "description": "The command that was executed"
+    },
+    "data": {
+      "description": "The result data"
+    },
+    "error": {
+      "type": "string",
+      "description": "Error message if operation failed"
+    }
+  },
+  "required": ["success", "command", "data"]
+}

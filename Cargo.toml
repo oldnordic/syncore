@@ -62,12 +62,13 @@ notify = { version = "6.1", default-features = false, features = ["macos_kqueue"
 which = "6.0"  # APEX 2.5-LSP: Find LSP servers on PATH
 rmcp = { version = "0.8", features = ["transport-io", "transport-streamable-http-server"] }
 walkdir = "2.5"
+hex = "0.4"
+sha2 = "0.10"
 glob = "0.3"
 deadpool = "0.12"
 axum = "0.8"
 tokio-util = { version = "0.7", features = ["rt"] }
 neo4rs = "0.7"
-sha2 = "0.10"
 reqwest = { version = "0.12", features = ["json", "blocking"] }  # APEX 2.0-E: Ollama HTTP client
 async-trait = "0.1"
 futures = "0.3"
@@ -80,6 +81,7 @@ rand_chacha = "0.3"
 hf-hub = "0.4"
 # mistral.rs for real GGUF support
 mistralrs = { git = "https://github.com/EricLBuehler/mistral.rs" }
+uuid = { version = "1.11", features = ["v4"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

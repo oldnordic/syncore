@@ -178,29 +178,10 @@ impl GgufEngineMetricsAtomic {
 impl GGUFEngine {
     /// Create a new GGUF backend with specified model and device
     pub async fn new(model_name: &str) -> Result<Self> {
-        // Get device from config
-        let device_config = if let Some(config) = crate::config::SyncoreConfig::try_global() {
-            config.llm.resolved_device()
-        } else {
-            crate::config::GgufDevice::Cpu // Default to CPU
-        };
-
-        let (_device, device_str, status) = match device_config {
-            crate::config::GgufDevice::Cpu => (Device::Cpu, "cpu".to_string(), GgufStatus::Ok),
-            crate::config::GgufDevice::GpuVulkan => {
-                // Try to create GPU device, fallback to CPU if unavailable
-                match Self::create_gpu_device() {
-                    Ok(gpu_device) => {
-                        tracing::info!("Successfully created GPU device");
-                        (gpu_device, "gpu_vulkan".to_string(), GgufStatus::Ok)
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to create GPU device: {}. Falling back to CPU.", e);
-                        (Device::Cpu, "cpu_fallback".to_string(), GgufStatus::Degraded)
-                    }
-                }
-            }
-        };
+        // For now, always use CPU device
+        let device = Device::Cpu;
+        let device_str = "cpu".to_string();
+        let status = GgufStatus::Ok;
 
         // Try to find model file
         let model_path = Self::find_model_file(model_name)?;
@@ -208,17 +189,8 @@ impl GGUFEngine {
         tracing::info!("Initializing GGUFEngine with model: {}", model_name);
         tracing::info!("Model path: {:?}", model_path);
 
-        // Get tokenizer path from config
-        let tokenizer_path = if let Some(config) = crate::config::SyncoreConfig::try_global() {
-            let path = PathBuf::from(&config.llm.tokenizer_path);
-            if path.exists() {
-                Some(path)
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        // For now, no tokenizer path from config
+        let tokenizer_path = None;
 
         // Initialize health and metrics
         let model_file_size = std::fs::metadata(&model_path).ok().map(|m| m.len());
@@ -279,16 +251,6 @@ impl GGUFEngine {
 
     /// Find model file using configuration
     fn find_model_file(_model_name: &str) -> Result<PathBuf> {
-        // Try to get model path from config
-        if let Some(config) = crate::config::SyncoreConfig::try_global() {
-            let model_path = PathBuf::from(&config.llm.model_path);
-
-            if model_path.exists() {
-                tracing::info!("Found model file from config: {:?}", model_path);
-                return Ok(model_path);
-            }
-        }
-
         // Fallback to environment variable
         if let Ok(model_path) = std::env::var("SYNC_LLM_MODEL_PATH") {
             let model_path = PathBuf::from(model_path);
@@ -306,7 +268,7 @@ impl GGUFEngine {
             return Ok(default_path);
         }
 
-        Err(anyhow!("Model file not found. Check config/syncore.toml [llm] model_path or SYNC_LLM_MODEL_PATH env var"))
+        Err(anyhow!("Model file not found. Check SYNC_LLM_MODEL_PATH env var"))
     }
 
     /// Load actual model and tokenizer using cache (lazy loading)
@@ -375,28 +337,8 @@ impl LanguageModel for GGUFEngine {
         // Start timing
         let start_time = std::time::Instant::now();
 
-        // For test model, use simple response
-        if self.model_name == "test-model" {
-            let response_text = format!("GGUFEngine response to: {}", prompt.user);
-            let health = self.health();
-
-            // Record metrics for test model
-            let elapsed = start_time.elapsed();
-            let latency_ms = elapsed.as_secs_f64() * 1000.0;
-            let tokens_in = prompt.user.len() as u64; // Simple approximation for test
-            let tokens_out = response_text.len() as u64; // Simple approximation for test
-            self.record_generation(tokens_in, tokens_out, latency_ms as u64);
-
-            let metadata = serde_json::json!({
-                "backend": "gguf_engine",
-                "model": "test-model",
-                "device": health.device,
-                "supports_streaming": false,
-                "model_loaded": false,
-                "description": "Test backend for GGUFEngine"
-            });
-            return Ok(Completion::with_metadata(response_text, metadata));
-        }
+        // Note: Removed test-model stub - all instances now use the same codepath
+        // This ensures new_test() only affects initialization, not behavior
 
         // Try to load model if not already loaded
         if let Err(e) = tokio::task::block_in_place(|| {
@@ -528,16 +470,6 @@ impl LanguageModel for GGUFEngine {
 
     fn backend_name(&self) -> &str {
         "gguf_engine"
-    }
-
-    fn get_health(&self) -> Result<serde_json::Value> {
-        let health = self.health();
-        Ok(serde_json::to_value(health)?)
-    }
-
-    fn get_metrics(&self) -> Result<serde_json::Value> {
-        let metrics = self.metrics();
-        Ok(serde_json::to_value(metrics)?)
     }
 
     fn health_check(&self) -> Result<bool> {

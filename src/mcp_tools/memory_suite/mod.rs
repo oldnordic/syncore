@@ -6,10 +6,7 @@
 //! - `vector_insert`: Insert text into vector store
 //! - `vector_search`: Semantic search in vector store
 //! - `task_create`: Create new task with goal and priority
-//! - `sequential_record`: Record a thought step in reasoning chain
-//! - `sequential_get`: Get all thought steps for a task
-//! - `sequential_search`: Search thought steps by semantic content
-//! - `sequential_cycle`: Run sequential thinking cycles for complex task processing
+
 //! - `help`: Show available commands
 
 pub mod agent_commands;
@@ -20,8 +17,10 @@ pub mod task_commands;
 pub mod vector_commands;
 
 use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
+use crate::mcp_tools::streaming::OutputLimiter;
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 /// Memory suite arguments
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -50,6 +49,8 @@ pub struct MemorySuiteArgs {
     #[serde(default)]
     pub task_id: Option<i64>,
     #[serde(default)]
+    pub depends_on_task_id: Option<i64>,
+    #[serde(default)]
     pub step_number: Option<i32>,
     #[serde(default)]
     pub thought: Option<String>,
@@ -61,6 +62,15 @@ pub struct MemorySuiteArgs {
     pub observation: Option<String>,
     #[serde(default)]
     pub max_cycles: Option<usize>,
+    // Additional sequential operations
+    #[serde(default)]
+    pub sequence_id: Option<String>,
+    #[serde(default)]
+    pub context: Option<String>,
+    #[serde(default)]
+    pub depth: Option<i32>,
+    #[serde(default)]
+    pub max_steps: Option<usize>,
     // Agent operations
     #[serde(default)]
     pub to: Option<String>,
@@ -157,11 +167,24 @@ impl MemorySuite {
             "vector_search" => vector_commands::cmd_vector_search(self, args),
             // Task commands (delegated to task_commands module)
             "task_create" => task_commands::cmd_task_create(self, args),
+            "task_list" => task_commands::cmd_task_list(self, args),
+            "task_get" => task_commands::cmd_task_get(self, args),
+            "task_update" => task_commands::cmd_task_update(self, args),
+            "task_next" => task_commands::cmd_task_next(self, args),
+            "task_create_dependency" => task_commands::cmd_task_create_dependency(self, args),
+            "task_get_graph" => task_commands::cmd_task_get_graph(self, args),
+
             // Sequential commands (delegated to sequential_commands module)
+            "sequential_next" => sequential_commands::cmd_sequential_next(self, args),
+            "sequential_run" => sequential_commands::cmd_sequential_run(self, args),
+            "sequential_reason" => sequential_commands::cmd_sequential_reason(self, args),
+            "sequential_status" => sequential_commands::cmd_sequential_status(self, args),
+            "sequential_reset" => sequential_commands::cmd_sequential_reset(self, args),
             "sequential_record" => sequential_commands::cmd_sequential_record(self, args),
             "sequential_get" => sequential_commands::cmd_sequential_get(self, args),
             "sequential_search" => sequential_commands::cmd_sequential_search(self, args),
             "sequential_cycle" => sequential_commands::cmd_sequential_cycle(self, args),
+
             // Agent commands (delegated to agent_commands module)
             "agent_send" => agent_commands::cmd_agent_send(self, args),
             "agent_recv" => agent_commands::cmd_agent_recv(self, args),
@@ -176,27 +199,27 @@ impl MemorySuite {
             "intellitask_get" => intellitask_commands::cmd_intellitask_get(self, args),
             "intellitask_update_status" => {
                 intellitask_commands::cmd_intellitask_update_status(self, args)
-            }
+            },
             "intellitask_next_ready" => {
                 intellitask_commands::cmd_intellitask_next_ready(self, args)
-            }
+            },
             "intellitask_get_subtasks" => {
                 intellitask_commands::cmd_intellitask_get_subtasks(self, args)
-            }
+            },
             "intellitask_subtask_stats" => {
                 intellitask_commands::cmd_intellitask_subtask_stats(self, args)
-            }
+            },
             "intellitask_task_statistics" => {
                 intellitask_commands::cmd_intellitask_task_statistics(self, args)
-            }
+            },
             "intellitask_prd_statistics" => {
                 intellitask_commands::cmd_intellitask_prd_statistics(self, args)
-            }
+            },
             "intellitask_generate" => intellitask_commands::cmd_intellitask_generate(self, args),
             "intellitask_subtasks" => intellitask_commands::cmd_intellitask_subtasks(self, args),
             "intellitask_prioritize" => {
                 intellitask_commands::cmd_intellitask_prioritize(self, args)
-            }
+            },
             "intellitask_next" => intellitask_commands::cmd_intellitask_next(self, args),
             "intellitask_save" => intellitask_commands::cmd_intellitask_save(self, args),
             "help" => self.cmd_help(),
@@ -220,8 +243,8 @@ impl MemorySuite {
                     "memory": ["store", "query", "delete", "list_keys", "memory_stats"],
                     "semantic": ["search_semantic", "search_hybrid", "query_by_tags", "query_by_importance", "query_recent", "query_since", "consolidate_similar", "get_related_memories"],
                     "vector": ["vector_insert", "vector_search"],
-                    "tasks": ["task_create", "intellitask_list", "intellitask_get", "intellitask_update_status", "intellitask_get_subtasks", "intellitask_subtask_stats", "intellitask_task_statistics", "intellitask_next_ready", "intellitask_prd_statistics", "intellitask_generate", "intellitask_subtasks", "intellitask_prioritize", "intellitask_next", "intellitask_save"],
-                    "sequential": ["sequential_record", "sequential_get", "sequential_search", "sequential_cycle"],
+                    "tasks": ["task_create", "task_list", "task_get", "task_update", "task_next", "task_create_dependency", "task_get_graph", "intellitask_list", "intellitask_get", "intellitask_update_status", "intellitask_get_subtasks", "intellitask_subtask_stats", "intellitask_task_statistics", "intellitask_next_ready", "intellitask_prd_statistics", "intellitask_generate", "intellitask_subtasks", "intellitask_prioritize", "intellitask_next", "intellitask_save"],
+                    "sequential": ["sequential_next", "sequential_run", "sequential_reason", "sequential_status", "sequential_reset", "sequential_record", "sequential_get", "sequential_search", "sequential_cycle"],
                     "agent": ["agent_send", "agent_recv", "agent_poll", "agent_register", "agent_list", "agent_status", "agent_task", "agent_result"]
                 },
                 "usage": "Use help(<command>) trait method for detailed parameters"
@@ -237,7 +260,36 @@ impl SuiteDispatcher for MemorySuite {
             Err(e) => return SuiteResult::err(command, format!("Invalid arguments: {}", e)),
         };
         suite_args.command = command.to_string();
-        self.execute(suite_args)
+
+        let result = self.execute(suite_args);
+
+        // Apply streaming contract enforcement to successful responses
+        if result.success {
+            let limiter = OutputLimiter::default();
+            let result_json = json!({
+                "command": command,
+                "data": result.data
+            });
+
+            match limiter.apply_json(&result_json) {
+                Ok(limited_json) => {
+                    // Extract the limited data back
+                    if let Some(limited_data) = limited_json.get("data") {
+                        SuiteResult {
+                            success: true,
+                            command: command.to_string(),
+                            data: limited_data.clone(),
+                            error: None,
+                        }
+                    } else {
+                        result
+                    }
+                },
+                Err(_) => result, // Fallback to original result on error
+            }
+        } else {
+            result
+        }
     }
 
     fn list_commands(&self) -> Vec<&'static str> {
@@ -258,6 +310,17 @@ impl SuiteDispatcher for MemorySuite {
             "vector_insert",
             "vector_search",
             "task_create",
+            "task_list",
+            "task_get",
+            "task_update",
+            "task_next",
+            "task_create_dependency",
+            "task_get_graph",
+            "sequential_next",
+            "sequential_run",
+            "sequential_reason",
+            "sequential_status",
+            "sequential_reset",
             "sequential_record",
             "sequential_get",
             "sequential_search",
@@ -305,10 +368,22 @@ impl SuiteDispatcher for MemorySuite {
             "vector_insert" => Some("Insert text into vector store. Params: text, namespace, dry_run"),
             "vector_search" => Some("Semantic search. Params: query, limit"),
             "task_create" => Some("Create task. Params: goal, priority, dry_run"),
-            "sequential_record" => Some("Record thought step. Params: task_id, step_number, thought, reasoning, action, observation"),
-            "sequential_get" => Some("Get thought steps. Params: task_id"),
-            "sequential_search" => Some("Search thought steps. Params: query, limit"),
-            "sequential_cycle" => Some("Run thinking cycles. Params: max_cycles"),
+            "task_list" => Some("List all tasks. Params: none"),
+            "task_get" => Some("Get task by ID. Params: task_id"),
+            "task_update" => Some("Update task status. Params: task_id, status"),
+            "task_next" => Some("Get next ready task. Params: none"),
+            "task_create_dependency" => Some("Create task dependency. Params: task_id, depends_on_task_id"),
+            "task_get_graph" => Some("Get task dependency graph. Params: none"),
+            "sequential_next" => Some("Append next step to sequence. Params: task_id (optional), step_number, thought, reasoning, action, observation"),
+            "sequential_run" => Some("Execute through sequence steps. Params: sequence_id (optional), max_steps"),
+            "sequential_reason" => Some("Run reasoning engine on context. Params: context, depth"),
+            "sequential_status" => Some("Get sequence metadata and current state. Params: sequence_id (optional)"),
+            "sequential_reset" => Some("Clear sequence completely. Params: sequence_id (optional), task_id (optional)"),
+            "sequential_record" => Some("Record diagnostic/observational entry. Params: task_id (optional), step_number, thought, reasoning, action, observation"),
+            "sequential_get" => Some("Retrieve all steps for task/sequence. Params: task_id (optional)"),
+            "sequential_search" => Some("Fuzzy search within sequence steps. Params: query, limit"),
+            "sequential_cycle" => Some("Detect cycles in steps. Params: max_cycles"),
+
             "agent_send" => Some("Send message to agent. Params: to, message"),
             "agent_recv" => Some("Receive messages for agent (NotImplemented). Params: agent"),
             "agent_poll" => Some("Poll messages with timeout (NotImplemented). Params: agent, timeout_ms"),

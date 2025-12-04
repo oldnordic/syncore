@@ -170,7 +170,7 @@ impl ToolRequest for CodeSearchRequest {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CodeIndexDirectoryRequest {
     pub directory: String, // Standardized: NOT dir
     pub pattern: String,

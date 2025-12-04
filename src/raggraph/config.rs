@@ -8,7 +8,7 @@ pub enum RaggraphBackendMode {
     /// Use mock storage (deterministic hash-based seeds and synthetic graphs)
     #[default]
     Mock,
-    /// Use real storage (HNSW vector search + Neo4j graph database)
+    /// Use real storage (HNSW vector search + SQLiteGraph graph database)
     Real,
 }
 

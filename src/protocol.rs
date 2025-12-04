@@ -10,7 +10,7 @@ pub enum SynCoreTool {
     TaskCreate,
     GraphLink,
     GraphQuery,
-    SequentialCycle,
+
     ParserAnalyze,
     ParserSearch,
     CodeExplain,
@@ -28,7 +28,7 @@ impl SynCoreTool {
             SynCoreTool::TaskCreate => "task.create".to_string(),
             SynCoreTool::GraphLink => "graph.link".to_string(),
             SynCoreTool::GraphQuery => "graph.query".to_string(),
-            SynCoreTool::SequentialCycle => "sequential.cycle".to_string(),
+
             SynCoreTool::ParserAnalyze => "parser.analyze".to_string(),
             SynCoreTool::ParserSearch => "parser.search".to_string(),
             SynCoreTool::CodeExplain => "code.explain".to_string(),
@@ -84,7 +84,6 @@ mod tests {
             SynCoreTool::TaskCreate,
             SynCoreTool::GraphLink,
             SynCoreTool::GraphQuery,
-            SynCoreTool::SequentialCycle,
             SynCoreTool::ParserAnalyze,
             SynCoreTool::ParserSearch,
             SynCoreTool::CodeExplain,

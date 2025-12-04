@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reasoning Session Create",
+  "description": "Create a new reasoning session with Tree of Thoughts (ToT) engine",
+  "type": "object",
+  "required": ["task"],
+  "properties": {
+    "task": {
+      "type": "string",
+      "description": "The primary task or problem to solve through reasoning",
+      "minLength": 1,
+      "maxLength": 1000
+    }
+  },
+  "additionalProperties": false
+}

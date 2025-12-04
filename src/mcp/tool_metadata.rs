@@ -32,6 +32,7 @@ pub enum ToolCost {
     Medium,   // 10-100ms
     High,     // 100-1000ms
     VeryHigh, // > 1000ms
+    CpuHeavy, // CPU intensive operations
 }
 
 /// Side effects that a tool may have
@@ -94,6 +95,16 @@ impl SideEffects {
             || self.modifies_vector_store
             || self.modifies_graph
     }
+
+    pub fn cpu_heavy() -> Self {
+        Self {
+            modifies_database: false,
+            modifies_filesystem: false,
+            modifies_vector_store: false,
+            modifies_graph: false,
+            network_call: false,
+        }
+    }
 }
 
 /// Metadata for a single tool
@@ -146,6 +157,54 @@ pub static TOOL_REGISTRY: Lazy<HashMap<&'static str, ToolMetadata>> = Lazy::new(
             cost: ToolCost::Low,
             side_effects: SideEffects::database_write(),
             description: "Create a new task",
+        },
+    );
+
+    registry.insert(
+        "task_list",
+        ToolMetadata {
+            name: "task_list",
+            version: "1.0.0",
+            category: ToolCategory::Task,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "List all tasks",
+        },
+    );
+
+    registry.insert(
+        "task_get",
+        ToolMetadata {
+            name: "task_get",
+            version: "1.0.0",
+            category: ToolCategory::Task,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "Get specific task by ID",
+        },
+    );
+
+    registry.insert(
+        "task_update",
+        ToolMetadata {
+            name: "task_update",
+            version: "1.0.0",
+            category: ToolCategory::Task,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::database_write(),
+            description: "Update task status",
+        },
+    );
+
+    registry.insert(
+        "task_next",
+        ToolMetadata {
+            name: "task_next",
+            version: "1.0.0",
+            category: ToolCategory::Task,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "Get next task ready to work on",
         },
     );
 
@@ -286,6 +345,202 @@ pub static TOOL_REGISTRY: Lazy<HashMap<&'static str, ToolMetadata>> = Lazy::new(
             cost: ToolCost::High,
             side_effects: SideEffects::graph_write(),
             description: "Execute Cypher write query on Neo4j",
+        },
+    );
+
+    registry.insert(
+        "graph_relate",
+        ToolMetadata {
+            name: "graph_relate",
+            version: "1.0.0",
+            category: ToolCategory::Graph,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::graph_write(),
+            description: "Create relationship between nodes",
+        },
+    );
+
+    registry.insert(
+        "graph_suite",
+        ToolMetadata {
+            name: "graph_suite",
+            version: "1.0.0",
+            category: ToolCategory::Graph,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "Unified graph operations suite",
+        },
+    );
+
+    // Debug suite
+    registry.insert(
+        "debug_suite",
+        ToolMetadata {
+            name: "debug_suite",
+            version: "1.0.0",
+            category: ToolCategory::Logs,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "Debugging, logs, and project analysis suite",
+        },
+    );
+
+    // Mapping suite
+    registry.insert(
+        "mapping_suite",
+        ToolMetadata {
+            name: "mapping_suite",
+            version: "1.0.0",
+            category: ToolCategory::Application,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::database_write(),
+            description: "Application structure mapping suite",
+        },
+    );
+
+    // Reasoning tools
+    registry.insert(
+        "reasoning_session_create",
+        ToolMetadata {
+            name: "reasoning_session_create",
+            version: "1.0.0",
+            category: ToolCategory::Sequential,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::database_write(),
+            description: "Create a new reasoning session",
+        },
+    );
+
+    registry.insert(
+        "reasoning_branch_expand",
+        ToolMetadata {
+            name: "reasoning_branch_expand",
+            version: "1.0.0",
+            category: ToolCategory::Sequential,
+            cost: ToolCost::CpuHeavy,
+            side_effects: SideEffects::database_write(),
+            description: "Expand a reasoning branch with new thought",
+        },
+    );
+
+    registry.insert(
+        "reasoning_tree_get",
+        ToolMetadata {
+            name: "reasoning_tree_get",
+            version: "1.0.0",
+            category: ToolCategory::Sequential,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "Get reasoning tree structure",
+        },
+    );
+
+    registry.insert(
+        "reasoning_tree_prune",
+        ToolMetadata {
+            name: "reasoning_tree_prune",
+            version: "1.0.0",
+            category: ToolCategory::Sequential,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::database_write(),
+            description: "Prune reasoning tree subtree",
+        },
+    );
+
+    // IntelliTask tools
+    registry.insert(
+        "intellitask_generate",
+        ToolMetadata {
+            name: "intellitask_generate",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::CpuHeavy,
+            side_effects: SideEffects::read_only(),
+            description: "Generate tasks from PRD using AI",
+        },
+    );
+
+    registry.insert(
+        "intellitask_subtasks",
+        ToolMetadata {
+            name: "intellitask_subtasks",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::CpuHeavy,
+            side_effects: SideEffects::read_only(),
+            description: "Generate subtasks using AI",
+        },
+    );
+
+    registry.insert(
+        "intellitask_prioritize",
+        ToolMetadata {
+            name: "intellitask_prioritize",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::CpuHeavy,
+            side_effects: SideEffects::read_only(),
+            description: "Prioritize tasks using AI",
+        },
+    );
+
+    registry.insert(
+        "intellitask_next",
+        ToolMetadata {
+            name: "intellitask_next",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "Suggest next task using AI",
+        },
+    );
+
+    registry.insert(
+        "intellitask_save",
+        ToolMetadata {
+            name: "intellitask_save",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::database_write(),
+            description: "Save task breakdown to database",
+        },
+    );
+
+    registry.insert(
+        "intellitask_get",
+        ToolMetadata {
+            name: "intellitask_get",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "Get specific task by ID",
+        },
+    );
+
+    registry.insert(
+        "intellitask_list",
+        ToolMetadata {
+            name: "intellitask_list",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::read_only(),
+            description: "List all tasks",
+        },
+    );
+
+    registry.insert(
+        "intellitask_update_status",
+        ToolMetadata {
+            name: "intellitask_update_status",
+            version: "1.0.0",
+            category: ToolCategory::IntelliTask,
+            cost: ToolCost::Medium,
+            side_effects: SideEffects::database_write(),
+            description: "Update task status",
         },
     );
 

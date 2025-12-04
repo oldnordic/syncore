@@ -37,8 +37,9 @@ pub mod mcp_tools;
 pub mod memory;
 pub mod memory_service;
 pub mod message_bus;
-pub mod meta_cognition;
+
 pub mod metrics;
+pub mod models; // GGUF Engine and model backends
 pub mod ollama;
 pub mod parser;
 pub mod parser_service; // APEX 2.2-FW: Incremental parser
@@ -50,12 +51,13 @@ pub mod project_reasoning;
 pub mod protocol;
 pub mod query;
 pub mod raggraph;
+pub mod reasoning; // ST-3: Tree-of-Thought reasoning engine
 pub mod refrag; // APEX 1.8: REFRAG selective expansion layer
 pub mod router;
 pub mod runtime;
 pub mod rust_tools;
 pub mod schema_migration;
-pub mod sequential;
+
 pub mod snapshots;
 pub mod storage;
 pub mod tasks;

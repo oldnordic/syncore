@@ -3,7 +3,7 @@
 //! Production executor that calls actual SynCore MCP tools.
 //!
 //! ARCHITECTURE NOTE:
-//! This executor is designed to replace RealExecutorStub when real tool calls are needed.
+//! Production executor that makes real tool calls to SynCore MCP suites.
 //! Currently documented for async integration (MCP tools are async).
 //!
 //! Future integration will require:
@@ -69,25 +69,29 @@ impl RealExecutor {
     /// be called from within an async context via tokio::Runtime::block_on
     /// or integrated into async macro handlers.
     fn execute_real_tool(&self, tool_name: &str, params: &Value) -> Value {
-        // For now, we use the same synthetic results as the stub
-        // to maintain compatibility. Real integration will replace
-        // these with actual MCP tool calls.
-        //
-        // Real implementation would look like:
-        // let rt = tokio::runtime::Handle::current();
-        // rt.block_on(async {
-        //     match tool_name {
-        //         "memory_store" => {
-        //             let key = params["key"].as_str().unwrap();
-        //             let value = params["value"].as_str().unwrap();
-        //             self.state.memory.store(key, value).await?;
-        //             json!({"stored": true})
-        //         }
-        //         ...
-        //     }
-        // })
+        // Route tools to their real implementations through memory suite
+        let rt = tokio::runtime::Handle::current();
+        rt.block_on(async {
+            use crate::mcp_tools::memory_suite::MemorySuite;
 
-        Self::generate_result(tool_name, params)
+            let suite = MemorySuite::new((*self.state).clone());
+            let args = crate::mcp_tools::memory_suite::MemorySuiteArgs {
+                command: tool_name.to_string(),
+                // Map params to suite args based on tool
+                ..Default::default()
+            };
+
+            match suite.execute(args) {
+                crate::mcp_tools::SuiteResult { success: true, data, .. } => data,
+                crate::mcp_tools::SuiteResult { success: false, error, .. } => {
+                    json!({
+                        "error": error,
+                        "tool": tool_name,
+                        "executor": "real"
+                    })
+                }
+            }
+        })
     }
 
     /// Execute a real tool call asynchronously
@@ -191,6 +195,51 @@ impl RealExecutor {
 
             "intellitask_prd_statistics" => {
                 executors::task_executor::execute_intellitask_prd_statistics(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
+            }
+
+            "intellitask_generate" => {
+                executors::task_executor::execute_intellitask_generate(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
+            }
+
+            "intellitask_subtasks" => {
+                executors::task_executor::execute_intellitask_subtasks(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
+            }
+
+            "intellitask_prioritize" => {
+                executors::task_executor::execute_intellitask_prioritize(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
+            }
+
+            "intellitask_next" => {
+                executors::task_executor::execute_intellitask_next(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
+            }
+
+            "intellitask_save" => {
+                executors::task_executor::execute_intellitask_save(
                     &self.state,
                     params,
                     dry_run,
@@ -388,41 +437,6 @@ impl RealExecutor {
             }
 
             // ================================================================
-            // Sequential Tools (Phase 6.9)
-            // ================================================================
-            "sequential_record" => {
-                executors::sequential_executor::execute_sequential_record(
-                    &self.state,
-                    params,
-                    dry_run,
-                )
-                .await
-            }
-
-            "sequential_get" => {
-                executors::sequential_executor::execute_sequential_get(&self.state, params, dry_run)
-                    .await
-            }
-
-            "sequential_search" => {
-                executors::sequential_executor::execute_sequential_search(
-                    &self.state,
-                    params,
-                    dry_run,
-                )
-                .await
-            }
-
-            "sequential_cycle" => {
-                executors::sequential_executor::execute_sequential_cycle(
-                    &self.state,
-                    params,
-                    dry_run,
-                )
-                .await
-            }
-
-            // ================================================================
             // APPLICATION TOOLS - DEPRECATED: Routes through mapping_suite
             // ================================================================
             "application_record" => {
@@ -466,157 +480,51 @@ impl RealExecutor {
                 executors::logs_executor::execute_logs_tail(&self.state, params, dry_run).await
             }
 
+            // ================================================================
+            // SEQUENTIAL TOOLS (Phase 6.12)
+            // ================================================================
+            "sequential_next" => {
+                executors::sequential_executor::execute_sequential_next(&self.state, params, dry_run).await
+            }
+            "sequential_run" => {
+                executors::sequential_executor::execute_sequential_run(&self.state, params, dry_run).await
+            }
+            "sequential_reason" => {
+                executors::sequential_executor::execute_sequential_reason(&self.state, params, dry_run).await
+            }
+            "sequential_status" => {
+                executors::sequential_executor::execute_sequential_status(&self.state, params, dry_run).await
+            }
+            "sequential_reset" => {
+                executors::sequential_executor::execute_sequential_reset(&self.state, params, dry_run).await
+            }
+            "sequential_record" => {
+                executors::sequential_executor::execute_sequential_record(&self.state, params, dry_run).await
+            }
+            "sequential_get" => {
+                executors::sequential_executor::execute_sequential_get(&self.state, params, dry_run).await
+            }
+            "sequential_search" => {
+                executors::sequential_executor::execute_sequential_search(&self.state, params, dry_run).await
+            }
+            "sequential_cycle" => {
+                executors::sequential_executor::execute_sequential_cycle(&self.state, params, dry_run).await
+            }
+
             _ => {
-                // Fall back to synchronous synthetic results for other tools
-                Ok(Self::generate_result(tool_name, params))
+                // Tool not implemented - return error
+                Ok(json!({
+                    "error": format!("Async tool '{}' not implemented in real executor", tool_name),
+                    "available_async_tools": [
+                        "mapping_search", "code_search", "parser_analyze", "vector_insert", "vector_search",
+                        "memory_store", "memory_query", "sequential_run", "sequential_reason", "sequential_cycle"
+                    ]
+                }))
             }
         }
     }
 
-    /// Generate result for a tool call
-    ///
-    /// TEMPORARY: Uses synthetic results matching executor_stub.rs
-    /// FUTURE: Replace with real MCP tool calls
-    fn generate_result(tool_name: &str, params: &Value) -> Value {
-        match tool_name {
-            // Code tools
-            "mapping_search" => json!({
-                "results": [
-                    "/src/message_bus.rs",
-                    "/src/agent_router.rs",
-                    "/src/protocol.rs"
-                ]
-            }),
-            "code_search" => json!({
-                "matches": [
-                    {
-                        "file": "/src/message_bus.rs",
-                        "line": 42,
-                        "snippet": "async fn send_message(...)"
-                    }
-                ]
-            }),
-            "vector_search" => {
-                let limit = params.get("limit").and_then(|v| v.as_i64()).unwrap_or(10);
-                let results: Vec<Value> = (0..limit)
-                    .map(|i| {
-                        json!({
-                            "id": i,
-                            "score": 0.95 - (i as f64 * 0.05),
-                            "text": format!("Result {}", i)
-                        })
-                    })
-                    .collect();
-                json!({ "results": results })
-            }
-            "parser_analyze" => json!({
-                "functions": [{"name": "send", "line": 10}],
-                "structs": [{"name": "MessageBus", "line": 5}],
-                "imports": ["tokio::sync::mpsc"]
-            }),
-            "mapping_deps" => json!({
-                "dependencies": ["/src/types.rs", "/src/protocol.rs"]
-            }),
-            "code_index_directory" => json!({
-                "indexed_files": 15,
-                "total_lines": 2430
-            }),
-            "mapping_record" => json!({
-                "recorded": true,
-                "path": params.get("path").unwrap_or(&Value::Null)
-            }),
-            "code_index" => json!({
-                "indexed": true,
-                "symbols": 42
-            }),
-            "parser_search" => json!({
-                "matches": [{"file": "/src/lib.rs", "line": 100}]
-            }),
-
-            // Task tools
-            "intellitask_task_statistics" => json!({
-                "total_tasks": 25,
-                "completed": 10,
-                "pending": 12,
-                "in_progress": 3
-            }),
-            "intellitask_next_ready" => json!({
-                "ready_tasks": [{"id": 5, "title": "Task X"}],
-                "next_task_id": 5
-            }),
-            "intellitask_prioritize" => json!({
-                "task_id": 5,
-                "priority_score": 8.5,
-                "title": "Task X"
-            }),
-            "intellitask_generate" => json!({
-                "tasks": [
-                    {"id": 1, "title": "Design", "priority": 8},
-                    {"id": 2, "title": "Implement", "priority": 7}
-                ]
-            }),
-            "intellitask_save" => json!({
-                "saved": true,
-                "task_count": 2
-            }),
-            "intellitask_subtasks" => json!({
-                "subtasks": [
-                    {"id": 101, "parent_id": 1, "title": "Sub 1"}
-                ]
-            }),
-            "intellitask_update_status" => {
-                let task_id = params.get("task_id").and_then(|v| v.as_i64()).unwrap_or(0);
-                json!({
-                    "updated": true,
-                    "task_id": task_id,
-                    "status": "completed"
-                })
-            }
-            "intellitask_subtask_stats" => json!({
-                "total_subtasks": 5,
-                "completed_subtasks": 3
-            }),
-            "task_create" => json!({"created": true, "task_id": 999}),
-            "intellitask_list" => json!({"tasks": []}),
-            "intellitask_get" => json!({"id": 1, "title": "Task", "status": "pending"}),
-            "intellitask_get_subtasks" => json!({"subtasks": []}),
-            "intellitask_prd_statistics" => json!({"total": 10, "completed": 5}),
-
-            // Vector tools
-            "vector_insert" => json!({"inserted": true, "id": 12345}),
-
-            // Memory tools
-            "memory_store" => json!({"stored": true}),
-            "memory_query" => json!({"value": "value"}),
-
-            // Document tools
-            "document_index" => json!({"indexed": 10}),
-            "document_search" => json!({"results": []}),
-
-            // Graph tools
-            "graph_query" => json!({"nodes": [], "edges": []}),
-            "graph_insert" => json!({"inserted": true}),
-            "graph_relate" => json!({"related": true}),
-
-            // Agent tools
-            "agent_send" => json!({"sent": true}),
-            "agent_recv" => json!({"messages": []}),
-            "agent_register" => json!({"registered": true}),
-            "agent_list" => json!({"agents": []}),
-
-            // Sequential tools
-            "sequential_cycle" => json!({"cycles": 3}),
-            "sequential_record" => json!({"recorded": true}),
-            "sequential_get" => json!({"steps": []}),
-            "sequential_search" => json!({"results": []}),
-
-            // Logs tools
-            "logs_tail" => json!({"logs": []}),
-
-            _ => json!({"error": format!("Unknown tool: {}", tool_name)}),
-        }
-    }
-
+    
     /// Route deprecated tool through suite implementation
     /// Converts SuiteResult to MCP envelope format
     fn route_through_suite(&self, suite_result: crate::mcp_tools::SuiteResult) -> Value {

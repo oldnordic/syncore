@@ -6,6 +6,7 @@
 //! - help: Show available commands
 
 use super::{SuiteDispatcher, SuiteResult};
+use crate::mcp_tools::streaming::OutputLimiter;
 use crate::refrag::{RefragConfig, RefragPipeline, SelectionPolicy};
 use crate::router::SynCoreState;
 use serde::Deserialize;
@@ -134,7 +135,7 @@ Examples:
 
 impl SuiteDispatcher for RefragSuite {
     fn dispatch(&self, command: &str, args: serde_json::Value) -> SuiteResult {
-        match command {
+        let result = match command {
             "query" => self.handle_query(args),
             "configure" => self.handle_configure(args),
             "help" => self.handle_help(),
@@ -142,6 +143,33 @@ impl SuiteDispatcher for RefragSuite {
                 command,
                 format!("Unknown command: {}. Use 'help' to see available commands.", command),
             ),
+        };
+
+        // Apply streaming contract enforcement to successful responses
+        if result.success {
+            let limiter = OutputLimiter::default();
+            let result_json = json!({
+                "command": command,
+                "data": result.data
+            });
+
+            match limiter.apply_json(&result_json) {
+                Ok(limited_json) => {
+                    if let Some(limited_data) = limited_json.get("data") {
+                        SuiteResult {
+                            success: true,
+                            command: command.to_string(),
+                            data: limited_data.clone(),
+                            error: None,
+                        }
+                    } else {
+                        result
+                    }
+                },
+                Err(_) => result, // Fallback to original on error
+            }
+        } else {
+            result
         }
     }
 

@@ -67,13 +67,17 @@ impl GgufTokenizer {
 
     /// Load tokenizer from configuration path
     fn load_from_config() -> Result<tokenizers::Tokenizer> {
-        // Try to get global config
-        if let Some(config) = crate::config::SyncoreConfig::try_global() {
-            let tokenizer_path = &config.llm.tokenizer_path;
+        // For now, skip config-based tokenizer loading
+        // TODO: Add tokenizer path to config when needed
 
-            // Check if tokenizer file exists
-            if std::path::Path::new(tokenizer_path).exists() {
-                let tokenizer = Self::from_file(std::path::Path::new(tokenizer_path))?;
+        // Fallback to default paths
+        let default_paths =
+            vec!["models/tokenizer.json", "models/qwen2.5-tokenizer.json", "tokenizer.json"];
+
+        for path in default_paths {
+            if std::path::Path::new(path).exists() {
+                tracing::info!("Loading tokenizer from default path: {}", path);
+                let tokenizer = Self::from_file(std::path::Path::new(path))?;
                 match tokenizer.tokenizer_impl {
                     TokenizerImpl::HfTokenizer(ht) => return Ok(*ht),
                     TokenizerImpl::Basic => {
@@ -82,13 +86,10 @@ impl GgufTokenizer {
                         ));
                     }
                 }
-            } else {
-                tracing::debug!("Tokenizer file not found at: {}", tokenizer_path);
             }
         }
 
-        // Fallback to basic tokenizer creation
-        Err(anyhow::anyhow!("No valid tokenizer configuration found"))
+        Err(anyhow::anyhow!("No tokenizer found in default paths"))
     }
 
     /// Load tokenizer from local file (if available)

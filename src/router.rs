@@ -39,6 +39,8 @@ pub struct SynCoreState {
     pub graph_backend: Option<Arc<dyn crate::graph::GraphBackend>>,
     /// IntelliTask AI-powered task management (requires LLM backend)
     pub intellitask: Option<Arc<crate::intellitask::IntelliTask>>,
+    /// LLM backend for AI-powered features (GGUFEngine, Test backend, etc.)
+    pub llm_model: Option<Arc<dyn crate::llm::LanguageModel>>,
     /// HNSW index warmup status - true when index is ready for fast search
     pub hnsw_ready: Arc<AtomicBool>,
     /// APEX 2.15: Reindex mutex to serialize DELETE+INSERT operations
@@ -109,6 +111,7 @@ impl SynCoreState {
             neo4j: None,
             graph_backend: None,
             intellitask: None,
+            llm_model: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
             snapshot_handle: Arc::new(SnapshotHandle::default()),
@@ -171,6 +174,7 @@ impl SynCoreState {
             neo4j: None,
             graph_backend: None,
             intellitask: None,
+            llm_model: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
             snapshot_handle: Arc::new(SnapshotHandle::default()),
@@ -219,6 +223,7 @@ impl SynCoreState {
             neo4j: None,
             graph_backend: None,
             intellitask: None, // Initialized separately via set_intellitask()
+            llm_model: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
             snapshot_handle: Arc::new(SnapshotHandle::default()),
@@ -232,12 +237,15 @@ impl SynCoreState {
         self
     }
 
-    /// Add Neo4j client to state (builder pattern)
+    /// Add Neo4j client to state (debug-only access)
+    ///
+    /// IMPORTANT: This method only adds Neo4j for debug commands.
+    /// The primary graph_backend remains configuration-driven.
+    /// Neo4j will NOT be automatically promoted to be the default backend.
     pub fn with_neo4j(mut self, client: Arc<Neo4jClient>) -> Self {
         self.neo4j = Some(client.clone());
-        // Also set graph_backend to use Neo4j
-        self.graph_backend = Some(Arc::new(crate::graph::Neo4jBackend::new((*client).clone()))
-            as Arc<dyn crate::graph::GraphBackend>);
+        // Note: We NO LONGER automatically set graph_backend to Neo4j
+        // This prevents auto-promotion and respects configuration-driven backend selection
         self
     }
 
@@ -519,13 +527,94 @@ impl SynCoreState {
             neo4j: None,
             graph_backend: None,
             intellitask: None, // Test context - LLM not required
+            llm_model: None,
             hnsw_ready: Arc::new(AtomicBool::new(false)),
             reindex_mutex: Arc::new(std::sync::Mutex::new(())),
             snapshot_handle: Arc::new(SnapshotHandle::default()),
             snapshot_update_task: Arc::new(Mutex::new(None)),
         }
     }
-}
+
+    /// Create a test state with minimal components (for testing)
+    ///
+    /// This constructor creates a state suitable for unit tests with:
+    /// - In-memory database connections
+    /// - Stub embeddings for vector stores
+    /// - All components initialized but no external dependencies
+    ///
+    /// # Returns
+    /// Test-ready SynCoreState with all components
+    pub fn test() -> Self {
+        // Use unique temp paths to avoid lock conflicts in tests
+        let id = std::process::id();
+        let ts =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let mem_path = format!("/tmp/syncore_test_mem_{}_{}.db", id, ts);
+        let task_path = format!("/tmp/syncore_test_task_{}_{}.db", id, ts);
+
+        // Initialize DbManager for test databases
+        let db_manager = Arc::new(
+            crate::db::DbManager::new(&mem_path, &task_path)
+                .expect("Failed to initialize DbManager for test"),
+        );
+
+        // Create components using DbManager connections
+        let memory = crate::memory::Memory::with_connection(
+            db_manager.main_conn(),
+            &format!("{}_cache", mem_path),
+        )
+        .expect("Failed to create Memory for test");
+
+        let tasks = crate::tasks::Tasks::with_connection(db_manager.main_conn())
+            .expect("Failed to create Tasks for test");
+
+        // Create separate stores for CODE and GENERAL domains (test mode)
+        let code_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
+            crate::vector::StubEmbeddings::new(384).unwrap(),
+        ))));
+        let general_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
+            crate::vector::StubEmbeddings::new(384).unwrap(),
+        ))));
+
+        Self {
+            db_manager,
+            memory: Arc::new(memory),
+            tasks: Arc::new(tasks),
+            code_store,
+            general_store,
+            logger: Arc::new(MarkdownLogger::new("./logs")),
+            message_bus: None,
+            write_queue: None,
+            read_pool: None,
+            faiss_queue: None,
+            faiss_pool: None,
+            neo4j: None,
+            graph_backend: None,
+            intellitask: None, // Test context - LLM not required
+            llm_model: None,
+            hnsw_ready: Arc::new(AtomicBool::new(false)),
+            reindex_mutex: Arc::new(std::sync::Mutex::new(())),
+            snapshot_handle: Arc::new(SnapshotHandle::default()),
+            snapshot_update_task: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    /// Add LLM model for AI-powered features (builder pattern)
+    ///
+    /// This method adds a language model backend to the state for use by
+    /// IntelliTask and other AI-powered features.
+    ///
+    /// # Arguments
+    /// * `llm_model` - Arc-wrapped LanguageModel implementation (GGUFEngine, Test, etc.)
+    ///
+    /// # Returns
+    /// Self with the LLM model configured
+    pub fn with_llm_model(mut self, llm_model: Arc<dyn crate::llm::LanguageModel>) -> Self {
+        self.llm_model = Some(llm_model);
+        self
+    }
+
+  }
 
 pub fn route_tool(name: &str, args: &[u8], state: &SynCoreState) -> Result<Vec<u8>> {
     let tool = match name {
@@ -537,7 +626,7 @@ pub fn route_tool(name: &str, args: &[u8], state: &SynCoreState) -> Result<Vec<u
         "graph.link" => SynCoreTool::GraphLink,
         "graph.query" => SynCoreTool::GraphQuery,
         "logs.tail" => SynCoreTool::LogsTail,
-        "sequential.cycle" => SynCoreTool::SequentialCycle,
+
         "parser.analyze" => SynCoreTool::ParserAnalyze,
         "parser.search" => SynCoreTool::ParserSearch,
         "code.explain" => SynCoreTool::CodeExplain,
@@ -627,19 +716,7 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
             let response = serde_json::json!({"logs": logs});
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
-        SynCoreTool::SequentialCycle => {
-            let max_cycles: Option<usize> = rmp_serde::from_slice(&msg.args)?;
-            let sequential_core = crate::sequential::SequentialCore::new(
-                state.tasks.clone(),
-                state.general_store.clone(), // GENERAL domain: sequential reasoning
-                state.memory.clone(),
-                Arc::new(Mutex::new(crate::sequential::DemoLanguageModel::new())),
-                state.logger.clone(),
-            );
-            let results = sequential_core.run_batch_cycles(max_cycles.unwrap_or(1))?;
-            let response = serde_json::json!({"success": true, "cycles_processed": results.len()});
-            rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
-        }
+
         SynCoreTool::ParserAnalyze => {
             let file_path: String = rmp_serde::from_slice(&msg.args)?;
             let parser = crate::parser::Parser::new()?;

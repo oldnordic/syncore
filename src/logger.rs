@@ -4,20 +4,33 @@ use chrono::{Local, NaiveDate};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
+use std::sync::Arc;
 
 pub trait CogLogger: Send + Sync {
     fn log_step(&self, step: &crate::cognitive_db::Step, task: &Task) -> std::io::Result<()>;
     fn log_summary(&self, task: &Task, reflection: &str) -> std::io::Result<()>;
 }
 
+/// Tree logger for reasoning sessions
+pub type TreeLoggerRef = Option<Arc<crate::reasoning::tree_logger::TreeLogger>>;
+
 pub struct MarkdownLogger {
     logs_dir: String,
+    tree_logger: TreeLoggerRef,
 }
 
 impl MarkdownLogger {
     pub fn new<P: AsRef<Path>>(logs_dir: P) -> Self {
         Self {
             logs_dir: logs_dir.as_ref().to_string_lossy().to_string(),
+            tree_logger: None,
+        }
+    }
+
+    pub fn new_with_tree_logger<P: AsRef<Path>>(logs_dir: P, tree_logger: TreeLoggerRef) -> Self {
+        Self {
+            logs_dir: logs_dir.as_ref().to_string_lossy().to_string(),
+            tree_logger,
         }
     }
 
@@ -121,6 +134,20 @@ impl MarkdownLogger {
 
 impl CogLogger for MarkdownLogger {
     fn log_step(&self, step: &crate::cognitive_db::Step, task: &Task) -> std::io::Result<()> {
+        // Forward to tree logger if available
+        if let Some(ref tree_logger) = self.tree_logger {
+            if let Err(e) = tree_logger.log_reasoning_step(
+                &format!("task_{}", task.id),
+                &format!("step_{}", step.id),
+                0, // Default depth for task steps
+                &step.state,
+                &step.content,
+            ) {
+                eprintln!("Warning: Failed to log to tree logger: {}", e);
+            }
+        }
+
+        // Continue with existing Markdown logging
         let time_str = Self::format_time(step.created_at);
         let escaped_content = Self::escape_backticks(&step.content);
 
@@ -150,6 +177,20 @@ impl CogLogger for MarkdownLogger {
     }
 
     fn log_summary(&self, task: &Task, reflection: &str) -> std::io::Result<()> {
+        // Forward to tree logger if available
+        if let Some(ref tree_logger) = self.tree_logger {
+            if let Err(e) = tree_logger.log_reasoning_step(
+                &format!("task_{}", task.id),
+                &format!("task_{}_summary", task.id),
+                0, // Default depth for task summaries
+                "summary",
+                &format!("Reflection: {}", reflection),
+            ) {
+                eprintln!("Warning: Failed to log to tree logger: {}", e);
+            }
+        }
+
+        // Continue with existing Markdown logging
         let time_str = Self::format_time(
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
                 as i64,
@@ -235,5 +276,51 @@ mod tests {
         let think_pos = content.find("First thought").unwrap();
         let decide_pos = content.find("Decision made").unwrap();
         assert!(think_pos < decide_pos);
+    }
+
+    #[test]
+    fn test_markdown_logger_with_tree_logger_none() {
+        let temp_dir = TempDir::new().unwrap();
+        let logger = MarkdownLogger::new(temp_dir.path());
+
+        // Should work without tree logger
+        assert!(logger.tree_logger.is_none());
+
+        let task = Task {
+            id: 1,
+            goal: "Test task".to_string(),
+            description: "".to_string(),
+            status: "open".to_string(),
+            priority: 3,
+            parent_id: None,
+            created_at: 0,
+            updated_at: 0,
+        };
+
+        let step = Step {
+            id: 1,
+            task_id: Some(1),
+            state: "Think".to_string(),
+            content: "Test thought".to_string(),
+            meta_json: "{}".to_string(),
+            created_at: 0,
+        };
+
+        // Should not panic even without tree logger
+        logger.log_step(&step, &task).unwrap();
+        logger.log_summary(&task, "Test reflection").unwrap();
+    }
+
+    #[test]
+    fn test_markdown_logger_creation_with_tree_logger() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Test creation without tree logger
+        let logger1 = MarkdownLogger::new(temp_dir.path());
+        assert!(logger1.tree_logger.is_none());
+
+        // Test creation with tree logger (None for this test)
+        let logger2 = MarkdownLogger::new_with_tree_logger(temp_dir.path(), None);
+        assert!(logger2.tree_logger.is_none());
     }
 }

@@ -17,6 +17,12 @@ pub struct Neo4jClient {
     namespace: String,
 }
 
+impl std::fmt::Debug for Neo4jClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Neo4jClient").field("namespace", &self.namespace).finish()
+    }
+}
+
 impl Neo4jClient {
     /// Connect to Neo4j database
     ///

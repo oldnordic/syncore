@@ -12,7 +12,10 @@ pub mod debug_suite;
 pub mod graph_suite;
 pub mod mapping_suite;
 pub mod memory_suite;
+pub mod reasoning_suite;
 pub mod refrag_suite;
+pub mod streaming;
+pub mod translator;
 
 use serde::{Deserialize, Serialize};
 

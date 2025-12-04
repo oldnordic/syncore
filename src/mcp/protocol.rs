@@ -39,110 +39,220 @@ pub struct MCPError {
 
 pub async fn list_tools() -> Vec<ToolInfo> {
     vec![
+        // Document Suite
         ToolInfo {
-            name: "memory.store".into(),
-            description: "Stores a key-value pair into SynCore's memory".into(),
-            input_schema: "schemas/memory_store.json".into(),
-            output_schema: "schemas/ok.json".into(),
+            name: "document_search".into(),
+            description: "Search documents by semantic similarity".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "memory.query".into(),
-            description: "Queries a value from SynCore's memory by key".into(),
-            input_schema: "schemas/memory_query.json".into(),
-            output_schema: "schemas/memory_value.json".into(),
+            name: "document_index".into(),
+            description: "Index documents from a directory".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Vector Suite
+        ToolInfo {
+            name: "vector_insert".into(),
+            description: "Insert text into vector store with embeddings".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "task.create".into(),
-            description: "Creates a new task with a goal".into(),
-            input_schema: "schemas/task_create.json".into(),
-            output_schema: "schemas/task_id.json".into(),
+            name: "vector_search".into(),
+            description: "Search vector store by semantic similarity".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Code Suite
+        ToolInfo {
+            name: "code_search".into(),
+            description: "Search code by semantic meaning".into(),
+            input_schema: "schemas/code_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "vector.insert".into(),
-            description: "Inserts text into vector memory for semantic search".into(),
-            input_schema: "schemas/vector_insert.json".into(),
-            output_schema: "schemas/vector_insert_response.json".into(),
+            name: "code_index".into(),
+            description: "Index a code file for semantic search".into(),
+            input_schema: "schemas/code_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "vector.search".into(),
-            description: "Searches vector memory for semantically similar content".into(),
-            input_schema: "schemas/vector_search.json".into(),
-            output_schema: "schemas/vector_results.json".into(),
+            name: "code_index_directory".into(),
+            description: "Index all code files in a directory".into(),
+            input_schema: "schemas/code_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Graph Suite
+        ToolInfo {
+            name: "graph_query".into(),
+            description: "Execute Cypher read query on Neo4j".into(),
+            input_schema: "schemas/graph_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "logs.tail".into(),
-            description: "Returns the last N entries from markdown logs".into(),
-            input_schema: "schemas/logs_tail.json".into(),
-            output_schema: "schemas/log_entries.json".into(),
+            name: "graph_insert".into(),
+            description: "Execute Cypher write query on Neo4j".into(),
+            input_schema: "schemas/graph_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "parser.analyze".into(),
-            description: "Analyzes code structure and extracts functions, classes, imports, and variables".into(),
-            input_schema: "schemas/parse_file.json".into(),
-            output_schema: "schemas/parse_file_output.json".into(),
+            name: "graph_relate".into(),
+            description: "Create relationship between nodes".into(),
+            input_schema: "schemas/graph_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "parser.search".into(),
-            description: "Searches for patterns in code files using ripgrep".into(),
-            input_schema: "schemas/search_code.json".into(),
-            output_schema: "schemas/search_code_output.json".into(),
+            name: "graph_suite".into(),
+            description: "Unified graph operations suite".into(),
+            input_schema: "schemas/graph_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Memory Suite
+        ToolInfo {
+            name: "memory_query".into(),
+            description: "Query a value from memory by key".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "code.explain".into(),
-            description: "Explains code using local Ollama LLM. Can explain specific functions or entire files.".into(),
-            input_schema: "schemas/code_explain.json".into(),
-            output_schema: "schemas/code_explain_output.json".into(),
+            name: "memory_store".into(),
+            description: "Store a key-value pair in memory".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Parser Suite
+        ToolInfo {
+            name: "parser_search".into(),
+            description: "Search code patterns using ripgrep".into(),
+            input_schema: "schemas/code_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "code.index_directory".into(),
-            description: "Index all code files in a directory matching a glob pattern. Extracts functions, classes, and relationships for semantic search.".into(),
-            input_schema: "schemas/code_index_directory.json".into(),
-            output_schema: "schemas/code_index_directory_output.json".into(),
+            name: "parser_analyze".into(),
+            description: "Analyze code structure using tree-sitter".into(),
+            input_schema: "schemas/code_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
-        // Code Graph Tools (PHASE 5)
+        // Task Suite
         ToolInfo {
-            name: "code_graph.index".into(),
-            description: "Index a Rust source file into the Code Intelligence Graph. Extracts imports, functions, calls, structs, traits, and implementations with semantic embeddings.".into(),
-            input_schema: "schemas/code_graph_index.json".into(),
-            output_schema: "schemas/code_graph_index_output.json".into(),
-        },
-        ToolInfo {
-            name: "code_graph.query".into(),
-            description: "Query the Code Intelligence Graph for function relationships including callers, callees, and semantically similar functions.".into(),
-            input_schema: "schemas/code_graph_query.json".into(),
-            output_schema: "schemas/code_graph_query_output.json".into(),
+            name: "task_create".into(),
+            description: "Create a new task".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "code_graph.explain".into(),
-            description: "Get a comprehensive explanation of a function including its signature, callers, callees, and implementation context.".into(),
-            input_schema: "schemas/code_graph_explain.json".into(),
-            output_schema: "schemas/code_graph_explain_output.json".into(),
+            name: "task_list".into(),
+            description: "List all tasks".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "code_graph.impact".into(),
-            description: "Analyze the impact of modifying a function by finding all callers and dependent code paths.".into(),
-            input_schema: "schemas/code_graph_impact.json".into(),
-            output_schema: "schemas/code_graph_impact_output.json".into(),
-        },
-        // Refactoring Tools (PHASE 7)
-        ToolInfo {
-            name: "code_graph.refactor_check".into(),
-            description: "Run comprehensive refactoring analysis detecting long functions, dead code, and duplicate functions.".into(),
-            input_schema: "schemas/code_graph_refactor_check.json".into(),
-            output_schema: "schemas/code_graph_refactor_check_output.json".into(),
+            name: "task_get".into(),
+            description: "Get specific task by ID".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
         ToolInfo {
-            name: "code_graph.refactor_symbol".into(),
-            description: "Generate a detailed refactoring plan for a specific symbol (function, struct, or trait).".into(),
-            input_schema: "schemas/code_graph_refactor_symbol.json".into(),
-            output_schema: "schemas/code_graph_refactor_symbol_output.json".into(),
+            name: "task_update".into(),
+            description: "Update task status".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
-        // SMEL - Static Macro Expansion Layer
         ToolInfo {
-            name: "project.macro_expand".into(),
-            description: "Get macro expansions for a Rust file from the Static Macro Expansion Layer (SMEL).".into(),
-            input_schema: "schemas/project_macro_expand.json".into(),
-            output_schema: "schemas/project_macro_expand_output.json".into(),
+            name: "task_next".into(),
+            description: "Get next task ready to work on".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Debug Suite
+        ToolInfo {
+            name: "debug_suite".into(),
+            description: "Debugging, logs, and project analysis suite".into(),
+            input_schema: "schemas/debug_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Mapping Suite
+        ToolInfo {
+            name: "mapping_suite".into(),
+            description: "Application structure mapping suite".into(),
+            input_schema: "schemas/mapping_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // Reasoning Suite
+        ToolInfo {
+            name: "reasoning_session_create".into(),
+            description: "Create a new reasoning session".into(),
+            input_schema: "schemas/reasoning_session_create.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "reasoning_branch_expand".into(),
+            description: "Expand a reasoning branch with new thought".into(),
+            input_schema: "schemas/reasoning_branch_expand.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "reasoning_tree_get".into(),
+            description: "Get reasoning tree structure".into(),
+            input_schema: "schemas/reasoning_tree_get.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "reasoning_tree_prune".into(),
+            description: "Prune reasoning tree subtree".into(),
+            input_schema: "schemas/reasoning_tree_prune.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        // IntelliTask Suite
+        ToolInfo {
+            name: "intellitask_generate".into(),
+            description: "Generate tasks from PRD using AI".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "intellitask_subtasks".into(),
+            description: "Generate subtasks using AI".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "intellitask_prioritize".into(),
+            description: "Prioritize tasks using AI".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "intellitask_next".into(),
+            description: "Suggest next task using AI".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "intellitask_save".into(),
+            description: "Save task breakdown to database".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "intellitask_get".into(),
+            description: "Get specific task by ID".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "intellitask_list".into(),
+            description: "List all tasks".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
+        },
+        ToolInfo {
+            name: "intellitask_update_status".into(),
+            description: "Update task status".into(),
+            input_schema: "schemas/memory_suite.json".into(),
+            output_schema: "schemas/suite_result.json".into(),
         },
     ]
 }
@@ -153,7 +263,7 @@ pub async fn describe_server() -> serde_json::Value {
         "version": env!("CARGO_PKG_VERSION"),
         "description": "Cognitive micro-kernel with sequential thinking, memory, and task management",
         "encodings": ["json", "msgpack"],
-        "tools_count": 17,
+        "tools_count": 34,
         "capabilities": {
             "memory": true,
             "vector_search": true,
@@ -170,14 +280,43 @@ pub async fn describe_server() -> serde_json::Value {
 lazy_static::lazy_static! {
     static ref SCHEMAS: HashMap<String, String> = {
         let mut schemas = HashMap::new();
-        schemas.insert("memory.store".to_string(), include_str!("../../schemas/memory_store.json").to_string());
-        schemas.insert("memory.query".to_string(), include_str!("../../schemas/memory_query.json").to_string());
-        schemas.insert("task.create".to_string(), include_str!("../../schemas/task_create.json").to_string());
-        schemas.insert("vector.insert".to_string(), include_str!("../../schemas/vector_insert.json").to_string());
-        schemas.insert("vector.search".to_string(), include_str!("../../schemas/vector_search.json").to_string());
-        schemas.insert("logs.tail".to_string(), include_str!("../../schemas/logs_tail.json").to_string());
-        schemas.insert("parser.analyze".to_string(), include_str!("../../schemas/parse_file.json").to_string());
-        schemas.insert("parser.search".to_string(), include_str!("../../schemas/search_code.json").to_string());
+        // Suite-based schemas
+        schemas.insert("document_search".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("document_index".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("vector_insert".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("vector_search".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("code_search".to_string(), include_str!("../../schemas/code_suite.json").to_string());
+        schemas.insert("code_index".to_string(), include_str!("../../schemas/code_suite.json").to_string());
+        schemas.insert("code_index_directory".to_string(), include_str!("../../schemas/code_suite.json").to_string());
+        schemas.insert("graph_query".to_string(), include_str!("../../schemas/graph_suite.json").to_string());
+        schemas.insert("graph_insert".to_string(), include_str!("../../schemas/graph_suite.json").to_string());
+        schemas.insert("graph_relate".to_string(), include_str!("../../schemas/graph_suite.json").to_string());
+        schemas.insert("graph_suite".to_string(), include_str!("../../schemas/graph_suite.json").to_string());
+        schemas.insert("memory_query".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("memory_store".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("parser_search".to_string(), include_str!("../../schemas/code_suite.json").to_string());
+        schemas.insert("parser_analyze".to_string(), include_str!("../../schemas/code_suite.json").to_string());
+        schemas.insert("task_create".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("task_list".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("task_get".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("task_update".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("task_next".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("debug_suite".to_string(), include_str!("../../schemas/debug_suite.json").to_string());
+        schemas.insert("mapping_suite".to_string(), include_str!("../../schemas/mapping_suite.json").to_string());
+        // Reasoning schemas
+        schemas.insert("reasoning_session_create".to_string(), include_str!("../../schemas/reasoning_session_create.json").to_string());
+        schemas.insert("reasoning_branch_expand".to_string(), include_str!("../../schemas/reasoning_branch_expand.json").to_string());
+        schemas.insert("reasoning_tree_get".to_string(), include_str!("../../schemas/reasoning_tree_get.json").to_string());
+        schemas.insert("reasoning_tree_prune".to_string(), include_str!("../../schemas/reasoning_tree_prune.json").to_string());
+        // IntelliTask schemas (reuse memory_suite schemas for now)
+        schemas.insert("intellitask_generate".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("intellitask_subtasks".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("intellitask_prioritize".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("intellitask_next".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("intellitask_save".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("intellitask_get".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("intellitask_list".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
+        schemas.insert("intellitask_update_status".to_string(), include_str!("../../schemas/memory_suite.json").to_string());
         schemas
     };
 }
@@ -314,104 +453,167 @@ async fn invoke_tool(
     arguments: &Value,
     state: &SynCoreState,
 ) -> Result<Value, Box<dyn std::error::Error + Send + Sync>> {
-    // Convert JSON arguments to MessagePack format for router
-    let args_vec = match name {
-        "memory.store" => {
-            let key = arguments["key"].as_str().ok_or("Missing key")?;
-            let value = arguments["value"].as_str().ok_or("Missing value")?;
-            rmp_serde::to_vec(&(key.to_string(), value.to_string()))?
-        }
-        "memory.query" => {
-            let key = arguments["key"].as_str().ok_or("Missing key")?;
-            rmp_serde::to_vec(&key.to_string())?
-        }
-        "task.create" => {
-            let goal = arguments["goal"].as_str().ok_or("Missing goal")?;
-            rmp_serde::to_vec(&goal.to_string())?
-        }
-        "vector.insert" => {
-            let id = arguments["id"].as_i64().ok_or("Missing id")?;
-            let task_id = arguments.get("task_id").and_then(|v| v.as_i64());
-            let text = arguments["text"].as_str().ok_or("Missing text")?;
-            let kind = arguments["kind"].as_str().unwrap_or("note");
-            rmp_serde::to_vec(&(id, task_id, text.to_string(), kind.to_string()))?
-        }
-        "vector.search" => {
-            let query = arguments["query"].as_str().ok_or("Missing query")?;
-            let k = arguments["k"].as_u64().unwrap_or(5) as usize;
-            let scope = if let Some(scope_obj) = arguments.get("scope").and_then(|v| v.as_object())
-            {
-                if let Some(task_obj) = scope_obj.get("task").and_then(|v| v.as_object()) {
-                    let task_id =
-                        task_obj["task_id"].as_u64().ok_or("Missing task_id in task scope")?;
-                    crate::vector::SearchScope::Task(task_id.try_into().unwrap())
-                } else {
-                    return Err("Invalid scope format".into());
-                }
+    use crate::mcp_tools::{
+        code_suite::CodeSuite, debug_suite::DebugSuite, graph_suite::GraphSuite,
+        mapping_suite::MappingSuite, memory_suite::MemorySuite, SuiteDispatcher,
+    };
+
+    // Route through suite dispatchers based on tool name
+    let result = match name {
+        // Document tools (use memory suite)
+        "document_search" | "document_index" => {
+            let suite = MemorySuite::new(state.clone());
+            let command = if name == "document_search" {
+                "vector_search"
             } else {
-                crate::vector::SearchScope::Global
+                "vector_insert"
             };
-            rmp_serde::to_vec(&(query.to_string(), k, scope))?
+            suite.dispatch(command, arguments.clone())
         }
-        "graph.link" => {
-            let src_id = arguments["src_id"].as_i64().ok_or("Missing src_id")?;
-            let dst_id = arguments["dst_id"].as_i64().ok_or("Missing dst_id")?;
-            let kind = arguments["kind"].as_str().ok_or("Missing kind")?;
-            rmp_serde::to_vec(&(src_id, dst_id, kind.to_string()))?
-        }
-        "graph.query" => {
-            let task_id = arguments["task_id"].as_i64().ok_or("Missing task_id")?;
-            let direction = arguments["direction"].as_str().unwrap_or("both");
-            rmp_serde::to_vec(&(task_id, direction.to_string()))?
-        }
-        "logs.tail" => {
-            let n = arguments["n"].as_u64().unwrap_or(10) as usize;
-            rmp_serde::to_vec(&n)?
-        }
-        "parser.analyze" => {
-            let file_path = arguments["file_path"].as_str().ok_or("Missing file_path")?;
-            rmp_serde::to_vec(&file_path.to_string())?
-        }
-        "parser.search" => {
-            let pattern = arguments["pattern"].as_str().ok_or("Missing pattern")?;
-            let directory =
-                arguments.get("directory").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let context_lines =
-                arguments.get("context_lines").and_then(|v| v.as_u64()).map(|n| n as usize);
-            rmp_serde::to_vec(&(pattern.to_string(), directory, context_lines))?
-        }
-        "code.explain" => {
-            use crate::code_explainer::ExplainRequest;
-            let request = ExplainRequest {
-                file_path: arguments["file_path"].as_str().ok_or("Missing file_path")?.to_string(),
-                function_name: arguments
-                    .get("function_name")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string()),
-                model: arguments.get("model").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        // Vector tools (use memory suite)
+        "vector_insert" | "vector_search" => {
+            let suite = MemorySuite::new(state.clone());
+            let command = if name == "vector_insert" {
+                "vector_insert"
+            } else {
+                "vector_search"
             };
-            rmp_serde::to_vec(&request)?
+            suite.dispatch(command, arguments.clone())
         }
-        "code.index_directory" => {
-            use crate::code_directory_indexer::DirectoryIndexRequest;
-            let request = DirectoryIndexRequest {
-                directory: arguments["directory"].as_str().ok_or("Missing directory")?.to_string(),
-                pattern: arguments["pattern"].as_str().ok_or("Missing pattern")?.to_string(),
+        // Code tools (use code suite)
+        "code_search"
+        | "code_index"
+        | "code_index_directory"
+        | "parser_search"
+        | "parser_analyze" => {
+            let suite = CodeSuite::new(state.clone());
+            let command = match name {
+                "code_search" => "search",
+                "code_index" => "index",
+                "code_index_directory" => "index_directory",
+                "parser_search" => "grep",
+                "parser_analyze" => "parse",
+                _ => return Err(format!("Unknown code tool: {}", name).into()),
             };
-            rmp_serde::to_vec(&request)?
+            suite.dispatch(command, arguments.clone())
         }
-        "project.macro_expand" => {
-            use crate::mcp::code_graph_tools::handle_project_macro_expand;
-            let result = handle_project_macro_expand(arguments.clone()).await?;
-            rmp_serde::to_vec(&result)?
+        // Graph tools (use graph suite)
+        "graph_query" | "graph_insert" | "graph_relate" | "graph_suite" => {
+            let suite = GraphSuite::new(state.clone());
+            let command = match name {
+                "graph_query" => "query",
+                "graph_insert" => "insert",
+                "graph_relate" => "relate",
+                "graph_suite" => "help",
+                _ => return Err(format!("Unknown graph tool: {}", name).into()),
+            };
+            suite.dispatch(command, arguments.clone())
+        }
+        // Memory tools (use memory suite)
+        "memory_query" | "memory_store" => {
+            let suite = MemorySuite::new(state.clone());
+            let command = if name == "memory_query" {
+                "query"
+            } else {
+                "store"
+            };
+            suite.dispatch(command, arguments.clone())
+        }
+        // Task tools (use memory suite)
+        "task_create" | "task_list" | "task_get" | "task_update" | "task_next" => {
+            let suite = MemorySuite::new(state.clone());
+            let command = match name {
+                "task_create" => "task_create",
+                "task_list" => "task_list",
+                "task_get" => "task_get",
+                "task_update" => "task_update",
+                "task_next" => "task_next",
+                _ => return Err(format!("Unknown task tool: {}", name).into()),
+            };
+            suite.dispatch(command, arguments.clone())
+        }
+        // Debug Suite (direct suite dispatch)
+        "debug_suite" => {
+            let suite = DebugSuite::new(state.clone());
+            suite.dispatch("debug_suite", arguments.clone())
+        }
+        // Mapping Suite (direct suite dispatch)
+        "mapping_suite" => {
+            let suite = MappingSuite::new(state.clone());
+            suite.dispatch("mapping_suite", arguments.clone())
+        }
+        // Reasoning Tools
+        "reasoning_session_create" => {
+            use crate::mcp_tools::reasoning_suite::handle_reasoning_session_create;
+            use crate::mcp_tools::SuiteResult;
+            match handle_reasoning_session_create(arguments.clone(), state).await {
+                Ok(value) => SuiteResult::ok("reasoning_session_create", value),
+                Err(e) => SuiteResult::err(
+                    "reasoning_session_create",
+                    format!("Reasoning session create failed: {}", e),
+                ),
+            }
+        }
+        "reasoning_branch_expand" => {
+            use crate::mcp_tools::reasoning_suite::handle_reasoning_branch_expand;
+            use crate::mcp_tools::SuiteResult;
+            match handle_reasoning_branch_expand(arguments.clone(), state).await {
+                Ok(value) => SuiteResult::ok("reasoning_branch_expand", value),
+                Err(e) => SuiteResult::err(
+                    "reasoning_branch_expand",
+                    format!("Reasoning branch expand failed: {}", e),
+                ),
+            }
+        }
+        "reasoning_tree_get" => {
+            use crate::mcp_tools::reasoning_suite::handle_reasoning_tree_get;
+            use crate::mcp_tools::SuiteResult;
+            match handle_reasoning_tree_get(arguments.clone(), state).await {
+                Ok(value) => SuiteResult::ok("reasoning_tree_get", value),
+                Err(e) => SuiteResult::err(
+                    "reasoning_tree_get",
+                    format!("Reasoning tree get failed: {}", e),
+                ),
+            }
+        }
+        "reasoning_tree_prune" => {
+            use crate::mcp_tools::reasoning_suite::handle_reasoning_tree_prune;
+            use crate::mcp_tools::SuiteResult;
+            match handle_reasoning_tree_prune(arguments.clone(), state).await {
+                Ok(value) => SuiteResult::ok("reasoning_tree_prune", value),
+                Err(e) => SuiteResult::err(
+                    "reasoning_tree_prune",
+                    format!("Reasoning tree prune failed: {}", e),
+                ),
+            }
+        }
+        // IntelliTask Tools (use memory suite)
+        "intellitask_generate"
+        | "intellitask_subtasks"
+        | "intellitask_prioritize"
+        | "intellitask_next"
+        | "intellitask_save"
+        | "intellitask_get"
+        | "intellitask_list"
+        | "intellitask_update_status" => {
+            let suite = MemorySuite::new(state.clone());
+            let command = match name {
+                "intellitask_generate" => "intellitask_generate",
+                "intellitask_subtasks" => "intellitask_subtasks",
+                "intellitask_prioritize" => "intellitask_prioritize",
+                "intellitask_next" => "intellitask_next",
+                "intellitask_save" => "intellitask_save",
+                "intellitask_get" => "intellitask_get",
+                "intellitask_list" => "intellitask_list",
+                "intellitask_update_status" => "intellitask_update_status",
+                _ => return Err(format!("Unknown intellitask tool: {}", name).into()),
+            };
+            suite.dispatch(command, arguments.clone())
         }
         _ => return Err(format!("Unknown tool: {}", name).into()),
     };
 
-    // Use router to handle the tool call
-    let response_bytes = crate::router::route_tool(name, &args_vec, state)?;
-
-    // Convert MessagePack response back to JSON
-    let response_value: Value = rmp_serde::from_slice(&response_bytes)?;
-    Ok(response_value)
+    // Convert SuiteResult to JSON
+    let json_value = serde_json::to_value(result)?;
+    Ok(json_value)
 }

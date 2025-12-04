@@ -20,6 +20,101 @@
 
 use super::{MemorySuite, MemorySuiteArgs};
 use crate::mcp_tools::SuiteResult;
+use crate::mcp_tools::translator::{translate_llm_output, TargetSchema};
+use serde_json::{json, Value};
+
+/// Coerce intellitask payloads to canonical TaskBreakdown format
+///
+/// This function performs minimal coercion to ensure lightweight user inputs
+/// conform to the TaskBreakdown schema expected by the translator.
+/// It does NOT bypass validation - invalid fields will still be rejected.
+pub fn coerce_intellitask_payload(value: Value) -> Value {
+    match value {
+        // Case 1: intellitask_next - lightweight task array
+        Value::Array(mut tasks) => {
+            let mut parent_tasks = Vec::new();
+
+            for (index, task) in tasks.drain(..).enumerate() {
+                if let Value::Object(mut task_map) = task {
+                    // Ensure required fields exist with defaults
+                    task_map.entry("id").or_insert_with(|| Value::String(format!("{}.0", index + 1)));
+                    task_map.entry("title").or_insert_with(|| Value::String("Untitled Task".to_string()));
+                    task_map.entry("description").or_insert_with(|| Value::String("".to_string()));
+                    task_map.entry("complexity").or_insert_with(|| Value::String("Moderate".to_string()));
+                    task_map.entry("estimated_hours").or_insert_with(|| Value::Number(serde_json::Number::from_f64(1.0).unwrap()));
+                    task_map.entry("subtasks").or_insert_with(|| Value::Array(Vec::new()));
+                    task_map.entry("dependencies").or_insert_with(|| Value::Array(Vec::new()));
+
+                    parent_tasks.push(Value::Object(task_map));
+                } else {
+                    // Invalid task format, but let the translator handle it
+                    parent_tasks.push(task);
+                }
+            }
+
+            json!({
+                "prd_title": "Unknown PRD",
+                "parent_tasks": parent_tasks,
+                "relevant_files": [],
+                "estimated_complexity": "Moderate"
+            })
+        }
+
+        // Case 2: intellitask_save - TaskBreakdown object with missing fields
+        Value::Object(mut breakdown_map) => {
+            // Ensure parent_tasks exists and is an array
+            let parent_tasks = breakdown_map.entry("parent_tasks")
+                .or_insert_with(|| Value::Array(Vec::new()));
+
+            if let Value::Array(ref mut parent_tasks_array) = parent_tasks {
+                for parent_task in parent_tasks_array.iter_mut() {
+                    if let Value::Object(ref mut parent_map) = parent_task {
+                        // Ensure required parent task fields exist with defaults
+                        parent_map.entry("dependencies")
+                            .or_insert_with(|| Value::Array(Vec::new()));
+                        parent_map.entry("complexity")
+                            .or_insert_with(|| Value::String("Moderate".to_string()));
+                        parent_map.entry("estimated_hours")
+                            .or_insert_with(|| Value::Number(serde_json::Number::from_f64(4.0).unwrap()));
+
+                        // Ensure subtasks exists and is an array
+                        let subtasks = parent_map.entry("subtasks")
+                            .or_insert_with(|| Value::Array(Vec::new()));
+
+                        if let Value::Array(ref mut subtasks_array) = subtasks {
+                            for subtask in subtasks_array.iter_mut() {
+                                if let Value::Object(ref mut subtask_map) = subtask {
+                                    // Ensure required subtask fields exist with defaults
+                                    subtask_map.entry("acceptance_criteria")
+                                        .or_insert_with(|| Value::Array(Vec::new()));
+                                    subtask_map.entry("dependencies")
+                                        .or_insert_with(|| Value::Array(Vec::new()));
+                                    subtask_map.entry("files_to_modify")
+                                        .or_insert_with(|| Value::Array(Vec::new()));
+                                    subtask_map.entry("complexity")
+                                        .or_insert_with(|| Value::String("Simple".to_string()));
+                                    subtask_map.entry("estimated_hours")
+                                        .or_insert_with(|| Value::Number(serde_json::Number::from_f64(1.0).unwrap()));
+                                    subtask_map.entry("description")
+                                        .or_insert_with(|| Value::String("".to_string()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Ensure estimated_complexity exists
+            breakdown_map.entry("estimated_complexity")
+                .or_insert_with(|| Value::String("Moderate".to_string()));
+
+            Value::Object(breakdown_map)
+        }
+
+        // Case 3: Other value types - return as-is for translator to handle
+        _ => value,
+    }
+}
 
 pub fn cmd_intellitask_list(suite: &MemorySuite, _args: MemorySuiteArgs) -> SuiteResult {
     use crate::tasks::Task;
@@ -433,14 +528,39 @@ pub fn cmd_intellitask_subtasks(suite: &MemorySuite, args: MemorySuiteArgs) -> S
         }
     };
 
-    // Parse parent task
-    let parent_task: crate::intellitask::ParentTask = match serde_json::from_str(parent_task_json) {
-        Ok(task) => task,
+    // Parse parent task through translator
+    let translated = match translate_llm_output(parent_task_json, TargetSchema::TaskBreakdown) {
+        Ok(value) => value,
         Err(e) => {
             return SuiteResult::err(
                 "intellitask_subtasks",
-                format!("Failed to parse parent_task_json: {}", e),
+                format!("Failed to translate parent_task_json: {}", e),
             )
+        }
+    };
+
+    if let Some(error) = translated.get("error") {
+        return SuiteResult::err(
+            "intellitask_subtasks",
+            format!("ParentTask translation failed: {:?}", error),
+        );
+    }
+
+    // Extract first parent task from the breakdown
+    let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(translated) {
+        Ok(b) => b,
+        Err(e) => {
+            return SuiteResult::err(
+                "intellitask_subtasks",
+                format!("Failed to deserialize translated parent task: {}", e),
+            )
+        }
+    };
+
+    let parent_task = match breakdown.parent_tasks.into_iter().next() {
+        Some(task) => task,
+        None => {
+            return SuiteResult::err("intellitask_subtasks", "No parent task found in breakdown".to_string());
         }
     };
 
@@ -490,16 +610,42 @@ pub fn cmd_intellitask_prioritize(suite: &MemorySuite, args: MemorySuiteArgs) ->
         }
     };
 
-    // Parse tasks
-    let tasks: Vec<crate::intellitask::ParentTask> = match serde_json::from_str(tasks_json) {
-        Ok(tasks) => tasks,
+    // Parse tasks through translator - wrap in TaskBreakdown structure
+    let wrapper_json = json!({
+        "prd_title": "Task Prioritization",
+        "parent_tasks": tasks_json,
+        "relevant_files": [],
+        "estimated_complexity": "Moderate"
+    }).to_string();
+
+    let translated = match translate_llm_output(&wrapper_json, TargetSchema::TaskBreakdown) {
+        Ok(value) => value,
         Err(e) => {
             return SuiteResult::err(
                 "intellitask_prioritize",
-                format!("Failed to parse tasks_json: {}", e),
+                format!("Failed to translate tasks_json: {}", e),
             )
         }
     };
+
+    if let Some(error) = translated.get("error") {
+        return SuiteResult::err(
+            "intellitask_prioritize",
+            format!("Tasks translation failed: {:?}", error),
+        );
+    }
+
+    let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(translated) {
+        Ok(b) => b,
+        Err(e) => {
+            return SuiteResult::err(
+                "intellitask_prioritize",
+                format!("Failed to deserialize translated tasks: {}", e),
+            )
+        }
+    };
+
+    let tasks = breakdown.parent_tasks;
 
     // Get business context (optional)
     let business_context = args.business_context.as_deref().unwrap_or("");
@@ -565,17 +711,51 @@ pub fn cmd_intellitask_next(suite: &MemorySuite, args: MemorySuiteArgs) -> Suite
         }
     };
 
-    // Parse remaining tasks
-    let remaining_tasks: Vec<crate::intellitask::ParentTask> =
-        match serde_json::from_str(remaining_tasks_json) {
+    // Parse remaining tasks with coercion
+    let remaining_tasks_value: Value = match serde_json::from_str(remaining_tasks_json) {
+        Ok(v) => v,
+        Err(e) => {
+            return SuiteResult::err(
+                "intellitask_next",
+                format!("Failed to parse remaining_tasks_json as JSON: {}", e),
+            )
+        }
+    };
+
+    let coerced = coerce_intellitask_payload(remaining_tasks_value);
+    let translated = match translate_llm_output(&coerced.to_string(), TargetSchema::TaskBreakdown) {
+        Ok(t) => t,
+        Err(e) => {
+            return SuiteResult::err(
+                "intellitask_next",
+                format!("Failed to translate remaining_tasks_json: {}", e),
+            )
+        }
+    };
+
+    if let Some(error) = translated.get("error") {
+        return SuiteResult::err(
+            "intellitask_next",
+            format!("Translator validation error: {:?}", error),
+        );
+    }
+
+    let remaining_tasks: Vec<crate::intellitask::ParentTask> = if let Some(parent_tasks) = translated.get("parent_tasks") {
+        match serde_json::from_value::<Vec<crate::intellitask::ParentTask>>(parent_tasks.clone()) {
             Ok(tasks) => tasks,
             Err(e) => {
                 return SuiteResult::err(
                     "intellitask_next",
-                    format!("Failed to parse remaining_tasks_json: {}", e),
+                    format!("Failed to deserialize translated remaining_tasks: {}", e),
                 )
             }
-        };
+        }
+    } else {
+        return SuiteResult::err(
+            "intellitask_next",
+            "Translated output missing parent_tasks field".to_string(),
+        );
+    };
 
     // Call IntelliTask to suggest next task
     match intellitask.suggest_next_task(&completed_tasks, &remaining_tasks) {
@@ -609,13 +789,41 @@ pub fn cmd_intellitask_save(suite: &MemorySuite, args: MemorySuiteArgs) -> Suite
         }
     };
 
-    // Parse task breakdown
-    let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_str(breakdown_json) {
+    // Parse task breakdown with coercion
+    let breakdown_value: Value = match serde_json::from_str(breakdown_json) {
+        Ok(v) => v,
+        Err(e) => {
+            return SuiteResult::err(
+                "intellitask_save",
+                format!("Failed to parse breakdown_json as JSON: {}", e),
+            )
+        }
+    };
+
+    let coerced = coerce_intellitask_payload(breakdown_value);
+    let translated = match translate_llm_output(&coerced.to_string(), TargetSchema::TaskBreakdown) {
+        Ok(t) => t,
+        Err(e) => {
+            return SuiteResult::err(
+                "intellitask_save",
+                format!("Failed to translate breakdown_json: {}", e),
+            )
+        }
+    };
+
+    if let Some(error) = translated.get("error") {
+        return SuiteResult::err(
+            "intellitask_save",
+            format!("Translator validation error: {:?}", error),
+        );
+    }
+
+    let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(translated.clone()) {
         Ok(b) => b,
         Err(e) => {
             return SuiteResult::err(
                 "intellitask_save",
-                format!("Failed to parse breakdown_json: {}", e),
+                format!("Failed to deserialize translated breakdown_json: {}", e),
             )
         }
     };

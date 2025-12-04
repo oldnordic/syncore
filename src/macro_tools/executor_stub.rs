@@ -234,20 +234,6 @@ impl RealExecutorStub {
                 "agents": []
             }),
 
-            // Sequential tools
-            "sequential_cycle" => json!({
-                "cycles": 3
-            }),
-            "sequential_record" => json!({
-                "recorded": true
-            }),
-            "sequential_get" => json!({
-                "steps": []
-            }),
-            "sequential_search" => json!({
-                "results": []
-            }),
-
             // Logs tools
             "logs_tail" => json!({
                 "logs": []

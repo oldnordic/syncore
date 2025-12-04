@@ -19,7 +19,7 @@
 //! 6. **syncore.graph** - routes to graph_query, graph_insert, graph_relate
 //! 7. **syncore.agent** - routes to agent_send, agent_recv, agent_*
 //! 8. **syncore.mapping** - routes to mapping_record, mapping_get, mapping_search, mapping_deps
-//! 9. **syncore.reasoning** - routes to sequential_cycle, sequential_record, sequential_get, sequential_search
+//! 9. **syncore.reasoning** - routes to reasoning.expand, reasoning.prune, reasoning.health, reasoning.metrics
 //! 10. **syncore.logs** - routes to logs_tail
 
 pub mod agent;

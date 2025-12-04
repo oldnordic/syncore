@@ -7,10 +7,10 @@
 
 use crate::code_graph::CodeGraph;
 use crate::config::SyncoreConfig;
+use crate::db;
 use crate::vector::{HuggingFaceEmbeddings, VectorStore};
 use anyhow::{Context, Result};
 use glob::glob;
-use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
 /// Run startup bootstrap check and indexing if needed.
@@ -41,7 +41,7 @@ use std::sync::{Arc, Mutex};
 pub async fn run_startup_bootstrap_for_tests(cfg: &SyncoreConfig) -> Result<()> {
     // Step 1: Check entity count in code_entities
     let conn =
-        Connection::open(&cfg.paths.code_graph_db).context("Failed to open code_graph database")?;
+        db::open_db_with_wal(&cfg.paths.code_graph_db).context("Failed to open code_graph database")?;
 
     let entity_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))

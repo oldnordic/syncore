@@ -1,0 +1,21 @@
+MCP-RELATED TEST FAILURES
+========================
+
+1. mcp_manifest tests - Not found (no such test pattern)
+2. mcp_runtime tests - Not found (no such test pattern)  
+3. mcp_llm_completion tests - Compilation errors:
+   - E0599: no method named `with_intellitask_from_config` found for struct `SynCoreState`
+   - E0624: method `mcp_delegate` is private
+   - E0599: no method named `get_health`/`get_metrics` found for GGUFEngine (should be health()/metrics())
+   - E0308: mismatched types in IntelliTask::new() (expects OllamaClient, got Arc<GGUFEngine>)
+
+4. mcp_llm_tools_simple tests - Compilation errors:
+   - Same method name issues (get_health vs health, get_metrics vs metrics)
+   - Same IntelliTask constructor type mismatch
+
+ROOT CAUSE ANALYSIS:
+- Tests are trying to use deprecated/incorrect method names
+- IntelliTask still expects OllamaClient but we're using GGUFEngine now
+- mcp_delegate method is private (prevents direct testing)
+
+These test failures are NOT related to the core MCP server crash during initialization.

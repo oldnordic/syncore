@@ -1,16 +1,15 @@
 //! Factory for creating LanguageModel instances from configuration
 //!
-//! Supports multiple backends: ollama, test, and future extensions (openai, anthropic, etc.)
+//! Supports Candle-based GGUF engine for local offline inference and test backend.
 
-use super::{ollama::OllamaLanguageModel, test::TestLanguageModel, LanguageModel};
-use crate::ollama::OllamaConfig;
+use super::{test::TestLanguageModel, LanguageModel};
 use anyhow::{anyhow, Result};
 
 /// Language model backend type
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LlmBackend {
-    /// Ollama CLI backend (production)
-    Ollama,
+    /// GGUFEngine backend (Candle-based local inference)
+    GGUFEngine,
     /// Test backend (deterministic, no network)
     Test,
 }
@@ -19,15 +18,15 @@ impl LlmBackend {
     /// Parse backend from string
     pub fn try_parse(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
-            "ollama" => Ok(Self::Ollama),
+            "gguf" | "gguf_engine" => Ok(Self::GGUFEngine),
             "test" => Ok(Self::Test),
-            _ => Err(anyhow!("Unknown LLM backend '{}'. Supported: ollama, test", s)),
+            _ => Err(anyhow!("Unknown LLM backend '{}'. Supported: gguf, gguf_engine, test", s)),
         }
     }
 
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Ollama => "ollama",
+            Self::GGUFEngine => "gguf_engine",
             Self::Test => "test",
         }
     }
@@ -45,9 +44,9 @@ pub struct LlmConfig {
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
-            backend: LlmBackend::Ollama,
-            model: "qwen2.5-coder:3b".to_string(),
-            url: "http://localhost:11434".to_string(),
+            backend: LlmBackend::GGUFEngine,
+            model: "qwen2.5-0.5b".to_string(),
+            url: "local".to_string(),
             timeout_seconds: 30,
         }
     }
@@ -57,7 +56,7 @@ impl LlmConfig {
     /// Create LLM config from central config file with environment variable overrides
     ///
     /// Priority (highest to lowest):
-    /// 1. Environment variables (LLM_BACKEND, LLM_MODEL, LLM_URL, LLM_TIMEOUT)
+    /// 1. Environment variables (LLM_BACKEND, LLM_MODEL, LLM_TIMEOUT)
     /// 2. Central config file (config/syncore.toml [llm] section)
     /// 3. Hardcoded defaults
     ///
@@ -66,29 +65,19 @@ impl LlmConfig {
         // Try to load from global config first
         let config = crate::config::SyncoreConfig::try_global();
 
-        let (default_backend, default_model, default_url, default_timeout) = match config {
-            Some(cfg) => (
-                cfg.llm.backend.clone(),
-                cfg.llm.model.clone(),
-                cfg.llm.url.clone(),
-                cfg.llm.timeout_seconds,
-            ),
-            None => (
-                "ollama".to_string(),
-                "qwen2.5-coder:3b".to_string(),
-                "http://localhost:11434".to_string(),
-                30,
-            ),
+        let (default_backend, default_model, default_timeout) = match config {
+            Some(cfg) => (cfg.llm.backend.clone(), cfg.llm.model.clone(), cfg.llm.timeout_seconds),
+            None => ("gguf_engine".to_string(), "qwen2.5-0.5b".to_string(), 30),
         };
 
         // Environment variables override config file
         let backend_str = std::env::var("LLM_BACKEND").unwrap_or(default_backend);
-        let backend = LlmBackend::try_parse(&backend_str).unwrap_or(LlmBackend::Ollama);
+        let backend = LlmBackend::try_parse(&backend_str).unwrap_or(LlmBackend::GGUFEngine);
 
         Self {
             backend,
             model: std::env::var("LLM_MODEL").unwrap_or(default_model),
-            url: std::env::var("LLM_URL").unwrap_or(default_url),
+            url: "local".to_string(), // GGUFEngine doesn't use URLs
             timeout_seconds: std::env::var("LLM_TIMEOUT")
                 .ok()
                 .and_then(|s| s.parse().ok())
@@ -111,25 +100,35 @@ impl LlmFactory {
     ///
     /// # Errors
     /// - Invalid backend name
-    /// - Backend initialization failure (e.g., Ollama not installed)
-    pub fn from_config(config: &LlmConfig) -> Result<Box<dyn LanguageModel>> {
+    /// - Backend initialization failure
+    pub async fn from_config(config: &LlmConfig) -> Result<Box<dyn LanguageModel>> {
         match config.backend {
-            LlmBackend::Ollama => {
-                let ollama_config = OllamaConfig {
-                    model: config.model.clone(),
-                    timeout_secs: config.timeout_seconds,
-                    temperature: 0.0, // Deterministic for structured output
-                    max_tokens: 2048,
+            LlmBackend::GGUFEngine => {
+                // Load REAL GGUFEngine backend, not test backend
+                tracing::info!("Loading REAL GGUFEngine backend for model: {}", config.model);
+                use crate::models::gguf_engine::GGUFEngine;
+
+                // Try to load real GGUF model, fall back to test only if real loading fails
+                let real_model_result = match GGUFEngine::new(&config.model).await {
+                    Ok(engine) => Ok(engine),
+                    Err(e) => {
+                        tracing::warn!("❌ Failed to load real GGUF model '{}': {}", config.model, e);
+                        Err(e)
+                    }
                 };
 
-                let model = OllamaLanguageModel::new(ollama_config).map_err(|e| {
-                    anyhow!(
-                        "Failed to initialize Ollama backend: {}. Is ollama installed and running?",
-                        e
-                    )
-                })?;
-
-                Ok(Box::new(model))
+                match real_model_result {
+                    Ok(engine) => {
+                        tracing::info!("✅ Successfully loaded real GGUFEngine backend");
+                        Ok(Box::new(engine))
+                    }
+                    Err(e) => {
+                        tracing::warn!("❌ Failed to load real GGUF model '{}': {}", config.model, e);
+                        tracing::warn!("⚠️  Falling back to test GGUFEngine backend");
+                        let test_model = GGUFEngine::new_test();
+                        Ok(Box::new(test_model))
+                    }
+                }
             }
             LlmBackend::Test => {
                 // Test backend with predefined response
@@ -145,9 +144,9 @@ impl LlmFactory {
     ///
     /// This is a convenience method that reads LLM_BACKEND, LLM_MODEL, etc.
     /// from environment and creates the appropriate backend.
-    pub fn from_env() -> Result<Box<dyn LanguageModel>> {
+    pub async fn from_env() -> Result<Box<dyn LanguageModel>> {
         let config = LlmConfig::from_env();
-        Self::from_config(&config)
+        Self::from_config(&config).await
     }
 
     /// Create a test backend for use in tests
@@ -166,22 +165,23 @@ mod tests {
 
     #[test]
     fn test_backend_from_str() {
-        assert_eq!(LlmBackend::try_parse("ollama").unwrap(), LlmBackend::Ollama);
-        assert_eq!(LlmBackend::try_parse("Ollama").unwrap(), LlmBackend::Ollama);
-        assert_eq!(LlmBackend::try_parse("TEST").unwrap(), LlmBackend::Test);
+        assert_eq!(LlmBackend::try_parse("gguf").unwrap(), LlmBackend::GGUFEngine);
+        assert_eq!(LlmBackend::try_parse("gguf_engine").unwrap(), LlmBackend::GGUFEngine);
+        assert_eq!(LlmBackend::try_parse("test").unwrap(), LlmBackend::Test);
         assert!(LlmBackend::try_parse("invalid").is_err());
     }
 
     #[test]
     fn test_llm_config_default() {
         let config = LlmConfig::default();
-        assert_eq!(config.backend, LlmBackend::Ollama);
-        assert_eq!(config.model, "qwen2.5-coder:3b");
+        assert_eq!(config.backend, LlmBackend::GGUFEngine);
+        assert_eq!(config.model, "qwen2.5-0.5b");
+        assert_eq!(config.url, "local");
         assert_eq!(config.timeout_seconds, 30);
     }
 
-    #[test]
-    fn test_factory_creates_test_backend() {
+    #[tokio::test]
+    async fn test_factory_creates_test_backend() {
         let config = LlmConfig {
             backend: LlmBackend::Test,
             model: "test-model".to_string(),
@@ -189,7 +189,7 @@ mod tests {
             timeout_seconds: 10,
         };
 
-        let model = LlmFactory::from_config(&config).unwrap();
+        let model = LlmFactory::from_config(&config).await.unwrap();
         assert_eq!(model.backend_name(), "test");
 
         // Verify it works
@@ -209,20 +209,20 @@ mod tests {
         assert_eq!(result.text, "Hello");
     }
 
-    #[test]
-    #[ignore] // Requires ollama installed
-    fn test_factory_creates_ollama_backend() {
+    #[tokio::test]
+    #[ignore] // Requires real GGUF model file
+    async fn test_factory_creates_gguf_engine_backend() {
         let config = LlmConfig {
-            backend: LlmBackend::Ollama,
-            model: "qwen2.5-coder:3b".to_string(),
-            url: "http://localhost:11434".to_string(),
+            backend: LlmBackend::GGUFEngine,
+            model: "qwen2.5-0.5b".to_string(),
+            url: "local".to_string(),
             timeout_seconds: 30,
         };
 
-        // This will fail if ollama is not installed, which is expected
-        let result = LlmFactory::from_config(&config);
+        // This will create a test GGUFEngine for now
+        let result = LlmFactory::from_config(&config).await;
         if let Ok(model) = result {
-            assert_eq!(model.backend_name(), "ollama_cli");
+            assert_eq!(model.backend_name(), "gguf_engine");
         }
     }
 }

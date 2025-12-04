@@ -58,7 +58,15 @@ fn test_vectorindex_search_cosine_similarity() -> Result<()> {
     store.add(2, vec![0.0, 1.0, 0.0, 0.0])?;
 
     // Vector 3: [0, 0.7071, 0.7071, 0] - similar to 2
-    store.add(3, vec![0.0, f64::consts::FRAC_1_SQRT_2, f64::consts::FRAC_1_SQRT_2, 0.0])?;
+    store.add(
+        3,
+        vec![
+            0.0,
+            std::f64::consts::FRAC_1_SQRT_2 as f32,
+            std::f64::consts::FRAC_1_SQRT_2 as f32,
+            0.0,
+        ],
+    )?;
 
     // Query with vector similar to 2 and 3
     let query = vec![0.0, 1.0, 0.0, 0.0];

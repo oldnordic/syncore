@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reasoning Health Output",
+  "description": "Output from reasoning system health check",
+  "type": "object",
+  "required": ["status", "active_sessions", "recent_nodes", "graph_ok"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ok", "degraded"],
+      "description": "Overall system status"
+    },
+    "active_sessions": {
+      "type": "integer",
+      "description": "Number of active reasoning sessions"
+    },
+    "recent_nodes": {
+      "type": "integer",
+      "description": "Number of recently created/modified nodes"
+    },
+    "graph_ok": {
+      "type": "boolean",
+      "description": "Whether the graph backend is healthy"
+    }
+  },
+  "additionalProperties": false
+}

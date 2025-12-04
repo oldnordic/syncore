@@ -74,12 +74,6 @@ pub struct CodeSearchRequest {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct CodeIndexDirectoryRequest {
-    pub directory: String,
-    pub pattern: String,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct DocumentIndexRequest {
     pub directory: String,
 }
@@ -293,6 +287,41 @@ pub struct SequentialSearchRequest {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialNextRequest {
+    pub task_id: Option<i64>,
+    pub step_number: Option<i32>,
+    pub thought: String,
+    pub reasoning: Option<String>,
+    pub action: Option<String>,
+    pub observation: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialRunRequest {
+    pub sequence_id: Option<String>,
+    pub max_steps: Option<usize>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialReasonRequest {
+    pub context: Option<String>,
+    pub max_cycles: Option<usize>,
+    pub sequence_id: Option<String>,
+    pub max_steps: Option<usize>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialStatusRequest {
+    pub sequence_id: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct SequentialResetRequest {
+    pub sequence_id: Option<String>,
+    pub task_id: Option<i64>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ApplicationRecordRequest {
     pub file_path: String,
     pub change_type: String,
@@ -421,7 +450,7 @@ pub struct ProjectCleanupExcludedRequest {
 // APEX v1.3 Suite Tools
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct MemorySuiteRequest {
-    /// Command to execute: store, query, vector_insert, vector_search, task_create, sequential_record, sequential_get, sequential_search, sequential_cycle, agent_send, agent_recv, agent_poll, agent_register, agent_list, agent_status, agent_task, agent_result, intellitask_generate, intellitask_subtasks, intellitask_prioritize, intellitask_next, intellitask_save, intellitask_get, intellitask_list, intellitask_update_status, intellitask_next_ready, intellitask_get_subtasks, intellitask_subtask_stats, intellitask_task_statistics, intellitask_prd_statistics, help
+    /// Command to execute: store, query, vector_insert, vector_search, task_create, task_create_dependency, task_get_graph, sequential_record, sequential_get, sequential_search, sequential_cycle, agent_send, agent_recv, agent_poll, agent_register, agent_list, agent_status, agent_task, agent_result, intellitask_generate, intellitask_subtasks, intellitask_prioritize, intellitask_next, intellitask_save, intellitask_get, intellitask_list, intellitask_update_status, intellitask_next_ready, intellitask_get_subtasks, intellitask_subtask_stats, intellitask_task_statistics, intellitask_prd_statistics, help
     pub command: String,
     // Memory operations
     #[serde(default)]
@@ -446,6 +475,8 @@ pub struct MemorySuiteRequest {
     #[serde(default)]
     pub task_id: Option<i64>,
     #[serde(default)]
+    pub depends_on_task_id: Option<i64>,
+    #[serde(default)]
     pub step_number: Option<i32>,
     #[serde(default)]
     pub thought: Option<String>,
@@ -457,6 +488,15 @@ pub struct MemorySuiteRequest {
     pub observation: Option<String>,
     #[serde(default)]
     pub max_cycles: Option<usize>,
+    // Additional sequential operations
+    #[serde(default)]
+    pub sequence_id: Option<String>,
+    #[serde(default)]
+    pub context: Option<String>,
+    #[serde(default)]
+    pub depth: Option<i32>,
+    #[serde(default)]
+    pub max_steps: Option<usize>,
     // Agent operations
     #[serde(default)]
     pub to: Option<String>,

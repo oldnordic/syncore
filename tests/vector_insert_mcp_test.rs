@@ -40,7 +40,7 @@ async fn test_vector_insert_should_insert_text_and_return_success() {
         jsonrpc: "2.0".to_string(),
         method: "mcp.call_tool".to_string(),
         params: Some(json!({
-            "name": "vector.insert",
+            "name": "vector_insert",
             "arguments": {
                 "id": 1,
                 "text": "This is a test document for vector insertion",
@@ -95,7 +95,7 @@ async fn test_vector_insert_should_handle_missing_text() {
         jsonrpc: "2.0".to_string(),
         method: "mcp.call_tool".to_string(),
         params: Some(json!({
-            "name": "vector.insert",
+            "name": "vector_insert",
             "arguments": {
                 "id": 1,
                 "kind": "note"
@@ -153,7 +153,7 @@ async fn test_vector_insert_should_handle_valid_scopes() {
             jsonrpc: "2.0".to_string(),
             method: "mcp.call_tool".to_string(),
             params: Some(json!({
-                "name": "vector.insert",
+                "name": "vector_insert",
                 "arguments": {
                     "id": i as i64 + 1,
                     "text": format!("Test document for {} scope", scope),
@@ -202,7 +202,7 @@ async fn test_vector_insert_should_store_in_vector_store() {
         jsonrpc: "2.0".to_string(),
         method: "mcp.call_tool".to_string(),
         params: Some(json!({
-            "name": "vector.insert",
+            "name": "vector_insert",
             "arguments": {
                 "id": 1,
                 "text": "Test document for verification",

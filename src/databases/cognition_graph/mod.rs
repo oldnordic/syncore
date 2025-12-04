@@ -27,15 +27,19 @@ pub mod writer;
 
 // Re-export main types for convenience
 pub use schema::{
-    cognition_namespace, NodeLabel, ReasoningEpisodeProperties, RelationType,
-    COGNITION_PROJECT_LABEL,
+    cognition_namespace, NodeLabel, ReasoningEpisodeProperties, ReasoningSessionProperties,
+    RelationType, SessionProperties, ThoughtNodeProperties, COGNITION_PROJECT_LABEL,
 };
 
-pub use writer::{create_uses_relationship, delete_reasoning_episode, upsert_reasoning_episode};
+pub use writer::{
+    add_thought_node, create_session, create_uses_relationship, delete_reasoning_episode,
+    upsert_reasoning_episode,
+};
 
 pub use reader::{
-    count_reasoning_episodes, fetch_related_episodes, get_reasoning_episode_by_id,
-    ReasoningEpisodeResult,
+    count_reasoning_episodes, fetch_related_episodes, get_nodes_for_session,
+    get_reasoning_episode_by_id, get_session, ReasoningEpisodeResult, SessionResult,
+    ThoughtNodeResult,
 };
 
 #[cfg(test)]

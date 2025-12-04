@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reasoning Tree Prune Output",
+  "description": "Output from pruning a reasoning tree",
+  "type": "object",
+  "required": ["pruned"],
+  "properties": {
+    "pruned": {
+      "type": "integer",
+      "description": "Number of nodes that were pruned from the tree"
+    }
+  },
+  "additionalProperties": false
+}

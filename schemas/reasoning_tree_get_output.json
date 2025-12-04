@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reasoning Tree Get Output",
+  "description": "Output from retrieving a reasoning tree",
+  "type": "object",
+  "required": ["nodes", "edges"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "description": "Array of reasoning tree nodes",
+      "items": {
+        "type": "object",
+        "required": ["id", "session_id", "parent_id", "depth", "step_index", "content", "score"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID of the node"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "ID of the reasoning session"
+          },
+          "parent_id": {
+            "type": ["string", "null"],
+            "description": "ID of the parent node (null for root)"
+          },
+          "depth": {
+            "type": "integer",
+            "description": "Depth of the node in the tree"
+          },
+          "step_index": {
+            "type": "integer",
+            "description": "Step index of the node"
+          },
+          "content": {
+            "type": "string",
+            "description": "Content of the reasoning node"
+          },
+          "score": {
+            "type": ["number", "null"],
+            "description": "Confidence score of the node"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Array of parent-child relationships",
+      "items": {
+        "type": "object",
+        "required": ["source", "target"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "ID of the parent node"
+          },
+          "target": {
+            "type": "string",
+            "description": "ID of the child node"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

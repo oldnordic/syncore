@@ -17,6 +17,55 @@ use std::time::SystemTime;
 
 // Request type definitions
 use super::types::*;
+use crate::mcp::types::tool_requests::CodeIndexDirectoryRequest;
+
+// Import translator for IntelliTask normalization
+use crate::mcp_tools::translator::{translate_llm_output, TargetSchema};
+
+/// Helper function to normalize JSON for Vec<ParentTask> using translator
+fn normalize_parent_tasks_json(tasks_json: &str) -> Result<Vec<crate::intellitask::ParentTask>, anyhow::Error> {
+    // Try to parse as TaskBreakdown with parent_tasks array directly
+    // If it's already an array, wrap it in a minimal TaskBreakdown structure
+    let normalized_input = if tasks_json.trim().starts_with('[') {
+        // It's an array - wrap it in TaskBreakdown structure
+        format!(r#"{{
+            "prd_title": "Parent Tasks Normalization",
+            "parent_tasks": {},
+            "relevant_files": [],
+            "estimated_complexity": "Moderate"
+        }}"#, tasks_json)
+    } else if tasks_json.trim().starts_with('{') {
+        // It's a single object - wrap it in array
+        format!(r#"{{
+            "prd_title": "Parent Tasks Normalization",
+            "parent_tasks": [{}],
+            "relevant_files": [],
+            "estimated_complexity": "Moderate"
+        }}"#, tasks_json)
+    } else {
+        // Invalid JSON format
+        return Err(anyhow::anyhow!("Invalid JSON format for parent tasks"));
+    };
+
+    let translated = translate_llm_output(&normalized_input, TargetSchema::TaskBreakdown)?;
+
+    if let Some(error) = translated.get("error") {
+        return Err(anyhow::anyhow!(
+            "ParentTask validation failed: {:?}", error
+        ));
+    }
+
+    // Extract the normalized parent tasks
+    let mut normalized_tasks = Vec::new();
+    if let Some(parent_tasks) = translated.get("parent_tasks").and_then(|v| v.as_array()) {
+        for task_value in parent_tasks {
+            let task: crate::intellitask::ParentTask = serde_json::from_value(task_value.clone())?;
+            normalized_tasks.push(task);
+        }
+    }
+
+    Ok(normalized_tasks)
+}
 
 #[derive(Clone)]
 pub struct SynCoreMCPServer {
@@ -129,12 +178,18 @@ impl SynCoreMCPServer {
             goal: params.goal,
             priority: params.priority,
             task_id: params.task_id,
+            depends_on_task_id: params.depends_on_task_id,
             step_number: params.step_number,
             thought: params.thought,
             reasoning: params.reasoning,
             action: params.action,
             observation: params.observation,
             max_cycles: params.max_cycles,
+            // Additional sequential operations
+            sequence_id: params.sequence_id,
+            context: params.context,
+            depth: params.depth,
+            max_steps: params.max_steps,
             to: params.to,
             from: params.from,
             agent: params.agent,
@@ -784,9 +839,9 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<IntelliTaskGenerateRequest>,
     ) -> Result<CallToolResult, McpError> {
-        match crate::ollama::OllamaClient::new_default() {
-            Ok(ollama) => {
-                let intellitask = crate::intellitask::IntelliTask::new(ollama);
+        match self.state.llm_model.as_ref() {
+            Some(llm_model) => {
+                let intellitask = crate::intellitask::IntelliTask::new(llm_model.clone());
                 match intellitask.generate_tasks_from_prd(&params.prd_content) {
                     Ok(breakdown) => {
                         let json_output = serde_json::to_string_pretty(&breakdown)
@@ -799,10 +854,9 @@ impl SynCoreMCPServer {
                     ))])),
                 }
             }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Ollama unavailable: {}. Ensure Ollama is running with phi3:mini",
-                e
-            ))])),
+            None => Ok(CallToolResult::error(vec![Content::text(
+                "LLM model not available in server state. Ensure server is initialized with a language model backend."
+            )])),
         }
     }
 
@@ -811,20 +865,24 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<IntelliTaskSubtasksRequest>,
     ) -> Result<CallToolResult, McpError> {
-        match crate::ollama::OllamaClient::new_default() {
-            Ok(ollama) => {
-                let parent_task: crate::intellitask::ParentTask =
-                    match serde_json::from_str(&params.parent_task_json) {
-                        Ok(task) => task,
-                        Err(e) => {
-                            return Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Invalid parent task JSON: {}",
-                                e
-                            ))]))
-                        }
-                    };
+        match self.state.llm_model.as_ref() {
+            Some(llm_model) => {
+                // Normalize parent task JSON using translator
+                let parent_task: crate::intellitask::ParentTask = {
+                    let normalized_tasks = normalize_parent_tasks_json(&params.parent_task_json)
+                        .map_err(|e| McpError::internal_error(format!("Invalid parent task JSON after normalization: {}", e), None))?;
 
-                let intellitask = crate::intellitask::IntelliTask::new(ollama);
+                    if normalized_tasks.is_empty() {
+                        return Ok(CallToolResult::error(vec![Content::text(
+                            "No valid parent tasks found in JSON after normalization"
+                        )]));
+                    }
+
+                    // Take the first normalized task
+                    normalized_tasks.into_iter().next().unwrap()
+                };
+
+                let intellitask = crate::intellitask::IntelliTask::new(llm_model.clone());
                 let codebase_context = params.codebase_context.as_deref().unwrap_or("");
 
                 match intellitask.generate_subtasks(&parent_task, codebase_context) {
@@ -839,9 +897,9 @@ impl SynCoreMCPServer {
                     ))])),
                 }
             }
-            Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(format!("Ollama unavailable: {}", e))]))
-            }
+            None => Ok(CallToolResult::error(vec![Content::text(
+                "LLM model not available in server state. Ensure server is initialized with a language model backend."
+            )])),
         }
     }
 
@@ -850,20 +908,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<IntelliTaskPrioritizeRequest>,
     ) -> Result<CallToolResult, McpError> {
-        match crate::ollama::OllamaClient::new_default() {
-            Ok(ollama) => {
+        match self.state.llm_model.as_ref() {
+            Some(llm_model) => {
+                // Normalize tasks JSON using translator
                 let tasks: Vec<crate::intellitask::ParentTask> =
-                    match serde_json::from_str(&params.tasks_json) {
-                        Ok(t) => t,
-                        Err(e) => {
-                            return Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Invalid tasks JSON: {}",
-                                e
-                            ))]))
-                        }
-                    };
+                    normalize_parent_tasks_json(&params.tasks_json)
+                        .map_err(|e| McpError::internal_error(format!("Invalid tasks JSON after normalization: {}", e), None))?;
 
-                let intellitask = crate::intellitask::IntelliTask::new(ollama);
+                let intellitask = crate::intellitask::IntelliTask::new(llm_model.clone());
                 let business_context = params.business_context.as_deref().unwrap_or("");
 
                 match intellitask.prioritize_tasks(&tasks, business_context) {
@@ -878,9 +930,9 @@ impl SynCoreMCPServer {
                     ))])),
                 }
             }
-            Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(format!("Ollama unavailable: {}", e))]))
-            }
+            None => Ok(CallToolResult::error(vec![Content::text(
+                "LLM model not available in server state. Ensure server is initialized with a language model backend."
+            )])),
         }
     }
 
@@ -889,20 +941,14 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<IntelliTaskNextRequest>,
     ) -> Result<CallToolResult, McpError> {
-        match crate::ollama::OllamaClient::new_default() {
-            Ok(ollama) => {
+        match self.state.llm_model.as_ref() {
+            Some(llm_model) => {
+                // Normalize remaining tasks JSON using translator
                 let remaining_tasks: Vec<crate::intellitask::ParentTask> =
-                    match serde_json::from_str(&params.remaining_tasks_json) {
-                        Ok(t) => t,
-                        Err(e) => {
-                            return Ok(CallToolResult::error(vec![Content::text(format!(
-                                "Invalid remaining tasks JSON: {}",
-                                e
-                            ))]))
-                        }
-                    };
+                    normalize_parent_tasks_json(&params.remaining_tasks_json)
+                        .map_err(|e| McpError::internal_error(format!("Invalid remaining tasks JSON after normalization: {}", e), None))?;
 
-                let intellitask = crate::intellitask::IntelliTask::new(ollama);
+                let intellitask = crate::intellitask::IntelliTask::new(llm_model.clone());
 
                 match intellitask.suggest_next_task(&params.completed_tasks, &remaining_tasks) {
                     Ok(suggestion) => Ok(CallToolResult::success(vec![Content::text(suggestion)])),
@@ -912,9 +958,9 @@ impl SynCoreMCPServer {
                     ))])),
                 }
             }
-            Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(format!("Ollama unavailable: {}", e))]))
-            }
+            None => Ok(CallToolResult::error(vec![Content::text(
+                "LLM model not available in server state. Ensure server is initialized with a language model backend."
+            )])),
         }
     }
 
@@ -937,64 +983,45 @@ impl SynCoreMCPServer {
             }
         };
 
-        // Step 1: Parse as Value to check JSON syntax
-        let json_value: serde_json::Value = match serde_json::from_str(&params.breakdown_json) {
-            Ok(v) => v,
+        // Step 1: Use translator to normalize and validate the TaskBreakdown JSON
+        let translated = match translate_llm_output(&params.breakdown_json, TargetSchema::TaskBreakdown) {
+            Ok(result) => result,
             Err(e) => {
                 return Ok(CallToolResult::error(vec![Content::text(format!(
-                    "Invalid JSON syntax: {}",
+                    "JSON translation failed: {}",
                     e
                 ))]))
             }
         };
 
-        // Step 2: Validate against schema to report ALL errors at once
-        let schema = schemars::schema_for!(crate::intellitask::TaskBreakdown);
-        let schema_json = serde_json::to_value(&schema).expect("Failed to convert schema to JSON");
+        // Step 2: Check for translation errors
+        if let Some(error) = translated.get("error") {
+            let error_msg = if let Some(missing_fields) = translated.get("missing_fields") {
+                let field_list = missing_fields.as_array()
+                    .map(|arr| arr.iter()
+                        .filter_map(|f| f.as_str())
+                        .collect::<Vec<_>>())
+                    .unwrap_or_default();
 
-        let validator = match jsonschema::JSONSchema::compile(&schema_json) {
-            Ok(v) => v,
-            Err(e) => {
-                return Ok(CallToolResult::error(vec![Content::text(format!(
-                    "Internal error creating validator: {}",
-                    e
-                ))]))
-            }
-        };
+                format!(
+                    "Schema validation failed with {} error(s):\n\n{}\n\nRequired structure:\n- prd_title: string\n- parent_tasks: array of ParentTask\n  - id, title, description: strings\n  - subtasks: array with id, description, acceptance_criteria[], dependencies[], files_to_modify[], complexity, estimated_hours\n  - dependencies: string array\n  - complexity: Trivial|Simple|Moderate|Complex|VeryComplex\n  - estimated_hours: number\n- relevant_files: array of {{ path, purpose, action: Create|Modify|Review }}\n- estimated_complexity: Trivial|Simple|Moderate|Complex|VeryComplex",
+                    field_list.len(),
+                    field_list.iter().map(|f| format!("- {}", f)).collect::<Vec<_>>().join("\n")
+                )
+            } else {
+                format!("Translation error: {}", error)
+            };
 
-        let errors: Vec<String> = validator
-            .validate(&json_value)
-            .err()
-            .map(|iter| iter.collect::<Vec<_>>())
-            .unwrap_or_default()
-            .into_iter()
-            .map(|error| {
-                let path_str = error.instance_path.to_string();
-                let path = if path_str.is_empty() {
-                    "root".to_string()
-                } else {
-                    path_str
-                };
-                format!("- {}: {}", path, error)
-            })
-            .collect();
-
-        if !errors.is_empty() {
-            let error_msg = format!(
-                "Schema validation failed with {} error(s):\n\n{}\n\nRequired structure:\n- prd_title: string\n- parent_tasks: array of ParentTask\n  - id, title, description: strings\n  - subtasks: array with id, description, acceptance_criteria[], dependencies[], files_to_modify[], complexity, estimated_hours\n  - dependencies: string array\n  - complexity: Trivial|Simple|Moderate|Complex|VeryComplex\n  - estimated_hours: number\n- relevant_files: array of {{ path, purpose, action: Create|Modify|Review }}\n- estimated_complexity: Trivial|Simple|Moderate|Complex|VeryComplex",
-                errors.len(),
-                errors.join("\n")
-            );
             return Ok(CallToolResult::error(vec![Content::text(error_msg)]));
         }
 
-        // Step 3: Now deserialize (should succeed since schema validated)
-        let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(json_value)
+        // Step 3: Now deserialize (should succeed since translator validated and normalized)
+        let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(translated)
         {
             Ok(b) => b,
             Err(e) => {
                 return Ok(CallToolResult::error(vec![Content::text(format!(
-                    "Deserialization failed after validation (unexpected): {}",
+                    "Deserialization failed after translation (unexpected): {}",
                     e
                 ))]))
             }
@@ -1431,6 +1458,86 @@ impl SynCoreMCPServer {
         .await
     }
 
+    #[tool(description = "Get next sequential reasoning step")]
+    async fn sequential_next(
+        &self,
+        Parameters(params): Parameters<SequentialNextRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mcp_delegate(
+            "sequential_next",
+            serde_json::json!({
+                "task_id": params.task_id,
+                "step_number": params.step_number,
+                "thought": params.thought,
+                "reasoning": params.reasoning,
+                "action": params.action,
+                "observation": params.observation
+            }),
+        )
+        .await
+    }
+
+    #[tool(description = "Execute sequential reasoning chain")]
+    async fn sequential_run(
+        &self,
+        Parameters(params): Parameters<SequentialRunRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mcp_delegate(
+            "sequential_run",
+            serde_json::json!({
+                "sequence_id": params.sequence_id,
+                "max_steps": params.max_steps
+            }),
+        )
+        .await
+    }
+
+    #[tool(description = "Run reasoning engine on current step")]
+    async fn sequential_reason(
+        &self,
+        Parameters(params): Parameters<SequentialReasonRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mcp_delegate(
+            "sequential_reason",
+            serde_json::json!({
+                "context": params.context,
+                "max_cycles": params.max_cycles,
+                "sequence_id": params.sequence_id,
+                "max_steps": params.max_steps
+            }),
+        )
+        .await
+    }
+
+    #[tool(description = "Get sequential reasoning status")]
+    async fn sequential_status(
+        &self,
+        Parameters(params): Parameters<SequentialStatusRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mcp_delegate(
+            "sequential_status",
+            serde_json::json!({
+                "sequence_id": params.sequence_id
+            }),
+        )
+        .await
+    }
+
+    #[tool(description = "Reset sequential reasoning state")]
+    async fn sequential_reset(
+        &self,
+        Parameters(params): Parameters<SequentialResetRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.mcp_delegate(
+            "sequential_reset",
+            serde_json::json!({
+                "sequence_id": params.sequence_id,
+                "task_id": params.task_id
+            }),
+        )
+        .await
+    }
+
     #[tool(description = "Record a code change in the application")]
     async fn application_record(
         &self,
@@ -1517,7 +1624,7 @@ impl SynCoreMCPServer {
         Parameters(params): Parameters<RagGraphQueryRequest>,
     ) -> Result<CallToolResult, McpError> {
         use crate::raggraph::{
-            validate_real_backend, RagGraphConfig, RagQuery, RaggraphBackendMode,
+            validate_real_backend, validate_real_backend_neo4j, RagGraphConfig, RagQuery, RaggraphBackendMode,
             RealStorageAdapter,
         };
 
@@ -1548,7 +1655,7 @@ impl SynCoreMCPServer {
                 };
 
                 // Validate real backend before executing query
-                if let Err(e) = validate_real_backend(
+                if let Err(e) = validate_real_backend_neo4j(
                     config.backend_mode,
                     Some(&**neo4j),
                     Some(&vector_index),
@@ -1604,7 +1711,7 @@ impl SynCoreMCPServer {
         Parameters(params): Parameters<RagGraphMultihopRequest>,
     ) -> Result<CallToolResult, McpError> {
         use crate::raggraph::{
-            validate_real_backend, HopGraphTransformer, RagGraphConfig, RaggraphBackendMode,
+            validate_real_backend, validate_real_backend_neo4j, HopGraphTransformer, RagGraphConfig, RaggraphBackendMode,
             RealStorageAdapter,
         };
 
@@ -1635,7 +1742,7 @@ impl SynCoreMCPServer {
                 };
 
                 // Validate real backend before executing multihop reasoning
-                if let Err(e) = validate_real_backend(
+                if let Err(e) = validate_real_backend_neo4j(
                     config.backend_mode,
                     Some(&**neo4j),
                     Some(&vector_index),
@@ -2352,20 +2459,66 @@ async fn router_loop(state: SynCoreState) {
 }
 
 pub async fn run_mcp_stdio_server(state: SynCoreState) -> Result<()> {
-    // Spawn background router task
-    {
-        let state_clone = state.clone();
-        tokio::task::spawn(async move {
-            router_loop(state_clone).await;
-        });
+    // Check if router loop should be disabled (for H4 handshake debugging)
+    let disable_router = std::env::var("DISABLE_ROUTER_LOOP")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+
+    // Check if backwards compatibility mode is enabled
+    let backwards_compatible = std::env::var("MCP_BACKWARDS_COMPATIBLE")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+
+    // Spawn background router task unless disabled
+    if !disable_router {
+        {
+            let state_clone = state.clone();
+            tokio::task::spawn(async move {
+                router_loop(state_clone).await;
+            });
+        }
+    } else {
+        eprintln!("[SynCore] Router loop disabled via DISABLE_ROUTER_LOOP flag");
     }
 
     let server = SynCoreMCPServer::new(state);
 
-    let service = server.serve(stdio()).await.inspect_err(|e| {
-        eprintln!("MCP server error: {:?}", e);
-    })?;
+    let service_result = server.serve(stdio()).await;
 
-    service.waiting().await?;
-    Ok(())
+    match service_result {
+        Ok(service) => {
+            if backwards_compatible {
+                eprintln!(
+                    "[BackwardsCompatible] Server started, waiting for connections (lenient mode)"
+                );
+            }
+
+            match service.waiting().await {
+                Ok(_) => {
+                    eprintln!("MCP server shut down normally");
+                    Ok(())
+                }
+                Err(e) => {
+                    if backwards_compatible {
+                        eprintln!("[BackwardsCompatible] Server waiting error: {:?}", e);
+                        // In backwards compatible mode, don't fail on handshake/connection errors
+                        Ok(())
+                    } else {
+                        Err(e.into())
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            if backwards_compatible {
+                eprintln!("[BackwardsCompatible] Server start error: {:?}", e);
+                // In backwards compatible mode, don't fail on startup errors
+                Ok(())
+            } else {
+                Err(e.into())
+            }
+        }
+    }
 }

@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Graph Suite",
+  "description": "Arguments for graph suite operations",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "description": "Command to execute"
+    },
+    "cypher": {
+      "type": "string",
+      "description": "Cypher query"
+    },
+    "params": {
+      "type": "object",
+      "description": "Query parameters"
+    },
+    "from_id": {
+      "type": "integer",
+      "description": "Source node ID"
+    },
+    "to_id": {
+      "type": "integer",
+      "description": "Target node ID"
+    },
+    "rel_type": {
+      "type": "string",
+      "description": "Relationship type"
+    },
+    "from_label": {
+      "type": "string",
+      "description": "Source node label"
+    },
+    "to_label": {
+      "type": "string",
+      "description": "Target node label"
+    }
+  },
+  "required": ["command"]
+}

@@ -106,6 +106,7 @@ impl HnswVectorIndex {
     ///
     /// Uses hnsw_rs native HnswIO::load_hnsw_with_dist for loading.
     /// Requires the index to be uninitialized.
+    /// Catches panics from corrupted snapshot files and converts them to errors.
     pub fn load_from_disk(&mut self, path: &Path) -> Result<()> {
         // Phase 8: Check if already initialized using ArcSwap
         let current_hnsw = self.hnsw.load();
@@ -120,25 +121,48 @@ impl HnswVectorIndex {
         // Use HnswIo to load
         use hnsw_rs::hnswio::HnswIo;
         let hnswio = HnswIo::new(dir, basename);
-        let loaded_temp = hnswio
-            .load_hnsw_with_dist::<f32, DistL2>(DistL2 {})
-            .map_err(|e| anyhow!("HNSW deserialization failed: {:?}", e))?;
 
-        // Safety: The loaded HNSW owns all its data (no borrows from hnswio).
-        // The lifetime parameter 'b is a phantom type parameter for type safety,
-        // but the actual data structure is self-contained after loading.
-        // We need 'static lifetime to store in our struct.
-        let loaded: Hnsw<'static, f32, DistL2> = unsafe { std::mem::transmute(loaded_temp) };
+        // Use catch_unwind to prevent panics from corrupted HNSW files
+        // hnsw_rs uses .unwrap() internally which panics on UnexpectedEof
+        let load_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            hnswio.load_hnsw_with_dist::<f32, DistL2>(DistL2 {})
+        }));
 
-        // Update metadata
-        self.count = loaded.get_nb_point();
-        // Note: dimension will be inferred from first search/insert operation
-        // hnsw_rs doesn't expose a reliable way to query dimension from loaded index
+        match load_result {
+            Ok(Ok(loaded_temp)) => {
+                // Successfully loaded HNSW data
+                // Safety: The loaded HNSW owns all its data (no borrows from hnswio).
+                // The lifetime parameter 'b is a phantom type parameter for type safety,
+                // but the actual data structure is self-contained after loading.
+                // We need 'static lifetime to store in our struct.
+                let loaded: Hnsw<'static, f32, DistL2> = unsafe { std::mem::transmute(loaded_temp) };
 
-        // Phase 8: Atomic swap for zero-blocking readers
-        self.hnsw.store(Arc::new(Some(loaded)));
+                // Update metadata
+                self.count = loaded.get_nb_point();
+                // Note: dimension will be inferred from first search/insert operation
+                // hnsw_rs doesn't expose a reliable way to query dimension from loaded index
 
-        Ok(())
+                // Phase 8: Atomic swap for zero-blocking readers
+                self.hnsw.store(Arc::new(Some(loaded)));
+                Ok(())
+            }
+            Ok(Err(e)) => {
+                // Normal error from hnsw_io (e.g., file not found, format error)
+                Err(anyhow!("HNSW snapshot corrupted or incompatible: {}", e))
+            }
+            Err(panic_info) => {
+                // Panic occurred inside hnsw_rs (likely UnexpectedEof from .unwrap())
+                let panic_msg = if let Some(s) = panic_info.downcast_ref::<String>() {
+                    s.clone()
+                } else if let Some(s) = panic_info.downcast_ref::<&str>() {
+                    s.to_string()
+                } else {
+                    "Unknown panic during HNSW loading".to_string()
+                };
+
+                Err(anyhow!("HNSW snapshot corrupted - panic caught: {}", panic_msg))
+            }
+        }
     }
 
     /// Rebuild HNSW index from a list of vectors

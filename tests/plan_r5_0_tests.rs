@@ -29,7 +29,8 @@ use syncore::cognition::plan_executor::{execute_plan, ExecutionResult};
 use syncore::cognition::reasoning_ledger::{fetch_recent_episodes_sql, ReasoningEpisode};
 use syncore::cognition::router_logic::route_query;
 use syncore::cognition::self_consistency::{
-    evaluate_self_consistency, SelfConsistencyIssue, SelfConsistencyIssueKind,
+    evaluate_self_consistency, SelfConsistencyConfig, SelfConsistencyIssue,
+    SelfConsistencyIssueKind,
 };
 use syncore::memory::Memory;
 use syncore::router::SynCoreState;
@@ -66,13 +67,15 @@ fn test_generate_plan_respects_intent_and_patterns() -> Result<()> {
     let bundle = ContextBundle::new();
     let consistency = evaluate_self_consistency(
         "test query",
-        &intent,
-        selected_mode,
-        &[],
-        &bundle,
-        &ReasoningContinuity::new(),
-        &patterns,
-        &[],
+        SelfConsistencyConfig {
+            intent: &intent,
+            selected_mode,
+            planned_tools: &[],
+            context_bundle: &bundle,
+            continuity: &ReasoningContinuity::new(),
+            recommended_patterns: &patterns,
+            ledger_episodes: &[],
+        },
     );
 
     // When: Generate plan
@@ -117,13 +120,15 @@ fn test_generate_plan_avoids_inconsistent_sequences() -> Result<()> {
     let bundle = ContextBundle::new();
     let consistency = evaluate_self_consistency(
         "test query",
-        &intent,
-        selected_mode,
-        &["bad_tool_1".to_string(), "bad_tool_2".to_string()],
-        &bundle,
-        &ReasoningContinuity::new(),
-        &[],
-        &[failed_episode.clone(), failed_episode.clone(), failed_episode],
+        SelfConsistencyConfig {
+            intent: &intent,
+            selected_mode,
+            planned_tools: &["bad_tool_1".to_string(), "bad_tool_2".to_string()],
+            context_bundle: &bundle,
+            continuity: &ReasoningContinuity::new(),
+            recommended_patterns: &[],
+            ledger_episodes: &[failed_episode.clone(), failed_episode.clone(), failed_episode],
+        },
     );
 
     // Then: Consistency should detect repeated failures
@@ -151,7 +156,7 @@ async fn test_execute_plan_runs_real_tools() -> Result<()> {
     // Setup
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
-    let state = SynCoreState::with_db_manager(vector_store)?;
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store)?;
 
     // Create a minimal plan with parser_search (read-only operation)
     let plan = Plan {
@@ -180,7 +185,7 @@ async fn test_execute_plan_collects_outputs_into_episode() -> Result<()> {
     // Setup
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
-    let state = SynCoreState::with_db_manager(vector_store)?;
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store)?;
 
     // Create plan with memory operations
     let plan = Plan {
@@ -242,7 +247,7 @@ async fn test_plan_execution_stores_episode_in_ledger() -> Result<()> {
     // Setup
     let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
-    let state = SynCoreState::with_db_manager(vector_store.clone())?;
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store)?;
     let code_graph = CodeGraph::new(":memory:", vector_store)?;
     let memory = Memory::new(&get_unique_db_path())?;
 
@@ -253,13 +258,15 @@ async fn test_plan_execution_stores_episode_in_ledger() -> Result<()> {
     let bundle = ContextBundle::new();
     let consistency = evaluate_self_consistency(
         "test query",
-        &intent,
-        decision.mode_hint.as_deref().unwrap_or("simple"),
-        &[],
-        &bundle,
-        &ReasoningContinuity::new(),
-        &patterns,
-        &[],
+        SelfConsistencyConfig {
+            intent: &intent,
+            selected_mode: decision.mode_hint.as_deref().unwrap_or("simple"),
+            planned_tools: &[],
+            context_bundle: &bundle,
+            continuity: &ReasoningContinuity::new(),
+            recommended_patterns: &patterns,
+            ledger_episodes: &[],
+        },
     );
 
     let plan = generate_plan(
@@ -323,13 +330,15 @@ async fn test_raggraph_is_used_to_map_project_if_query_mentions_entities() -> Re
     let patterns = vec![];
     let consistency = evaluate_self_consistency(
         query,
-        &intent,
-        selected_mode,
-        &[],
-        &bundle,
-        &ReasoningContinuity::new(),
-        &patterns,
-        &[],
+        SelfConsistencyConfig {
+            intent: &intent,
+            selected_mode,
+            planned_tools: &[],
+            context_bundle: &bundle,
+            continuity: &ReasoningContinuity::new(),
+            recommended_patterns: &patterns,
+            ledger_episodes: &[],
+        },
     );
 
     // When: Generate plan

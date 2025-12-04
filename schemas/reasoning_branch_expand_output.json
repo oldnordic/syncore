@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reasoning Branch Expand Output",
+  "description": "Output from expanding a reasoning branch",
+  "type": "object",
+  "required": ["parent_node_id", "new_nodes"],
+  "properties": {
+    "parent_node_id": {
+      "type": "string",
+      "description": "ID of the parent node that was expanded"
+    },
+    "new_nodes": {
+      "type": "array",
+      "description": "Array of newly created child nodes",
+      "items": {
+        "type": "object",
+        "required": ["node_id", "parent_id", "depth", "step_index"],
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "description": "ID of the new node"
+          },
+          "parent_id": {
+            "type": "string",
+            "description": "ID of the parent node"
+          },
+          "depth": {
+            "type": "integer",
+            "description": "Depth of the node in the reasoning tree"
+          },
+          "step_index": {
+            "type": "integer",
+            "description": "Step index of the node"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

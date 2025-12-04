@@ -61,6 +61,7 @@ pub struct RipgrepMatch {
     pub context_after: Vec<String>,
 }
 
+#[derive(Debug)]
 pub struct Parser {
     languages: HashMap<String, tree_sitter::Language>,
 }

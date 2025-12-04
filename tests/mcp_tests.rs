@@ -18,7 +18,7 @@ async fn test_mcp_list_tools() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory.clone(), tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     let request = MCPRequest {
         jsonrpc: "2.0".to_string(),
@@ -55,7 +55,7 @@ async fn test_mcp_call_tool_memory_store() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory.clone(), tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     let request = MCPRequest {
         jsonrpc: "2.0".to_string(),
@@ -91,10 +91,10 @@ async fn test_mcp_call_tool_memory_query() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory, tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     // First store a value
-    state.memory.store("query_test", "query_value");
+    let _ = state.memory.store("query_test", "query_value");
 
     let request = MCPRequest {
         jsonrpc: "2.0".to_string(),
@@ -129,7 +129,7 @@ async fn test_mcp_call_tool_task_create() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory, tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     let request = MCPRequest {
         jsonrpc: "2.0".to_string(),
@@ -165,7 +165,7 @@ async fn test_mcp_invalid_tool() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory, tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     let request = MCPRequest {
         jsonrpc: "2.0".to_string(),
@@ -198,7 +198,7 @@ async fn test_mcp_invalid_method() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory, tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     let request = MCPRequest {
         jsonrpc: "2.0".to_string(),
@@ -228,7 +228,7 @@ async fn vector_search_defaults_ok() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory, tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     // Insert some test data
     {
@@ -270,7 +270,7 @@ async fn vector_search_scope_task_ok() {
     let vector_store = Arc::new(Mutex::new(VectorStore::new(Box::new(
         syncore::vector::RealEmbeddings::new(384).unwrap(),
     ))));
-    let state = SynCoreState::new(memory, tasks, vector_store);
+    let state = SynCoreState::with_dual_stores(vector_store.clone(), vector_store).unwrap();
 
     // Insert test data for different tasks
     {
