@@ -13,7 +13,6 @@ pub enum SynCoreTool {
 
     ParserAnalyze,
     ParserSearch,
-    CodeExplain,
     CodeIndexDirectory,
 }
 
@@ -31,7 +30,6 @@ impl SynCoreTool {
 
             SynCoreTool::ParserAnalyze => "parser.analyze".to_string(),
             SynCoreTool::ParserSearch => "parser.search".to_string(),
-            SynCoreTool::CodeExplain => "code.explain".to_string(),
             SynCoreTool::CodeIndexDirectory => "code.index_directory".to_string(),
         }
     }
@@ -86,7 +84,6 @@ mod tests {
             SynCoreTool::GraphQuery,
             SynCoreTool::ParserAnalyze,
             SynCoreTool::ParserSearch,
-            SynCoreTool::CodeExplain,
             SynCoreTool::CodeIndexDirectory,
         ];
 

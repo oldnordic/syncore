@@ -46,7 +46,9 @@ fn test_code_suite_missing_streaming() -> Result<()> {
     let limiter = OutputLimiter::default();
 
     // Simulate what code_suite.search might return without streaming
-    let large_search_results: Vec<String> = (0..250).map(|i| format!("Result {}: Found pattern in file {}", i, "src/main.rs")).collect();
+    let large_search_results: Vec<String> = (0..250)
+        .map(|i| format!("Result {}: Found pattern in file {}", i, "src/main.rs"))
+        .collect();
     let unprocessed_response = json!({
         "success": true,
         "command": "search",
@@ -242,7 +244,7 @@ fn test_translator_integration_contract() -> Result<()> {
                     }
                 }
             }
-        },
+        }
         Err(e) => {
             println!("❌ Translator error: {}", e);
             panic!("Translator should handle this malformed but valid JSON");

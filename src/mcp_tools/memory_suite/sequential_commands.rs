@@ -15,8 +15,8 @@
 //! - sequential_cycle: Detect cycles in steps (simple dependency check)
 
 use super::{MemorySuite, MemorySuiteArgs};
-use crate::mcp_tools::SuiteResult;
 use crate::mcp_tools::translator::{translate_llm_output, TargetSchema};
+use crate::mcp_tools::SuiteResult;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -46,10 +46,7 @@ impl SequentialStep {
         observation: Option<String>,
     ) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
         Self {
             step_id: format!("step_{}_{}", task_id.unwrap_or(0), step_number),
@@ -82,9 +79,10 @@ fn translate_sequential_step_array(json_str: &str) -> Result<Vec<SequentialStep>
             }
 
             // For internal data, we parse directly from original string since it's already validated
-            serde_json::from_str(json_str).map_err(|e| format!("Failed to parse SequentialStep array: {}", e))
+            serde_json::from_str(json_str)
+                .map_err(|e| format!("Failed to parse SequentialStep array: {}", e))
         }
-        Err(e) => Err(format!("Translation failed: {}", e))
+        Err(e) => Err(format!("Translation failed: {}", e)),
     }
 }
 
@@ -133,9 +131,7 @@ pub fn cmd_sequential_next(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteR
 
     // Get existing steps or create new array
     let existing_steps = match suite.state.memory.query(&memory_key) {
-        Ok(Some(value)) => {
-            translate_sequential_step_array(&value).unwrap_or_default()
-        }
+        Ok(Some(value)) => translate_sequential_step_array(&value).unwrap_or_default(),
         _ => Vec::new(),
     };
 
@@ -184,9 +180,7 @@ pub fn cmd_sequential_run(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteRe
     let memory_key = sequence_id.unwrap_or_else(|| "sequential_default".to_string());
 
     let steps = match suite.state.memory.query(&memory_key) {
-        Ok(Some(value)) => {
-            translate_sequential_step_array(&value).unwrap_or_default()
-        }
+        Ok(Some(value)) => translate_sequential_step_array(&value).unwrap_or_default(),
         _ => {
             return SuiteResult::err(
                 "sequential_run",
@@ -247,13 +241,15 @@ pub fn cmd_sequential_reason(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
     }
 
     // Simulate reasoning steps (would integrate with real reasoning engine)
-    let reasoning_steps = (1..=depth).map(|i| {
-        json!({
-            "step": i,
-            "thought": format!("Reasoning step {} for: {}", i, context),
-            "confidence": 0.9 - (i as f64 * 0.1)
+    let reasoning_steps = (1..=depth)
+        .map(|i| {
+            json!({
+                "step": i,
+                "thought": format!("Reasoning step {} for: {}", i, context),
+                "confidence": 0.9 - (i as f64 * 0.1)
+            })
         })
-    }).collect::<Vec<Value>>();
+        .collect::<Vec<Value>>();
 
     let conclusion = format!("Based on {} reasoning steps, conclusion about: {}", depth, context);
 
@@ -288,13 +284,13 @@ pub fn cmd_sequential_status(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
     let memory_key = sequence_id.unwrap_or_else(|| "sequential_default".to_string());
 
     let steps = match suite.state.memory.query(&memory_key) {
-        Ok(Some(value)) => {
-            translate_sequential_step_array(&value).unwrap_or_default()
-        }
+        Ok(Some(value)) => translate_sequential_step_array(&value).unwrap_or_default(),
         _ => Vec::new(),
     };
 
-    let current_step = steps.iter().find(|s| s.status == "executing")
+    let current_step = steps
+        .iter()
+        .find(|s| s.status == "executing")
         .or_else(|| steps.last())
         .map(|s| s.step_number);
 
@@ -406,9 +402,7 @@ pub fn cmd_sequential_record(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
 
     // Get existing steps
     let existing_steps = match suite.state.memory.query(&memory_key) {
-        Ok(Some(value)) => {
-            translate_sequential_step_array(&value).unwrap_or_default()
-        }
+        Ok(Some(value)) => translate_sequential_step_array(&value).unwrap_or_default(),
         _ => Vec::new(),
     };
 
@@ -458,27 +452,28 @@ pub fn cmd_sequential_get(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteRe
     };
 
     let steps = match suite.state.memory.query(&memory_key) {
-        Ok(Some(value)) => {
-            translate_sequential_step_array(&value).unwrap_or_default()
-        }
+        Ok(Some(value)) => translate_sequential_step_array(&value).unwrap_or_default(),
         _ => Vec::new(),
     };
 
     // Convert to JSON response
-    let steps_json: Vec<Value> = steps.into_iter().map(|step| {
-        json!({
-            "step_id": step.step_id,
-            "task_id": step.task_id,
-            "sequence_id": step.sequence_id,
-            "step_number": step.step_number,
-            "thought": step.thought,
-            "reasoning": step.reasoning,
-            "action": step.action,
-            "observation": step.observation,
-            "timestamp": step.timestamp,
-            "status": step.status
+    let steps_json: Vec<Value> = steps
+        .into_iter()
+        .map(|step| {
+            json!({
+                "step_id": step.step_id,
+                "task_id": step.task_id,
+                "sequence_id": step.sequence_id,
+                "step_number": step.step_number,
+                "thought": step.thought,
+                "reasoning": step.reasoning,
+                "action": step.action,
+                "observation": step.observation,
+                "timestamp": step.timestamp,
+                "status": step.status
+            })
         })
-    }).collect();
+        .collect();
 
     SuiteResult::ok(
         "sequential_get",
@@ -529,13 +524,9 @@ pub fn cmd_sequential_search(suite: &MemorySuite, args: MemorySuiteArgs) -> Suit
                     let action = step.action.clone().unwrap_or_default();
                     let observation = step.observation.clone().unwrap_or_default();
 
-                    let search_text = format!(
-                        "{} {} {} {}",
-                        thought,
-                        reasoning,
-                        action,
-                        observation
-                    ).to_lowercase();
+                    let search_text =
+                        format!("{} {} {} {}", thought, reasoning, action, observation)
+                            .to_lowercase();
 
                     if search_text.contains(&query_lower) {
                         results.push(json!({
@@ -598,7 +589,7 @@ pub fn cmd_sequential_cycle(suite: &MemorySuite, args: MemorySuiteArgs) -> Suite
         vec![
             "Break circular dependencies by introducing intermediate tasks",
             "Review task priorities to resolve deadlocks",
-            "Consider parallel execution for independent tasks"
+            "Consider parallel execution for independent tasks",
         ]
     } else {
         vec!["No cycles detected - good dependency structure"]

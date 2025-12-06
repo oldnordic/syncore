@@ -17,7 +17,7 @@ pub mod validation;
 pub use config::{RagGraphConfig, RaggraphBackendMode};
 pub use hopgraph::HopGraphTransformer;
 pub use rag_query::RagQuery;
-pub use storage::{RealStorageAdapter, StorageAdapter, StorageError};
 pub use sqlite_storage_adapter::SQLiteGraphStorageAdapter;
+pub use storage::{RealStorageAdapter, StorageAdapter, StorageError};
 pub use types::{RagGraphEdge, RagGraphNode, RagGraphResult};
 pub use validation::{validate_real_backend, validate_real_backend_neo4j, ValidationError};

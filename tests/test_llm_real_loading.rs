@@ -8,11 +8,14 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
-use tempfile::TempDir;
 use syncore::intellitask::IntelliTask;
-use syncore::llm::{LanguageModel, Prompt, factory::{LlmFactory, LlmConfig, LlmBackend}};
+use syncore::llm::{
+    factory::{LlmBackend, LlmConfig, LlmFactory},
+    LanguageModel, Prompt,
+};
 use syncore::models::gguf_engine::GGUFEngine;
 use syncore::router::SynCoreState;
+use tempfile::TempDir;
 
 /// Test that LlmFactory returns a real GGUFEngine instance instead of test backend
 #[tokio::test]
@@ -38,9 +41,7 @@ async fn test_llm_factory_returns_real_ggufengine() -> Result<()> {
     };
 
     // Attempt to create model through factory with proper runtime
-    let result = tokio::spawn(async move {
-        LlmFactory::from_config(&config)
-    }).await.unwrap();
+    let result = tokio::spawn(async move { LlmFactory::from_config(&config) }).await.unwrap();
 
     match result {
         Ok(model) => {
@@ -94,9 +95,7 @@ async fn test_llm_real_model_loads_without_panic() -> Result<()> {
     env::set_var("SYNC_LLM_MODEL_PATH", model_path.to_str().unwrap());
 
     // Attempt to create real GGUFEngine
-    let result = tokio::spawn(async move {
-        GGUFEngine::new("qwen2.5-0.5b").await
-    }).await.unwrap();
+    let result = tokio::spawn(async move { GGUFEngine::new("qwen2.5-0.5b").await }).await.unwrap();
 
     match result {
         Ok(engine) => {
@@ -149,9 +148,8 @@ async fn test_intellitask_uses_real_llm_not_test_backend() -> Result<()> {
     env::set_var("SYNC_LLM_MODEL_PATH", model_path.to_str().unwrap());
 
     // Create real LLM backend
-    let llm_result = tokio::spawn(async move {
-        GGUFEngine::new("qwen2.5-0.5b").await
-    }).await.unwrap();
+    let llm_result =
+        tokio::spawn(async move { GGUFEngine::new("qwen2.5-0.5b").await }).await.unwrap();
 
     let llm_model: Arc<dyn LanguageModel> = match llm_result {
         Ok(engine) => {
@@ -224,15 +222,15 @@ fn test_no_new_test_references_left() -> Result<()> {
 
         for (line_num, line) in lines.iter().enumerate() {
             // Allow new_test in comments, method definitions, and fallback cases
-            if line.contains("new_test()") &&
-               !line.contains("//") &&
-               !line.contains("///") &&
-               !line.contains("pub fn new_test()") &&
-               !line.contains("fn new_test()") &&
-               !line.contains("unwrap_or_else(|e| {") &&
-               !line.contains("Arc::new(GGUFEngine::new_test()) as Arc<dyn LanguageModel>") &&
-               !line.contains("let test_model = GGUFEngine::new_test()") {
-
+            if line.contains("new_test()")
+                && !line.contains("//")
+                && !line.contains("///")
+                && !line.contains("pub fn new_test()")
+                && !line.contains("fn new_test()")
+                && !line.contains("unwrap_or_else(|e| {")
+                && !line.contains("Arc::new(GGUFEngine::new_test()) as Arc<dyn LanguageModel>")
+                && !line.contains("let test_model = GGUFEngine::new_test()")
+            {
                 println!("❌ FAIL: Found new_test() call in production code:");
                 println!("  File: {}", file_path);
                 println!("  Line {}: {}", line_num + 1, line.trim());
@@ -257,9 +255,8 @@ async fn test_real_ggufengine_handles_completion() -> Result<()> {
     env::set_var("SYNC_LLM_MODEL_PATH", model_path.to_str().unwrap());
 
     // Try to load real engine
-    let engine_result = tokio::spawn(async move {
-        GGUFEngine::new("qwen2.5-0.5b").await
-    }).await.unwrap();
+    let engine_result =
+        tokio::spawn(async move { GGUFEngine::new("qwen2.5-0.5b").await }).await.unwrap();
 
     match engine_result {
         Ok(engine) => {

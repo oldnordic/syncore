@@ -12,6 +12,7 @@ use crate::models::gguf_engine::loader::ModelComponents;
 use crate::models::gguf_engine::tokenizer::TokenizerWrapper;
 
 /// Cached model and tokenizer components
+#[derive(Debug)]
 pub struct CachedModel {
     pub model: ModelComponents,
     pub tokenizer: TokenizerWrapper,

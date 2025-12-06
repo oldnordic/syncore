@@ -20,6 +20,7 @@ pub struct ReasoningLogEntry {
 }
 
 /// SQLite database operations for reasoning logs
+#[derive(Debug)]
 pub struct ReasoningLogWriter {
     conn: Arc<Mutex<Connection>>,
 }

@@ -11,8 +11,8 @@
 //! - `app_search`: Search changes by query
 //! - `help`: Show available commands
 
-use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::mcp_tools::streaming::OutputLimiter;
+use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -421,7 +421,7 @@ impl SuiteDispatcher for MappingSuite {
                     } else {
                         result
                     }
-                },
+                }
                 Err(_) => result, // Fallback to original on error
             }
         } else {

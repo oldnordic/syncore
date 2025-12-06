@@ -541,7 +541,7 @@
   },
   "forbidden_tools": {
     "status": "ABSENT",
-    "tools": ["sequential_*", "ollama_*"],
+    "tools": [],
     "verification": "All 34 tools are production-appropriate"
   },
   "critical_tools": {

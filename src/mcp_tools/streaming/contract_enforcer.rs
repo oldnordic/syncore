@@ -3,10 +3,10 @@
 //! Prevents MCP tools from returning massive responses (>200 lines, >50KB)
 //! directly into LLM context by truncating, chunking, or paging results.
 
-use anyhow::{Result, anyhow};
-use serde_json::{Value, json};
+use anyhow::{anyhow, Result};
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use sha2::{Sha256, Digest};
 
 /// Hard limits for output size
 const MAX_LINES: usize = 200;
@@ -91,7 +91,12 @@ impl OutputLimiter {
     }
 
     /// Apply paging mode to arrays
-    pub fn apply_paging(&self, array: &Value, page: Option<usize>, page_size: Option<usize>) -> Result<Value> {
+    pub fn apply_paging(
+        &self,
+        array: &Value,
+        page: Option<usize>,
+        page_size: Option<usize>,
+    ) -> Result<Value> {
         if !array.is_array() {
             return Err(anyhow!("Paging only applies to arrays"));
         }
@@ -145,7 +150,13 @@ impl OutputLimiter {
         }))
     }
 
-    fn truncate_json(&self, original: &Value, json_str: &str, total_lines: usize, total_bytes: usize) -> Result<Value> {
+    fn truncate_json(
+        &self,
+        original: &Value,
+        json_str: &str,
+        total_lines: usize,
+        total_bytes: usize,
+    ) -> Result<Value> {
         // Store full content
         let storage_key = self.store_truncated(json_str)?;
 
@@ -191,34 +202,44 @@ impl OutputLimiter {
     fn truncate_json_recursively(&self, value: &Value, max_items: usize) -> Value {
         match value {
             Value::Array(arr) => {
-                let limited: Vec<Value> = arr.iter()
+                let limited: Vec<Value> = arr
+                    .iter()
                     .take(max_items)
                     .map(|v| self.truncate_json_recursively(v, max_items))
                     .collect();
                 Value::Array(limited)
-            },
+            }
             Value::Object(obj) => {
                 let mut limited_obj = serde_json::Map::new();
                 for (k, v) in obj {
                     limited_obj.insert(k.clone(), self.truncate_json_recursively(v, max_items));
                 }
                 Value::Object(limited_obj)
-            },
+            }
             Value::String(s) => {
                 if s.lines().count() > PREVIEW_LINES {
                     let lines: Vec<&str> = s.lines().collect();
                     let preview_end = std::cmp::min(PREVIEW_LINES, lines.len());
                     let preview: String = lines[0..preview_end].join("\n");
-                    Value::String(format!("{}...\n[{} lines truncated]", preview, lines.len() - preview_end))
+                    Value::String(format!(
+                        "{}...\n[{} lines truncated]",
+                        preview,
+                        lines.len() - preview_end
+                    ))
                 } else {
                     Value::String(s.clone())
                 }
-            },
+            }
             _ => value.clone(),
         }
     }
 
-    fn truncate_string(&self, content: &str, total_lines: usize, total_bytes: usize) -> Result<Value> {
+    fn truncate_string(
+        &self,
+        content: &str,
+        total_lines: usize,
+        total_bytes: usize,
+    ) -> Result<Value> {
         let lines: Vec<&str> = content.lines().collect();
 
         // Take first and last portions

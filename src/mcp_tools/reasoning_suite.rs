@@ -6,11 +6,11 @@
 
 use crate::config::SyncoreConfig;
 
+use crate::mcp_tools::streaming::OutputLimiter;
+use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::reasoning::{ReasoningError, ReasoningResult, ReasoningSession};
 use crate::router::SynCoreState;
 use crate::tasks::Tasks;
-use crate::mcp_tools::{SuiteResult, SuiteDispatcher};
-use crate::mcp_tools::streaming::OutputLimiter;
 use serde_json::{json, Value};
 
 /// Handle reasoning.session.create MCP tool
@@ -182,7 +182,7 @@ pub async fn handle_reasoning_tree_get(
                 } else {
                     Ok(result["data"].clone())
                 }
-            },
+            }
             Err(_) => Ok(result["data"].clone()), // Fallback to original
         }
     }
@@ -382,14 +382,15 @@ pub struct ReasoningSuite {
 
 impl ReasoningSuite {
     pub fn new(state: SynCoreState) -> Self {
-        Self { state }
+        Self {
+            state,
+        }
     }
 
     /// Execute reasoning suite commands
     pub fn execute(&self, command: &str, args: serde_json::Value) -> SuiteResult {
-        let runtime = tokio::runtime::Runtime::new().unwrap_or_else(|_| {
-            panic!("Failed to create tokio runtime for reasoning suite")
-        });
+        let runtime = tokio::runtime::Runtime::new()
+            .unwrap_or_else(|_| panic!("Failed to create tokio runtime for reasoning suite"));
 
         let result = runtime.block_on(async {
             match command {
@@ -422,7 +423,11 @@ impl ReasoningSuite {
     }
 
     /// Convert ReasoningResult to SuiteResult with streaming enforcement
-    fn convert_reasoning_result(&self, result: ReasoningResult<Value>, command: &str) -> SuiteResult {
+    fn convert_reasoning_result(
+        &self,
+        result: ReasoningResult<Value>,
+        command: &str,
+    ) -> SuiteResult {
         match result {
             Ok(value) => {
                 // Apply streaming contract enforcement to successful responses
@@ -444,10 +449,10 @@ impl ReasoningSuite {
                         } else {
                             SuiteResult::ok(command, value)
                         }
-                    },
+                    }
                     Err(_) => SuiteResult::ok(command, value), // Fallback to original
                 }
-            },
+            }
             Err(e) => SuiteResult::err(command, e.to_string()),
         }
     }
@@ -472,7 +477,9 @@ impl SuiteDispatcher for ReasoningSuite {
     fn help(&self, command: &str) -> Option<&'static str> {
         match command {
             "reasoning_session_create" => Some("Create a new reasoning session"),
-            "reasoning_session_create_mcp" => Some("Create a new reasoning session with MCP support"),
+            "reasoning_session_create_mcp" => {
+                Some("Create a new reasoning session with MCP support")
+            }
             "reasoning_tree_get" => Some("Get reasoning tree structure"),
             "reasoning_tree_prune" => Some("Prune reasoning tree"),
             "reasoning_health" => Some("Check reasoning system health"),

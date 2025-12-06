@@ -4,8 +4,8 @@
 //! for intellitask_next and intellitask_save commands without changing core
 //! translator validation logic.
 
-use syncore::mcp_tools::memory_suite::intellitask_commands::coerce_intellitask_payload;
 use serde_json::json;
+use syncore::mcp_tools::memory_suite::intellitask_commands::coerce_intellitask_payload;
 
 /// Test that intellitask_next accepts lightweight task arrays
 #[test]
@@ -154,7 +154,10 @@ fn test_does_not_modify_valid_payloads() {
     assert_eq!(subtasks.len(), 1);
 
     // All original fields should be preserved
-    assert_eq!(subtasks[0].get("description").unwrap().as_str().unwrap(), "Create database migration files");
+    assert_eq!(
+        subtasks[0].get("description").unwrap().as_str().unwrap(),
+        "Create database migration files"
+    );
     assert_eq!(subtasks[0].get("status").unwrap().as_str().unwrap(), "pending");
 }
 

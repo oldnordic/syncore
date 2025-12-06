@@ -8,9 +8,19 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// HopGraph transformer for multi-hop reasoning
+#[derive(Clone)]
 pub struct HopGraphTransformer {
     config: RagGraphConfig,
     storage: Option<Arc<dyn StorageAdapter>>,
+}
+
+impl std::fmt::Debug for HopGraphTransformer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HopGraphTransformer")
+            .field("config", &self.config)
+            .field("storage", &"<storage adapter>")
+            .finish()
+    }
 }
 
 impl HopGraphTransformer {

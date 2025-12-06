@@ -19,8 +19,8 @@
 //! - intellitask_save: Save task breakdown to database
 
 use super::{MemorySuite, MemorySuiteArgs};
-use crate::mcp_tools::SuiteResult;
 use crate::mcp_tools::translator::{translate_llm_output, TargetSchema};
+use crate::mcp_tools::SuiteResult;
 use serde_json::{json, Value};
 
 /// Coerce intellitask payloads to canonical TaskBreakdown format
@@ -37,11 +37,19 @@ pub fn coerce_intellitask_payload(value: Value) -> Value {
             for (index, task) in tasks.drain(..).enumerate() {
                 if let Value::Object(mut task_map) = task {
                     // Ensure required fields exist with defaults
-                    task_map.entry("id").or_insert_with(|| Value::String(format!("{}.0", index + 1)));
-                    task_map.entry("title").or_insert_with(|| Value::String("Untitled Task".to_string()));
+                    task_map
+                        .entry("id")
+                        .or_insert_with(|| Value::String(format!("{}.0", index + 1)));
+                    task_map
+                        .entry("title")
+                        .or_insert_with(|| Value::String("Untitled Task".to_string()));
                     task_map.entry("description").or_insert_with(|| Value::String("".to_string()));
-                    task_map.entry("complexity").or_insert_with(|| Value::String("Moderate".to_string()));
-                    task_map.entry("estimated_hours").or_insert_with(|| Value::Number(serde_json::Number::from_f64(1.0).unwrap()));
+                    task_map
+                        .entry("complexity")
+                        .or_insert_with(|| Value::String("Moderate".to_string()));
+                    task_map.entry("estimated_hours").or_insert_with(|| {
+                        Value::Number(serde_json::Number::from_f64(1.0).unwrap())
+                    });
                     task_map.entry("subtasks").or_insert_with(|| Value::Array(Vec::new()));
                     task_map.entry("dependencies").or_insert_with(|| Value::Array(Vec::new()));
 
@@ -63,39 +71,49 @@ pub fn coerce_intellitask_payload(value: Value) -> Value {
         // Case 2: intellitask_save - TaskBreakdown object with missing fields
         Value::Object(mut breakdown_map) => {
             // Ensure parent_tasks exists and is an array
-            let parent_tasks = breakdown_map.entry("parent_tasks")
-                .or_insert_with(|| Value::Array(Vec::new()));
+            let parent_tasks =
+                breakdown_map.entry("parent_tasks").or_insert_with(|| Value::Array(Vec::new()));
 
             if let Value::Array(ref mut parent_tasks_array) = parent_tasks {
                 for parent_task in parent_tasks_array.iter_mut() {
                     if let Value::Object(ref mut parent_map) = parent_task {
                         // Ensure required parent task fields exist with defaults
-                        parent_map.entry("dependencies")
+                        parent_map
+                            .entry("dependencies")
                             .or_insert_with(|| Value::Array(Vec::new()));
-                        parent_map.entry("complexity")
+                        parent_map
+                            .entry("complexity")
                             .or_insert_with(|| Value::String("Moderate".to_string()));
-                        parent_map.entry("estimated_hours")
-                            .or_insert_with(|| Value::Number(serde_json::Number::from_f64(4.0).unwrap()));
+                        parent_map.entry("estimated_hours").or_insert_with(|| {
+                            Value::Number(serde_json::Number::from_f64(4.0).unwrap())
+                        });
 
                         // Ensure subtasks exists and is an array
-                        let subtasks = parent_map.entry("subtasks")
+                        let subtasks = parent_map
+                            .entry("subtasks")
                             .or_insert_with(|| Value::Array(Vec::new()));
 
                         if let Value::Array(ref mut subtasks_array) = subtasks {
                             for subtask in subtasks_array.iter_mut() {
                                 if let Value::Object(ref mut subtask_map) = subtask {
                                     // Ensure required subtask fields exist with defaults
-                                    subtask_map.entry("acceptance_criteria")
+                                    subtask_map
+                                        .entry("acceptance_criteria")
                                         .or_insert_with(|| Value::Array(Vec::new()));
-                                    subtask_map.entry("dependencies")
+                                    subtask_map
+                                        .entry("dependencies")
                                         .or_insert_with(|| Value::Array(Vec::new()));
-                                    subtask_map.entry("files_to_modify")
+                                    subtask_map
+                                        .entry("files_to_modify")
                                         .or_insert_with(|| Value::Array(Vec::new()));
-                                    subtask_map.entry("complexity")
+                                    subtask_map
+                                        .entry("complexity")
                                         .or_insert_with(|| Value::String("Simple".to_string()));
-                                    subtask_map.entry("estimated_hours")
-                                        .or_insert_with(|| Value::Number(serde_json::Number::from_f64(1.0).unwrap()));
-                                    subtask_map.entry("description")
+                                    subtask_map.entry("estimated_hours").or_insert_with(|| {
+                                        Value::Number(serde_json::Number::from_f64(1.0).unwrap())
+                                    });
+                                    subtask_map
+                                        .entry("description")
                                         .or_insert_with(|| Value::String("".to_string()));
                                 }
                             }
@@ -105,7 +123,8 @@ pub fn coerce_intellitask_payload(value: Value) -> Value {
             }
 
             // Ensure estimated_complexity exists
-            breakdown_map.entry("estimated_complexity")
+            breakdown_map
+                .entry("estimated_complexity")
                 .or_insert_with(|| Value::String("Moderate".to_string()));
 
             Value::Object(breakdown_map)
@@ -560,7 +579,10 @@ pub fn cmd_intellitask_subtasks(suite: &MemorySuite, args: MemorySuiteArgs) -> S
     let parent_task = match breakdown.parent_tasks.into_iter().next() {
         Some(task) => task,
         None => {
-            return SuiteResult::err("intellitask_subtasks", "No parent task found in breakdown".to_string());
+            return SuiteResult::err(
+                "intellitask_subtasks",
+                "No parent task found in breakdown".to_string(),
+            );
         }
     };
 
@@ -616,7 +638,8 @@ pub fn cmd_intellitask_prioritize(suite: &MemorySuite, args: MemorySuiteArgs) ->
         "parent_tasks": tasks_json,
         "relevant_files": [],
         "estimated_complexity": "Moderate"
-    }).to_string();
+    })
+    .to_string();
 
     let translated = match translate_llm_output(&wrapper_json, TargetSchema::TaskBreakdown) {
         Ok(value) => value,
@@ -740,7 +763,9 @@ pub fn cmd_intellitask_next(suite: &MemorySuite, args: MemorySuiteArgs) -> Suite
         );
     }
 
-    let remaining_tasks: Vec<crate::intellitask::ParentTask> = if let Some(parent_tasks) = translated.get("parent_tasks") {
+    let remaining_tasks: Vec<crate::intellitask::ParentTask> = if let Some(parent_tasks) =
+        translated.get("parent_tasks")
+    {
         match serde_json::from_value::<Vec<crate::intellitask::ParentTask>>(parent_tasks.clone()) {
             Ok(tasks) => tasks,
             Err(e) => {
@@ -818,15 +843,16 @@ pub fn cmd_intellitask_save(suite: &MemorySuite, args: MemorySuiteArgs) -> Suite
         );
     }
 
-    let breakdown: crate::intellitask::TaskBreakdown = match serde_json::from_value(translated.clone()) {
-        Ok(b) => b,
-        Err(e) => {
-            return SuiteResult::err(
-                "intellitask_save",
-                format!("Failed to deserialize translated breakdown_json: {}", e),
-            )
-        }
-    };
+    let breakdown: crate::intellitask::TaskBreakdown =
+        match serde_json::from_value(translated.clone()) {
+            Ok(b) => b,
+            Err(e) => {
+                return SuiteResult::err(
+                    "intellitask_save",
+                    format!("Failed to deserialize translated breakdown_json: {}", e),
+                )
+            }
+        };
 
     // Batch insert tasks
     let mut parent_task_ids = Vec::new();

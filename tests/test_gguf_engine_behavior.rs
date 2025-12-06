@@ -3,9 +3,9 @@
 //! These tests are designed to FAIL with current stub behavior and PASS
 //! after removing hardcoded test responses from GGUFEngine.
 
+use syncore::llm::Completion;
 use syncore::llm::{LanguageModel, Prompt};
 use syncore::models::gguf_engine::GGUFEngine;
-use syncore::llm::Completion;
 
 #[test]
 fn test_ggufengine_complete_does_not_return_test_prefix() {
@@ -27,10 +27,16 @@ fn test_ggufengine_complete_does_not_return_test_prefix() {
     let completion = result.unwrap();
 
     // ASSERT: Should not start with test prefix strings
-    assert!(!completion.text.starts_with("This is a test response from GGUFEngine"),
-            "Response should not start with test stub prefix, got: {}", completion.text);
-    assert!(!completion.text.starts_with("GGUFEngine response to:"),
-            "Response should not start with 'GGUFEngine response to:' prefix, got: {}", completion.text);
+    assert!(
+        !completion.text.starts_with("This is a test response from GGUFEngine"),
+        "Response should not start with test stub prefix, got: {}",
+        completion.text
+    );
+    assert!(
+        !completion.text.starts_with("GGUFEngine response to:"),
+        "Response should not start with 'GGUFEngine response to:' prefix, got: {}",
+        completion.text
+    );
 }
 
 #[test]
@@ -64,8 +70,12 @@ fn test_ggufengine_respects_prompt_content() {
     ];
 
     for stub_pattern in stub_patterns {
-        assert!(!completion.text.contains(stub_pattern),
-                "Response should not contain stub pattern '{}', got: {}", stub_pattern, completion.text);
+        assert!(
+            !completion.text.contains(stub_pattern),
+            "Response should not contain stub pattern '{}', got: {}",
+            stub_pattern,
+            completion.text
+        );
     }
 
     // Ideally, it should contain our marker, but at minimum it shouldn't be a stub
@@ -94,14 +104,23 @@ fn test_ggufengine_can_return_json_like_output() {
     let completion = result.unwrap();
 
     // ASSERT: Response should have JSON structure (rudimentary check)
-    assert!(completion.text.trim().starts_with('{'),
-            "Response should start with '{{' for JSON output, got: {}", completion.text);
-    assert!(completion.text.trim().ends_with('}'),
-            "Response should end with '}}' for JSON output, got: {}", completion.text);
+    assert!(
+        completion.text.trim().starts_with('{'),
+        "Response should start with '{{' for JSON output, got: {}",
+        completion.text
+    );
+    assert!(
+        completion.text.trim().ends_with('}'),
+        "Response should end with '}}' for JSON output, got: {}",
+        completion.text
+    );
 
     // Additional JSON-like check - should contain "ok" and "true" in some form
-    assert!(completion.text.contains("ok") && completion.text.contains("true"),
-            "Response should contain JSON key-value pair, got: {}", completion.text);
+    assert!(
+        completion.text.contains("ok") && completion.text.contains("true"),
+        "Response should contain JSON key-value pair, got: {}",
+        completion.text
+    );
 }
 
 #[test]
@@ -123,6 +142,9 @@ fn test_ggufengine_real_model_not_just_test_stub() {
 
     // The test backend should not return the hardcoded "GGUFEngine response to:" format
     // because that's a separate stub codepath we want to eliminate
-    assert!(!test_completion.text.starts_with("GGUFEngine response to:"),
-            "Test backend should not use separate stub codepath, got: {}", test_completion.text);
+    assert!(
+        !test_completion.text.starts_with("GGUFEngine response to:"),
+        "Test backend should not use separate stub codepath, got: {}",
+        test_completion.text
+    );
 }

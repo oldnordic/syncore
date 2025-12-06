@@ -42,7 +42,9 @@ pub struct LlmOutputTranslator {
 
 impl LlmOutputTranslator {
     pub fn new(config: TranslatorConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+        }
     }
 
     pub fn with_strict_mode() -> Self {
@@ -64,8 +66,11 @@ impl LlmOutputTranslator {
         // T8: Contract enforcement - size limits
         const MAX_INPUT_SIZE: usize = 500_000; // 500KB limit
         if raw_output.len() > MAX_INPUT_SIZE {
-            return Err(anyhow::anyhow!("Input too large: {} bytes exceeds limit of {} bytes",
-                raw_output.len(), MAX_INPUT_SIZE));
+            return Err(anyhow::anyhow!(
+                "Input too large: {} bytes exceeds limit of {} bytes",
+                raw_output.len(),
+                MAX_INPUT_SIZE
+            ));
         }
 
         // Step 1: Extract JSON from LLM output
@@ -84,10 +89,7 @@ impl LlmOutputTranslator {
     /// Extract JSON from raw LLM output (removes prose, markdown fences)
     fn extract_json(&self, raw_output: &str) -> Result<Value> {
         // Remove markdown code fences if present
-        let binding = raw_output
-            .trim()
-            .replace("```json", "")
-            .replace("```", "");
+        let binding = raw_output.trim().replace("```json", "").replace("```", "");
         let cleaned = binding.trim();
 
         // Find JSON object start and end
@@ -183,8 +185,14 @@ impl LlmOutputTranslator {
     fn translate_task_breakdown(&self, mut value: Value) -> Result<Value> {
         // T8: Contract enforcement - type validation
         if !value.is_object() {
-            return Err(anyhow::anyhow!("TaskBreakdown must be a JSON object, got {}",
-                if value.is_array() { "array" } else { "other type" }));
+            return Err(anyhow::anyhow!(
+                "TaskBreakdown must be a JSON object, got {}",
+                if value.is_array() {
+                    "array"
+                } else {
+                    "other type"
+                }
+            ));
         }
 
         // NEW PIPELINE: Normalize BEFORE validation
@@ -203,9 +211,12 @@ impl LlmOutputTranslator {
 
         // 5) Coerce string subtasks to objects (if coercion allowed)
         if self.config.allow_coercion {
-            if let Some(parent_tasks) = value.get_mut("parent_tasks").and_then(Value::as_array_mut) {
+            if let Some(parent_tasks) = value.get_mut("parent_tasks").and_then(Value::as_array_mut)
+            {
                 for parent_task in parent_tasks.iter_mut() {
-                    if let Some(subtasks) = parent_task.get_mut("subtasks").and_then(Value::as_array_mut) {
+                    if let Some(subtasks) =
+                        parent_task.get_mut("subtasks").and_then(Value::as_array_mut)
+                    {
                         for subtask in subtasks.iter_mut() {
                             // Coerce string subtasks to objects
                             if let Some(subtask_str) = subtask.as_str() {
@@ -317,10 +328,7 @@ impl LlmOutputTranslator {
             // Auto-generate timestamp if missing
             if !value.get("timestamp").is_some() {
                 use std::time::{SystemTime, UNIX_EPOCH};
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs();
+                let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
                 value["timestamp"] = json!(timestamp);
             }
 
@@ -358,11 +366,15 @@ impl LlmOutputTranslator {
                 "High" | "hard" | "difficult" => *complexity = json!("Complex"),
                 "Low" | "easy" | "simple" => *complexity = json!("Simple"),
                 "Medium" | "moderate" | "normal" => *complexity = json!("Moderate"),
-                "VeryHigh" | "very hard" | "extremely difficult" => *complexity = json!("VeryComplex"),
+                "VeryHigh" | "very hard" | "extremely difficult" => {
+                    *complexity = json!("VeryComplex")
+                }
                 "VeryLow" | "trivial" | "very easy" => *complexity = json!("Trivial"),
                 _ => {
                     // Check if it's already a valid enum value
-                    if !["Trivial", "Simple", "Moderate", "Complex", "VeryComplex"].contains(&complexity_str) {
+                    if !["Trivial", "Simple", "Moderate", "Complex", "VeryComplex"]
+                        .contains(&complexity_str)
+                    {
                         // Don't change unknown values in strict mode
                         if !self.config.strict_mode {
                             *complexity = json!("Moderate"); // Safe default
@@ -373,7 +385,6 @@ impl LlmOutputTranslator {
         }
     }
 
-    
     /// Normalize FileReference structure
     fn normalize_file_reference(&self, file_ref: &mut Value) {
         if self.config.allow_coercion {
@@ -438,7 +449,8 @@ impl LlmOutputTranslator {
         }
 
         // Fix FileReference description → purpose mapping
-        if let Some(relevant_files) = value.get_mut("relevant_files").and_then(Value::as_array_mut) {
+        if let Some(relevant_files) = value.get_mut("relevant_files").and_then(Value::as_array_mut)
+        {
             for file_ref in relevant_files {
                 // If has "description" but no "purpose", move it
                 if let Some(desc) = file_ref.get("description") {
@@ -468,7 +480,9 @@ impl LlmOutputTranslator {
                 }
 
                 // Coerce subtask estimated_hours
-                if let Some(subtasks) = parent_task.get_mut("subtasks").and_then(Value::as_array_mut) {
+                if let Some(subtasks) =
+                    parent_task.get_mut("subtasks").and_then(Value::as_array_mut)
+                {
                     for subtask in subtasks {
                         if let Some(hours) = subtask.get_mut("estimated_hours") {
                             self.coerce_to_f32(hours);
@@ -505,7 +519,9 @@ impl LlmOutputTranslator {
                 }
 
                 // Normalize subtask complexity
-                if let Some(subtasks) = parent_task.get_mut("subtasks").and_then(Value::as_array_mut) {
+                if let Some(subtasks) =
+                    parent_task.get_mut("subtasks").and_then(Value::as_array_mut)
+                {
                     for subtask in subtasks {
                         if let Some(complexity) = subtask.get_mut("complexity") {
                             self.normalize_complexity_enum(complexity);
@@ -536,7 +552,6 @@ impl LlmOutputTranslator {
             errors.push("Missing required field: estimated_complexity".to_string());
         }
 
-        
         if !errors.is_empty() {
             return Err(anyhow!("TaskBreakdown validation failed: {}", errors.join(", ")));
         }
@@ -719,13 +734,19 @@ mod tests {
         let result = translator.translate(input, TargetSchema::TaskBreakdown).unwrap();
 
         // Translator should AUTO-FILL missing fields for resilience
-        assert!(result.get("error").is_none(), "Should not error - should auto-fill missing fields");
+        assert!(
+            result.get("error").is_none(),
+            "Should not error - should auto-fill missing fields"
+        );
         assert_eq!(result["prd_title"], "Test");
 
         // Should have auto-filled required fields
         assert!(result.get("parent_tasks").is_some(), "Should auto-fill parent_tasks");
         assert!(result.get("relevant_files").is_some(), "Should auto-fill relevant_files");
-        assert!(result.get("estimated_complexity").is_some(), "Should auto-fill estimated_complexity");
+        assert!(
+            result.get("estimated_complexity").is_some(),
+            "Should auto-fill estimated_complexity"
+        );
 
         // Auto-filled arrays should be empty
         assert_eq!(result["parent_tasks"].as_array().unwrap().len(), 0);

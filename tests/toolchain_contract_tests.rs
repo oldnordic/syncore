@@ -10,19 +10,19 @@
 
 use anyhow::Result;
 use serde_json::{json, Value};
+use std::sync::Arc;
+use syncore::mcp_tools::streaming::OutputLimiter;
+use syncore::mcp_tools::translator::{translate_llm_output, TargetSchema};
 use syncore::mcp_tools::{
-    memory_suite::{MemorySuite, MemorySuiteArgs},
-    debug_suite::{DebugSuite, DebugSuiteArgs},
     code_suite::{CodeSuite, CodeSuiteArgs},
+    debug_suite::{DebugSuite, DebugSuiteArgs},
     graph_suite::{GraphSuite, GraphSuiteArgs},
     mapping_suite::{MappingSuite, MappingSuiteArgs},
+    memory_suite::{MemorySuite, MemorySuiteArgs},
     refrag_suite::{RefragSuite, RefragSuiteArgs},
     SuiteDispatcher, SuiteResult,
 };
-use syncore::mcp_tools::streaming::OutputLimiter;
-use syncore::mcp_tools::translator::{translate_llm_output, TargetSchema};
 use syncore::router::SynCoreState;
-use std::sync::Arc;
 
 // Helper function to convert SuiteResult to JSON for testing
 fn suite_result_to_json(result: SuiteResult) -> Value {
@@ -74,8 +74,10 @@ fn test_memory_suite_response_envelope() -> Result<()> {
 
     // On success, error should be null or absent
     if success {
-        assert!(result.get("error").is_none() || result["error"].is_null(),
-                "Error should be null or absent on success");
+        assert!(
+            result.get("error").is_none() || result["error"].is_null(),
+            "Error should be null or absent on success"
+        );
     }
 
     Ok(())
@@ -211,14 +213,29 @@ fn test_debug_suite_streaming_integration() -> Result<()> {
 
             // If meta exists, it should have proper streaming metadata
             if meta.get("truncated").is_some() {
-                assert_eq!(meta["truncated"], true, "Truncated flag must be true when meta.truncated exists");
-                assert!(meta.get("total_lines").is_some(), "Must include total_lines when truncated");
-                assert!(meta.get("total_bytes").is_some(), "Must include total_bytes when truncated");
-                assert!(meta.get("storage_key").is_some(), "Must include storage_key when truncated");
+                assert_eq!(
+                    meta["truncated"], true,
+                    "Truncated flag must be true when meta.truncated exists"
+                );
+                assert!(
+                    meta.get("total_lines").is_some(),
+                    "Must include total_lines when truncated"
+                );
+                assert!(
+                    meta.get("total_bytes").is_some(),
+                    "Must include total_bytes when truncated"
+                );
+                assert!(
+                    meta.get("storage_key").is_some(),
+                    "Must include storage_key when truncated"
+                );
 
                 // Storage key should start with "trunc_"
                 let storage_key = meta["storage_key"].as_str().unwrap();
-                assert!(storage_key.starts_with("trunc_"), "Storage key should start with 'trunc_'");
+                assert!(
+                    storage_key.starts_with("trunc_"),
+                    "Storage key should start with 'trunc_'"
+                );
             }
         }
 
@@ -229,7 +246,8 @@ fn test_debug_suite_streaming_integration() -> Result<()> {
             // If hotspots is an array, it should be reasonably sized
             if hotspots.is_array() {
                 let count = hotspots.as_array().unwrap().len();
-                assert!(count <= 200, "Array should be limited by streaming contract"); // Should be limited by streaming
+                assert!(count <= 200, "Array should be limited by streaming contract");
+                // Should be limited by streaming
             }
         }
     }
@@ -257,7 +275,10 @@ fn test_memory_suite_streaming_integration() -> Result<()> {
         if data.get("meta").is_some() {
             let meta = &data["meta"];
             if meta.get("truncated").is_some() && meta["truncated"] == true {
-                assert!(meta.get("storage_key").is_some(), "Must provide storage key when truncated");
+                assert!(
+                    meta.get("storage_key").is_some(),
+                    "Must provide storage key when truncated"
+                );
             }
         }
 
@@ -267,7 +288,8 @@ fn test_memory_suite_streaming_integration() -> Result<()> {
             if keys.is_array() {
                 // If this is a direct array response (not truncated), it should be reasonable size
                 let count = keys.as_array().unwrap().len();
-                assert!(count <= 200, "Direct array responses should be limited"); // Streaming should limit this
+                assert!(count <= 200, "Direct array responses should be limited");
+                // Streaming should limit this
             }
         }
     }

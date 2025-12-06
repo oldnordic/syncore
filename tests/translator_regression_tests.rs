@@ -25,7 +25,9 @@ fn test_regression_prioritize_missing_priorities_field() -> Result<()> {
 
     // Should detect that this is not valid JSON and produce a proper error
     assert_eq!(result["error"], "SchemaValidationFailed");
-    assert!(result["missing_fields"].as_array().unwrap()
+    assert!(result["missing_fields"]
+        .as_array()
+        .unwrap()
         .iter()
         .any(|f| f.as_str() == Some("priorities array")));
 }
@@ -56,18 +58,23 @@ fn test_regression_priority_result_structure() -> Result<()> {
     let result = translate_llm_output(correct_input, TargetSchema::PriorityResult)?;
 
     // Should succeed without errors
-    assert!(!result.get("error").is_some(),
-        "PriorityResult translation failed: {:?}", result);
+    assert!(!result.get("error").is_some(), "PriorityResult translation failed: {:?}", result);
 
     let priorities = result["priorities"].as_array().unwrap();
     assert_eq!(priorities.len(), 3);
 
     // Verify CRITICAL requirements: priority must be STRING
     for priority_item in priorities {
-        assert!(priority_item["priority"].is_string(),
-            "Priority must be string, got: {:?}", priority_item["priority"]);
-        assert!(priority_item["task_id"].is_string(),
-            "Task ID must be string, got: {:?}", priority_item["task_id"]);
+        assert!(
+            priority_item["priority"].is_string(),
+            "Priority must be string, got: {:?}",
+            priority_item["priority"]
+        );
+        assert!(
+            priority_item["task_id"].is_string(),
+            "Task ID must be string, got: {:?}",
+            priority_item["task_id"]
+        );
     }
 }
 
@@ -76,12 +83,12 @@ fn test_regression_priority_result_structure() -> Result<()> {
 fn test_regression_complexity_enum_validation() -> Result<()> {
     // These inputs caused enum validation errors in Phase 1
     let invalid_complexity_cases = vec![
-        ("High", "Complex"),        // Common incorrect value
-        ("Low", "Simple"),          // Common incorrect value
-        ("Medium", "Moderate"),     // Sometimes valid, sometimes not
+        ("High", "Complex"),         // Common incorrect value
+        ("Low", "Simple"),           // Common incorrect value
+        ("Medium", "Moderate"),      // Sometimes valid, sometimes not
         ("VeryHigh", "VeryComplex"), // Extended value
-        ("hard", "Complex"),        // Lowercase
-        ("easy", "Simple"),         // Lowercase
+        ("hard", "Complex"),         // Lowercase
+        ("easy", "Simple"),          // Lowercase
     ];
 
     for (invalid_input, expected_normalized) in invalid_complexity_cases {
@@ -98,13 +105,18 @@ fn test_regression_complexity_enum_validation() -> Result<()> {
             }],
             "relevant_files": [],
             "estimated_complexity": invalid_input
-        }).to_string();
+        })
+        .to_string();
 
         let result = translate_llm_output(&input, TargetSchema::TaskBreakdown)?;
 
-        assert!(!result.get("error").is_some(),
+        assert!(
+            !result.get("error").is_some(),
             "Failed to normalize complexity '{}' to '{}': {:?}",
-            invalid_input, expected_normalized, result.get("error"));
+            invalid_input,
+            expected_normalized,
+            result.get("error")
+        );
 
         // Verify normalization
         let parent_tasks = result["parent_tasks"].as_array().unwrap();
@@ -142,8 +154,7 @@ fn test_regression_subtask_structure_mismatch() -> Result<()> {
 
     let result = translate_llm_output(correct_subtask_input, TargetSchema::SubtaskBreakdown)?;
 
-    assert!(!result.get("error").is_some(),
-        "SubtaskBreakdown translation failed: {:?}", result);
+    assert!(!result.get("error").is_some(), "SubtaskBreakdown translation failed: {:?}", result);
 
     let subtasks = result["subtasks"].as_array().unwrap();
     assert_eq!(subtasks.len(), 1);
@@ -190,8 +201,7 @@ fn test_regression_file_reference_structure() -> Result<()> {
 
     let result = translate_llm_output(correct_fileref_input, TargetSchema::TaskBreakdown)?;
 
-    assert!(!result.get("error").is_some(),
-        "FileReference translation failed: {:?}", result);
+    assert!(!result.get("error").is_some(), "FileReference translation failed: {:?}", result);
 
     let relevant_files = result["relevant_files"].as_array().unwrap();
     assert_eq!(relevant_files.len(), 2);
@@ -210,13 +220,7 @@ fn test_regression_file_reference_structure() -> Result<()> {
 /// Regression test for sequential step status validation
 #[test]
 fn test_regression_sequential_step_status_validation() -> Result<()> {
-    let invalid_status_cases = vec![
-        "invalid_status",
-        "processing",
-        "waiting",
-        "unknown",
-        "",
-    ];
+    let invalid_status_cases = vec!["invalid_status", "processing", "waiting", "unknown", ""];
 
     for invalid_status in invalid_status_cases {
         let input = json!({
@@ -224,13 +228,17 @@ fn test_regression_sequential_step_status_validation() -> Result<()> {
             "thought": "Test thought process",
             "reasoning": "Test reasoning",
             "status": invalid_status
-        }).to_string();
+        })
+        .to_string();
 
         let result = translate_llm_output(&input, TargetSchema::SequentialStep)?;
 
-        assert!(!result.get("error").is_some(),
+        assert!(
+            !result.get("error").is_some(),
             "SequentialStep translation failed for status '{}': {:?}",
-            invalid_status, result.get("error"));
+            invalid_status,
+            result.get("error")
+        );
 
         // Invalid status should be normalized to "pending"
         assert_eq!(result["status"], "pending");
@@ -261,7 +269,8 @@ fn test_regression_numeric_coercion_edge_cases() -> Result<()> {
                     },
                     "priority": "High"
                 }]
-            }).to_string()
+            })
+            .to_string()
         } else if field_name == "step_number" {
             json!({
                 "step_number": if input_value.is_number() {
@@ -271,7 +280,8 @@ fn test_regression_numeric_coercion_edge_cases() -> Result<()> {
                 },
                 "thought": "Test",
                 "reasoning": "Test"
-            }).to_string()
+            })
+            .to_string()
         } else {
             json!({
                 "subtasks": [{
@@ -284,7 +294,8 @@ fn test_regression_numeric_coercion_edge_cases() -> Result<()> {
                         serde_json::Value::String(input_value.to_string())
                     }
                 }]
-            }).to_string()
+            })
+            .to_string()
         };
 
         let target_schema = match field_name {
@@ -295,9 +306,13 @@ fn test_regression_numeric_coercion_edge_cases() -> Result<()> {
 
         let result = translate_llm_output(&input, target_schema)?;
 
-        assert!(!result.get("error").is_some(),
+        assert!(
+            !result.get("error").is_some(),
             "Numeric coercion failed for {}='{}': {:?}",
-            field_name, input_value, result.get("error"));
+            field_name,
+            input_value,
+            result.get("error")
+        );
 
         // Verify coercion result
         match target_schema {
@@ -343,7 +358,6 @@ fn test_regression_messy_llm_output_extraction() -> Result<()> {
 
         This should cover all the essential requirements mentioned in the PRD.
         "#,
-
         // JSON with comments and trailing commas
         r#"
         {
@@ -364,7 +378,6 @@ fn test_regression_messy_llm_output_extraction() -> Result<()> {
           "estimated_complexity": "Complex",
         }
         "#,
-
         // JSON embedded in prose
         r#"
         The task breakdown is as follows: {"prd_title": "Database Migration", "parent_tasks": [], "relevant_files": [], "estimated_complexity": "Simple"}.
@@ -375,9 +388,12 @@ fn test_regression_messy_llm_output_extraction() -> Result<()> {
     for (i, messy_input) in messy_inputs.iter().enumerate() {
         let result = translate_llm_output(messy_input, TargetSchema::TaskBreakdown)?;
 
-        assert!(!result.get("error").is_some(),
+        assert!(
+            !result.get("error").is_some(),
             "Failed to extract JSON from messy input {}: {:?}",
-            i + 1, result.get("error"));
+            i + 1,
+            result.get("error")
+        );
 
         assert_eq!(result.get("prd_title").and_then(Value::as_str), Some("User Management System"));
     }

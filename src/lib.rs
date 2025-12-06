@@ -1,10 +1,10 @@
+// pub mod agent; // PHASE 4: Agent Planning & Reasoning Engine (APRE) - Temporarily disabled for testing
 pub mod autonomy;
 pub mod backup;
 pub mod bootstrap; // APEX 2.15: Cold/warm start bootstrap logic
 pub mod circuit_breaker;
 pub mod cli;
 pub mod code_directory_indexer;
-pub mod code_explainer;
 pub mod code_graph;
 pub mod cognition;
 pub mod cognitive;
@@ -20,6 +20,7 @@ pub mod fs_watcher; // APEX 2.2-FW: Filesystem watcher
 pub mod global_store;
 pub mod graph;
 pub mod graph_cli;
+pub mod sqlitegraph;
 pub mod graph_rebuilder;
 pub mod http_stream_server;
 pub mod ingestion; // Global Ingestion Coordinator (GIC)
@@ -40,7 +41,6 @@ pub mod message_bus;
 
 pub mod metrics;
 pub mod models; // GGUF Engine and model backends
-pub mod ollama;
 pub mod parser;
 pub mod parser_service; // APEX 2.2-FW: Incremental parser
 pub mod path_resolver; // APEX v1.7 Phase 5: Central path resolution

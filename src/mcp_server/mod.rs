@@ -7,5 +7,8 @@
 mod server;
 pub mod types;
 
+// Unified reasoning module for consistent MCP tool behavior
+pub mod reasoning;
+
 // Re-export server components
 pub use server::*;

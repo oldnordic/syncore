@@ -11,7 +11,9 @@ fn test_truncates_large_output() -> Result<()> {
     let limiter = OutputLimiter::default();
 
     // Create a large output with >200 lines
-    let large_lines: Vec<String> = (0..300).map(|i| format!("Line {}: This is test line content that should be truncated", i)).collect();
+    let large_lines: Vec<String> = (0..300)
+        .map(|i| format!("Line {}: This is test line content that should be truncated", i))
+        .collect();
     let large_json = json!({
         "lines": large_lines,
         "metadata": {
@@ -194,7 +196,9 @@ fn test_integration_with_suite_result_pattern() -> Result<()> {
     let limiter = OutputLimiter::default();
 
     // Simulate a large debug output (like logs_tail or project analysis)
-    let debug_lines: Vec<String> = (0..250).map(|i| format!("DEBUG: Log entry {} with lots of information that might be truncated", i)).collect();
+    let debug_lines: Vec<String> = (0..250)
+        .map(|i| format!("DEBUG: Log entry {} with lots of information that might be truncated", i))
+        .collect();
     let debug_output = json!({
         "command": "debug_logs_tail",
         "data": {

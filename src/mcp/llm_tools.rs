@@ -74,11 +74,11 @@ pub async fn handle_llm_metrics_with_reasoning(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::gguf_engine::GGUFEngine;
+    use crate::llm::test::TestLanguageModel;
 
     #[test]
     fn test_handle_llm_health() {
-        let engine = GGUFEngine::new_test();
+        let engine = TestLanguageModel::predefined("test");
         let params = serde_json::json!({});
 
         let result =
@@ -88,7 +88,7 @@ mod tests {
         let result_value = result.unwrap();
         let health_obj = result_value.as_object().unwrap();
 
-        assert_eq!(health_obj.get("backend_name").unwrap().as_str().unwrap(), "gguf_engine");
+        assert_eq!(health_obj.get("backend_name").unwrap().as_str().unwrap(), "test");
         assert!(health_obj.contains_key("status"));
         assert!(health_obj.contains_key("device"));
         assert!(health_obj.contains_key("model_loaded"));
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn test_handle_llm_metrics() {
-        let engine = GGUFEngine::new_test();
+        let engine = TestLanguageModel::predefined("test");
         let params = serde_json::json!({});
 
         let result =
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn test_handle_llm_health_with_reasoning_no_tot() {
-        let engine = GGUFEngine::new_test();
+        let engine = TestLanguageModel::predefined("test");
         let params = serde_json::json!({});
 
         let result = tokio::runtime::Runtime::new()
@@ -128,7 +128,7 @@ mod tests {
         let health_obj = result_value.as_object().unwrap();
 
         // Should contain GGUF health fields
-        assert_eq!(health_obj.get("backend_name").unwrap().as_str().unwrap(), "gguf_engine");
+        assert_eq!(health_obj.get("backend_name").unwrap().as_str().unwrap(), "test");
         assert!(health_obj.contains_key("status"));
         assert!(health_obj.contains_key("device"));
         assert!(health_obj.contains_key("model_loaded"));
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_handle_llm_metrics_with_reasoning_no_tot() {
-        let engine = GGUFEngine::new_test();
+        let engine = TestLanguageModel::predefined("test");
         let params = serde_json::json!({});
 
         let result = tokio::runtime::Runtime::new()

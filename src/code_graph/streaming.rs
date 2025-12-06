@@ -183,7 +183,7 @@ impl RagGraphAPI {
                     vector_score: vmatch.score,
                     graph_score: 0.0,
                     temporal_score: 0.0,
-                    graph_embedding_score: 0.0,
+                    graph_embedding_score: Some(0.0),
                 })
                 .collect();
 
@@ -254,7 +254,7 @@ impl RagGraphAPI {
                 vector_score,
                 graph_score,
                 temporal_score,
-                graph_embedding_score,
+                Some(graph_embedding_score),
             });
         }
 

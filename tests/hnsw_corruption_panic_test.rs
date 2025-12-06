@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use std::fs;
-use syncore::vector::hnsw::{HnswVectorIndex, HnswConfig};
+use syncore::vector::hnsw::{HnswConfig, HnswVectorIndex};
 use tempfile::TempDir;
 
 /// Test that HNSW index load handles corrupted snapshot files without panicking
@@ -49,11 +49,13 @@ async fn test_hnsw_direct_corrupted_snapshot_handling() -> Result<()> {
 
     // Check the error message contains information about the failure
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("deserialization failed") ||
-            error_msg.contains("UnexpectedEof") ||
-            error_msg.contains("failed to fill whole buffer") ||
-            error_msg.contains("corrupted") ||
-            error_msg.contains("panic caught"));
+    assert!(
+        error_msg.contains("deserialization failed")
+            || error_msg.contains("UnexpectedEof")
+            || error_msg.contains("failed to fill whole buffer")
+            || error_msg.contains("corrupted")
+            || error_msg.contains("panic caught")
+    );
 
     Ok(())
 }
@@ -73,7 +75,7 @@ async fn test_hnsw_zero_length_snapshot_handling() -> Result<()> {
     let data_file = dir.join(format!("{}.hnsw.data", basename));
 
     fs::write(&graph_file, vec![])?; // Empty file
-    fs::write(&data_file, vec![])?;  // Empty file
+    fs::write(&data_file, vec![])?; // Empty file
 
     let config = HnswConfig::default();
     let mut index = HnswVectorIndex::new(config, 42)?;

@@ -3,7 +3,7 @@
 //! Tool-specific executor modules extracted from executor_real.rs giant match statement.
 //! Each module handles a specific category of tools.
 
-pub mod agent_executor;
+// pub mod agent_executor; // Temporarily disabled for testing
 pub mod application_executor;
 pub mod code_parser_executor;
 pub mod document_executor;

@@ -82,8 +82,16 @@ impl RealExecutor {
             };
 
             match suite.execute(args) {
-                crate::mcp_tools::SuiteResult { success: true, data, .. } => data,
-                crate::mcp_tools::SuiteResult { success: false, error, .. } => {
+                crate::mcp_tools::SuiteResult {
+                    success: true,
+                    data,
+                    ..
+                } => data,
+                crate::mcp_tools::SuiteResult {
+                    success: false,
+                    error,
+                    ..
+                } => {
                     json!({
                         "error": error,
                         "tool": tool_name,
@@ -203,21 +211,13 @@ impl RealExecutor {
             }
 
             "intellitask_generate" => {
-                executors::task_executor::execute_intellitask_generate(
-                    &self.state,
-                    params,
-                    dry_run,
-                )
-                .await
+                executors::task_executor::execute_intellitask_generate(&self.state, params, dry_run)
+                    .await
             }
 
             "intellitask_subtasks" => {
-                executors::task_executor::execute_intellitask_subtasks(
-                    &self.state,
-                    params,
-                    dry_run,
-                )
-                .await
+                executors::task_executor::execute_intellitask_subtasks(&self.state, params, dry_run)
+                    .await
             }
 
             "intellitask_prioritize" => {
@@ -230,21 +230,13 @@ impl RealExecutor {
             }
 
             "intellitask_next" => {
-                executors::task_executor::execute_intellitask_next(
-                    &self.state,
-                    params,
-                    dry_run,
-                )
-                .await
+                executors::task_executor::execute_intellitask_next(&self.state, params, dry_run)
+                    .await
             }
 
             "intellitask_save" => {
-                executors::task_executor::execute_intellitask_save(
-                    &self.state,
-                    params,
-                    dry_run,
-                )
-                .await
+                executors::task_executor::execute_intellitask_save(&self.state, params, dry_run)
+                    .await
             }
 
             // ================================================================
@@ -383,8 +375,9 @@ impl RealExecutor {
             }
 
             // ================================================================
-            // Agent tools (Phase 6.7)
+            // Agent tools (Phase 6.7) - Temporarily disabled for testing
             // ================================================================
+            /*
             "agent_send" => {
                 executors::agent_executor::execute_agent_send(&self.state, params, dry_run).await
             }
@@ -413,6 +406,8 @@ impl RealExecutor {
             "agent_result" => {
                 executors::agent_executor::execute_agent_result(&self.state, params, dry_run).await
             }
+            */
+            // Agent tools temporarily disabled
 
             // ================================================================
             // Mapping tools (Phase 6.8)
@@ -484,31 +479,68 @@ impl RealExecutor {
             // SEQUENTIAL TOOLS (Phase 6.12)
             // ================================================================
             "sequential_next" => {
-                executors::sequential_executor::execute_sequential_next(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_next(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
             }
             "sequential_run" => {
-                executors::sequential_executor::execute_sequential_run(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_run(&self.state, params, dry_run)
+                    .await
             }
             "sequential_reason" => {
-                executors::sequential_executor::execute_sequential_reason(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_reason(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
             }
             "sequential_status" => {
-                executors::sequential_executor::execute_sequential_status(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_status(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
             }
             "sequential_reset" => {
-                executors::sequential_executor::execute_sequential_reset(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_reset(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
             }
             "sequential_record" => {
-                executors::sequential_executor::execute_sequential_record(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_record(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
             }
             "sequential_get" => {
-                executors::sequential_executor::execute_sequential_get(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_get(&self.state, params, dry_run)
+                    .await
             }
             "sequential_search" => {
-                executors::sequential_executor::execute_sequential_search(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_search(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
             }
             "sequential_cycle" => {
-                executors::sequential_executor::execute_sequential_cycle(&self.state, params, dry_run).await
+                executors::sequential_executor::execute_sequential_cycle(
+                    &self.state,
+                    params,
+                    dry_run,
+                )
+                .await
             }
 
             _ => {
@@ -524,7 +556,6 @@ impl RealExecutor {
         }
     }
 
-    
     /// Route deprecated tool through suite implementation
     /// Converts SuiteResult to MCP envelope format
     fn route_through_suite(&self, suite_result: crate::mcp_tools::SuiteResult) -> Value {

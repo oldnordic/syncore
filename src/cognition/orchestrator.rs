@@ -136,8 +136,12 @@ async fn call_raggraph(
 
     // Analyze query for key terms (basic semantic analysis)
     let query_lower = query.to_lowercase();
-    let has_rust_keywords = query_lower.contains("fn") || query_lower.contains("struct") || query_lower.contains("impl");
-    let has_error_keywords = query_lower.contains("error") || query_lower.contains("panic") || query_lower.contains("fail");
+    let has_rust_keywords = query_lower.contains("fn")
+        || query_lower.contains("struct")
+        || query_lower.contains("impl");
+    let has_error_keywords = query_lower.contains("error")
+        || query_lower.contains("panic")
+        || query_lower.contains("fail");
 
     // Generate search results based on query analysis
     let entities = if has_rust_keywords {
@@ -155,28 +159,24 @@ async fn call_raggraph(
                 "line": 15,
                 "content": "pub struct AppConfig { host: String, port: u16 }",
                 "score": 0.85
-            })
+            }),
         ]
     } else if has_error_keywords {
-        vec![
-            serde_json::json!({
-                "type": "error_handling",
-                "file": "src/error.rs",
-                "line": 23,
-                "content": "Result<(), Box<dyn std::error::Error>>",
-                "score": 0.88
-            })
-        ]
+        vec![serde_json::json!({
+            "type": "error_handling",
+            "file": "src/error.rs",
+            "line": 23,
+            "content": "Result<(), Box<dyn std::error::Error>>",
+            "score": 0.88
+        })]
     } else {
-        vec![
-            serde_json::json!({
-                "type": "module",
-                "file": "src/utils/mod.rs",
-                "line": 1,
-                "content": "pub mod helpers;",
-                "score": 0.7
-            })
-        ]
+        vec![serde_json::json!({
+            "type": "module",
+            "file": "src/utils/mod.rs",
+            "line": 1,
+            "content": "pub mod helpers;",
+            "score": 0.7
+        })]
     };
 
     let results_json = serde_json::json!({

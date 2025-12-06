@@ -10,12 +10,12 @@
 use anyhow::Result;
 use serde_json::{json, Value};
 use syncore::mcp_tools::{
-    memory_suite::{MemorySuite, MemorySuiteArgs},
-    debug_suite::{DebugSuite, DebugSuiteArgs},
     code_suite::{CodeSuite, CodeSuiteArgs},
+    debug_suite::{DebugSuite, DebugSuiteArgs},
     graph_suite::{GraphSuite, GraphSuiteArgs},
     mapping_suite::{MappingSuite, MappingSuiteArgs},
-    reasoning_suite::{ReasoningSuite},
+    memory_suite::{MemorySuite, MemorySuiteArgs},
+    reasoning_suite::ReasoningSuite,
     SuiteDispatcher, SuiteResult,
 };
 use syncore::router::SynCoreState;

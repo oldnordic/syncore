@@ -44,25 +44,32 @@ fn test_intellitask_save_14_errors_regression() -> Result<()> {
             }
         ],
         "estimated_complexity": "Low"  // Invalid enum value
-    }).to_string();
+    })
+    .to_string();
 
     // Test without translator (should fail with schema validation)
     let direct_parse_result: Result<syncore::intellitask::TaskBreakdown, serde_json::Error> =
         serde_json::from_str(&problematic_llm_output);
 
-    assert!(direct_parse_result.is_err(),
-        "Direct parse should fail: {:?}", direct_parse_result);
+    assert!(direct_parse_result.is_err(), "Direct parse should fail: {:?}", direct_parse_result);
 
     // Test with translator (should either fix or give clear error)
     let translated = translate_llm_output(&problematic_llm_output, TargetSchema::TaskBreakdown)?;
 
     if translated.get("error").is_none() {
         // If translator succeeded, verify the fixes
-        let task_breakdown: syncore::intellitask::TaskBreakdown = serde_json::from_value(translated)?;
+        let task_breakdown: syncore::intellitask::TaskBreakdown =
+            serde_json::from_value(translated)?;
 
         // Verify complexity normalization
-        assert_eq!(task_breakdown.parent_tasks[0].complexity, syncore::intellitask::Complexity::Complex); // "High" -> "Complex"
-        assert_eq!(task_breakdown.parent_tasks[1].complexity, syncore::intellitask::Complexity::Moderate); // "Medium" -> "Moderate"
+        assert_eq!(
+            task_breakdown.parent_tasks[0].complexity,
+            syncore::intellitask::Complexity::Complex
+        ); // "High" -> "Complex"
+        assert_eq!(
+            task_breakdown.parent_tasks[1].complexity,
+            syncore::intellitask::Complexity::Moderate
+        ); // "Medium" -> "Moderate"
         assert_eq!(task_breakdown.estimated_complexity, syncore::intellitask::Complexity::Simple); // "Low" -> "Simple"
 
         // Verify subtasks are now objects, not strings
@@ -81,7 +88,6 @@ fn test_intellitask_save_14_errors_regression() -> Result<()> {
         let file_ref = &task_breakdown.relevant_files[0];
         assert_eq!(file_ref.path, "src/models/user.rs");
         assert_eq!(file_ref.purpose, "User model definition"); // Should be "purpose" not "description"
-
     } else {
         // If translator errored, verify it's a structured error
         assert_eq!(translated["error"], "SchemaValidationFailed");
@@ -107,16 +113,19 @@ The database schema must be completed first.
     "#;
 
     // This should fail to parse as JSON at all
-    let direct_json_parse: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(invalid_tasks_json);
-    assert!(direct_json_parse.is_err(),
-        "Non-JSON input should fail to parse: {:?}", direct_json_parse);
+    let direct_json_parse: Result<serde_json::Value, serde_json::Error> =
+        serde_json::from_str(invalid_tasks_json);
+    assert!(
+        direct_json_parse.is_err(),
+        "Non-JSON input should fail to parse: {:?}",
+        direct_json_parse
+    );
 
     // Test that translator can handle non-JSON input gracefully
     let translated = translate_llm_output(invalid_tasks_json, TargetSchema::TaskBreakdown);
 
     // Should return Result::Err when no valid JSON can be extracted, not panic
-    assert!(translated.is_err(),
-        "Non-JSON input should produce Result::Err, not Ok");
+    assert!(translated.is_err(), "Non-JSON input should produce Result::Err, not Ok");
 }
 
 /// Regression test for intellitask_prioritize malformed JSON failure
@@ -135,14 +144,14 @@ fn test_intellitask_prioritize_malformed_json_regression() -> Result<()> {
                 "estimated_hours": "8.0"  // String instead of number
             }
         ]
-    }).to_string();
+    })
+    .to_string();
 
     // Test with translator
     let translated = translate_llm_output(&malformed_tasks_json, TargetSchema::TaskBreakdown)?;
 
     // Should error due to wrong structure (not a valid TaskBreakdown)
-    assert!(translated.get("error").is_some(),
-        "Malformed JSON should produce error");
+    assert!(translated.get("error").is_some(), "Malformed JSON should produce error");
     assert_eq!(translated["error"], "SchemaValidationFailed");
 
     Ok(())
@@ -160,8 +169,12 @@ fn test_missing_critical_fields_regression() -> Result<()> {
 
     let missing_fields = translated["missing_fields"].as_array().unwrap();
     assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: prd_title")));
-    assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: parent_tasks")));
-    assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: estimated_complexity")));
+    assert!(missing_fields
+        .iter()
+        .any(|f| f.as_str() == Some("Missing required field: parent_tasks")));
+    assert!(missing_fields
+        .iter()
+        .any(|f| f.as_str() == Some("Missing required field: estimated_complexity")));
 
     Ok(())
 }
@@ -181,15 +194,16 @@ fn test_priority_assignment_type_mismatch_regression() -> Result<()> {
                 "priority": null  // Null instead of string
             }
         ]
-    }).to_string();
+    })
+    .to_string();
 
     let translated = translate_llm_output(&wrong_types_priority, TargetSchema::PriorityResult)?;
 
     if translated.get("error").is_none() {
         // If translator succeeded, verify type coercion
         let priorities = translated["priorities"].as_array().unwrap();
-        assert_eq!(priorities[0]["task_id"], "123");  // Should be coerced to string
-        assert_eq!(priorities[0]["priority"], "1");    // Should be coerced to string
+        assert_eq!(priorities[0]["task_id"], "123"); // Should be coerced to string
+        assert_eq!(priorities[0]["priority"], "1"); // Should be coerced to string
     } else {
         // If translator errored, verify it's because priority is null (can't coerce)
         assert_eq!(translated["error"], "SchemaValidationFailed");
@@ -223,7 +237,8 @@ fn test_extreme_complexity_values_regression() -> Result<()> {
         }],
         "relevant_files": [],
         "estimated_complexity": "Unknown complexity"  // Unknown value
-    }).to_string();
+    })
+    .to_string();
 
     let translated = translate_llm_output(&extreme_complexity, TargetSchema::TaskBreakdown)?;
 
@@ -235,12 +250,14 @@ fn test_extreme_complexity_values_regression() -> Result<()> {
         assert_eq!(parent_tasks[0]["complexity"], "Trivial");
 
         // "EXTREMELY DIFFICULT" should either normalize or become a safe default
-        let subtask_complexity = parent_tasks[0]["subtasks"].as_array().unwrap()[0]["complexity"].as_str().unwrap();
+        let subtask_complexity =
+            parent_tasks[0]["subtasks"].as_array().unwrap()[0]["complexity"].as_str().unwrap();
         assert!(["Complex", "VeryComplex", "Moderate"].contains(&subtask_complexity));
 
         // Unknown complexity should either normalize or become a safe default
         let estimated_complexity = translated["estimated_complexity"].as_str().unwrap();
-        assert!(["Trivial", "Simple", "Moderate", "Complex", "VeryComplex"].contains(&estimated_complexity));
+        assert!(["Trivial", "Simple", "Moderate", "Complex", "VeryComplex"]
+            .contains(&estimated_complexity));
     }
     // If translator errored, that's also acceptable for unknown complexity values
 

@@ -25,6 +25,7 @@ pub enum TestMode {
 ///
 /// This is a real backend that runs in-process without network calls.
 /// Perfect for TDD and CI/CD environments where external services are unavailable.
+#[derive(Debug)]
 pub struct TestLanguageModel {
     mode: TestMode,
     /// For Scripted mode: tracks current position in sequence

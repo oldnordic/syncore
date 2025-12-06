@@ -1,9 +1,12 @@
 //! Factory for creating LanguageModel instances from configuration
 //!
 //! Supports Candle-based GGUF engine for local offline inference and test backend.
+//! Uses candle_cache for efficient model and tokenizer caching.
 
+use super::candle_cache::{get_or_init_model, CandleConfig};
 use super::{test::TestLanguageModel, LanguageModel};
 use anyhow::{anyhow, Result};
+use std::sync::Arc;
 
 /// Language model backend type
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,37 +99,44 @@ impl LlmFactory {
     /// * `config` - LLM configuration specifying backend and parameters
     ///
     /// # Returns
-    /// A boxed LanguageModel trait object configured for the specified backend
+    /// An Arc-wrapped LanguageModel trait object configured for the specified backend
+    /// Arc allows efficient sharing across multiple components (IntelliTask, Reasoning, etc.)
     ///
     /// # Errors
     /// - Invalid backend name
     /// - Backend initialization failure
-    pub async fn from_config(config: &LlmConfig) -> Result<Box<dyn LanguageModel>> {
+    pub async fn from_config(config: &LlmConfig) -> Result<Arc<dyn LanguageModel>> {
         match config.backend {
             LlmBackend::GGUFEngine => {
-                // Load REAL GGUFEngine backend, not test backend
-                tracing::info!("Loading REAL GGUFEngine backend for model: {}", config.model);
-                use crate::models::gguf_engine::GGUFEngine;
+                // Use Candle cache for efficient model loading
+                tracing::info!("Loading GGUF model via cache: {}", config.model);
 
-                // Try to load real GGUF model, fall back to test only if real loading fails
-                let real_model_result = match GGUFEngine::new(&config.model).await {
-                    Ok(engine) => Ok(engine),
-                    Err(e) => {
-                        tracing::warn!("❌ Failed to load real GGUF model '{}': {}", config.model, e);
-                        Err(e)
-                    }
+                // Create cache configuration - ensure .gguf extension
+                let model_path = if config.model.ends_with(".gguf") {
+                    config.model.clone()
+                } else {
+                    format!("{}.gguf", config.model)
                 };
 
-                match real_model_result {
-                    Ok(engine) => {
-                        tracing::info!("✅ Successfully loaded real GGUFEngine backend");
-                        Ok(Box::new(engine))
+                let cache_config = CandleConfig::new(model_path).deterministic(true); // Enable deterministic generation
+
+                // Try to load via cache (returns cached instance if available)
+                match get_or_init_model(&cache_config).await {
+                    Ok(cached_model) => {
+                        tracing::info!("✅ Successfully loaded GGUF model via cache");
+                        Ok(cached_model) // Return the Arc directly from cache
                     }
                     Err(e) => {
-                        tracing::warn!("❌ Failed to load real GGUF model '{}': {}", config.model, e);
-                        tracing::warn!("⚠️  Falling back to test GGUFEngine backend");
-                        let test_model = GGUFEngine::new_test();
-                        Ok(Box::new(test_model))
+                        tracing::error!(
+                            "❌ Failed to load GGUF model via cache '{}': {}",
+                            config.model,
+                            e
+                        );
+                        tracing::error!("❌ Single-path architecture: All models must load through candle_cache");
+                        Err(anyhow::anyhow!(
+                            "Failed to load GGUF model through single-path candle_cache: {}",
+                            e
+                        ))
                     }
                 }
             }
@@ -135,7 +145,7 @@ impl LlmFactory {
                 let model = TestLanguageModel::predefined(
                     r#"{"success": true, "message": "Test backend response"}"#,
                 );
-                Ok(Box::new(model))
+                Ok(Arc::new(model) as Arc<dyn LanguageModel>)
             }
         }
     }
@@ -144,7 +154,7 @@ impl LlmFactory {
     ///
     /// This is a convenience method that reads LLM_BACKEND, LLM_MODEL, etc.
     /// from environment and creates the appropriate backend.
-    pub async fn from_env() -> Result<Box<dyn LanguageModel>> {
+    pub async fn from_env() -> Result<Arc<dyn LanguageModel>> {
         let config = LlmConfig::from_env();
         Self::from_config(&config).await
     }
@@ -153,8 +163,8 @@ impl LlmFactory {
     ///
     /// This is a convenience method that always returns TestLanguageModel,
     /// regardless of environment configuration.
-    pub fn test_backend() -> Box<dyn LanguageModel> {
-        Box::new(TestLanguageModel::echo())
+    pub fn test_backend() -> Arc<dyn LanguageModel> {
+        Arc::new(TestLanguageModel::echo())
     }
 }
 

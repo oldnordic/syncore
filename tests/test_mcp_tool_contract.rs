@@ -3,14 +3,14 @@
 //! Tests to ensure all tools referenced in documentation actually exist
 //! and function correctly.
 
+use serde_json::json;
+use std::sync::Arc;
 use syncore::mcp_tools::memory_suite::{MemorySuite, MemorySuiteArgs};
 use syncore::mcp_tools::SuiteDispatcher;
-use syncore::router::SynCoreState;
 use syncore::memory;
+use syncore::router::SynCoreState;
 use syncore::tasks;
 use syncore::vector;
-use std::sync::Arc;
-use serde_json::json;
 
 #[test]
 fn test_task_create_dependency_tool_exists() {
@@ -87,13 +87,13 @@ fn test_all_documented_tools_exist() {
         "task_get",
         "task_update",
         "task_next",
-        "store",  // Changed from memory_store
-        "query",  // Changed from memory_query
+        "store", // Changed from memory_store
+        "query", // Changed from memory_query
         "vector_insert",
         "vector_search",
         "intellitask_generate",
         "intellitask_list",
-        "help"
+        "help",
     ];
 
     for tool in required_tools {
@@ -140,12 +140,17 @@ fn test_help_includes_new_tools() {
     let help_data = help_result.data.as_object().unwrap();
     let commands = help_data.get("commands").unwrap().as_array().unwrap();
 
-    let commands_str: Vec<String> = commands.iter()
-        .map(|cmd| cmd.as_str().unwrap().to_string())
-        .collect();
+    let commands_str: Vec<String> =
+        commands.iter().map(|cmd| cmd.as_str().unwrap().to_string()).collect();
 
-    assert!(commands_str.contains(&"task_create_dependency".to_string()), "Help should include task_create_dependency");
-    assert!(commands_str.contains(&"task_get_graph".to_string()), "Help should include task_get_graph");
+    assert!(
+        commands_str.contains(&"task_create_dependency".to_string()),
+        "Help should include task_create_dependency"
+    );
+    assert!(
+        commands_str.contains(&"task_get_graph".to_string()),
+        "Help should include task_get_graph"
+    );
 }
 
 #[test]
@@ -160,12 +165,17 @@ fn test_task_categories_updated() {
     let categories = help_data.get("categories").unwrap().as_object().unwrap();
     let tasks = categories.get("tasks").unwrap().as_array().unwrap();
 
-    let tasks_str: Vec<String> = tasks.iter()
-        .map(|cmd| cmd.as_str().unwrap().to_string())
-        .collect();
+    let tasks_str: Vec<String> =
+        tasks.iter().map(|cmd| cmd.as_str().unwrap().to_string()).collect();
 
-    assert!(tasks_str.contains(&"task_create_dependency".to_string()), "Task category should include new tools");
-    assert!(tasks_str.contains(&"task_get_graph".to_string()), "Task category should include new tools");
+    assert!(
+        tasks_str.contains(&"task_create_dependency".to_string()),
+        "Task category should include new tools"
+    );
+    assert!(
+        tasks_str.contains(&"task_get_graph".to_string()),
+        "Task category should include new tools"
+    );
 }
 
 fn create_test_state() -> SynCoreState {
@@ -177,8 +187,10 @@ fn create_test_state() -> SynCoreState {
     let _ = std::fs::remove_file(&test_db);
 
     let memory = memory::Memory::new(&test_db).expect("Failed to create test memory");
-    let tasks = tasks::Tasks::new(&format!("{}_tasks", test_db)).expect("Failed to create test tasks");
-    let embeddings = Box::new(vector::RealEmbeddings::new(384).expect("Failed to create test embeddings"));
+    let tasks =
+        tasks::Tasks::new(&format!("{}_tasks", test_db)).expect("Failed to create test tasks");
+    let embeddings =
+        Box::new(vector::RealEmbeddings::new(384).expect("Failed to create test embeddings"));
     let vector_store = Arc::new(std::sync::Mutex::new(vector::VectorStore::new(embeddings)));
 
     SynCoreState::new(memory, tasks, vector_store)
@@ -201,9 +213,8 @@ fn test_all_sequential_tools_registered_in_mcp() {
     let commands = help_data.get("commands").unwrap().as_array().unwrap();
 
     // Extract command names
-    let command_names: Vec<String> = commands.iter()
-        .map(|cmd| cmd.as_str().unwrap().to_string())
-        .collect();
+    let command_names: Vec<String> =
+        commands.iter().map(|cmd| cmd.as_str().unwrap().to_string()).collect();
 
     // Verify all 9 sequential tools are registered
     let expected_tools = vec![
@@ -215,32 +226,37 @@ fn test_all_sequential_tools_registered_in_mcp() {
         "sequential_record",
         "sequential_get",
         "sequential_search",
-        "sequential_cycle"
+        "sequential_cycle",
     ];
 
     for tool in &expected_tools {
-        assert!(command_names.contains(&tool.to_string()),
-               "Sequential tool '{}' should be registered in MCP commands", tool);
+        assert!(
+            command_names.contains(&tool.to_string()),
+            "Sequential tool '{}' should be registered in MCP commands",
+            tool
+        );
     }
 
     // Verify sequential category exists
     let categories = help_data.get("categories").unwrap().as_object().unwrap();
     let sequential = categories.get("sequential").unwrap().as_array().unwrap();
 
-    let sequential_tools: Vec<String> = sequential.iter()
-        .map(|cmd| cmd.as_str().unwrap().to_string())
-        .collect();
+    let sequential_tools: Vec<String> =
+        sequential.iter().map(|cmd| cmd.as_str().unwrap().to_string()).collect();
 
     for tool in &expected_tools {
-        assert!(sequential_tools.contains(&tool.to_string()),
-               "Sequential tool '{}' should be in sequential category", tool);
+        assert!(
+            sequential_tools.contains(&tool.to_string()),
+            "Sequential tool '{}' should be in sequential category",
+            tool
+        );
     }
 }
 
 #[test]
 fn test_all_sequential_mcp_handlers_callable() {
-    use syncore::macro_tools::executor_real::RealExecutor;
     use std::sync::Arc;
+    use syncore::macro_tools::executor_real::RealExecutor;
 
     let state = create_test_state();
     let executor = RealExecutor::new(Arc::new(state));
@@ -248,75 +264,111 @@ fn test_all_sequential_mcp_handlers_callable() {
 
     // Test all 9 sequential tools are callable through executor
     let sequential_tools = vec![
-        ("sequential_next", json!({
-            "task_id": 1,
-            "step_number": 1,
-            "thought": "Test thought",
-            "reasoning": "Test reasoning",
-            "dry_run": false
-        })),
-        ("sequential_run", json!({
-            "sequence_id": "test_seq",
-            "max_steps": 5,
-            "dry_run": false
-        })),
-        ("sequential_reason", json!({
-            "context": "Test context",
-            "max_cycles": 3,
-            "dry_run": false
-        })),
-        ("sequential_status", json!({
-            "sequence_id": "test_seq",
-            "dry_run": false
-        })),
-        ("sequential_reset", json!({
-            "sequence_id": "test_seq",
-            "task_id": 1,
-            "dry_run": false
-        })),
-        ("sequential_record", json!({
-            "task_id": 1,
-            "step_number": 1,
-            "thought": "Record test thought",
-            "reasoning": "Record test reasoning",
-            "action": "Record test action",
-            "observation": "Record test observation",
-            "dry_run": false
-        })),
-        ("sequential_get", json!({
-            "task_id": 1,
-            "dry_run": false
-        })),
-        ("sequential_search", json!({
-            "query": "test search query",
-            "dry_run": false
-        })),
-        ("sequential_cycle", json!({
-            "max_cycles": 3,
-            "dry_run": false
-        }))
+        (
+            "sequential_next",
+            json!({
+                "task_id": 1,
+                "step_number": 1,
+                "thought": "Test thought",
+                "reasoning": "Test reasoning",
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_run",
+            json!({
+                "sequence_id": "test_seq",
+                "max_steps": 5,
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_reason",
+            json!({
+                "context": "Test context",
+                "max_cycles": 3,
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_status",
+            json!({
+                "sequence_id": "test_seq",
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_reset",
+            json!({
+                "sequence_id": "test_seq",
+                "task_id": 1,
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_record",
+            json!({
+                "task_id": 1,
+                "step_number": 1,
+                "thought": "Record test thought",
+                "reasoning": "Record test reasoning",
+                "action": "Record test action",
+                "observation": "Record test observation",
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_get",
+            json!({
+                "task_id": 1,
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_search",
+            json!({
+                "query": "test search query",
+                "dry_run": false
+            }),
+        ),
+        (
+            "sequential_cycle",
+            json!({
+                "max_cycles": 3,
+                "dry_run": false
+            }),
+        ),
     ];
 
     for (tool_name, params) in sequential_tools {
-        let result = rt.block_on(async {
-            executor.execute_real_tool_async(tool_name, &params).await
-        });
+        let result =
+            rt.block_on(async { executor.execute_real_tool_async(tool_name, &params).await });
 
         // All should be routable (return Ok, even if internal validation fails)
-        assert!(result.is_ok(),
-               "Sequential tool '{}' should be routable through memory_suite: {:?}",
-               tool_name, result.err());
+        assert!(
+            result.is_ok(),
+            "Sequential tool '{}' should be routable through memory_suite: {:?}",
+            tool_name,
+            result.err()
+        );
 
         let envelope = result.unwrap();
 
         // Should return a proper JSON structure with 'ok' field and optional 'data'
-        assert!(envelope.get("ok").is_some(),
-               "Response should have 'ok' field for tool '{}', got: {}", tool_name, envelope);
+        assert!(
+            envelope.get("ok").is_some(),
+            "Response should have 'ok' field for tool '{}', got: {}",
+            tool_name,
+            envelope
+        );
 
         if envelope.get("ok").unwrap().as_bool().unwrap_or(false) {
             // On success, should have data field
-            assert!(envelope.get("data").is_some(),
-                   "Success response should have 'data' field for tool '{}'", tool_name);
+            assert!(
+                envelope.get("data").is_some(),
+                "Success response should have 'data' field for tool '{}'",
+                tool_name
+            );
         }
     }
 }

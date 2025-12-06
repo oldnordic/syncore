@@ -14,8 +14,8 @@
 //! - `fusion_query`: Execute tri-mode fusion RAG query (Simple/Attention/Reasoning)
 //! - `help`: Show available commands
 
-use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::mcp_tools::streaming::OutputLimiter;
+use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::query::{PipelineExecutor, QueryConstraints, QueryPlanner};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
@@ -710,7 +710,7 @@ impl SuiteDispatcher for CodeSuite {
                     } else {
                         result
                     }
-                },
+                }
                 Err(_) => result, // Fallback to original result on error
             }
         } else {

@@ -8,11 +8,11 @@ use serde_json;
 use std::env;
 use std::fs;
 use std::sync::Arc;
-use tempfile::TempDir;
 use syncore::intellitask::IntelliTask;
 use syncore::llm::{LanguageModel, Prompt};
 use syncore::models::gguf_engine::GGUFEngine;
 use syncore::router::SynCoreState;
+use tempfile::TempDir;
 
 /// Test 1: IntelliTask generate uses real model, not test backend
 #[tokio::test(flavor = "multi_thread")]
@@ -27,9 +27,10 @@ async fn test_intellitask_generate_uses_real_model() -> Result<()> {
 
     // Create real GGUFEngine (will fail gracefully but attempts real load)
     let llm_model: Arc<dyn LanguageModel> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(GGUFEngine::new("qwen2.5-0.5b"))
-    }).map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>).unwrap_or_else(|e| {
+        tokio::runtime::Handle::current().block_on(GGUFEngine::new("qwen2.5-0.5b"))
+    })
+    .map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>)
+    .unwrap_or_else(|e| {
         panic!("Expected real model loading attempt, got immediate test fallback: {}", e);
     });
 
@@ -85,9 +86,10 @@ async fn test_intellitask_prioritize_uses_real_model() -> Result<()> {
 
     // Create real GGUFEngine
     let llm_model: Arc<dyn LanguageModel> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(GGUFEngine::new("qwen2.5-0.5b"))
-    }).map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>).unwrap_or_else(|e| {
+        tokio::runtime::Handle::current().block_on(GGUFEngine::new("qwen2.5-0.5b"))
+    })
+    .map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>)
+    .unwrap_or_else(|e| {
         panic!("Expected real model loading attempt, got immediate test fallback: {}", e);
     });
 
@@ -154,9 +156,10 @@ async fn test_sequential_reason_uses_real_model() -> Result<()> {
 
     // Create real GGUFEngine for state
     let llm_model: Arc<dyn LanguageModel> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(GGUFEngine::new("qwen2.5-0.5b"))
-    }).map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>).unwrap_or_else(|e| {
+        tokio::runtime::Handle::current().block_on(GGUFEngine::new("qwen2.5-0.5b"))
+    })
+    .map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>)
+    .unwrap_or_else(|e| {
         panic!("Expected real model loading attempt, got immediate test fallback: {}", e);
     });
 
@@ -202,9 +205,10 @@ async fn test_no_test_backend_in_production_state() -> Result<()> {
 
     // Create real GGUFEngine like mcp_stdio_main.rs does
     let llm_model: Arc<dyn LanguageModel> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(GGUFEngine::new("qwen2.5-0.5b"))
-    }).map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>).unwrap_or_else(|e| {
+        tokio::runtime::Handle::current().block_on(GGUFEngine::new("qwen2.5-0.5b"))
+    })
+    .map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>)
+    .unwrap_or_else(|e| {
         // This fallback should NOT use new_test() in production
         panic!("Production code should not fall back to new_test(): {}", e);
     });
@@ -237,9 +241,10 @@ async fn test_main_initialization_uses_real_model() -> Result<()> {
 
     // Simulate the exact initialization from mcp_stdio_main.rs lines 162-180
     let llm_model: Arc<dyn LanguageModel> = tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current()
-            .block_on(GGUFEngine::new("qwen2.5-0.5b"))
-    }).map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>).unwrap_or_else(|e| {
+        tokio::runtime::Handle::current().block_on(GGUFEngine::new("qwen2.5-0.5b"))
+    })
+    .map(|engine| Arc::new(engine) as Arc<dyn LanguageModel>)
+    .unwrap_or_else(|e| {
         eprintln!("❌ Failed to load real GGUF model from {}: {}", model_path.display(), e);
         eprintln!("⚠️  Falling back to test GGUFEngine backend");
         Arc::new(GGUFEngine::new_test()) as Arc<dyn LanguageModel>

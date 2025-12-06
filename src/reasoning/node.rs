@@ -193,18 +193,25 @@ impl ReasoningNodeContext {
 
         // Content quality indicators
         let question_words = ["what", "how", "why", "when", "where", "which", "who"];
-        let has_question = question_words.iter().any(|&word|
-            self.node.content.to_lowercase().contains(word) &&
-            self.node.content.contains('?')
-        );
-        let question_bonus = if has_question { 0.1 } else { 0.0 };
+        let has_question = question_words.iter().any(|&word| {
+            self.node.content.to_lowercase().contains(word) && self.node.content.contains('?')
+        });
+        let question_bonus = if has_question {
+            0.1
+        } else {
+            0.0
+        };
 
         // Action words indicate concrete reasoning
-        let action_words = ["analyze", "evaluate", "consider", "implement", "test", "verify", "design"];
-        let has_action = action_words.iter().any(|&word|
-            self.node.content.to_lowercase().contains(word)
-        );
-        let action_bonus = if has_action { 0.1 } else { 0.0 };
+        let action_words =
+            ["analyze", "evaluate", "consider", "implement", "test", "verify", "design"];
+        let has_action =
+            action_words.iter().any(|&word| self.node.content.to_lowercase().contains(word));
+        let action_bonus = if has_action {
+            0.1
+        } else {
+            0.0
+        };
 
         // Context richness bonuses
         let children_bonus = if self.children.is_empty() {
@@ -218,14 +225,18 @@ impl ReasoningNodeContext {
 
         // Step-based quality scores (using step index as proxy for node type)
         let step_score = match self.node.step_index {
-            0..=2 => 0.15,  // Early steps (exploration)
-            3..=5 => 0.1,   // Middle steps (analysis)
-            _ => 0.05,      // Later steps (conclusions)
+            0..=2 => 0.15, // Early steps (exploration)
+            3..=5 => 0.1,  // Middle steps (analysis)
+            _ => 0.05,     // Later steps (conclusions)
         };
 
         // Combine all scores
-        let total_score = length_score + question_bonus + action_bonus +
-                         children_bonus + depth_bonus + step_score;
+        let total_score = length_score
+            + question_bonus
+            + action_bonus
+            + children_bonus
+            + depth_bonus
+            + step_score;
 
         total_score.min(1.0)
     }
@@ -255,7 +266,8 @@ impl ReasoningNodeContext {
                 self.node.step_index,
                 self.path.len()
             ),
-            system: "You are a reasoning quality evaluator. Respond with only a numeric score.".to_string(),
+            system: "You are a reasoning quality evaluator. Respond with only a numeric score."
+                .to_string(),
             max_tokens: Some(10),
             temperature: Some(0.0),
         };
@@ -265,10 +277,12 @@ impl ReasoningNodeContext {
                 // Extract numeric score from response
                 let response_text = completion.text.trim();
                 // Try to parse as float
-                response_text.parse::<f64>()
+                response_text
+                    .parse::<f64>()
                     .unwrap_or_else(|_| {
                         // Fallback: extract first number found
-                        response_text.chars()
+                        response_text
+                            .chars()
                             .filter(|c| c.is_numeric() || *c == '.')
                             .collect::<String>()
                             .parse::<f64>()

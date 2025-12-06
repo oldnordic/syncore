@@ -69,7 +69,7 @@ deadpool = "0.12"
 axum = "0.8"
 tokio-util = { version = "0.7", features = ["rt"] }
 neo4rs = "0.7"
-reqwest = { version = "0.12", features = ["json", "blocking"] }  # APEX 2.0-E: Ollama HTTP client
+reqwest = { version = "0.12", features = ["json", "blocking"] }  # HTTP client for web operations
 async-trait = "0.1"
 futures = "0.3"
 # Candle dependencies for local model inference
@@ -93,6 +93,10 @@ harness = false
 
 [[bench]]
 name = "hnsw_compare"
+harness = false
+
+[[bench]]
+name = "candle_inference_bench"
 harness = false
 
 [features]

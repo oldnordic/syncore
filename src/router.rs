@@ -613,8 +613,7 @@ impl SynCoreState {
         self.llm_model = Some(llm_model);
         self
     }
-
-  }
+}
 
 pub fn route_tool(name: &str, args: &[u8], state: &SynCoreState) -> Result<Vec<u8>> {
     let tool = match name {
@@ -629,7 +628,6 @@ pub fn route_tool(name: &str, args: &[u8], state: &SynCoreState) -> Result<Vec<u
 
         "parser.analyze" => SynCoreTool::ParserAnalyze,
         "parser.search" => SynCoreTool::ParserSearch,
-        "code.explain" => SynCoreTool::CodeExplain,
         "code.index_directory" => SynCoreTool::CodeIndexDirectory,
         _ => return Err(anyhow::anyhow!("Unknown tool: {}", name)),
     };
@@ -746,26 +744,6 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
                 rmp_serde::to_vec(&response)
                     .map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
             }
-        }
-        SynCoreTool::CodeExplain => {
-            use crate::code_explainer::{CodeExplainer, ExplainRequest};
-
-            // Deserialize request
-            let request: ExplainRequest = rmp_serde::from_slice(&msg.args)
-                .map_err(|e| anyhow::anyhow!("Failed to deserialize request: {}", e))?;
-
-            // Create explainer (with custom model if specified)
-            let explainer = if let Some(ref model) = request.model {
-                CodeExplainer::new_with_model(model)?
-            } else {
-                CodeExplainer::new()?
-            };
-
-            // Get explanation
-            let response = explainer.explain(&request)?;
-
-            // Serialize response
-            rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
         SynCoreTool::CodeIndexDirectory => {
             use crate::code_directory_indexer::{DirectoryIndexRequest, DirectoryIndexer};

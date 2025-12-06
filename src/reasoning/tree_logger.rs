@@ -8,6 +8,7 @@ use anyhow::Result;
 use std::sync::Arc;
 
 /// Tree logger for reasoning sessions
+#[derive(Debug)]
 pub struct TreeLogger {
     log_writer: Arc<ReasoningLogWriter>,
 }

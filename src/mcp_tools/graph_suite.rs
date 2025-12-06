@@ -9,8 +9,8 @@
 //! - `help`: Show available commands
 
 use crate::databases::neo4j::RelationType as Neo4jRelationType;
-use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::mcp_tools::streaming::OutputLimiter;
+use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -238,13 +238,17 @@ impl GraphSuite {
                 };
 
                 let backend_result = tokio::task::block_in_place(|| {
-                    tokio::runtime::Handle::current().block_on(async {
-                        create_default_graph_backend(&graph_config).await
-                    })
+                    tokio::runtime::Handle::current()
+                        .block_on(async { create_default_graph_backend(&graph_config).await })
                 });
                 match backend_result {
                     Ok(backend) => backend,
-                    Err(e) => return SuiteResult::err("rag_query", format!("Failed to create SQLiteGraph backend: {}", e)),
+                    Err(e) => {
+                        return SuiteResult::err(
+                            "rag_query",
+                            format!("Failed to create SQLiteGraph backend: {}", e),
+                        )
+                    }
                 }
             };
 
@@ -265,11 +269,10 @@ impl GraphSuite {
                 return SuiteResult::err("rag_query", format!("Validation failed: {}", e));
             }
 
-            let storage = Arc::new(SQLiteGraphStorageAdapter::new(
-                vector_index,
-                graph_backend,
-                dimension,
-            ));
+            let storage = match SQLiteGraphStorageAdapter::new(vector_index, graph_backend, dimension) {
+                Ok(storage) => Arc::new(storage),
+                Err(e) => return SuiteResult::err("rag_query", format!("Failed to create storage adapter: {}", e)),
+            };
 
             RagQuery::with_storage(config.clone(), storage)
         } else {
@@ -334,13 +337,17 @@ impl GraphSuite {
                 };
 
                 let backend_result = tokio::task::block_in_place(|| {
-                    tokio::runtime::Handle::current().block_on(async {
-                        create_default_graph_backend(&graph_config).await
-                    })
+                    tokio::runtime::Handle::current()
+                        .block_on(async { create_default_graph_backend(&graph_config).await })
                 });
                 match backend_result {
                     Ok(backend) => backend,
-                    Err(e) => return SuiteResult::err("rag_multihop", format!("Failed to create SQLiteGraph backend: {}", e)),
+                    Err(e) => {
+                        return SuiteResult::err(
+                            "rag_multihop",
+                            format!("Failed to create SQLiteGraph backend: {}", e),
+                        )
+                    }
                 }
             };
 
@@ -361,11 +368,10 @@ impl GraphSuite {
                 return SuiteResult::err("rag_multihop", format!("Validation failed: {}", e));
             }
 
-            let storage = Arc::new(SQLiteGraphStorageAdapter::new(
-                vector_index,
-                graph_backend,
-                dimension,
-            ));
+            let storage = match SQLiteGraphStorageAdapter::new(vector_index, graph_backend, dimension) {
+                Ok(storage) => Arc::new(storage),
+                Err(e) => return SuiteResult::err("rag_multihop", format!("Failed to create storage adapter: {}", e)),
+            };
 
             HopGraphTransformer::with_storage(config.clone(), storage)
         } else {
@@ -448,7 +454,7 @@ impl SuiteDispatcher for GraphSuite {
                     } else {
                         result
                     }
-                },
+                }
                 Err(_) => result, // Fallback to original on error
             }
         } else {

@@ -1,14 +1,14 @@
 //! S9-DE-STUB: Tests to verify removal of synthetic logic from cognition + reasoning + executor pipeline
 //! These tests should FAIL with current stub behavior and PASS after de-stubbing.
 
+use anyhow::Result;
 use syncore::cognition::orchestrator::CognitionOrchestrator;
+use syncore::llm::{LanguageModel, Prompt};
 use syncore::macro_tools::executor_real::RealExecutor;
+use syncore::models::gguf_engine::GGUFEngine;
 use syncore::reasoning::engine::ReasoningEngine;
 use syncore::reasoning::node::ReasoningNode;
-use syncore::llm::{LanguageModel, Prompt};
-use syncore::models::gguf_engine::GGUFEngine;
 use syncore::state::SynCoreState;
-use anyhow::Result;
 
 #[tokio::test]
 async fn test_orchestrator_returns_real_data() {
@@ -25,16 +25,30 @@ async fn test_orchestrator_returns_real_data() {
     let response_text = result.unwrap();
 
     // ASSERT: Response should NOT contain placeholder indicators
-    assert!(!response_text.contains("placeholder"),
-            "Response should not contain 'placeholder': {}", response_text);
-    assert!(!response_text.contains("Placeholder"),
-            "Response should not contain 'Placeholder': {}", response_text);
-    assert!(!response_text.contains("debug_info"),
-            "Response should not contain debug placeholder: {}", response_text);
+    assert!(
+        !response_text.contains("placeholder"),
+        "Response should not contain 'placeholder': {}",
+        response_text
+    );
+    assert!(
+        !response_text.contains("Placeholder"),
+        "Response should not contain 'Placeholder': {}",
+        response_text
+    );
+    assert!(
+        !response_text.contains("debug_info"),
+        "Response should not contain debug placeholder: {}",
+        response_text
+    );
 
     // ASSERT: Response should contain real data indicators
-    assert!(response_text.contains("memory") || response_text.contains("graph") || response_text.contains("reasoning"),
-            "Response should contain real data fields: {}", response_text);
+    assert!(
+        response_text.contains("memory")
+            || response_text.contains("graph")
+            || response_text.contains("reasoning"),
+        "Response should contain real data fields: {}",
+        response_text
+    );
 }
 
 #[test]
@@ -43,16 +57,26 @@ fn test_executor_real_no_stub_paths() {
     let executor_source = include_str!("../src/macro_tools/executor_real.rs");
 
     // THEN: Should contain NO stub markers
-    assert!(!executor_source.contains("synthetic"),
-            "executor_real.rs should not contain 'synthetic'");
-    assert!(!executor_source.contains("SYNTHETIC"),
-            "executor_real.rs should not contain 'SYNTHETIC'");
-    assert!(!executor_source.contains("TEMPORARY"),
-            "executor_real.rs should not contain 'TEMPORARY'");
-    assert!(!executor_source.contains("stub result"),
-            "executor_real.rs should not contain 'stub result'");
-    assert!(!executor_source.contains("executor_stub"),
-            "executor_real.rs should not contain 'executor_stub'");
+    assert!(
+        !executor_source.contains("synthetic"),
+        "executor_real.rs should not contain 'synthetic'"
+    );
+    assert!(
+        !executor_source.contains("SYNTHETIC"),
+        "executor_real.rs should not contain 'SYNTHETIC'"
+    );
+    assert!(
+        !executor_source.contains("TEMPORARY"),
+        "executor_real.rs should not contain 'TEMPORARY'"
+    );
+    assert!(
+        !executor_source.contains("stub result"),
+        "executor_real.rs should not contain 'stub result'"
+    );
+    assert!(
+        !executor_source.contains("executor_stub"),
+        "executor_real.rs should not contain 'executor_stub'"
+    );
 }
 
 #[tokio::test]
@@ -79,14 +103,18 @@ async fn test_reasoning_engine_node_expansion_real() {
 
     // ASSERT: Should NOT contain stub indicators
     let node_json = serde_json::to_string(&expanded_node).unwrap();
-    assert!(!node_json.contains("stub"),
-            "Expanded node should not contain 'stub': {}", node_json);
-    assert!(!node_json.contains("deterministic fallback"),
-            "Expanded node should not contain 'deterministic fallback': {}", node_json);
+    assert!(!node_json.contains("stub"), "Expanded node should not contain 'stub': {}", node_json);
+    assert!(
+        !node_json.contains("deterministic fallback"),
+        "Expanded node should not contain 'deterministic fallback': {}",
+        node_json
+    );
 
     // ASSERT: Should have real expansion (children added)
-    assert!(!expanded_node.children.is_empty(),
-            "Expanded node should have children from real LLM expansion");
+    assert!(
+        !expanded_node.children.is_empty(),
+        "Expanded node should have children from real LLM expansion"
+    );
 }
 
 #[test]
@@ -105,16 +133,28 @@ fn test_node_prompt_builder_no_stub() {
     let prompt_context = node.prepare_llm_prompt_context();
 
     // THEN: Should NOT contain stub/placeholder text
-    assert!(!prompt_context.contains("stub"),
-            "Prompt context should not contain 'stub': {}", prompt_context);
-    assert!(!prompt_context.contains("placeholder"),
-            "Prompt context should not contain 'placeholder': {}", prompt_context);
-    assert!(!prompt_context.contains("ST-3"),
-            "Prompt context should not contain 'ST-3': {}", prompt_context);
+    assert!(
+        !prompt_context.contains("stub"),
+        "Prompt context should not contain 'stub': {}",
+        prompt_context
+    );
+    assert!(
+        !prompt_context.contains("placeholder"),
+        "Prompt context should not contain 'placeholder': {}",
+        prompt_context
+    );
+    assert!(
+        !prompt_context.contains("ST-3"),
+        "Prompt context should not contain 'ST-3': {}",
+        prompt_context
+    );
 
     // ASSERT: Should contain actual node content
-    assert!(prompt_context.contains("test node content"),
-            "Prompt context should contain actual node content: {}", prompt_context);
+    assert!(
+        prompt_context.contains("test node content"),
+        "Prompt context should contain actual node content: {}",
+        prompt_context
+    );
 }
 
 #[tokio::test]
@@ -138,8 +178,11 @@ async fn test_node_evaluation_no_stub() {
     let quality_score = result.unwrap();
 
     // ASSERT: Should be a real score (not stub value)
-    assert!(quality_score > 0.0 && quality_score <= 1.0,
-            "Quality score should be in valid range: {}", quality_score);
+    assert!(
+        quality_score > 0.0 && quality_score <= 1.0,
+        "Quality score should be in valid range: {}",
+        quality_score
+    );
 }
 
 #[tokio::test]

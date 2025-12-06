@@ -53,7 +53,7 @@ pub enum SynCoreError {
         message: String,
     },
 
-    /// Network/external service error (Ollama, Neo4j, etc.)
+    /// Network/external service error (Neo4j, etc.)
     ExternalServiceError {
         service: String,
         message: String,

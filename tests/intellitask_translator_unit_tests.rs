@@ -34,12 +34,17 @@ fn test_valid_task_breakdown_passthrough() -> Result<()> {
             "action": "Modify"
         }],
         "estimated_complexity": "Moderate"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&valid_input, TargetSchema::TaskBreakdown)?;
 
     // Should succeed without errors
-    assert!(!result.get("error").is_some(), "Valid input should not cause errors: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Valid input should not cause errors: {:?}",
+        result.get("error")
+    );
 
     // Should preserve all valid fields
     assert_eq!(result["prd_title"], "Feature Implementation");
@@ -67,7 +72,8 @@ fn test_missing_required_fields_error() -> Result<()> {
             // Missing required fields: description, subtasks, complexity, estimated_hours
         }]
         // Missing prd_title, estimated_complexity, relevant_files
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&incomplete_input, TargetSchema::TaskBreakdown)?;
 
@@ -76,7 +82,9 @@ fn test_missing_required_fields_error() -> Result<()> {
 
     let missing_fields = result["missing_fields"].as_array().unwrap();
     assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: prd_title")));
-    assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: estimated_complexity")));
+    assert!(missing_fields
+        .iter()
+        .any(|f| f.as_str() == Some("Missing required field: estimated_complexity")));
     Ok(())
 }
 
@@ -112,19 +120,23 @@ fn test_complexity_enum_normalization() -> Result<()> {
         }],
         "relevant_files": [],
         "estimated_complexity": "Low" // Should normalize to "Simple"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&invalid_complexity_input, TargetSchema::TaskBreakdown)?;
 
     // Should succeed after normalization
-    assert!(!result.get("error").is_some(),
-        "Complexity normalization failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Complexity normalization failed: {:?}",
+        result.get("error")
+    );
 
     let parent_tasks = result["parent_tasks"].as_array().unwrap();
-    assert_eq!(parent_tasks[0]["complexity"], "Complex");  // "High" → "Complex"
-    assert_eq!(parent_tasks[1]["complexity"], "Simple");    // "Low" → "Simple"
-    assert_eq!(parent_tasks[2]["complexity"], "Moderate");  // "Medium" → "Moderate"
-    assert_eq!(result["estimated_complexity"], "Simple");    // "Low" → "Simple"
+    assert_eq!(parent_tasks[0]["complexity"], "Complex"); // "High" → "Complex"
+    assert_eq!(parent_tasks[1]["complexity"], "Simple"); // "Low" → "Simple"
+    assert_eq!(parent_tasks[2]["complexity"], "Moderate"); // "Medium" → "Moderate"
+    assert_eq!(result["estimated_complexity"], "Simple"); // "Low" → "Simple"
     Ok(())
 }
 
@@ -148,13 +160,13 @@ fn test_subtasks_as_strings_error() -> Result<()> {
         }],
         "relevant_files": [],
         "estimated_complexity": "Moderate"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&invalid_subtasks_input, TargetSchema::TaskBreakdown)?;
 
     // Should produce error due to subtasks being strings instead of objects
-    assert!(result.get("error").is_some(),
-        "Should error when subtasks are strings");
+    assert!(result.get("error").is_some(), "Should error when subtasks are strings");
     Ok(())
 }
 
@@ -177,13 +189,17 @@ fn test_file_reference_field_fix() -> Result<()> {
             "description": "Test file implementation"  // Wrong field name
         }],
         "estimated_complexity": "Simple"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&wrong_file_field_input, TargetSchema::TaskBreakdown)?;
 
     // Should succeed with field normalization
-    assert!(!result.get("error").is_some(),
-        "FileReference field fix failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "FileReference field fix failed: {:?}",
+        result.get("error")
+    );
 
     let relevant_files = result["relevant_files"].as_array().unwrap();
     let file_ref = &relevant_files[0];
@@ -221,19 +237,19 @@ fn test_type_coercion_estimated_hours() -> Result<()> {
         }],
         "relevant_files": [],
         "estimated_complexity": "Simple"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&string_numbers_input, TargetSchema::TaskBreakdown)?;
 
     // Should succeed with type coercion
-    assert!(!result.get("error").is_some(),
-        "Type coercion failed: {:?}", result.get("error"));
+    assert!(!result.get("error").is_some(), "Type coercion failed: {:?}", result.get("error"));
 
     let parent_tasks = result["parent_tasks"].as_array().unwrap();
-    assert_eq!(parent_tasks[0]["estimated_hours"], 8.5);  // Should be f32, not string
+    assert_eq!(parent_tasks[0]["estimated_hours"], 8.5); // Should be f32, not string
 
     let subtasks = parent_tasks[0]["subtasks"].as_array().unwrap();
-    assert_eq!(subtasks[0]["estimated_hours"], 4.5);     // Should be f32, not string
+    assert_eq!(subtasks[0]["estimated_hours"], 4.5); // Should be f32, not string
     Ok(())
 }
 
@@ -252,13 +268,17 @@ fn test_empty_arrays_auto_fix() -> Result<()> {
         }],
         "estimated_complexity": "Simple"  // Add this required field
         // Missing relevant_files array
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&missing_arrays_input, TargetSchema::TaskBreakdown)?;
 
     // Should succeed with auto-generated arrays
-    assert!(!result.get("error").is_some(),
-        "Empty array auto-fix failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Empty array auto-fix failed: {:?}",
+        result.get("error")
+    );
 
     let parent_tasks = result["parent_tasks"].as_array().unwrap();
     assert_eq!(parent_tasks[0]["subtasks"].as_array().unwrap().len(), 0);
@@ -281,19 +301,23 @@ fn test_priority_result_validation() -> Result<()> {
                 "priority": "Low"
             }
         ]
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&valid_priority_input, TargetSchema::PriorityResult)?;
 
-    assert!(!result.get("error").is_some(),
-        "Valid PriorityResult failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Valid PriorityResult failed: {:?}",
+        result.get("error")
+    );
 
     let priorities = result["priorities"].as_array().unwrap();
     assert_eq!(priorities.len(), 2);
     assert_eq!(priorities[0]["task_id"], "1.0");
-    assert_eq!(priorities[0]["priority"], "High");  // Should remain string
+    assert_eq!(priorities[0]["priority"], "High"); // Should remain string
     assert_eq!(priorities[1]["task_id"], "2.0");
-    assert_eq!(priorities[1]["priority"], "Low");   // Should remain string
+    assert_eq!(priorities[1]["priority"], "Low"); // Should remain string
     Ok(())
 }
 
@@ -307,13 +331,17 @@ fn test_priority_result_missing_priorities_error() -> Result<()> {
                 "priority": "High"
             }
         ]
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&missing_priorities_input, TargetSchema::PriorityResult)?;
 
     // Should succeed with auto-generated empty priorities array
-    assert!(!result.get("error").is_some(),
-        "PriorityResult auto-fix failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "PriorityResult auto-fix failed: {:?}",
+        result.get("error")
+    );
 
     let priorities = result["priorities"].as_array().unwrap();
     assert_eq!(priorities.len(), 0); // Should be empty array
@@ -327,7 +355,8 @@ fn _debug_missing_fields() -> Result<()> {
             "id": "1.0",
             "title": "Test Task"
         }]
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&incomplete_input, TargetSchema::TaskBreakdown)?;
     println!("=== DEBUG Missing fields test ===");
@@ -350,17 +379,21 @@ fn test_priority_result_type_coercion() -> Result<()> {
                 "priority": "High" // Already string
             }
         ]
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&numeric_priority_input, TargetSchema::PriorityResult)?;
 
-    assert!(!result.get("error").is_some(),
-        "Priority type coercion failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Priority type coercion failed: {:?}",
+        result.get("error")
+    );
 
     let priorities = result["priorities"].as_array().unwrap();
-    assert_eq!(priorities[0]["task_id"], "123");  // Should be string "123"
-    assert_eq!(priorities[0]["priority"], "1");   // Should be string "1"
-    assert_eq!(priorities[1]["task_id"], "456");  // Should remain string "456"
+    assert_eq!(priorities[0]["task_id"], "123"); // Should be string "123"
+    assert_eq!(priorities[0]["priority"], "1"); // Should be string "1"
+    assert_eq!(priorities[1]["task_id"], "456"); // Should remain string "456"
     assert_eq!(priorities[1]["priority"], "High"); // Should remain string "High"
     Ok(())
 }

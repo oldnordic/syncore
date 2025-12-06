@@ -13,8 +13,8 @@
 //! - `project_code_smells`: Detect code smells and anti-patterns
 //! - `project_cleanup_excluded`: Clean up indexed data for excluded directories
 
-use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::mcp_tools::streaming::OutputLimiter;
+use crate::mcp_tools::{SuiteDispatcher, SuiteResult};
 use crate::router::SynCoreState;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -198,7 +198,7 @@ impl DebugSuite {
                     serde_json::json!({
                         "status": "unavailable",
                         "intellitask_available": false,
-                        "message": "LLM backend not initialized. Set LLM_BACKEND=test for testing, or ensure Ollama is running for production.",
+                        "message": "LLM backend not initialized. Set LLM_BACKEND=test for testing, or ensure a GGUF model is available for production.",
                         "suggestion": "Check LLM configuration in syncore.toml or environment variables (LLM_BACKEND, LLM_MODEL, LLM_URL)"
                     }),
                 )
@@ -516,7 +516,7 @@ impl SuiteDispatcher for DebugSuite {
                     } else {
                         result
                     }
-                },
+                }
                 Err(_) => result, // Fallback to original result on error
             }
         } else {

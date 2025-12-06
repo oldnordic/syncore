@@ -15,12 +15,17 @@ fn test_valid_sequential_step_passthrough() -> Result<()> {
         "reasoning": "Understanding the codebase is essential before making changes",
         "action": "Read the main files",
         "observation": "Found existing structure"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&valid_input, TargetSchema::SequentialStep)?;
 
     // Should succeed without errors
-    assert!(!result.get("error").is_some(), "Valid input should not cause errors: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Valid input should not cause errors: {:?}",
+        result.get("error")
+    );
 
     // Should preserve provided fields
     assert_eq!(result["step_number"], 1);
@@ -43,13 +48,17 @@ fn test_sequential_step_auto_generation() -> Result<()> {
         "step_number": 1,
         "thought": "I need to understand the current codebase structure",
         "reasoning": "Understanding the codebase is essential before making changes"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&minimal_input, TargetSchema::SequentialStep)?;
 
     // Should succeed and auto-generate missing fields
-    assert!(!result.get("error").is_some(),
-        "Sequential auto-generation failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Sequential auto-generation failed: {:?}",
+        result.get("error")
+    );
 
     // Should have auto-generated fields
     assert!(result.get("step_id").is_some());
@@ -70,7 +79,8 @@ fn test_sequential_step_missing_required_fields_error() -> Result<()> {
         "action": "Read files",
         "observation": "Found structure"
         // Missing step_number, thought, reasoning
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&incomplete_input, TargetSchema::SequentialStep)?;
 
@@ -78,7 +88,9 @@ fn test_sequential_step_missing_required_fields_error() -> Result<()> {
     assert_eq!(result["error"], "SchemaValidationFailed");
 
     let missing_fields = result["missing_fields"].as_array().unwrap();
-    assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: step_number")));
+    assert!(missing_fields
+        .iter()
+        .any(|f| f.as_str() == Some("Missing required field: step_number")));
     assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: thought")));
     assert!(missing_fields.iter().any(|f| f.as_str() == Some("Missing required field: reasoning")));
     Ok(())
@@ -92,13 +104,13 @@ fn test_sequential_step_invalid_status_correction() -> Result<()> {
         "thought": "Test thought",
         "reasoning": "Test reasoning",
         "status": "invalid_status_value"  // Should be corrected
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&invalid_status_input, TargetSchema::SequentialStep)?;
 
     // Should succeed and correct status
-    assert!(!result.get("error").is_some(),
-        "Status correction failed: {:?}", result.get("error"));
+    assert!(!result.get("error").is_some(), "Status correction failed: {:?}", result.get("error"));
 
     // Status should be corrected to "pending"
     assert_eq!(result["status"], "pending");
@@ -113,13 +125,13 @@ fn test_sequential_step_step_id_generation() -> Result<()> {
         "thought": "Test thought",
         "reasoning": "Test reasoning",
         "task_id": 42
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&input_with_task_id, TargetSchema::SequentialStep)?;
 
     // Should succeed and generate step_id
-    assert!(!result.get("error").is_some(),
-        "Step ID generation failed: {:?}", result.get("error"));
+    assert!(!result.get("error").is_some(), "Step ID generation failed: {:?}", result.get("error"));
 
     // Should have generated step_id based on task_id and step_number
     let step_id = result["step_id"].as_str().unwrap();
@@ -134,13 +146,17 @@ fn test_sequential_step_step_id_generation_no_task_id() -> Result<()> {
         "step_number": 5,
         "thought": "Test thought",
         "reasoning": "Test reasoning"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&input_no_task_id, TargetSchema::SequentialStep)?;
 
     // Should succeed and generate step_id
-    assert!(!result.get("error").is_some(),
-        "Step ID generation without task_id failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Step ID generation without task_id failed: {:?}",
+        result.get("error")
+    );
 
     // Should have generated step_id with task_id = 0
     let step_id = result["step_id"].as_str().unwrap();
@@ -155,23 +171,24 @@ fn test_sequential_step_timestamp_generation() -> Result<()> {
         "step_number": 1,
         "thought": "Test thought",
         "reasoning": "Test reasoning"
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&basic_input, TargetSchema::SequentialStep)?;
 
     // Should succeed and generate timestamp
-    assert!(!result.get("error").is_some(),
-        "Timestamp generation failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Timestamp generation failed: {:?}",
+        result.get("error")
+    );
 
     // Should have timestamp as number
     let timestamp = result["timestamp"].as_u64().unwrap();
     assert!(timestamp > 0, "Timestamp should be positive");
 
     // Timestamp should be recent (within last minute)
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
 
     assert!(now - timestamp < 60, "Timestamp should be recent");
     Ok(())
@@ -188,12 +205,17 @@ fn test_sequential_step_valid_statuses_passthrough() -> Result<()> {
             "thought": "Test thought",
             "reasoning": "Test reasoning",
             "status": status
-        }).to_string();
+        })
+        .to_string();
 
         let result = translate_llm_output(&input, TargetSchema::SequentialStep)?;
 
-        assert!(!result.get("error").is_some(),
-            "Valid status '{}' should pass through: {:?}", status, result.get("error"));
+        assert!(
+            !result.get("error").is_some(),
+            "Valid status '{}' should pass through: {:?}",
+            status,
+            result.get("error")
+        );
 
         assert_eq!(result["status"].as_str().unwrap(), *status);
     }
@@ -221,8 +243,11 @@ This should be the first step.
     let result = translate_llm_output(markdown_input, TargetSchema::SequentialStep)?;
 
     // Should succeed and extract JSON from markdown
-    assert!(!result.get("error").is_some(),
-        "Markdown extraction failed: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Markdown extraction failed: {:?}",
+        result.get("error")
+    );
 
     // Should have extracted the JSON content
     assert_eq!(result["step_number"], 1);
@@ -251,6 +276,5 @@ fn test_sequential_step_malformed_json_error() {
     let result = translate_llm_output(malformed_json, TargetSchema::SequentialStep);
 
     // Should return Result::Err (parsing or validation error), not panic
-    assert!(result.is_err(),
-        "Malformed JSON should produce Result::Err, not Ok");
+    assert!(result.is_err(), "Malformed JSON should produce Result::Err, not Ok");
 }

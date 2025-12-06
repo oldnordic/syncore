@@ -1477,8 +1477,8 @@ project_file_report(file_path="/path/to/src/complex_module.rs")
 - To force re-index, modify file or clear `file_index_state` table
 
 ### IntelliTask tools fail
-- Ollama must be running: `ollama list`
-- Check Ollama has a model loaded
+- Candle GGUF models must be available: check models directory contains .gguf files
+- Ensure GGUF model files are valid and accessible
 
 ### Slow startup
 - First startup loads embedding model (~500MB)

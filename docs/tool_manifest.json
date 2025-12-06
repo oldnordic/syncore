@@ -472,7 +472,7 @@
         }
       },
       "async": true,
-      "requires_ollama": true
+      "requires_ollama": false
     },
     {
       "name": "intellitask_subtasks",
@@ -508,7 +508,7 @@
         }
       },
       "async": true,
-      "requires_ollama": true
+      "requires_ollama": false
     },
     {
       "name": "intellitask_prioritize",
@@ -538,7 +538,7 @@
         }
       },
       "async": true,
-      "requires_ollama": true
+      "requires_ollama": false
     },
     {
       "name": "intellitask_next",
@@ -568,7 +568,7 @@
         }
       },
       "async": true,
-      "requires_ollama": true
+      "requires_ollama": false
     },
     {
       "name": "intellitask_save",
@@ -1464,7 +1464,7 @@
     "total_tools": 50,
     "delegated_tools": 42,
     "custom_tools": 8,
-    "tools_requiring_ollama": 4,
+    "tools_requiring_ollama": 0,
     "tools_with_blocking_io": 1,
     "categories": 11
   }

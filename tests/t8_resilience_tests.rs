@@ -3,10 +3,10 @@
 //! Tests performance, security, and LLM contract enforcement for the translator pipeline.
 //! Following T8 methodology: FAILING TESTS FIRST, fixes after.
 
-use syncore::mcp_tools::translator::{translate_llm_output, TargetSchema, TranslatorConfig};
-use syncore::intellitask::{IntelliTask, TaskBreakdown};
 use serde_json::json;
 use std::time::Instant;
+use syncore::intellitask::{IntelliTask, TaskBreakdown};
+use syncore::mcp_tools::translator::{translate_llm_output, TargetSchema, TranslatorConfig};
 
 /// Mock LLM for testing contract enforcement
 struct MockLLM {
@@ -75,7 +75,11 @@ mod t8_performance_tests {
 
         // Should succeed quickly
         assert!(result.is_ok(), "Large JSON translation should succeed: {:?}", result);
-        assert!(duration.as_millis() < 100, "Large JSON processing should complete <100ms, took {}", duration.as_millis());
+        assert!(
+            duration.as_millis() < 100,
+            "Large JSON processing should complete <100ms, took {}",
+            duration.as_millis()
+        );
     }
 
     /// T8-PERF-2: Deep nesting performance test
@@ -107,7 +111,11 @@ mod t8_performance_tests {
 
         // Should handle deep nesting efficiently
         assert!(result.is_ok(), "Deep nesting should be handled: {:?}", result);
-        assert!(duration.as_millis() < 50, "Deep nesting should be fast, took {}ms", duration.as_millis());
+        assert!(
+            duration.as_millis() < 50,
+            "Deep nesting should be fast, took {}ms",
+            duration.as_millis()
+        );
     }
 
     /// T8-PERF-3: Clone operation overhead test
@@ -137,7 +145,11 @@ mod t8_performance_tests {
         let duration = start.elapsed();
 
         // 100 translations should complete quickly (indicating minimal clones)
-        assert!(duration.as_millis() < 200, "100 translations should complete <200ms, took {}ms", duration.as_millis());
+        assert!(
+            duration.as_millis() < 200,
+            "100 translations should complete <200ms, took {}ms",
+            duration.as_millis()
+        );
     }
 }
 
@@ -152,15 +164,13 @@ mod t8_security_tests {
         let malicious_inputs = vec![
             // Script injection attempts
             r#"{"title": "<script>alert('xss')</script>", "description": "test"}"#.to_string(),
-            r#"{"title": "合法", "description": "</script><script>alert('xss')</script>"}"#.to_string(),
-
+            r#"{"title": "合法", "description": "</script><script>alert('xss')</script>"}"#
+                .to_string(),
             // Comment injection attempts
             r#"{"title": "test", "description": " legit */ /* malicious */"}"#.to_string(),
             r#"{"title": "test", "description": "normal // DROP TABLE users"}"#.to_string(),
-
             // Unicode attack attempts
             r#"{"title": "test", "description": "\u0000\u0001\u0002"}"#.to_string(),
-
             // Extremely long strings (DoS attempt)
             format!(r#"{{"title": "{}", "description": "test"}}"#, "A".repeat(100000)),
         ];
@@ -174,8 +184,14 @@ mod t8_security_tests {
                     // If successful, output should be sanitized
                     let output_str = serde_json::to_string(&output).unwrap();
                     assert!(!output_str.contains("<script>"), "Script tags should be sanitized");
-                    assert!(!output_str.contains("DROP TABLE"), "SQL injection should be sanitized");
-                    assert!(output_str.len() < malicious_input.len() * 2, "Output should not expand significantly");
+                    assert!(
+                        !output_str.contains("DROP TABLE"),
+                        "SQL injection should be sanitized"
+                    );
+                    assert!(
+                        output_str.len() < malicious_input.len() * 2,
+                        "Output should not expand significantly"
+                    );
                 }
                 Err(_) => {
                     // Failure is acceptable for malicious input
@@ -189,7 +205,8 @@ mod t8_security_tests {
     #[test]
     fn test_unbounded_allocation_prevention() {
         // Create input with unbounded array potential
-        let huge_array_input = format!(r#"{{
+        let huge_array_input = format!(
+            r#"{{
             "parent_tasks": [{}],
             "relevant_files": [{}],
             "unbounded_field": [{}]
@@ -204,7 +221,11 @@ mod t8_security_tests {
         let duration = start.elapsed();
 
         // Should complete quickly even with huge input (indicating limits)
-        assert!(duration.as_millis() < 500, "Huge input processing should be bounded, took {}ms", duration.as_millis());
+        assert!(
+            duration.as_millis() < 500,
+            "Huge input processing should be bounded, took {}ms",
+            duration.as_millis()
+        );
 
         // Result should be reasonable size
         if let Ok(output) = result {
@@ -219,7 +240,8 @@ mod t8_security_tests {
     fn test_recursion_depth_attack_prevention() {
         // Create extremely deep recursive structure
         let mut recursive_json = json!("leaf");
-        for _ in 0..1000 {  // Much deeper than reasonable
+        for _ in 0..1000 {
+            // Much deeper than reasonable
             recursive_json = json!({
                 "recursive": recursive_json,
                 "level": "deep"
@@ -258,20 +280,31 @@ mod t8_contract_tests {
         // Test with extremely large response (simulating LLM runaway)
         let huge_response = "A".repeat(1000000); // 1MB response
 
-        let result = translate_llm_output(&format!(r#"{{
+        let result = translate_llm_output(
+            &format!(
+                r#"{{
             "prd_title": "{}",
             "parent_tasks": [],
             "relevant_files": [],
             "estimated_complexity": "Medium"
-        }}"#, huge_response), TargetSchema::TaskBreakdown);
+        }}"#,
+                huge_response
+            ),
+            TargetSchema::TaskBreakdown,
+        );
 
         // Should reject huge responses
         assert!(result.is_err(), "Should reject extremely large LLM responses");
 
         if let Err(e) = result {
             let error_msg = e.to_string();
-            assert!(error_msg.contains("too large") || error_msg.contains("limit") || error_msg.contains("exceeds"),
-                   "Error should mention size limit: {}", error_msg);
+            assert!(
+                error_msg.contains("too large")
+                    || error_msg.contains("limit")
+                    || error_msg.contains("exceeds"),
+                "Error should mention size limit: {}",
+                error_msg
+            );
         }
     }
 
@@ -282,16 +315,12 @@ mod t8_contract_tests {
         let malformed_schemas = vec![
             // Completely invalid JSON
             r#"{"incomplete": json"#,
-
             // Wrong root type
             r#"["array", "instead", "of", "object"]"#,
-
             // Missing required fields
             r#"{"wrong_field": "value"}"#,
-
             // Missing prd_title field
             r#"{"parent_tasks": [], "relevant_files": [], "estimated_complexity": "Medium"}"#,
-
             // Nested type violations
             r#"{"prd_title": "test", "parent_tasks": "should be array not string", "relevant_files": [], "estimated_complexity": "Medium"}"#,
         ];
@@ -311,7 +340,11 @@ mod t8_contract_tests {
                     // This is acceptable as long as it doesn't crash
                 }
             }
-            assert!(duration.as_millis() < 50, "Schema validation should be fast, took {}ms", duration.as_millis());
+            assert!(
+                duration.as_millis() < 50,
+                "Schema validation should be fast, took {}ms",
+                duration.as_millis()
+            );
         }
     }
 
@@ -322,13 +355,10 @@ mod t8_contract_tests {
         let dangerous_inputs = vec![
             // Null bytes and control characters
             r#"{"title": "test\u0000dangerous", "description": "safe"}"#.to_string(),
-
             // Extremely long keys
             format!(r#"{{"{}": "value"}}"#, "A".repeat(1000)),
-
             // Special characters that could break parsers
             r#"{"title": "test", "description": "\x01\x02\x03\x04"}"#.to_string(),
-
             // HTML/XML-like content
             r#"{"title": "<img src=x onerror=alert(1)>", "description": "XSS test"}"#.to_string(),
         ];

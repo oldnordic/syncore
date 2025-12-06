@@ -359,13 +359,13 @@ pub struct LlmConfig {
 }
 
 fn default_llm_backend() -> String {
-    "ollama".to_string()
+    "gguf_engine".to_string()
 }
 fn default_llm_model() -> String {
-    "qwen2.5-coder:3b".to_string()
+    "qwen2.5-0.5b".to_string()
 }
 fn default_llm_url() -> String {
-    "http://localhost:11434".to_string()
+    "local".to_string()
 }
 fn default_llm_timeout_seconds() -> u64 {
     30

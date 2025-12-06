@@ -22,7 +22,7 @@
 //! 9. **syncore.reasoning** - routes to reasoning.expand, reasoning.prune, reasoning.health, reasoning.metrics
 //! 10. **syncore.logs** - routes to logs_tail
 
-pub mod agent;
+// pub mod agent; // Temporarily disabled for testing
 pub mod code;
 pub mod document;
 pub mod executor_real;

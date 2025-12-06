@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use serde_json::{json, Value};
-use syncore::intellitask::{TaskBreakdown, ParentTask, Subtask, FileReference, Complexity};
+use syncore::intellitask::{Complexity, FileReference, ParentTask, Subtask, TaskBreakdown};
 use syncore::mcp_tools::translator::{translate_llm_output, TargetSchema};
 
 /// Test: intellitask_save schema validation failure (14 errors)
@@ -53,15 +53,17 @@ fn test_intellitask_save_schema_validation_failures() -> Result<()> {
     let direct_parse_result: Result<TaskBreakdown, serde_json::Error> =
         serde_json::from_str(problematic_llm_output);
 
-    assert!(direct_parse_result.is_err(),
-        "Direct parse should fail: {:?}", direct_parse_result);
+    assert!(direct_parse_result.is_err(), "Direct parse should fail: {:?}", direct_parse_result);
 
     // Test with translator (should fix structural issues)
     let translated = translate_llm_output(problematic_llm_output, TargetSchema::TaskBreakdown)?;
 
     // Should succeed without errors after translation
-    assert!(!translated.get("error").is_some(),
-        "Translation failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Translation failed: {:?}",
+        translated.get("error")
+    );
 
     // Verify specific fixes:
     let parent_tasks = translated["parent_tasks"].as_array().unwrap();
@@ -110,8 +112,7 @@ fn test_intellitask_prioritize_invalid_json() -> Result<()> {
     let direct_parse_result: Result<Vec<ParentTask>, serde_json::Error> =
         serde_json::from_str(invalid_tasks_json);
 
-    assert!(direct_parse_result.is_err(),
-        "Direct parse should fail: {:?}", direct_parse_result);
+    assert!(direct_parse_result.is_err(), "Direct parse should fail: {:?}", direct_parse_result);
 
     // Test that translator can handle non-JSON input gracefully
     let translated = translate_llm_output(invalid_tasks_json, TargetSchema::TaskBreakdown);
@@ -150,13 +151,17 @@ fn test_valid_taskbreakdown_passthrough() -> Result<()> {
             "action": "Modify"
         }],
         "estimated_complexity": "Moderate"
-    }).to_string();
+    })
+    .to_string();
 
     let translated = translate_llm_output(&valid_input, TargetSchema::TaskBreakdown)?;
 
     // Should succeed without errors
-    assert!(!translated.get("error").is_some(),
-        "Valid input should not cause errors: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Valid input should not cause errors: {:?}",
+        translated.get("error")
+    );
 
     // Should be deserializable to TaskBreakdown
     let task_breakdown: TaskBreakdown = serde_json::from_value(translated)?;
@@ -174,13 +179,17 @@ fn test_sequential_tool_normalization() -> Result<()> {
         "reasoning": "Understanding the codebase is essential before making changes",
         "action": "Read the main files",
         "observation": "Found existing structure"
-    }).to_string();
+    })
+    .to_string();
 
     let translated = translate_llm_output(&raw_sequential_input, TargetSchema::SequentialStep)?;
 
     // Should succeed and auto-generate missing fields
-    assert!(!translated.get("error").is_some(),
-        "Sequential translation failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Sequential translation failed: {:?}",
+        translated.get("error")
+    );
 
     // Should have auto-generated fields
     assert!(translated.get("step_id").is_some());
@@ -198,7 +207,8 @@ fn test_missing_required_fields_error() -> Result<()> {
     let incomplete_input = json!({
         "prd_title": "Test Feature"
         // Missing parent_tasks and estimated_complexity
-    }).to_string();
+    })
+    .to_string();
 
     let translated = translate_llm_output(&incomplete_input, TargetSchema::TaskBreakdown)?;
 
@@ -227,12 +237,17 @@ fn test_type_coercion_edge_cases() -> Result<()> {
         }],
         "relevant_files": [],
         "estimated_complexity": "Simple"
-    }).to_string();
+    })
+    .to_string();
 
-    let translated = translate_llm_output(&input_with_numeric_strings, TargetSchema::TaskBreakdown)?;
+    let translated =
+        translate_llm_output(&input_with_numeric_strings, TargetSchema::TaskBreakdown)?;
 
-    assert!(!translated.get("error").is_some(),
-        "Type coercion failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Type coercion failed: {:?}",
+        translated.get("error")
+    );
 
     let task_breakdown: TaskBreakdown = serde_json::from_value(translated)?;
     assert_eq!(task_breakdown.parent_tasks[0].estimated_hours, 8.5);
@@ -270,7 +285,8 @@ fn test_fileaction_alias_normalization() -> Result<()> {
             }
         ],
         "estimated_complexity": "Simple"
-    }).to_string();
+    })
+    .to_string();
 
     let translated = translate_llm_output(&input_with_aliases, TargetSchema::TaskBreakdown)?;
 

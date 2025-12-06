@@ -40,8 +40,8 @@ use std::sync::{Arc, Mutex};
 /// ```
 pub async fn run_startup_bootstrap_for_tests(cfg: &SyncoreConfig) -> Result<()> {
     // Step 1: Check entity count in code_entities
-    let conn =
-        db::open_db_with_wal(&cfg.paths.code_graph_db).context("Failed to open code_graph database")?;
+    let conn = db::open_db_with_wal(&cfg.paths.code_graph_db)
+        .context("Failed to open code_graph database")?;
 
     let entity_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM code_entities", [], |row| row.get(0))

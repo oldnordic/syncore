@@ -165,7 +165,7 @@ impl SuiteDispatcher for RefragSuite {
                     } else {
                         result
                     }
-                },
+                }
                 Err(_) => result, // Fallback to original on error
             }
         } else {

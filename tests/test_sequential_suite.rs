@@ -62,9 +62,8 @@ fn test_sequential_tools_exist_in_help() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("memory_suite", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("memory_suite", &params).await });
 
     // Should succeed and contain help text
     assert!(result.is_ok(), "memory_suite help should succeed: {:?}", result.err());
@@ -103,9 +102,8 @@ fn test_sequential_next_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_next", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_next", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_next should succeed: {:?}", result.err());
@@ -132,9 +130,8 @@ fn test_sequential_run_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_run", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_run", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_run should succeed: {:?}", result.err());
@@ -161,9 +158,8 @@ fn test_sequential_reason_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_reason", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_reason", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_reason should succeed: {:?}", result.err());
@@ -189,9 +185,8 @@ fn test_sequential_status_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_status", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_status", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_status should succeed: {:?}", result.err());
@@ -219,9 +214,8 @@ fn test_sequential_reset_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_reset", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_reset", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_reset should succeed: {:?}", result.err());
@@ -252,9 +246,8 @@ fn test_sequential_record_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_record", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_record", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_record should succeed: {:?}", result.err());
@@ -280,9 +273,8 @@ fn test_sequential_get_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_get", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_get", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_get should succeed: {:?}", result.err());
@@ -309,9 +301,8 @@ fn test_sequential_search_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_search", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_search", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_search should succeed: {:?}", result.err());
@@ -337,9 +328,8 @@ fn test_sequential_cycle_invocable() {
     });
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_cycle", &params).await
-    });
+    let result =
+        rt.block_on(async { executor.execute_real_tool_async("sequential_cycle", &params).await });
 
     // Should succeed
     assert!(result.is_ok(), "sequential_cycle should succeed: {:?}", result.err());
@@ -361,9 +351,15 @@ fn test_sequential_routing_chain() {
     let executor = create_test_executor("routing");
 
     let sequential_tools = vec![
-        "sequential_next", "sequential_run", "sequential_reason",
-        "sequential_status", "sequential_reset", "sequential_record",
-        "sequential_get", "sequential_search", "sequential_cycle"
+        "sequential_next",
+        "sequential_run",
+        "sequential_reason",
+        "sequential_status",
+        "sequential_reset",
+        "sequential_record",
+        "sequential_get",
+        "sequential_search",
+        "sequential_cycle",
     ];
 
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -373,9 +369,8 @@ fn test_sequential_routing_chain() {
             "dry_run": true  // Use dry_run to avoid side effects
         });
 
-        let result = rt.block_on(async {
-            executor.execute_real_tool_async(tool_name, &params).await
-        });
+        let result =
+            rt.block_on(async { executor.execute_real_tool_async(tool_name, &params).await });
 
         // All should route successfully (even if they fail, they should be found)
         assert!(result.is_ok(), "Tool {} should be routable: {:?}", tool_name, result.err());
@@ -417,9 +412,8 @@ fn test_sequential_persistence() {
         "dry_run": false
     });
 
-    let get_result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_get", &get_params).await
-    });
+    let get_result = rt
+        .block_on(async { executor.execute_real_tool_async("sequential_get", &get_params).await });
 
     assert!(get_result.is_ok(), "sequential_get should succeed");
     let get_envelope = get_result.unwrap();
@@ -433,8 +427,8 @@ fn test_sequential_persistence() {
 
     // Verify the step content matches what we recorded
     let found_step = steps.iter().find(|step| {
-        step["step_number"].as_i64() == Some(1) &&
-        step["thought"].as_str() == Some("Initial analysis")
+        step["step_number"].as_i64() == Some(1)
+            && step["thought"].as_str() == Some("Initial analysis")
     });
 
     assert!(found_step.is_some(), "Should find the recorded step with correct content");
@@ -511,9 +505,8 @@ fn test_sequential_records_chain_correct() {
         "dry_run": false
     });
 
-    let get_result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_get", &get_params).await
-    });
+    let get_result = rt
+        .block_on(async { executor.execute_real_tool_async("sequential_get", &get_params).await });
 
     assert!(get_result.is_ok(), "Should retrieve all steps");
     let get_envelope = get_result.unwrap();
@@ -526,10 +519,18 @@ fn test_sequential_records_chain_correct() {
     // Verify steps are in correct order
     for (i, step) in steps.iter().enumerate() {
         let expected_step = (i + 1) as i64;
-        assert_eq!(step["step_number"].as_i64(), Some(expected_step),
-                   "Step {} should have correct step_number", i + 1);
-        assert_eq!(step["thought"].as_str(), Some(&format!("Step {} analysis", expected_step)).map(|x| x.as_str()),
-                   "Step {} should have correct thought", i + 1);
+        assert_eq!(
+            step["step_number"].as_i64(),
+            Some(expected_step),
+            "Step {} should have correct step_number",
+            i + 1
+        );
+        assert_eq!(
+            step["thought"].as_str(),
+            Some(&format!("Step {} analysis", expected_step)).map(|x| x.as_str()),
+            "Step {} should have correct thought",
+            i + 1
+        );
     }
 }
 
@@ -556,9 +557,8 @@ fn test_sequential_reset_clears_chain() {
             "dry_run": false
         });
 
-        rt.block_on(async {
-            executor.execute_real_tool_async("sequential_record", &params).await
-        }).expect("Step should record");
+        rt.block_on(async { executor.execute_real_tool_async("sequential_record", &params).await })
+            .expect("Step should record");
     }
 
     // Step 2: Verify steps exist
@@ -567,9 +567,9 @@ fn test_sequential_reset_clears_chain() {
         "dry_run": false
     });
 
-    let get_result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_get", &get_params).await
-    }).expect("Should get steps");
+    let get_result = rt
+        .block_on(async { executor.execute_real_tool_async("sequential_get", &get_params).await })
+        .expect("Should get steps");
 
     let get_data = unwrap_data(&get_result);
     let steps_before = get_data["steps"].as_array().expect("Should return steps");
@@ -594,9 +594,8 @@ fn test_sequential_reset_clears_chain() {
     assert_eq!(reset_data["reset"], true, "Should confirm reset");
 
     // Step 4: Verify steps are cleared
-    let get_after_result = rt.block_on(async {
-        executor.execute_real_tool_async("sequential_get", &get_params).await
-    });
+    let get_after_result = rt
+        .block_on(async { executor.execute_real_tool_async("sequential_get", &get_params).await });
 
     assert!(get_after_result.is_ok(), "Should still be able to get after reset");
     let binding = get_after_result.unwrap();

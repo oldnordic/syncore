@@ -15,15 +15,15 @@
 //! - Causal tracing
 //! - Deep architectural analysis
 
-use crate::graph::Neo4jClient;
+use crate::graph::GraphBackend;
 use crate::vector::VectorStore;
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
 
 /// Reasoning-based fusion combiner with higher-order terms
 pub struct FusionReasoning {
-    /// Neo4j client for graph operations
-    _neo4j: Neo4jClient,
+    /// Graph backend for operations (any GraphBackend implementation)
+    _graph_backend: Arc<dyn GraphBackend>,
     /// Vector store for embeddings
     _vector_store: Arc<Mutex<VectorStore>>,
     /// Weight for vector score (alpha)
@@ -38,20 +38,33 @@ impl FusionReasoning {
     /// Create new reasoning fusion
     ///
     /// # Arguments
-    /// * `neo4j` - Neo4j client for graph traversal
+    /// * `graph_backend` - Graph backend for graph traversal (any GraphBackend implementation)
     /// * `vector_store` - Vector store for embeddings
     ///
     /// # Returns
     /// New FusionReasoning instance
-    pub fn new(neo4j: Neo4jClient, vector_store: Arc<Mutex<VectorStore>>) -> Self {
+    pub fn new(graph_backend: Arc<dyn GraphBackend>, vector_store: Arc<Mutex<VectorStore>>) -> Self {
         Self {
-            _neo4j: neo4j,
+            _graph_backend: graph_backend,
             _vector_store: vector_store,
             alpha: 0.4,
             beta: 0.4,
             gamma: 0.2,
         }
     }
+
+    /// Create new reasoning fusion with any GraphBackend implementation
+    ///
+    /// This constructor accepts any backend that implements the GraphBackend trait,
+    /// including SQLiteGraph, Neo4j, or future backends. For Neo4j usage,
+    /// create a Neo4jBackend and pass it to this constructor.
+    ///
+    /// # Arguments
+    /// * `graph_backend` - Graph backend for graph traversal (any GraphBackend implementation)
+    /// * `vector_store` - Vector store for embeddings
+    ///
+    /// # Returns
+    /// New FusionReasoning instance
 
     /// Combine scores using higher-order formula
     ///
@@ -110,7 +123,7 @@ impl FusionReasoning {
             let mut next_level = Vec::new();
 
             for (entity_id, score) in &expanded {
-                // Get neighbors from Neo4j (simplified - in real implementation would query graph)
+                // Get neighbors from GraphBackend (works with any backend implementation)
                 let neighbors = self.get_neighbors(*entity_id)?;
 
                 for neighbor_id in neighbors {
@@ -129,11 +142,21 @@ impl FusionReasoning {
         Ok(expanded)
     }
 
-    /// Get neighbors from graph (placeholder implementation)
-    fn get_neighbors(&self, _entity_id: i64) -> Result<Vec<i64>> {
-        // In real implementation, this would query Neo4j for neighbors
-        // For now, return empty to avoid compilation errors
-        Ok(vec![])
+    /// Get neighbors from graph using GraphBackend trait
+    fn get_neighbors(&self, entity_id: i64) -> Result<Vec<i64>> {
+        // Use GraphBackend trait to get neighbors regardless of backend implementation
+        let neighbor_results = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                self._graph_backend.get_neighbors(entity_id).await
+            })
+        })?;
+
+        // Convert EntityResult to entity IDs for fusion logic
+        let neighbor_ids: Vec<i64> = neighbor_results.into_iter()
+            .map(|entity| entity.id)
+            .collect();
+
+        Ok(neighbor_ids)
     }
 
     /// Apply diffusion scoring to expanded results
@@ -228,25 +251,61 @@ impl FusionReasoning {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vector::HuggingFaceEmbeddings;
+    use crate::vector::StubEmbeddings;
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_higher_order_combination() -> Result<()> {
-        let uri =
-            std::env::var("NEO4J_URI").unwrap_or_else(|_| "bolt://127.0.0.1:7687".to_string());
-        let user = std::env::var("NEO4J_USER").unwrap_or_else(|_| "neo4j".to_string());
-        let pass = std::env::var("NEO4J_PASS").unwrap_or_else(|_| "testpassword123".to_string());
+        // Create a mock GraphBackend for testing scoring logic
+        let temp_dir = TempDir::new()?;
+        let db_path = temp_dir.path().join("test.db");
 
-        let neo4j = Neo4jClient::connect(&uri, &user, &pass).await?;
-        let embeddings = Box::new(HuggingFaceEmbeddings::new()?);
+        let embeddings = Box::new(StubEmbeddings::new(384)?);
         let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
 
-        let fusion = FusionReasoning::new(neo4j, vector_store);
+        // Create SQLiteGraph backend for testing
+        let graph_backend = Arc::new(
+            crate::graph::SQLiteGraphBackend::new(
+                db_path.to_str().unwrap(),
+                "test_namespace"
+            ).await?
+        );
+
+        let fusion = FusionReasoning::new(graph_backend, vector_store);
 
         let result = fusion.combine_higher_order(0.6, 0.8);
 
         // Expected: 0.4*0.6 + 0.4*0.8 + 0.2*0.64 = 0.688
         assert!((result - 0.688).abs() < 0.01);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_scoring_determinism() -> Result<()> {
+        // Create mock backend for deterministic scoring test
+        let temp_dir = TempDir::new()?;
+        let db_path = temp_dir.path().join("test.db");
+
+        let graph_backend = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                crate::graph::SQLiteGraphBackend::new(
+                    db_path.to_str().unwrap(),
+                    "test_namespace"
+                ).await
+            })
+        })?;
+
+        let embeddings = Box::new(StubEmbeddings::new(384)?);
+        let vector_store = Arc::new(Mutex::new(VectorStore::new(embeddings)));
+
+        let fusion = FusionReasoning::new(Arc::new(graph_backend), vector_store);
+
+        // Test that scoring is deterministic
+        let result1 = fusion.combine_higher_order(0.6, 0.8);
+        let result2 = fusion.combine_higher_order(0.6, 0.8);
+
+        assert_eq!(result1, result2, "Scoring should be deterministic");
 
         Ok(())
     }

@@ -8,7 +8,7 @@ use rmcp::{
     model::{
         CallToolResult, Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
     },
-    schemars, tool, tool_handler, tool_router,
+    tool, tool_handler, tool_router,
     transport::stdio,
     ErrorData as McpError, ServerHandler, ServiceExt,
 };
@@ -21,6 +21,12 @@ use crate::mcp::types::tool_requests::CodeIndexDirectoryRequest;
 
 // Import translator for IntelliTask normalization
 use crate::mcp_tools::translator::{translate_llm_output, TargetSchema};
+
+// Import unified reasoning infrastructure for migration
+use crate::mcp_server::reasoning::{
+    select_reasoning_backend, BackendSelectionConfig, BackendType,
+    create_request_metadata, create_backend_info, format_success_response, format_error_response, to_mcp_call_tool_result, ErrorCategory,
+};
 
 /// Helper function to normalize JSON for Vec<ParentTask> using translator
 fn normalize_parent_tasks_json(tasks_json: &str) -> Result<Vec<crate::intellitask::ParentTask>, anyhow::Error> {
@@ -1623,84 +1629,289 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<RagGraphQueryRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::raggraph::{
-            validate_real_backend, validate_real_backend_neo4j, RagGraphConfig, RagQuery, RaggraphBackendMode,
-            RealStorageAdapter,
-        };
+        use crate::raggraph::{RagGraphConfig, RagQuery, RaggraphBackendMode};
+        use std::collections::HashMap;
 
-        // Read config from environment (SYNCORE_RAGGRAPH_BACKEND)
-        let config = RagGraphConfig::from_env();
-
-        // Log query initiation
-        eprintln!(
-            "[RAGGraph] query: backend={:?}, query_len={}, num_hops={}, top_k={}",
-            config.backend_mode,
-            params.query_text.len(),
-            config.num_hops,
-            config.top_k
+        // Create request metadata for unified response formatting
+        let request_metadata = create_request_metadata(
+            params.query_text.clone(),
+            "raggraph_query".to_string(),
+            {
+                let mut map = HashMap::new();
+                map.insert("query_text".to_string(), serde_json::Value::String(params.query_text.clone()));
+                map
+            },
         );
 
-        let query_engine = if config.backend_mode == RaggraphBackendMode::Real {
-            // Real mode: create storage adapter with VectorStore + Neo4j
-            if let Some(ref neo4j) = self.state.neo4j {
-                // Cast VectorStore to VectorIndex trait object (CODE domain for graph operations)
-                let vector_index =
-                    self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
-
-                // Get dimension from VectorStore (via VectorIndex trait)
-                let dimension = {
-                    use crate::vector::VectorIndex;
-                    let store = self.state.code_store.lock().unwrap();
-                    VectorIndex::dimension(&*store).unwrap_or(384)
+        // Backend selection using unified infrastructure
+        let backend_selection = match select_reasoning_backend(
+            Some(BackendSelectionConfig {
+                prefer_sqlite: true,
+                allow_neo4j_fallback: true,
+                require_explicit_neo4j: false,
+            }),
+            self.state.neo4j.as_ref().map(|neo4j| (**neo4j).clone()),
+        ) {
+            Ok(selection) => selection,
+            Err(e) => {
+                // Create minimal metadata for error case
+                let error_metadata = crate::mcp_server::reasoning::ReasoningMetadata {
+                    request_id: format!("error_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+                    backend_used: "unknown".to_string(),
+                    start_time_ms: 0,
+                    end_time_ms: 0,
+                    vector_search_ms: None,
+                    graph_traversal_ms: None,
+                    fusion_ms: None,
+                    parameters: serde_json::json!({}),
+                    debug_flags: vec!["error".to_string()],
                 };
 
-                // Validate real backend before executing query
-                if let Err(e) = validate_real_backend_neo4j(
-                    config.backend_mode,
-                    Some(&**neo4j),
-                    Some(&vector_index),
-                    dimension,
-                )
-                .await
-                {
-                    return Ok(CallToolResult::error(vec![Content::text(format!(
-                        "RAGGraph real mode validation failed: {}",
-                        e
-                    ))]));
+                let error_response = format_error_response(
+                    request_metadata,
+                    anyhow::anyhow!("Backend selection failed: {}", e),
+                    ErrorCategory::Backend,
+                    Some("Failed to select appropriate graph backend".to_string()),
+                    Some(error_metadata),
+                );
+
+                let unified_response = error_response.map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to format error response: {}", e), None))?;
+                return to_mcp_call_tool_result(unified_response, None).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to convert to CallToolResult: {}", e), None));
+            }
+        };
+
+        // Create backend info for unified response
+        let backend_info = create_backend_info(
+            format!("{:?}", backend_selection.backend_type),
+            backend_selection.metadata.config_source.clone(),
+            backend_selection.metadata.auto_selected,
+        );
+
+        // Log query initiation with unified backend info
+        eprintln!(
+            "[RAGGraph][UNIFIED] query: backend={:?}, config_source={}, auto_selected={}, query_len={}",
+            backend_selection.backend_type,
+            backend_selection.metadata.config_source,
+            backend_selection.metadata.auto_selected,
+            params.query_text.len()
+        );
+
+        // Read config for backward compatibility
+        let config = RagGraphConfig::from_env();
+
+        // Execute query using the current implementation but with unified backend selection
+        let query_engine = if config.backend_mode == RaggraphBackendMode::Real {
+            // Real mode: use unified backend selection result
+            use crate::raggraph::{validate_real_backend_neo4j, RealStorageAdapter};
+
+            // Cast VectorStore to VectorIndex trait object (CODE domain for graph operations)
+            let vector_index =
+                self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+
+            // Get dimension from VectorStore (via VectorIndex trait)
+            let dimension = {
+                use crate::vector::VectorIndex;
+                let store = self.state.code_store.lock().map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to lock vector store: {}", e), None))?;
+                VectorIndex::dimension(&*store).unwrap_or(384)
+            };
+
+            // Use the unified backend selection result instead of complex logic
+            match backend_selection.backend_type {
+                BackendType::SQLiteGraph => {
+                    use crate::raggraph::{SQLiteGraphStorageAdapter, validate_real_backend};
+
+                    let graph_backend = backend_selection.backend;
+
+                    // Validate SQLiteGraph backend
+                    if let Err(e) = validate_real_backend(
+                        config.backend_mode,
+                        Some(graph_backend.as_ref()),
+                        Some(&vector_index),
+                        dimension,
+                    )
+                    .await
+                    {
+                        let error_metadata = crate::mcp_server::reasoning::ReasoningMetadata {
+                        request_id: format!("error_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+                        backend_used: "SQLiteGraph".to_string(),
+                        start_time_ms: 0,
+                        end_time_ms: 0,
+                        vector_search_ms: None,
+                        graph_traversal_ms: None,
+                        fusion_ms: None,
+                        parameters: serde_json::json!({}),
+                        debug_flags: vec!["error".to_string(), "sqlitegraph_validation".to_string()],
+                    };
+
+                    let error_response = format_error_response(
+                        request_metadata,
+                        anyhow::anyhow!("SQLiteGraph validation failed: {}", e),
+                        ErrorCategory::Backend,
+                        Some("Backend validation failed during query execution".to_string()),
+                        Some(error_metadata),
+                    );
+
+                        let unified_response = error_response.map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to format error response: {}", e), None))?;
+                        return to_mcp_call_tool_result(unified_response, None).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to convert to CallToolResult: {}", e), None));
+                    }
+
+                    // Create SQLiteGraph storage adapter
+                    let storage = Arc::new(SQLiteGraphStorageAdapter::new(
+                        vector_index,
+                        graph_backend,
+                        dimension,
+                    ).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to create storage adapter: {}", e), None))?);
+
+                    RagQuery::with_storage(config.clone(), storage)
                 }
+                BackendType::Neo4j => {
+                    // Neo4j backend path (should be available if selected)
+                    if let Some(ref neo4j) = self.state.neo4j {
+                        // Validate real backend before executing query
+                        if let Err(e) = validate_real_backend_neo4j(
+                            config.backend_mode,
+                            Some(&**neo4j),
+                            Some(&vector_index),
+                            dimension,
+                        )
+                        .await
+                        {
+                            let error_metadata = crate::mcp_server::reasoning::ReasoningMetadata {
+                            request_id: format!("error_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+                            backend_used: "Neo4j".to_string(),
+                            start_time_ms: 0,
+                            end_time_ms: 0,
+                            vector_search_ms: None,
+                            graph_traversal_ms: None,
+                            fusion_ms: None,
+                            parameters: serde_json::json!({}),
+                            debug_flags: vec!["error".to_string(), "neo4j_validation".to_string()],
+                        };
 
-                // Create Real storage adapter
-                let storage =
-                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
+                        let error_response = format_error_response(
+                            request_metadata,
+                            anyhow::anyhow!("Neo4j validation failed: {}", e),
+                            ErrorCategory::Backend,
+                            Some("Neo4j validation failed during query execution".to_string()),
+                            Some(error_metadata),
+                        );
 
-                RagQuery::with_storage(config.clone(), storage)
-            } else {
-                RagQuery::new() // Neo4j not available, use mock
+                            let unified_response = error_response.map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to format error response: {}", e), None))?;
+                            return to_mcp_call_tool_result(unified_response, None).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to convert to CallToolResult: {}", e), None));
+                        }
+
+                        // Create Real storage adapter with Neo4j
+                        let storage =
+                            Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
+
+                        RagQuery::with_storage(config.clone(), storage)
+                    } else {
+                        RagQuery::new() // Neo4j not available, use mock
+                    }
+                }
             }
         } else {
             // Mock mode (default)
             RagQuery::new()
         };
 
+        // Execute query and format response using unified infrastructure
         match query_engine.query(&params.query_text) {
             Ok(result) => {
                 eprintln!(
-                    "[RAGGraph] query completed: top_nodes={}, reasoning_steps={}",
+                    "[RAGGraph][UNIFIED] query completed: top_nodes={}, reasoning_steps={}",
                     result.top_nodes.len(),
                     result.reasoning_path.len()
                 );
-                let response = serde_json::json!({
-                    "top_nodes": result.top_nodes,
-                    "context_embedding_dim": result.context_embedding.len(),
-                    "reasoning_path": result.reasoning_path
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response)
-                        .unwrap_or_else(|_| response.to_string()),
-                )]))
+
+                // Create debug info for unified response
+                let debug_info = crate::mcp_server::reasoning::DebugInfo {
+                    processing_time_ms: None, // Could add timing if needed
+                    entities_examined: Some(result.top_nodes.len()),
+                    graph_depth: Some(result.reasoning_path.len()),
+                    vector_search_info: Some(crate::mcp_server::reasoning::VectorSearchInfo {
+                        model: None,
+                        search_method: "raggraph_query".to_string(),
+                        total_entities: None,
+                        candidates_examined: Some(result.top_nodes.len()),
+                    }),
+                    graph_expansion_info: Some(crate::mcp_server::reasoning::GraphExpansionInfo {
+                        algorithm: "raggraph".to_string(),
+                        max_depth: None,
+                        depth_reached: Some(result.reasoning_path.len()),
+                        nodes_explored: Some(result.top_nodes.len()),
+                        edges_traversed: None,
+                    }),
+                    metadata: {
+                        let mut map = HashMap::new();
+                        map.insert("context_embedding_dim".to_string(), serde_json::Value::Number(serde_json::Number::from(result.context_embedding.len())));
+                        map.insert("reasoning_path_len".to_string(), serde_json::Value::Number(serde_json::Number::from(result.reasoning_path.len())));
+                        map
+                    },
+                };
+
+                // Convert current format to unified response format
+                let unified_results = result.top_nodes.into_iter().enumerate().map(|(index, node_id)| {
+                    let mut metadata = HashMap::new();
+                    metadata.insert("node_id".to_string(), serde_json::Value::Number(serde_json::Number::from(node_id)));
+                    metadata.insert("rank".to_string(), serde_json::Value::Number(serde_json::Number::from(index as u64)));
+
+                    crate::mcp_server::reasoning::ReasoningResult {
+                        id: node_id.to_string(),
+                        name: format!("node_{}", node_id), // Since NodeId is just i64, create a name
+                        entity_type: "raggraph_node".to_string(),
+                        file_path: String::default(), // NodeId doesn't contain file path info
+                        relevance_score: 1.0 / (index + 1) as f32, // Simple ranking based relevance
+                        scores: crate::mcp_server::reasoning::ScoreComponents {
+                            vector_score: None,
+                            graph_score: Some(1.0 / (index + 1) as f32), // Use rank as score
+                            temporal_score: None,
+                            graph_embedding_score: None,
+                            combined_score: 1.0 / (index + 1) as f32,
+                        },
+                        metadata,
+                    }
+                }).collect();
+
+                let success_response = format_success_response(
+                    request_metadata,
+                    unified_results,
+                    backend_info,
+                    debug_info,
+                    None,
+                    None, // No metadata available in this old-style handler
+                ).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to format success response: {}", e), None))?;
+
+                to_mcp_call_tool_result(success_response, None).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to convert to CallToolResult: {}", e), None))
             }
             Err(e) => {
-                Ok(CallToolResult::error(vec![Content::text(format!("RAG query failed: {}", e))]))
+                eprintln!(
+                    "[RAGGraph][UNIFIED] query failed: error={}",
+                    e
+                );
+
+                let error_metadata = crate::mcp_server::reasoning::ReasoningMetadata {
+                    request_id: format!("error_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+                    backend_used: "unknown".to_string(),
+                    start_time_ms: 0,
+                    end_time_ms: 0,
+                    vector_search_ms: None,
+                    graph_traversal_ms: None,
+                    fusion_ms: None,
+                    parameters: serde_json::json!({}),
+                    debug_flags: vec!["error".to_string(), "query_execution".to_string()],
+                };
+
+                let error_response = format_error_response(
+                    request_metadata,
+                    anyhow::anyhow!("RAG query failed: {}", e),
+                    ErrorCategory::Internal,
+                    Some("Query execution failed".to_string()),
+                    Some(error_metadata),
+                );
+
+                let unified_response = error_response.map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to format error response: {}", e), None))?;
+                to_mcp_call_tool_result(unified_response, None).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to convert to CallToolResult: {}", e), None))
             }
         }
     }
@@ -1710,99 +1921,50 @@ impl SynCoreMCPServer {
         &self,
         Parameters(params): Parameters<RagGraphMultihopRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::raggraph::{
-            validate_real_backend, validate_real_backend_neo4j, HopGraphTransformer, RagGraphConfig, RaggraphBackendMode,
-            RealStorageAdapter,
+        use crate::mcp_server::reasoning::{
+            request_parsing,
+            execute_reasoning_request, RequestType,
         };
 
-        // Read config from environment (SYNCORE_RAGGRAPH_BACKEND)
-        let config = RagGraphConfig::from_env();
-
-        // Log multihop initiation
+        // Log multihop initiation (preserve existing logging behavior)
         eprintln!(
-            "[RAGGraph] multihop: backend={:?}, seed_nodes={}, num_hops={}, alpha={}",
-            config.backend_mode,
-            params.seed_nodes.len(),
-            config.num_hops,
-            config.alpha
+            "[RAGGraph] multihop: seed_nodes={}",
+            params.seed_nodes.len()
         );
 
-        let transformer = if config.backend_mode == RaggraphBackendMode::Real {
-            // Real mode: create storage adapter with VectorStore + Neo4j
-            if let Some(ref neo4j) = self.state.neo4j {
-                // Cast VectorStore to VectorIndex trait object (CODE domain for graph operations)
-                let vector_index =
-                    self.state.code_store.clone() as Arc<Mutex<dyn crate::vector::VectorIndex>>;
+        // Convert RagGraphMultihopRequest to unified request format
+        let raw_params = serde_json::json!({
+            "seed_entities": params.seed_nodes,
+        }).as_object().unwrap().clone();
 
-                // Get dimension from VectorStore (via VectorIndex trait)
-                let dimension = {
-                    use crate::vector::VectorIndex;
-                    let store = self.state.code_store.lock().unwrap();
-                    VectorIndex::dimension(&*store).unwrap_or(384)
-                };
+        let unified_request = request_parsing::parse_unified_request(
+            raw_params,
+            RequestType::MultiHop,
+            None,
+        ).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to parse multihop request: {}", e), None))?;
 
-                // Validate real backend before executing multihop reasoning
-                if let Err(e) = validate_real_backend_neo4j(
-                    config.backend_mode,
-                    Some(&**neo4j),
-                    Some(&vector_index),
-                    dimension,
-                )
-                .await
-                {
-                    return Ok(CallToolResult::error(vec![Content::text(format!(
-                        "RAGGraph real mode validation failed: {}",
-                        e
-                    ))]));
-                }
-
-                // Create Real storage adapter
-                let storage =
-                    Arc::new(RealStorageAdapter::new(vector_index, (**neo4j).clone(), dimension));
-
-                HopGraphTransformer::with_storage(config.clone(), storage)
-            } else {
-                HopGraphTransformer::new(config) // Neo4j not available, use mock
-            }
-        } else {
-            // Mock mode (default)
-            HopGraphTransformer::new(config)
-        };
-
-        match transformer.multi_hop_reasoning(&params.seed_nodes) {
-            Ok(result) => {
-                eprintln!(
-                    "[RAGGraph] multihop completed: top_nodes={}, reasoning_steps={}",
-                    result.top_nodes.len(),
-                    result.reasoning_path.len()
-                );
-                let response = serde_json::json!({
-                    "top_nodes": result.top_nodes,
-                    "context_embedding_dim": result.context_embedding.len(),
-                    "reasoning_path": result.reasoning_path
-                });
-                Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::to_string_pretty(&response)
-                        .unwrap_or_else(|_| response.to_string()),
-                )]))
-            }
-            Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                "Multi-hop reasoning failed: {}",
-                e
-            ))])),
-        }
+        // Execute unified reasoning request and return directly
+        // (execute_reasoning_request already includes backend selection, metadata and formatting)
+        execute_reasoning_request(
+            unified_request,
+            &self.state,
+        ).map_err(|e| rmcp::ErrorData::internal_error(format!("Reasoning execution failed: {}", e), None))
     }
 
     #[tool(
         description = "Execute CodeGraph query with tri-mode fusion (Simple/Attention/Reasoning)"
     )]
-    async fn code_graph_fusion_query(
+    pub async fn code_graph_fusion_query(
         &self,
         Parameters(params): Parameters<crate::code_graph::RagGraphQueryRequest>,
     ) -> Result<CallToolResult, McpError> {
-        use crate::code_graph::{QueryScope, RagGraphAPI};
+        use crate::mcp_server::reasoning::{
+            request_parsing,
+            execute_reasoning_request, RequestType,
+        };
+        use crate::code_graph::QueryScope;
 
-        // Parse scope from string if provided
+        // Parse scope from string if provided (preserve existing behavior)
         let scope =
             params.scope.as_ref().map(|s| QueryScope::parse(s)).unwrap_or(QueryScope::Global);
 
@@ -1815,62 +1977,30 @@ impl SynCoreMCPServer {
             params.project_label
         );
 
-        // Check if we have Neo4j available
-        if let Some(ref neo4j) = self.state.neo4j {
-            // Create CodeGraph instance
-            let code_graph_conn = self.state.db_manager.code_graph_conn();
-            let code_graph = match crate::code_graph::CodeGraph::with_connection(
-                code_graph_conn,
-                self.state.code_store.clone(),
-            ) {
-                Ok(cg) => cg,
-                Err(e) => {
-                    return Ok(CallToolResult::error(vec![Content::text(format!(
-                        "Failed to create CodeGraph: {}",
-                        e
-                    ))]));
-                }
-            };
+        // Convert RagGraphQueryRequest to unified request format
+        let raw_params = serde_json::json!({
+            "query": params.query,
+            "namespace": params.namespace,
+            "mode_hint": params.mode_hint,
+            "top_k": params.top_k,
+            "scope": params.scope,
+            "project_label": params.project_label,
+            "local_root": params.local_root,
+            "enable_temporal": true,
+        }).as_object().unwrap().clone();
 
-            // Create RAGGraph API
-            let api = RagGraphAPI::new(code_graph, (**neo4j).clone());
+        let unified_request = request_parsing::parse_unified_request(
+            raw_params,
+            RequestType::Fusion,
+            None,
+        ).map_err(|e| rmcp::ErrorData::internal_error(format!("Failed to parse fusion request: {}", e), None))?;
 
-            // Execute query with scope control
-            match api
-                .query_with_scope(
-                    &params.query,
-                    params.namespace.as_deref(),
-                    params.mode_hint.as_deref(),
-                    params.top_k,
-                    scope,
-                    params.project_label.as_deref(),
-                    params.local_root.as_deref(),
-                )
-                .await
-            {
-                Ok(response) => {
-                    eprintln!(
-                        "[CodeGraph] fusion_query completed: entities={}, mode={}, scope={}",
-                        response.entities.len(),
-                        response.selected_mode,
-                        response.applied_scope
-                    );
-
-                    let json_response = serde_json::to_string_pretty(&response)
-                        .unwrap_or_else(|_| serde_json::to_string(&response).unwrap());
-
-                    Ok(CallToolResult::success(vec![Content::text(json_response)]))
-                }
-                Err(e) => Ok(CallToolResult::error(vec![Content::text(format!(
-                    "CodeGraph fusion query failed: {}",
-                    e
-                ))])),
-            }
-        } else {
-            Ok(CallToolResult::error(vec![Content::text(
-                "CodeGraph fusion query requires Neo4j connection".to_string(),
-            )]))
-        }
+        // Execute unified reasoning request and return directly
+        // (execute_reasoning_request already includes backend selection, metadata and formatting)
+        execute_reasoning_request(
+            unified_request,
+            &self.state,
+        ).map_err(|e| rmcp::ErrorData::internal_error(format!("Reasoning execution failed: {}", e), None))
     }
 
     #[tool(

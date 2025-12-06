@@ -31,8 +31,11 @@ fn test_translator_rejects_partial_objects() -> Result<()> {
     assert!(result.is_err(), "Translator must reject partial objects");
 
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("missing required field") || error_msg.contains("validation"),
-        "Error should mention missing fields or validation: {}", error_msg);
+    assert!(
+        error_msg.contains("missing required field") || error_msg.contains("validation"),
+        "Error should mention missing fields or validation: {}",
+        error_msg
+    );
 
     Ok(())
 }
@@ -48,8 +51,11 @@ fn test_translator_rejects_empty_json() -> Result<()> {
     assert!(result.is_err(), "Translator must reject empty JSON");
 
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("missing required field") || error_msg.contains("validation"),
-        "Error should mention missing fields: {}", error_msg);
+    assert!(
+        error_msg.contains("missing required field") || error_msg.contains("validation"),
+        "Error should mention missing fields: {}",
+        error_msg
+    );
 
     Ok(())
 }
@@ -131,8 +137,13 @@ fn test_translator_rejects_ambiguous_types() -> Result<()> {
     assert!(result.is_err(), "Translator must reject ambiguous type coercion");
 
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("type") || error_msg.contains("coercion") || error_msg.contains("validation"),
-        "Error should mention type issue: {}", error_msg);
+    assert!(
+        error_msg.contains("type")
+            || error_msg.contains("coercion")
+            || error_msg.contains("validation"),
+        "Error should mention type issue: {}",
+        error_msg
+    );
 
     Ok(())
 }
@@ -151,8 +162,13 @@ fn test_sequential_translator_rejects_inverted_status() -> Result<()> {
     assert!(result.is_err(), "Translator must reject invalid status values");
 
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("status") || error_msg.contains("validation") || error_msg.contains("enum"),
-        "Error should mention status issue: {}", error_msg);
+    assert!(
+        error_msg.contains("status")
+            || error_msg.contains("validation")
+            || error_msg.contains("enum"),
+        "Error should mention status issue: {}",
+        error_msg
+    );
 
     Ok(())
 }

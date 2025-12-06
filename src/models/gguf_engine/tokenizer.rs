@@ -7,6 +7,7 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 /// GGUFEngine-compatible tokenizer wrapper for Qwen models
+#[derive(Debug)]
 pub struct GgufTokenizer {
     /// Tokenizer implementation
     tokenizer_impl: TokenizerImpl,
@@ -18,6 +19,7 @@ pub struct GgufTokenizer {
 pub type TokenizerWrapper = GgufTokenizer;
 
 /// Internal tokenizer implementation
+#[derive(Debug)]
 enum TokenizerImpl {
     /// HuggingFace tokenizer (preferred)
     HfTokenizer(Box<tokenizers::Tokenizer>),
@@ -207,9 +209,12 @@ impl Default for GgufTokenizer {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_tokenizer_creation() {
-        let tokenizer = GgufTokenizer::new();
+    #[tokio::test]
+    async fn test_tokenizer_creation() {
+        use crate::llm::candle_cache::{get_or_init_tokenizer, CandleConfig};
+
+        let config = CandleConfig::new("/nonexistent/model.gguf".to_string());
+        let tokenizer = get_or_init_tokenizer(&config).await;
         assert!(tokenizer.is_ok());
     }
 

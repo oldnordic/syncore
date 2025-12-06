@@ -1,12 +1,14 @@
 //! Language Model abstraction layer for SynCore
 //!
-//! Provides a unified interface for LLM backends (Ollama, OpenAI, test, etc.)
+//! Provides a unified interface for LLM backends (Candle GGUF engine, test, etc.)
 //! Used by IntelliTask for AI-powered task breakdown and prioritization.
 
 use anyhow::Result;
 
+pub mod candle_cache;
+pub mod error_recovery;
 pub mod factory;
-pub mod ollama;
+pub mod prompt_hash;
 pub mod test;
 
 /// Prompt sent to a language model
@@ -75,13 +77,13 @@ impl Completion {
 
 /// Unified interface for language model backends
 ///
-/// This trait abstracts over different LLM providers (Ollama CLI, OpenAI API, local models, etc.)
+/// This trait abstracts over different LLM providers (Candle GGUF engine, local models, etc.)
 /// allowing IntelliTask and other AI-dependent features to work with any backend.
 ///
 /// # Implementations
-/// - `OllamaLanguageModel`: Ollama CLI via subprocess (production)
 /// - `TestLanguageModel`: Deterministic responses for testing (no network)
-pub trait LanguageModel: Send + Sync {
+/// - `GGUFEngine`: Candle-based local inference (offline, production)
+pub trait LanguageModel: Send + Sync + std::fmt::Debug {
     /// Generate a completion from a prompt
     ///
     /// This is the core method all implementations must provide.

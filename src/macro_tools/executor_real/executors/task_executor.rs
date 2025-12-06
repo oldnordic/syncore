@@ -404,13 +404,19 @@ pub async fn execute_intellitask_generate(
     };
 
     match suite.execute(args) {
-        crate::mcp_tools::SuiteResult { success: true, data, .. } => Ok(data),
-        crate::mcp_tools::SuiteResult { success: false, error, .. } => {
-            Ok(serde_json::json!({
-                "success": false,
-                "error": error
-            }))
-        }
+        crate::mcp_tools::SuiteResult {
+            success: true,
+            data,
+            ..
+        } => Ok(data),
+        crate::mcp_tools::SuiteResult {
+            success: false,
+            error,
+            ..
+        } => Ok(serde_json::json!({
+            "success": false,
+            "error": error
+        })),
     }
 }
 
@@ -421,7 +427,8 @@ pub async fn execute_intellitask_subtasks(
     dry_run: bool,
 ) -> anyhow::Result<serde_json::Value> {
     if dry_run {
-        let parent_task_id = param_str("intellitask_subtasks", params, "parent_task_id").unwrap_or("");
+        let parent_task_id =
+            param_str("intellitask_subtasks", params, "parent_task_id").unwrap_or("");
         let result = serde_json::json!({
             "success": true,
             "message": format!("[DRY RUN] Would generate subtasks for parent task '{}'", parent_task_id)
@@ -433,18 +440,27 @@ pub async fn execute_intellitask_subtasks(
     let suite = crate::mcp_tools::memory_suite::MemorySuite::new(state.clone());
     let args = crate::mcp_tools::memory_suite::MemorySuiteArgs {
         command: "intellitask_subtasks".to_string(),
-        parent_task_id: params.get("parent_task_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        parent_task_id: params
+            .get("parent_task_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         ..Default::default()
     };
 
     match suite.execute(args) {
-        crate::mcp_tools::SuiteResult { success: true, data, .. } => Ok(data),
-        crate::mcp_tools::SuiteResult { success: false, error, .. } => {
-            Ok(serde_json::json!({
-                "success": false,
-                "error": error
-            }))
-        }
+        crate::mcp_tools::SuiteResult {
+            success: true,
+            data,
+            ..
+        } => Ok(data),
+        crate::mcp_tools::SuiteResult {
+            success: false,
+            error,
+            ..
+        } => Ok(serde_json::json!({
+            "success": false,
+            "error": error
+        })),
     }
 }
 
@@ -467,18 +483,27 @@ pub async fn execute_intellitask_prioritize(
     let args = crate::mcp_tools::memory_suite::MemorySuiteArgs {
         command: "intellitask_prioritize".to_string(),
         tasks_json: params.get("tasks_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
-        business_context: params.get("business_context").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        business_context: params
+            .get("business_context")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         ..Default::default()
     };
 
     match suite.execute(args) {
-        crate::mcp_tools::SuiteResult { success: true, data, .. } => Ok(data),
-        crate::mcp_tools::SuiteResult { success: false, error, .. } => {
-            Ok(serde_json::json!({
-                "success": false,
-                "error": error
-            }))
-        }
+        crate::mcp_tools::SuiteResult {
+            success: true,
+            data,
+            ..
+        } => Ok(data),
+        crate::mcp_tools::SuiteResult {
+            success: false,
+            error,
+            ..
+        } => Ok(serde_json::json!({
+            "success": false,
+            "error": error
+        })),
     }
 }
 
@@ -500,21 +525,31 @@ pub async fn execute_intellitask_next(
     let suite = crate::mcp_tools::memory_suite::MemorySuite::new(state.clone());
     let args = crate::mcp_tools::memory_suite::MemorySuiteArgs {
         command: "intellitask_next".to_string(),
-        completed_tasks: params.get("completed_tasks").and_then(|v| v.as_array()).map(|arr| {
-            arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
-        }),
-        remaining_tasks_json: params.get("remaining_tasks_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        completed_tasks: params
+            .get("completed_tasks")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
+        remaining_tasks_json: params
+            .get("remaining_tasks_json")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         ..Default::default()
     };
 
     match suite.execute(args) {
-        crate::mcp_tools::SuiteResult { success: true, data, .. } => Ok(data),
-        crate::mcp_tools::SuiteResult { success: false, error, .. } => {
-            Ok(serde_json::json!({
-                "success": false,
-                "error": error
-            }))
-        }
+        crate::mcp_tools::SuiteResult {
+            success: true,
+            data,
+            ..
+        } => Ok(data),
+        crate::mcp_tools::SuiteResult {
+            success: false,
+            error,
+            ..
+        } => Ok(serde_json::json!({
+            "success": false,
+            "error": error
+        })),
     }
 }
 
@@ -536,17 +571,26 @@ pub async fn execute_intellitask_save(
     let suite = crate::mcp_tools::memory_suite::MemorySuite::new(state.clone());
     let args = crate::mcp_tools::memory_suite::MemorySuiteArgs {
         command: "intellitask_save".to_string(),
-        breakdown_json: params.get("breakdown_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
+        breakdown_json: params
+            .get("breakdown_json")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
         ..Default::default()
     };
 
     match suite.execute(args) {
-        crate::mcp_tools::SuiteResult { success: true, data, .. } => Ok(data),
-        crate::mcp_tools::SuiteResult { success: false, error, .. } => {
-            Ok(serde_json::json!({
-                "success": false,
-                "error": error
-            }))
-        }
+        crate::mcp_tools::SuiteResult {
+            success: true,
+            data,
+            ..
+        } => Ok(data),
+        crate::mcp_tools::SuiteResult {
+            success: false,
+            error,
+            ..
+        } => Ok(serde_json::json!({
+            "success": false,
+            "error": error
+        })),
     }
 }

@@ -132,13 +132,12 @@ async fn main() -> Result<()> {
     // Configure graph backend from configuration (Phase G4 requirement)
     {
         eprintln!("Loading graph backend configuration...");
-        let config = SyncoreConfig::load_with_env("config/syncore.toml")
-            .unwrap_or_else(|e| {
-                eprintln!("Warning: Failed to load config, using defaults: {}", e);
-                let mut config = SyncoreConfig::default();
-                config.apply_env_overrides();
-                config
-            });
+        let config = SyncoreConfig::load_with_env("config/syncore.toml").unwrap_or_else(|e| {
+            eprintln!("Warning: Failed to load config, using defaults: {}", e);
+            let mut config = SyncoreConfig::default();
+            config.apply_env_overrides();
+            config
+        });
 
         // Apply configuration-driven backend selection
         state = match state.clone().with_graph_backend_from_config(&config).await {
@@ -164,7 +163,7 @@ async fn main() -> Result<()> {
         eprintln!("Initializing IntelliTask with REAL GGUFEngine backend...");
 
         // Use LlmFactory to get real model (fixed to load real GGUF instead of test)
-        use syncore::llm::factory::{LlmFactory, LlmConfig, LlmBackend};
+        use syncore::llm::factory::{LlmBackend, LlmConfig, LlmFactory};
 
         let config = LlmConfig {
             backend: LlmBackend::GGUFEngine,
@@ -177,21 +176,25 @@ async fn main() -> Result<()> {
         let llm_model: Arc<dyn LanguageModel> = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 match LlmFactory::from_config(&config).await {
-                    Ok(model_box) => Ok::<Arc<dyn LanguageModel>, anyhow::Error>(Arc::from(model_box)),
+                    Ok(model_arc) => Ok::<Arc<dyn LanguageModel>, anyhow::Error>(model_arc),
                     Err(e) => {
                         eprintln!("❌ Failed to create LLM from config: {}", e);
                         // Legitimate fallback only if factory completely fails
-                        Ok::<Arc<dyn LanguageModel>, anyhow::Error>(Arc::new(GGUFEngine::new_test()) as Arc<dyn LanguageModel>)
+                        Ok::<Arc<dyn LanguageModel>, anyhow::Error>(
+                            Arc::new(GGUFEngine::new_test()) as Arc<dyn LanguageModel>,
+                        )
                     }
                 }
             })
         })?;
 
-        if llm_model.backend_name() != "gguf_engine" ||
-           (llm_model.backend_name() == "gguf_engine" &&
-            llm_model.complete(&syncore::llm::Prompt::new("test", "test"))
-                .map(|c| c.text.starts_with("GGUFEngine response to:"))
-                .unwrap_or(true)) {
+        if llm_model.backend_name() != "gguf_engine"
+            || (llm_model.backend_name() == "gguf_engine"
+                && llm_model
+                    .complete(&syncore::llm::Prompt::new("test", "test"))
+                    .map(|c| c.text.starts_with("GGUFEngine response to:"))
+                    .unwrap_or(true))
+        {
             eprintln!("⚠️  Using test GGUFEngine backend as fallback");
         } else {
             eprintln!("✅ Successfully loaded REAL GGUFEngine backend via factory");

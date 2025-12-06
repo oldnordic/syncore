@@ -118,7 +118,7 @@ impl RealStorageAdapter {
 
     /// Generate embedding from text (placeholder - will use real embeddings later)
     ///
-    /// TODO: Replace with actual embedding model (fastembed or Ollama)
+    /// TODO: Replace with actual embedding model (fastembed)
     fn text_to_embedding(&self, text: &str) -> Vec<f32> {
         // Temporary: Use hash-based deterministic embedding
         use std::collections::hash_map::DefaultHasher;

@@ -1,9 +1,9 @@
-use syncore::llm::factory::{LlmFactory, LlmBackend, LlmConfig};
+use std::sync::Arc;
+use syncore::intellitask::IntelliTask;
+use syncore::llm::factory::{LlmBackend, LlmConfig, LlmFactory};
 use syncore::llm::{LanguageModel, Prompt};
 use syncore::models::gguf_engine::GGUFEngine;
-use syncore::intellitask::IntelliTask;
 use syncore::router::SynCoreState;
-use std::sync::Arc;
 
 /// Test that LlmFactory::from_config() does NOT return test backend by default
 #[tokio::test]
@@ -27,8 +27,11 @@ async fn test_factory_does_not_return_test_backend_by_default() {
     assert!(response.is_ok(), "Model completion should succeed");
 
     let response_text = response.unwrap().text;
-    assert!(!response_text.starts_with("GGUFEngine response to:"),
-           "Factory should not return test backend response. Got: {}", response_text);
+    assert!(
+        !response_text.starts_with("GGUFEngine response to:"),
+        "Factory should not return test backend response. Got: {}",
+        response_text
+    );
 }
 
 /// Test that main initialization code uses the factory model, not test model
@@ -59,8 +62,11 @@ async fn test_main_initialization_uses_factory_model() {
 
     assert!(response.is_ok(), "Stored model should work");
     let response_text = response.unwrap().text;
-    assert!(!response_text.starts_with("GGUFEngine response to:"),
-           "State should contain real model, not test backend. Got: {}", response_text);
+    assert!(
+        !response_text.starts_with("GGUFEngine response to:"),
+        "State should contain real model, not test backend. Got: {}",
+        response_text
+    );
 }
 
 /// Test that no code path in main overwrites a valid model with new_test()
@@ -93,8 +99,10 @@ async fn test_no_overwrite_of_real_model_in_main() {
 
     let final_response = model_arc.complete(&Prompt::new("test", "final"));
     assert!(final_response.is_ok());
-    assert!(!final_response.unwrap().text.starts_with("GGUFEngine response to:"),
-           "Model should still be real after conversion");
+    assert!(
+        !final_response.unwrap().text.starts_with("GGUFEngine response to:"),
+        "Model should still be real after conversion"
+    );
 }
 
 /// Test that IntelliTask uses real LLM, not test backend
@@ -125,13 +133,19 @@ async fn test_intellitask_uses_real_llm() {
         Ok(task_breakdown) => {
             // Convert to JSON to check for test backend response
             let tasks_json = format!("{:?}", task_breakdown);
-            assert!(!tasks_json.contains("GGUFEngine response to:"),
-                   "IntelliTask should not return test backend response. Got: {}", tasks_json);
+            assert!(
+                !tasks_json.contains("GGUFEngine response to:"),
+                "IntelliTask should not return test backend response. Got: {}",
+                tasks_json
+            );
         }
         Err(e) => {
             // Error is acceptable, but it should not be about test backend
-            assert!(!e.to_string().contains("GGUFEngine response to:"),
-                   "Error should not mention test backend: {}", e);
+            assert!(
+                !e.to_string().contains("GGUFEngine response to:"),
+                "Error should not mention test backend: {}",
+                e
+            );
         }
     }
 }
@@ -166,12 +180,17 @@ async fn test_state_llm_model_is_arc_of_real_model() {
     let stored_model = state.llm_model.as_ref().unwrap();
 
     // Verify backend type
-    assert_eq!(stored_model.backend_name(), "gguf_engine",
-              "Should be gguf_engine backend, not test");
+    assert_eq!(
+        stored_model.backend_name(),
+        "gguf_engine",
+        "Should be gguf_engine backend, not test"
+    );
 
     // Verify it's not a test response
     let final_check = stored_model.complete(&Prompt::new("final", "check"));
     assert!(final_check.is_ok());
-    assert!(!final_check.unwrap().text.starts_with("GGUFEngine response to:"),
-           "Stored model should be real, not test backend");
+    assert!(
+        !final_check.unwrap().text.starts_with("GGUFEngine response to:"),
+        "Stored model should be real, not test backend"
+    );
 }

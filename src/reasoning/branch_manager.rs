@@ -43,6 +43,7 @@ pub struct BranchDiagnostics {
 }
 
 /// Branch Manager for circuit breaker safety enforcement
+#[derive(Debug)]
 pub struct BranchManager {
     limits: BranchLimits,
     session_diagnostics: HashMap<String, BranchDiagnostics>,

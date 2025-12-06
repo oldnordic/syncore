@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use std::fs;
-use syncore::vector::{VectorStore, SearchScope};
+use syncore::vector::{SearchScope, VectorStore};
 use tempfile::TempDir;
 
 /// Test that VectorStore (used by MCP server) handles corrupted HNSW snapshots on startup
@@ -29,9 +29,9 @@ async fn test_vectorstore_startup_corrupted_snapshot_resilience() -> Result<()> 
     let layer_file = dir.join(format!("{}.hnsw.layer", basename));
 
     // These files will trigger the exact panic we fixed
-    fs::write(&graph_file, vec![0u8; 5])?;  // Too short - causes UnexpectedEof
-    fs::write(&data_file, vec![0u8; 5])?;   // Too short - causes UnexpectedEof
-    fs::write(&layer_file, vec![0u8; 5])?;  // Too short - causes UnexpectedEof
+    fs::write(&graph_file, vec![0u8; 5])?; // Too short - causes UnexpectedEof
+    fs::write(&data_file, vec![0u8; 5])?; // Too short - causes UnexpectedEof
+    fs::write(&layer_file, vec![0u8; 5])?; // Too short - causes UnexpectedEof
 
     // This is the critical test: VectorStore startup should NOT panic
     // It should detect corrupted HNSW, fall back to rebuild from vectors, and work normally
@@ -46,7 +46,7 @@ async fn test_vectorstore_startup_corrupted_snapshot_resilience() -> Result<()> 
     assert!(insert_result.is_ok());
 
     // Verify the store is functional after handling corrupted snapshot
-    assert_eq!(store.len(), 1);  // Should have the vector we just inserted
+    assert_eq!(store.len(), 1); // Should have the vector we just inserted
 
     // Test that search still works
     let results = store.search("test", 5, SearchScope::Global)?;
@@ -71,8 +71,8 @@ async fn test_vectorstore_zero_length_hnsw_files() -> Result<()> {
     let graph_file = dir.join(format!("{}.hnsw.graph", basename));
     let data_file = dir.join(format!("{}.hnsw.data", basename));
 
-    fs::write(&graph_file, vec![])?;  // Empty file
-    fs::write(&data_file, vec![])?;   // Empty file
+    fs::write(&graph_file, vec![])?; // Empty file
+    fs::write(&data_file, vec![])?; // Empty file
 
     // Should not panic when creating VectorStore with empty HNSW files
     let embeddings = Box::new(syncore::vector::RealEmbeddings::new(3)?);

@@ -109,7 +109,10 @@ async fn test_intellitask_generate_uses_llm_complete() -> Result<()> {
             assert!(!response_text.is_empty(), "Response should not be empty");
             assert!(!response_text.contains("ollama"), "Response should not mention Ollama");
             assert!(!response_text.contains("Ollama"), "Response should not mention Ollama");
-            assert!(!response_text.contains("ensure Ollama"), "Response should not mention Ollama setup");
+            assert!(
+                !response_text.contains("ensure Ollama"),
+                "Response should not mention Ollama setup"
+            );
 
             println!("✅ IntelliTask generate response: {}", response_text);
         }

@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use syncore::mcp_tools::memory_suite::intellitask_commands::coerce_intellitask_payload;
     use serde_json::json;
+    use syncore::mcp_tools::memory_suite::intellitask_commands::coerce_intellitask_payload;
 
     #[test]
     fn test_array_coercion() {

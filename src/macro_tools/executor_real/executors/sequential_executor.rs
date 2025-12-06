@@ -73,8 +73,7 @@ async fn route_through_memory_suite(
     let memory_suite = MemorySuite::new((**state).clone());
 
     // Convert tool name to memory suite command
-    let command = tool.strip_prefix("sequential_")
-        .unwrap_or(tool);
+    let command = tool.strip_prefix("sequential_").unwrap_or(tool);
 
     // Build MemorySuiteArgs from params
     let mut suite_args = MemorySuiteArgs {
@@ -104,7 +103,9 @@ async fn route_through_memory_suite(
         agent: param_str_opt(params, "agent"),
         id: param_str_opt(params, "id"),
         message: param_str_opt(params, "message"),
-        capabilities: params.get("capabilities").and_then(|v| v.as_array())
+        capabilities: params
+            .get("capabilities")
+            .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
         status: params.get("status").cloned(),
         task_type: param_str_opt(params, "task_type"),
@@ -116,15 +117,21 @@ async fn route_through_memory_suite(
         parent_task_json: param_str_opt(params, "parent_task_json"),
         tasks_json: param_str_opt(params, "tasks_json"),
         business_context: param_str_opt(params, "business_context"),
-        completed_tasks: params.get("completed_tasks").and_then(|v| v.as_array())
+        completed_tasks: params
+            .get("completed_tasks")
+            .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
         remaining_tasks_json: param_str_opt(params, "remaining_tasks_json"),
         breakdown_json: param_str_opt(params, "breakdown_json"),
         parent_id: param_i64_opt(params, "parent_id"),
         prd_title: param_str_opt(params, "prd_title"),
-        keywords: params.get("keywords").and_then(|v| v.as_array())
+        keywords: params
+            .get("keywords")
+            .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
-        tags: params.get("tags").and_then(|v| v.as_array())
+        tags: params
+            .get("tags")
+            .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()),
         min_importance: params.get("min_importance").and_then(|v| v.as_f64()).map(|v| v as f32),
         unix_timestamp: params.get("unix_timestamp").and_then(|v| v.as_u64()),

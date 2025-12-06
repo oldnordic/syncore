@@ -119,7 +119,9 @@ pub async fn validate_real_backend(
 
     // Validate Graph Backend
     let backend = graph_backend.ok_or_else(|| {
-        ValidationError::BackendMisconfigured("Graph backend not provided for REAL mode".to_string())
+        ValidationError::BackendMisconfigured(
+            "Graph backend not provided for REAL mode".to_string(),
+        )
     })?;
     validate_graph_backend(backend).await?;
 

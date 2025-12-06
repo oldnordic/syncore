@@ -27,14 +27,18 @@ fn test_translator_normalizes_invalid_task_breakdown() -> Result<()> {
             "description": "User model definition"  // WRONG FIELD - should be "purpose"
         }],
         "estimated_complexity": "Low"  // INVALID - should be "Simple"
-    }).to_string();
+    })
+    .to_string();
 
     // This should be normalized by translator
     let result = translate_llm_output(&malformed_json, TargetSchema::TaskBreakdown)?;
 
     // Should succeed without errors (translator normalizes invalid values)
-    assert!(!result.get("error").is_some(),
-        "Translator should normalize invalid JSON: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Translator should normalize invalid JSON: {:?}",
+        result.get("error")
+    );
 
     // Verify complex key normalizations
     assert_eq!(result["estimated_complexity"], "Simple"); // "Low" → "Simple"
@@ -45,7 +49,10 @@ fn test_translator_normalizes_invalid_task_breakdown() -> Result<()> {
 
     // Verify field mapping
     let relevant_files = result["relevant_files"].as_array().unwrap();
-    assert!(relevant_files[0].get("purpose").is_some(), "Should have 'purpose' field, not 'description'");
+    assert!(
+        relevant_files[0].get("purpose").is_some(),
+        "Should have 'purpose' field, not 'description'"
+    );
     assert!(relevant_files[0].get("description").is_none(), "Should not have 'description' field");
 
     Ok(())
@@ -65,16 +72,20 @@ fn test_translator_normalizes_priority_result() -> Result<()> {
                 "priority": "High" // already string
             }
         ]
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&malformed_json, TargetSchema::PriorityResult)?;
 
-    assert!(!result.get("error").is_some(),
-        "Translator should normalize priority result: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Translator should normalize priority result: {:?}",
+        result.get("error")
+    );
 
     let priorities = result["priorities"].as_array().unwrap();
     assert_eq!(priorities[0]["task_id"], "123"); // Number coerced to string
-    assert_eq!(priorities[0]["priority"], "5");   // Number coerced to string
+    assert_eq!(priorities[0]["priority"], "5"); // Number coerced to string
     assert_eq!(priorities[1]["task_id"], "456"); // String unchanged
     assert_eq!(priorities[1]["priority"], "High"); // String unchanged
 
@@ -89,12 +100,16 @@ fn test_translator_normalizes_sequential_step() -> Result<()> {
         "thought": "Need to implement user authentication",
         "reasoning": "Security is critical for this system"
         // Missing: action, observation - should be auto-filled
-    }).to_string();
+    })
+    .to_string();
 
     let result = translate_llm_output(&malformed_json, TargetSchema::SequentialStep)?;
 
-    assert!(!result.get("error").is_some(),
-        "Translator should normalize sequential step: {:?}", result.get("error"));
+    assert!(
+        !result.get("error").is_some(),
+        "Translator should normalize sequential step: {:?}",
+        result.get("error")
+    );
 
     // Should coerce string to int
     assert_eq!(result["step_number"], 5);
@@ -125,8 +140,7 @@ fn test_translator_rejects_completely_malformed_json() {
     let result = translate_llm_output(completely_broken, TargetSchema::SequentialStep);
 
     // Should return Result::Err for unparseable JSON
-    assert!(result.is_err(),
-        "Translator should reject completely malformed JSON");
+    assert!(result.is_err(), "Translator should reject completely malformed JSON");
 }
 
 /// Test 7: Verify no raw deserialization in MCP handlers
@@ -138,10 +152,7 @@ fn test_no_raw_deserialize_allowed() -> Result<()> {
     let sequential_source = include_str!("../src/mcp_tools/memory_suite/sequential_commands.rs");
 
     // These patterns should NOT exist in MCP handlers if translator is required
-    let forbidden_patterns = [
-        "serde_json::from_str(",
-        ".from_str(",
-    ];
+    let forbidden_patterns = ["serde_json::from_str(", ".from_str("];
 
     for pattern in &forbidden_patterns {
         // Check MCP server handlers (should use translator instead)
@@ -162,7 +173,11 @@ fn test_no_raw_deserialize_allowed() -> Result<()> {
                 continue;
             }
             // Detect end of test function (next function or module end)
-            if in_test_context && (line.trim().starts_with("fn ") && !line.contains("fn test_") || line.trim().starts_with("mod ") || line.trim().starts_with("impl ")) {
+            if in_test_context
+                && (line.trim().starts_with("fn ") && !line.contains("fn test_")
+                    || line.trim().starts_with("mod ")
+                    || line.trim().starts_with("impl "))
+            {
                 in_test_context = false;
                 continue;
             }

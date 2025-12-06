@@ -9,11 +9,11 @@
 //! - Deterministic behavior and ACID guarantees
 //! - No external dependencies beyond SQLite
 
-use super::types::NodeId;
 use super::storage::StorageAdapter;
-use crate::graph::GraphBackend;
+use super::types::NodeId;
+use crate::sqlitegraph::async_sqlite_backend::{SyncGraphBackend, AsyncSQLiteBackend};
 use crate::vector::traits::VectorIndex;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
@@ -23,8 +23,8 @@ pub struct SQLiteGraphStorageAdapter {
     /// HNSW vector index for semantic search
     vector_index: Arc<Mutex<dyn VectorIndex>>,
 
-    /// SQLiteGraph backend for graph traversal
-    graph_backend: Arc<dyn GraphBackend>,
+    /// SQLiteGraph backend for graph traversal (wrapped in sync interface)
+    graph_backend: Arc<AsyncSQLiteBackend>,
 
     /// Embedding dimension (default: 384)
     dimension: usize,
@@ -39,20 +39,23 @@ impl SQLiteGraphStorageAdapter {
     /// * `dimension` - Embedding dimension (default: 384)
     pub fn new(
         vector_index: Arc<Mutex<dyn VectorIndex>>,
-        graph_backend: Arc<dyn GraphBackend>,
+        graph_backend: Arc<dyn crate::graph::GraphBackend>,
         dimension: usize,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let sync_backend = AsyncSQLiteBackend::new(graph_backend)
+            .context("Failed to create sync wrapper for GraphBackend")?;
+
+        Ok(Self {
             vector_index,
-            graph_backend,
+            graph_backend: Arc::new(sync_backend),
             dimension,
-        }
+        })
     }
 
     /// Generate embedding from text (deterministic hash-based approach)
     ///
     /// Uses hash-based deterministic embedding for reproducible results
-    /// TODO: Replace with actual embedding model (fastembed or Ollama) in production
+    /// TODO: Replace with actual embedding model (fastembed) in production
     fn text_to_embedding(&self, text: &str) -> Vec<f32> {
         let mut embedding = Vec::with_capacity(self.dimension);
         let mut hasher = DefaultHasher::new();
@@ -88,12 +91,9 @@ impl SQLiteGraphStorageAdapter {
             LIMIT 1
         "#;
 
-        let results = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current()
-                .block_on(async {
-                    self.graph_backend.execute_query(cypher, vec![("id", serde_json::json!(node_id))]).await
-                })
-        }).context("Failed to query node text from SQLiteGraph")?;
+        let results = self.graph_backend
+            .execute_query(cypher, vec![("id", serde_json::json!(node_id))])
+        .context("Failed to query node text from SQLiteGraph")?;
 
         if let Some(result) = results.first() {
             if let Some(body_snippet) = result.get("body_snippet").and_then(|v| v.as_str()) {
@@ -119,10 +119,8 @@ impl StorageAdapter for SQLiteGraphStorageAdapter {
         let query_embedding = self.text_to_embedding(query_text);
 
         // Search HNSW index for nearest neighbors
-        let vector_index = self
-            .vector_index
-            .lock()
-            .map_err(|e| anyhow!("Vector index lock poisoned: {}", e))?;
+        let vector_index =
+            self.vector_index.lock().map_err(|e| anyhow!("Vector index lock poisoned: {}", e))?;
 
         let results = vector_index
             .search(&query_embedding, top_k)
@@ -150,12 +148,9 @@ impl StorageAdapter for SQLiteGraphStorageAdapter {
 
     fn neighbors_of(&self, node_id: NodeId) -> Result<Vec<(NodeId, f32)>> {
         // Use SQLiteGraph get_neighbors method
-        let neighbors = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current()
-                .block_on(async {
-                    self.graph_backend.get_neighbors(node_id).await
-                })
-        }).context("Failed to query neighbors from SQLiteGraph")?;
+        let neighbors = self.graph_backend
+            .get_neighbors(node_id)
+        .context("Failed to query neighbors from SQLiteGraph")?;
 
         // Convert EntityResult to (NodeId, weight) tuples
         let neighbor_tuples: Vec<(NodeId, f32)> = neighbors
@@ -170,8 +165,8 @@ impl StorageAdapter for SQLiteGraphStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{GraphBackend as ConfigBackend, GraphConfig};
     use crate::graph::backend_selector::create_graph_backend;
-    use crate::config::{GraphConfig, GraphBackend as ConfigBackend};
 
     // Mock VectorIndex for testing
     struct MockVectorIndex {
@@ -216,11 +211,7 @@ mod tests {
         let graph_backend = create_graph_backend(&graph_config, "test").await?;
 
         // Create adapter
-        let adapter = SQLiteGraphStorageAdapter::new(
-            vector_index,
-            graph_backend,
-            384,
-        );
+        let adapter = SQLiteGraphStorageAdapter::new(vector_index, graph_backend, 384)?;
 
         // Test basic functionality
         let seeds = adapter.seed_nodes_from_query("test query", 5)?;
@@ -246,11 +237,7 @@ mod tests {
 
         let graph_backend = create_graph_backend(&graph_config, "test").await?;
 
-        let adapter = SQLiteGraphStorageAdapter::new(
-            vector_index,
-            graph_backend,
-            384,
-        );
+        let adapter = SQLiteGraphStorageAdapter::new(vector_index, graph_backend, 384)?;
 
         // Test embedding generation is deterministic
         let embedding1 = adapter.text_to_embedding("hello world");

@@ -135,7 +135,8 @@ impl HnswVectorIndex {
                 // The lifetime parameter 'b is a phantom type parameter for type safety,
                 // but the actual data structure is self-contained after loading.
                 // We need 'static lifetime to store in our struct.
-                let loaded: Hnsw<'static, f32, DistL2> = unsafe { std::mem::transmute(loaded_temp) };
+                let loaded: Hnsw<'static, f32, DistL2> =
+                    unsafe { std::mem::transmute(loaded_temp) };
 
                 // Update metadata
                 self.count = loaded.get_nb_point();

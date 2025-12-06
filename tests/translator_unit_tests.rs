@@ -19,7 +19,7 @@ struct TestCase {
 enum TestResult {
     Success(serde_json::Value),
     Error(&'static str, Vec<&'static str>), // (error_type, missing_fields)
-    PartialError(&'static str),            // error contains specific text
+    PartialError(&'static str),             // error contains specific text
 }
 
 const TEST_CASES: &[TestCase] = &[
@@ -60,7 +60,6 @@ const TEST_CASES: &[TestCase] = &[
             "estimated_complexity": "Complex"
         })),
     },
-
     // Test Case 2: TaskBreakdown with missing required fields
     TestCase {
         name: "TaskBreakdown Missing Fields",
@@ -70,9 +69,11 @@ const TEST_CASES: &[TestCase] = &[
         }
         "#,
         target_schema: TargetSchema::TaskBreakdown,
-        expected_result: TestResult::Error("SchemaValidationFailed", vec!["parent_tasks", "estimated_complexity"]),
+        expected_result: TestResult::Error(
+            "SchemaValidationFailed",
+            vec!["parent_tasks", "estimated_complexity"],
+        ),
     },
-
     // Test Case 3: PriorityResult with STRING priority (CRITICAL from Phase 1)
     TestCase {
         name: "PriorityResult Valid String Priority",
@@ -98,7 +99,6 @@ const TEST_CASES: &[TestCase] = &[
             ]
         })),
     },
-
     // Test Case 4: PriorityResult with numeric coercion
     TestCase {
         name: "PriorityResult Numeric Coercion",
@@ -119,7 +119,6 @@ const TEST_CASES: &[TestCase] = &[
             ]
         })),
     },
-
     // Test Case 5: PriorityResult missing priorities array
     TestCase {
         name: "PriorityResult Missing Priorities",
@@ -131,7 +130,6 @@ const TEST_CASES: &[TestCase] = &[
         target_schema: TargetSchema::PriorityResult,
         expected_result: TestResult::Error("SchemaValidationFailed", vec!["priorities array"]),
     },
-
     // Test Case 6: SubtaskBreakdown with real Subtask structure
     TestCase {
         name: "Valid SubtaskBreakdown",
@@ -163,7 +161,6 @@ const TEST_CASES: &[TestCase] = &[
             }]
         })),
     },
-
     // Test Case 7: SubtaskBreakdown with auto-fix of missing arrays
     TestCase {
         name: "SubtaskBreakdown Auto-fix Arrays",
@@ -192,7 +189,6 @@ const TEST_CASES: &[TestCase] = &[
             }]
         })),
     },
-
     // Test Case 8: SubtaskBreakdown with estimated_hours coercion
     TestCase {
         name: "SubtaskBreakdown Hours Coercion",
@@ -221,7 +217,6 @@ const TEST_CASES: &[TestCase] = &[
             }]
         })),
     },
-
     // Test Case 9: NextTaskSuggestion valid
     TestCase {
         name: "Valid NextTaskSuggestion",
@@ -237,7 +232,6 @@ const TEST_CASES: &[TestCase] = &[
             "reasoning": "This task should be completed next because it unblocks other tasks"
         })),
     },
-
     // Test Case 10: SequentialStep valid with auto-generation
     TestCase {
         name: "Valid SequentialStep with Auto-gen",
@@ -251,7 +245,6 @@ const TEST_CASES: &[TestCase] = &[
         target_schema: TargetSchema::SequentialStep,
         expected_result: TestResult::PartialError("step_id"), // Will be auto-generated
     },
-
     // Test Case 11: SequentialStep with all fields
     TestCase {
         name: "Complete SequentialStep",
@@ -283,7 +276,6 @@ const TEST_CASES: &[TestCase] = &[
             "status": "completed"
         })),
     },
-
     // Test Case 12: Extract JSON from prose with markdown
     TestCase {
         name: "Extract JSON from Prose",
@@ -309,7 +301,6 @@ const TEST_CASES: &[TestCase] = &[
             "estimated_complexity": "Moderate"
         })),
     },
-
     // Test Case 13: Complexity enum normalization
     TestCase {
         name: "Complexity Enum Normalization",
@@ -345,7 +336,6 @@ const TEST_CASES: &[TestCase] = &[
             "estimated_complexity": "Simple" // "Low" -> "Simple"
         })),
     },
-
     // Test Case 14: FileReference with FileAction alias
     TestCase {
         name: "FileReference FileAction Alias",
@@ -384,37 +374,62 @@ fn test_all_translation_cases() -> Result<()> {
 
         match &test_case.expected_result {
             TestResult::Success(expected) => {
-                assert!(!result.get("error").is_some(),
+                assert!(
+                    !result.get("error").is_some(),
                     "Test '{}' failed: Expected success but got error: {}",
-                    test_case.name, result);
+                    test_case.name,
+                    result
+                );
 
                 // Compare key fields (deep equality might be tricky due to auto-generated fields)
                 if let Some(prd_title) = expected.get("prd_title") {
-                    assert_eq!(result.get("prd_title"), Some(prd_title),
-                        "Test '{}' failed: prd_title mismatch", test_case.name);
+                    assert_eq!(
+                        result.get("prd_title"),
+                        Some(prd_title),
+                        "Test '{}' failed: prd_title mismatch",
+                        test_case.name
+                    );
                 }
 
                 if let Some(priorities) = expected.get("priorities") {
-                    assert_eq!(result.get("priorities"), Some(priorities),
-                        "Test '{}' failed: priorities mismatch", test_case.name);
+                    assert_eq!(
+                        result.get("priorities"),
+                        Some(priorities),
+                        "Test '{}' failed: priorities mismatch",
+                        test_case.name
+                    );
                 }
 
                 if let Some(subtasks) = expected.get("subtasks") {
-                    assert_eq!(result.get("subtasks"), Some(subtasks),
-                        "Test '{}' failed: subtasks mismatch", test_case.name);
+                    assert_eq!(
+                        result.get("subtasks"),
+                        Some(subtasks),
+                        "Test '{}' failed: subtasks mismatch",
+                        test_case.name
+                    );
                 }
             }
 
             TestResult::Error(expected_error, expected_missing) => {
-                assert_eq!(result.get("error").and_then(Value::as_str), Some(*expected_error),
+                assert_eq!(
+                    result.get("error").and_then(Value::as_str),
+                    Some(*expected_error),
                     "Test '{}' failed: Expected error '{}' but got: {:?}",
-                    test_case.name, expected_error, result.get("error"));
+                    test_case.name,
+                    expected_error,
+                    result.get("error")
+                );
 
-                if let Some(missing_fields) = result.get("missing_fields").and_then(Value::as_array) {
+                if let Some(missing_fields) = result.get("missing_fields").and_then(Value::as_array)
+                {
                     for expected_field in expected_missing {
-                        assert!(missing_fields.iter().any(|f| f.as_str() == Some(*expected_field)),
+                        assert!(
+                            missing_fields.iter().any(|f| f.as_str() == Some(*expected_field)),
                             "Test '{}' failed: Expected missing field '{}' not found in {:?}",
-                            test_case.name, expected_field, missing_fields);
+                            test_case.name,
+                            expected_field,
+                            missing_fields
+                        );
                     }
                 }
             }
@@ -422,9 +437,13 @@ fn test_all_translation_cases() -> Result<()> {
             TestResult::PartialError(expected_text) => {
                 // For cases where we expect partial success with auto-generation
                 let result_str = serde_json::to_string(&result).unwrap();
-                assert!(result_str.contains(expected_text) || !result.get("error").is_some(),
+                assert!(
+                    result_str.contains(expected_text) || !result.get("error").is_some(),
                     "Test '{}' failed: Expected partial error '{}' but got: {}",
-                    test_case.name, expected_text, result_str);
+                    test_case.name,
+                    expected_text,
+                    result_str
+                );
             }
         }
     }

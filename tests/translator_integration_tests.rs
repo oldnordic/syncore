@@ -5,9 +5,9 @@
 use anyhow::Result;
 use serde_json::json;
 use std::sync::Arc;
+use syncore::llm::{LanguageModel, Prompt};
 use syncore::mcp_server::{create_tool_router, SynCoreState};
 use syncore::mcp_tools::translator::{translate_llm_output, TargetSchema};
-use syncore::llm::{LanguageModel, Prompt};
 use syncore::memory::MemoryManager;
 use syncore::tasks::TaskManager;
 use syncore::vector::VectorStore;
@@ -30,7 +30,11 @@ impl LanguageModel for MockLlm {
         Ok(self.response.clone())
     }
 
-    fn complete_with_options(&self, _prompt: &Prompt, _options: &crate::llm::CompletionOptions) -> Result<String> {
+    fn complete_with_options(
+        &self,
+        _prompt: &Prompt,
+        _options: &crate::llm::CompletionOptions,
+    ) -> Result<String> {
         Ok(self.response.clone())
     }
 
@@ -72,7 +76,10 @@ impl TestSetup {
             router: Default::default(),
         });
 
-        Ok(Self { state, mock_llm })
+        Ok(Self {
+            state,
+            mock_llm,
+        })
     }
 
     fn set_llm_response(&mut self, response: &str) {
@@ -129,8 +136,11 @@ fn test_intellitask_generate_with_translator() -> Result<()> {
     let translated = translate_llm_output(raw_llm_response, TargetSchema::TaskBreakdown)?;
 
     // Verify translation success
-    assert!(!translated.get("error").is_some(),
-        "Translation failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Translation failed: {:?}",
+        translated.get("error")
+    );
 
     // Verify specific fields
     assert_eq!(translated["prd_title"], "User Authentication System");
@@ -180,26 +190,38 @@ fn test_intellitask_prioritize_with_translator() -> Result<()> {
     let translated = translate_llm_output(raw_llm_response, TargetSchema::PriorityResult)?;
 
     // Verify translation success
-    assert!(!translated.get("error").is_some(),
-        "Priority translation failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Priority translation failed: {:?}",
+        translated.get("error")
+    );
 
     let priorities = translated["priorities"].as_array().unwrap();
     assert_eq!(priorities.len(), 3);
 
     // CRITICAL: Verify priority remains as STRING, not enum
     for priority_item in priorities {
-        assert!(priority_item["priority"].is_string(),
-            "Priority must be string, got: {:?}", priority_item["priority"]);
+        assert!(
+            priority_item["priority"].is_string(),
+            "Priority must be string, got: {:?}",
+            priority_item["priority"]
+        );
 
         let priority_str = priority_item["priority"].as_str().unwrap();
-        assert!(["Critical", "High", "Medium", "Low", "Optional"].contains(&priority_str),
-            "Invalid priority string: {}", priority_str);
+        assert!(
+            ["Critical", "High", "Medium", "Low", "Optional"].contains(&priority_str),
+            "Invalid priority string: {}",
+            priority_str
+        );
     }
 
     // Verify task_id is also string
     for priority_item in priorities {
-        assert!(priority_item["task_id"].is_string(),
-            "Task ID must be string, got: {:?}", priority_item["task_id"]);
+        assert!(
+            priority_item["task_id"].is_string(),
+            "Task ID must be string, got: {:?}",
+            priority_item["task_id"]
+        );
     }
 
     Ok(())
@@ -251,8 +273,11 @@ fn test_intellitask_subtasks_with_translator() -> Result<()> {
 
     let translated = translate_llm_output(raw_llm_response, TargetSchema::SubtaskBreakdown)?;
 
-    assert!(!translated.get("error").is_some(),
-        "Subtask translation failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Subtask translation failed: {:?}",
+        translated.get("error")
+    );
 
     let subtasks = translated["subtasks"].as_array().unwrap();
     assert_eq!(subtasks.len(), 2);
@@ -302,8 +327,11 @@ fn test_sequential_reasoning_with_translator() -> Result<()> {
 
     let translated = translate_llm_output(raw_llm_response, TargetSchema::SequentialStep)?;
 
-    assert!(!translated.get("error").is_some(),
-        "Sequential step translation failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Sequential step translation failed: {:?}",
+        translated.get("error")
+    );
 
     // Verify auto-generated fields
     assert!(translated.get("step_id").and_then(Value::as_str).is_some());
@@ -386,8 +414,11 @@ fn test_complex_nested_translation() -> Result<()> {
 
     let translated = translate_llm_output(complex_input, TargetSchema::TaskBreakdown)?;
 
-    assert!(!translated.get("error").is_some(),
-        "Complex translation failed: {:?}", translated.get("error"));
+    assert!(
+        !translated.get("error").is_some(),
+        "Complex translation failed: {:?}",
+        translated.get("error")
+    );
 
     // Verify nested normalizations
     let parent_tasks = translated["parent_tasks"].as_array().unwrap();

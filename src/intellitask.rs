@@ -1,7 +1,8 @@
 use crate::graph::Neo4jClient;
+use crate::llm::error_recovery::{ErrorRecoveryConfig, SafeLanguageModel};
 use crate::llm::{LanguageModel, Prompt};
-use crate::reasoning::{ReasoningError, ReasoningResult, ToTEngine};
 use crate::mcp_tools::translator::{translate_llm_output, TargetSchema};
+use crate::reasoning::{ReasoningError, ReasoningResult, ToTEngine};
 use anyhow::{anyhow, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -92,6 +93,8 @@ pub enum TaskPriority {
 pub struct IntelliTask {
     /// Language model backend (GGUFEngine, Test backend, etc.)
     llm: Arc<dyn LanguageModel>,
+    /// Safe language model wrapper with error recovery
+    safe_llm: SafeLanguageModel,
     /// ToT engine for reasoning-based task execution
     tot_engine: Option<ToTEngine>,
     /// Task ID to session ID mapping
@@ -101,8 +104,24 @@ pub struct IntelliTask {
 impl IntelliTask {
     /// Create a new IntelliTask instance with language model backend
     pub fn new(llm: Arc<dyn LanguageModel>) -> Self {
+        let safe_llm = SafeLanguageModel::new(llm.clone(), ErrorRecoveryConfig::default());
         Self {
             llm,
+            safe_llm,
+            tot_engine: None,
+            task_sessions: Arc::new(std::sync::Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Create a new IntelliTask instance with custom error recovery config
+    pub fn new_with_recovery(
+        llm: Arc<dyn LanguageModel>,
+        recovery_config: ErrorRecoveryConfig,
+    ) -> Self {
+        let safe_llm = SafeLanguageModel::new(llm.clone(), recovery_config);
+        Self {
+            llm,
+            safe_llm,
             tot_engine: None,
             task_sessions: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
@@ -111,8 +130,10 @@ impl IntelliTask {
     /// Create a new IntelliTask instance with ToT reasoning capability
     pub fn with_tot(llm: Arc<dyn LanguageModel>, neo4j_client: Arc<Neo4jClient>) -> Self {
         let tot_engine = ToTEngine::new(neo4j_client);
+        let safe_llm = SafeLanguageModel::new(llm.clone(), ErrorRecoveryConfig::default());
         Self {
             llm,
+            safe_llm,
             tot_engine: Some(tot_engine),
             task_sessions: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
@@ -122,11 +143,13 @@ impl IntelliTask {
     pub fn with_tot_and_llm(
         llm: Arc<dyn LanguageModel>,
         neo4j_client: Arc<Neo4jClient>,
-        language_model: Box<dyn crate::llm::LanguageModel>,
+        language_model: Arc<dyn crate::llm::LanguageModel>,
     ) -> Self {
         let tot_engine = ToTEngine::with_language_model(neo4j_client, language_model);
+        let safe_llm = SafeLanguageModel::new(llm.clone(), ErrorRecoveryConfig::default());
         Self {
             llm,
+            safe_llm,
             tot_engine: Some(tot_engine),
             task_sessions: Arc::new(std::sync::Mutex::new(HashMap::new())),
         }
@@ -226,16 +249,21 @@ impl IntelliTask {
 
         // Parse JSON response through translator (strip markdown wrapper if present)
         let cleaned_response = Self::strip_markdown_json(&response);
-        let translated = translate_llm_output(&cleaned_response, TargetSchema::TaskBreakdown).map_err(|e| {
-            anyhow!("Failed to translate AI response: {}. Response was: {}", e, response)
-        })?;
+        let translated = translate_llm_output(&cleaned_response, TargetSchema::TaskBreakdown)
+            .map_err(|e| {
+                anyhow!("Failed to translate AI response: {}. Response was: {}", e, response)
+            })?;
 
         if let Some(error) = translated.get("error") {
             return Err(anyhow!("Translation failed: {:?}", error));
         }
 
         let breakdown: TaskBreakdown = serde_json::from_value(translated.clone()).map_err(|e| {
-            anyhow!("Failed to deserialize translated response: {}. Translated was: {}", e, translated)
+            anyhow!(
+                "Failed to deserialize translated response: {}. Translated was: {}",
+                e,
+                translated
+            )
         })?;
 
         Ok(breakdown)
@@ -315,16 +343,21 @@ impl IntelliTask {
 
         // Parse JSON response through translator (strip markdown wrapper if present)
         let cleaned_response = Self::strip_markdown_json(&response);
-        let translated = translate_llm_output(&cleaned_response, TargetSchema::SubtaskBreakdown).map_err(|e| {
-            anyhow!("Failed to translate subtasks response: {}. Response was: {}", e, response)
-        })?;
+        let translated = translate_llm_output(&cleaned_response, TargetSchema::SubtaskBreakdown)
+            .map_err(|e| {
+                anyhow!("Failed to translate subtasks response: {}. Response was: {}", e, response)
+            })?;
 
         if let Some(error) = translated.get("error") {
             return Err(anyhow!("Subtask translation failed: {:?}", error));
         }
 
         let subtasks: Vec<Subtask> = serde_json::from_value(translated.clone()).map_err(|e| {
-            anyhow!("Failed to deserialize translated subtasks: {}. Translated was: {}", e, translated)
+            anyhow!(
+                "Failed to deserialize translated subtasks: {}. Translated was: {}",
+                e,
+                translated
+            )
         })?;
 
         Ok(subtasks)
@@ -472,16 +505,21 @@ impl IntelliTask {
         }
 
         // Parse JSON response through translator
-        let translated = translate_llm_output(json_str, TargetSchema::PriorityResult).map_err(|e| {
-            anyhow!("Failed to translate priority analysis: {}. Response was: {}", e, json_str)
-        })?;
+        let translated =
+            translate_llm_output(json_str, TargetSchema::PriorityResult).map_err(|e| {
+                anyhow!("Failed to translate priority analysis: {}. Response was: {}", e, json_str)
+            })?;
 
         if let Some(error) = translated.get("error") {
             return Err(anyhow!("Priority translation failed: {:?}", error));
         }
 
         let result: PriorityResult = serde_json::from_value(translated.clone()).map_err(|e| {
-            anyhow!("Failed to deserialize translated priority: {}. Translated was: {}", e, translated)
+            anyhow!(
+                "Failed to deserialize translated priority: {}. Translated was: {}",
+                e,
+                translated
+            )
         })?;
 
         Ok(result
@@ -539,17 +577,27 @@ impl IntelliTask {
         }
 
         // Parse JSON response through translator
-        let translated = translate_llm_output(json_str, TargetSchema::NextTaskSuggestion).map_err(|e| {
-            anyhow!("Failed to translate next task suggestion: {}. Response was: {}", e, json_str)
-        })?;
+        let translated =
+            translate_llm_output(json_str, TargetSchema::NextTaskSuggestion).map_err(|e| {
+                anyhow!(
+                    "Failed to translate next task suggestion: {}. Response was: {}",
+                    e,
+                    json_str
+                )
+            })?;
 
         if let Some(error) = translated.get("error") {
             return Err(anyhow!("Next task translation failed: {:?}", error));
         }
 
-        let suggestion: NextTaskSuggestion = serde_json::from_value(translated.clone()).map_err(|e| {
-            anyhow!("Failed to deserialize translated next task: {}. Translated was: {}", e, translated)
-        })?;
+        let suggestion: NextTaskSuggestion =
+            serde_json::from_value(translated.clone()).map_err(|e| {
+                anyhow!(
+                    "Failed to deserialize translated next task: {}. Translated was: {}",
+                    e,
+                    translated
+                )
+            })?;
 
         Ok(format!("Suggested: {} - {}", suggestion.suggested_task_id, suggestion.reasoning))
     }
@@ -604,7 +652,7 @@ impl IntelliTask {
         Ok(cleaned.trim())
     }
 
-    /// Generate prompt using Ollama
+    /// Generate prompt using LLM
     fn generate(&self, prompt: &str) -> Result<String> {
         self.generate_with_schema(prompt, None)
     }
@@ -623,7 +671,10 @@ impl IntelliTask {
         };
 
         let llm_prompt = Prompt::new(system_prompt, prompt);
-        let completion = self.llm.complete(&llm_prompt)?;
+        let completion = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(async { self.safe_llm.complete_with_recovery(&llm_prompt).await })
+        })?;
 
         // Check if output is empty
         if completion.text.trim().is_empty() {
@@ -787,18 +838,28 @@ impl IntelliTask {
 
         Ok(())
     }
+
+    /// Get error recovery metrics for monitoring
+    pub fn get_error_recovery_metrics(&self) -> crate::llm::error_recovery::RecoveryMetrics {
+        self.safe_llm.get_metrics()
+    }
+
+    /// Reset error recovery state
+    pub fn reset_error_recovery(&self) {
+        self.safe_llm.reset_state();
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::llm::LanguageModel;
-    use crate::models::gguf_engine::GGUFEngine;
 
     // Helper to create a test IntelliTask instance
     fn create_test_intellitask() -> Result<IntelliTask> {
-        let gguf_engine = GGUFEngine::new_test();
-        let llm: Arc<dyn LanguageModel> = Arc::new(gguf_engine);
+        use crate::llm::test::TestLanguageModel;
+        let test_model = TestLanguageModel::predefined("test response");
+        let llm: Arc<dyn LanguageModel> = Arc::new(test_model);
         Ok(IntelliTask::new(llm))
     }
 
@@ -877,10 +938,12 @@ mod tests {
 
     #[test]
     fn test_llm_backend_connection() {
-        // Test that we can create LLM backend
-        let gguf_engine = GGUFEngine::new_test();
+        // Test that we can create Test LLM backend
+        use crate::llm::test::TestLanguageModel;
+        let test_model = TestLanguageModel::predefined("test");
         // If this doesn't panic, the backend is working
-        assert!(true, "GGUFEngine backend should be creatable");
+        assert!(true, "TestLanguageModel backend should be creatable");
+        drop(test_model); // Avoid unused variable warning
     }
 
     #[test]
@@ -911,7 +974,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Only run when Ollama is available
+    #[ignore] // Only run when LLM is available
     fn test_generate_subtasks() {
         let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
@@ -948,7 +1011,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Only run when Ollama is available
+    #[ignore] // Only run when LLM is available
     fn test_analyze_dependencies() {
         let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
@@ -989,7 +1052,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Only run when Ollama is available
+    #[ignore] // Only run when LLM is available
     fn test_prioritize_tasks() {
         let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
@@ -1030,7 +1093,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Only run when Ollama is available
+    #[ignore] // Only run when LLM is available
     fn test_suggest_next_task() {
         let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 
@@ -1071,7 +1134,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Only run when Ollama is available
+    #[ignore] // Only run when LLM is available
     fn test_json_parsing_error_handling() {
         let intellitask = create_test_intellitask().expect("Failed to create IntelliTask instance");
 

@@ -122,12 +122,22 @@ pub fn cmd_task_next(suite: &MemorySuite, _args: MemorySuiteArgs) -> SuiteResult
 pub fn cmd_task_create_dependency(suite: &MemorySuite, args: MemorySuiteArgs) -> SuiteResult {
     let task_id = match args.task_id {
         Some(id) => id,
-        None => return SuiteResult::err("task_create_dependency", "Missing required parameter: task_id"),
+        None => {
+            return SuiteResult::err(
+                "task_create_dependency",
+                "Missing required parameter: task_id",
+            )
+        }
     };
 
     let depends_on_task_id = match args.depends_on_task_id {
         Some(id) => id,
-        None => return SuiteResult::err("task_create_dependency", "Missing required parameter: depends_on_task_id"),
+        None => {
+            return SuiteResult::err(
+                "task_create_dependency",
+                "Missing required parameter: depends_on_task_id",
+            )
+        }
     };
 
     // Validate that both tasks exist
@@ -137,13 +147,19 @@ pub fn cmd_task_create_dependency(suite: &MemorySuite, args: MemorySuiteArgs) ->
     // Check source task exists
     let mut src_check = conn.prepare("SELECT id FROM tasks WHERE id = ?1").unwrap();
     if src_check.query_row([task_id], |_| Ok(())).is_err() {
-        return SuiteResult::err("task_create_dependency", format!("Source task {} not found", task_id));
+        return SuiteResult::err(
+            "task_create_dependency",
+            format!("Source task {} not found", task_id),
+        );
     }
 
     // Check destination task exists
     let mut dst_check = conn.prepare("SELECT id FROM tasks WHERE id = ?1").unwrap();
     if dst_check.query_row([depends_on_task_id], |_| Ok(())).is_err() {
-        return SuiteResult::err("task_create_dependency", format!("Dependency task {} not found", depends_on_task_id));
+        return SuiteResult::err(
+            "task_create_dependency",
+            format!("Dependency task {} not found", depends_on_task_id),
+        );
     }
 
     // Create dependency relationship
@@ -160,7 +176,10 @@ pub fn cmd_task_create_dependency(suite: &MemorySuite, args: MemorySuiteArgs) ->
                 "relationship": "depends_on"
             }),
         ),
-        Err(e) => SuiteResult::err("task_create_dependency", format!("Failed to create dependency: {}", e)),
+        Err(e) => SuiteResult::err(
+            "task_create_dependency",
+            format!("Failed to create dependency: {}", e),
+        ),
     }
 }
 
@@ -170,21 +189,27 @@ pub fn cmd_task_get_graph(suite: &MemorySuite, _args: MemorySuiteArgs) -> SuiteR
     let conn = db.lock().unwrap();
 
     // Get all tasks with their dependencies
-    let mut tasks_stmt = conn.prepare("
+    let mut tasks_stmt = conn
+        .prepare(
+            "
         SELECT t.id, t.goal, t.status, t.priority, t.parent_id
         FROM tasks t
         ORDER BY t.id
-    ").unwrap();
+    ",
+        )
+        .unwrap();
 
-    let task_rows = tasks_stmt.query_map([], |row| {
-        Ok(serde_json::json!({
-            "id": row.get::<_, i64>(0)?,
-            "goal": row.get::<_, String>(1)?,
-            "status": row.get::<_, String>(2)?,
-            "priority": row.get::<_, i32>(3)?,
-            "parent_id": row.get::<_, Option<i64>>(4)?
-        }))
-    }).unwrap();
+    let task_rows = tasks_stmt
+        .query_map([], |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "goal": row.get::<_, String>(1)?,
+                "status": row.get::<_, String>(2)?,
+                "priority": row.get::<_, i32>(3)?,
+                "parent_id": row.get::<_, Option<i64>>(4)?
+            }))
+        })
+        .unwrap();
 
     let mut tasks = Vec::new();
     for task in task_rows {
@@ -192,20 +217,26 @@ pub fn cmd_task_get_graph(suite: &MemorySuite, _args: MemorySuiteArgs) -> SuiteR
     }
 
     // Get all dependencies
-    let mut deps_stmt = conn.prepare("
+    let mut deps_stmt = conn
+        .prepare(
+            "
         SELECT tl.src_id, tl.dst_id, tl.kind
         FROM task_links tl
         WHERE tl.kind = 'depends_on'
         ORDER BY tl.src_id, tl.dst_id
-    ").unwrap();
+    ",
+        )
+        .unwrap();
 
-    let dep_rows = deps_stmt.query_map([], |row| {
-        Ok(serde_json::json!({
-            "source_id": row.get::<_, i64>(0)?,
-            "target_id": row.get::<_, i64>(1)?,
-            "relationship": row.get::<_, String>(2)?
-        }))
-    }).unwrap();
+    let dep_rows = deps_stmt
+        .query_map([], |row| {
+            Ok(serde_json::json!({
+                "source_id": row.get::<_, i64>(0)?,
+                "target_id": row.get::<_, i64>(1)?,
+                "relationship": row.get::<_, String>(2)?
+            }))
+        })
+        .unwrap();
 
     let mut dependencies = Vec::new();
     for dep in dep_rows {
