@@ -160,3 +160,11 @@ models/
 !build.sh
 !install.sh
 !setup.sh
+
+# Internal engineering docs (local only)
+docs-internal/
+*.internal.md
+*_CHECKLIST.md
+*_REPORT.md
+*_AUDIT.md
+*_PLAN.md
