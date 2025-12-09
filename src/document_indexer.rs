@@ -81,6 +81,12 @@ impl Default for IndexerConfig {
                 "so".to_string(),
                 "dylib".to_string(),
                 "a".to_string(),
+                // Database files
+                "db".to_string(),
+                "sqlite".to_string(),
+                "sqlite3".to_string(),
+                // Log files
+                "log".to_string(),
             ],
             max_depth: Some(10), // Limit recursion depth to prevent infinite loops
             max_files: Some(10000), // Limit total files to prevent memory issues

@@ -7,6 +7,7 @@
 //! - `mapping_suite`: Application structure mapping
 //! - `debug_suite`: Debugging, logs, and diagnostics
 
+pub mod code_drift_suite;
 pub mod code_suite;
 pub mod debug_suite;
 pub mod graph_suite;

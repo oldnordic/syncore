@@ -187,9 +187,10 @@ impl MemorySuite {
 
             // Agent commands (delegated to agent_commands module)
             // Agent commands - temporarily disabled for testing
-            "agent_send" | "agent_recv" | "agent_poll" | "agent_register" | "agent_list" | "agent_status" | "agent_task" | "agent_result" => {
+            "agent_send" | "agent_recv" | "agent_poll" | "agent_register" | "agent_list"
+            | "agent_status" | "agent_task" | "agent_result" => {
                 SuiteResult::err(&args.command, "Agent commands temporarily disabled for testing")
-            },
+            }
             // IntelliTask commands (delegated to intellitask_commands module)
             "intellitask_list" => intellitask_commands::cmd_intellitask_list(self, args),
             "intellitask_get" => intellitask_commands::cmd_intellitask_get(self, args),

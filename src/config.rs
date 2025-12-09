@@ -200,6 +200,12 @@ fn default_excluded_dirs() -> Vec<String> {
         "cmake-build-release".to_string(),
         // Cargo registry
         ".cargo".to_string(),
+        // Database files (by extension)
+        "*.db".to_string(),
+        "*.sqlite".to_string(),
+        "*.sqlite3".to_string(),
+        // Log files (by extension)
+        "*.log".to_string(),
     ]
 }
 
@@ -253,6 +259,62 @@ fn default_dimensions() -> usize {
 }
 fn default_batch_size() -> usize {
     32
+}
+
+/// Graph-specific embeddings configuration for GraphBERT integration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphEmbeddingsConfig {
+    /// Graph embedding model name (e.g., "graphbert-base", "graphbert-large")
+    #[serde(default = "default_graph_model_name")]
+    pub model_name: String,
+
+    /// Path to GraphBERT model file (.onnx for future ONNX integration)
+    #[serde(default = "default_graph_model_path")]
+    pub model_path: String,
+
+    /// Graph embedding dimensions (should match model output)
+    #[serde(default = "default_graph_dimensions")]
+    pub dimensions: usize,
+
+    /// Use ONNX Runtime for GraphBERT inference (future feature)
+    #[serde(default = "default_graph_use_onnx")]
+    pub use_onnx: bool,
+
+    /// Batch size for GraphBERT processing
+    #[serde(default = "default_graph_batch_size")]
+    pub batch_size: usize,
+}
+
+fn default_graph_model_name() -> String {
+    "graphbert-base".to_string()
+}
+
+fn default_graph_model_path() -> String {
+    "models/graphbert-base.onnx".to_string()
+}
+
+fn default_graph_dimensions() -> usize {
+    384
+}
+
+fn default_graph_use_onnx() -> bool {
+    false // Will be true when ONNX integration is implemented
+}
+
+fn default_graph_batch_size() -> usize {
+    16
+}
+
+impl Default for GraphEmbeddingsConfig {
+    fn default() -> Self {
+        Self {
+            model_name: default_graph_model_name(),
+            model_path: default_graph_model_path(),
+            dimensions: default_graph_dimensions(),
+            use_onnx: default_graph_use_onnx(),
+            batch_size: default_graph_batch_size(),
+        }
+    }
 }
 
 impl Default for EmbeddingsConfig {
@@ -449,6 +511,8 @@ pub struct SyncoreConfig {
     pub indexing: IndexingConfig,
     #[serde(default)]
     pub embeddings: EmbeddingsConfig,
+    #[serde(default)]
+    pub graph_embeddings: GraphEmbeddingsConfig,
     #[serde(default)]
     pub vector_search: VectorSearchConfig,
     #[serde(default)]
@@ -689,6 +753,7 @@ impl SyncoreConfig {
         let components: Vec<&str> =
             normalized.split(['/', '\\']).filter(|s| !s.is_empty()).collect();
 
+        // Check directory exclusions
         for component in &components {
             for excluded in &self.indexing.excluded_dirs {
                 if *component == excluded {
@@ -697,6 +762,14 @@ impl SyncoreConfig {
                 // Handle cmake-build-* variants
                 if excluded.starts_with("cmake-build-") && component.starts_with("cmake-build-") {
                     return true;
+                }
+                // Handle file pattern exclusions (e.g., "*.db", "*.sqlite", "*.log")
+                if excluded.starts_with("*.") && component.contains('.') {
+                    let extension = component.split('.').last().unwrap_or("");
+                    let pattern_ext = excluded.trim_start_matches('*').trim_start_matches('.');
+                    if extension.to_lowercase() == pattern_ext.to_lowercase() {
+                        return true;
+                    }
                 }
             }
         }
@@ -802,9 +875,243 @@ mod tests {
     }
 
     #[test]
+    fn test_should_exclude_database_and_log_files() {
+        let config = SyncoreConfig::default();
+
+        // Test database files are excluded (new functionality)
+        assert!(config.should_exclude_path("data/app.db"));
+        assert!(config.should_exclude_path("cache/cache.sqlite"));
+        assert!(config.should_exclude_path("backup/main.sqlite3"));
+        assert!(config.should_exclude_path("./logs/debug.db"));
+
+        // Test log files are excluded (new functionality)
+        assert!(config.should_exclude_path("logs/app.log"));
+        assert!(config.should_exclude_path("var/log/system.log"));
+        assert!(config.should_exclude_path("./error.log"));
+
+        // Test that source files are still allowed
+        assert!(!config.should_exclude_path("src/main.rs"));
+        assert!(!config.should_exclude_path("lib/app.py"));
+
+        // Test edge cases
+        assert!(config.should_exclude_path("app.db.log")); // Should match *.log
+        assert!(!config.should_exclude_path("backup.sqlite.old")); // Should NOT match exact pattern
+        assert!(config.should_exclude_path("my.data.db/file.txt")); // Should match *.db
+        assert!(!config.should_exclude_path("my.data/db/file.txt")); // Should NOT match
+
+        // Test case insensitivity for extensions
+        assert!(config.should_exclude_path("ERROR.LOG"));
+        assert!(config.should_exclude_path("DATABASE.DB"));
+    }
+
+    #[test]
     fn test_legacy_config_compat() {
         let config = Config::default();
         assert_eq!(config.socket_path, "/tmp/syncore.sock");
         assert_eq!(config.db_path, "syncore.db");
+    }
+}
+
+// ========================
+// PROJECT ISOLATION LOGIC
+// ========================
+
+/// Project context for isolating queries to specific codebases
+#[derive(Debug, Clone)]
+pub struct ProjectContext {
+    /// Project label (e.g., "syncore", "odincode")
+    pub project_label: String,
+    /// Root path of the project
+    pub project_root: std::path::PathBuf,
+    /// Derived namespace (typically same as project_label)
+    pub namespace: String,
+}
+
+impl ProjectContext {
+    /// Create ProjectContext with automatic project detection
+    pub fn from_user_label(user_label: Option<&str>) -> Option<Self> {
+        let label = get_project_label(user_label)?;
+        let root = get_project_root()?;
+
+        Some(Self {
+            project_label: label.clone(),
+            project_root: root,
+            namespace: label, // Derive namespace from project_label
+        })
+    }
+
+    /// Create ProjectContext with automatic detection (no user input)
+    pub fn auto() -> Option<Self> {
+        Self::from_user_label(None)
+    }
+}
+
+/// Get project label with automatic detection
+/// Returns: user-provided label → auto-detected label → None
+pub fn get_project_label(user_label: Option<&str>) -> Option<String> {
+    // 1. Use user-provided label if present (highest priority)
+    if let Some(label) = user_label {
+        if !label.trim().is_empty() {
+            return Some(label.trim().to_string());
+        }
+    }
+
+    // 2. Auto-detect from current working directory (default behavior)
+    detect_project_label_from_current_dir()
+}
+
+/// Get project root as the current working directory
+/// This is simpler and more reliable than trying to detect project root
+pub fn get_project_root() -> Option<std::path::PathBuf> {
+    std::env::current_dir().ok()
+}
+
+/// Detect project label from file path by extracting the folder name
+/// Generic implementation that works for ANY project name, not hardcoded ones
+pub fn detect_project_label_from_path(path: &str) -> Option<String> {
+    if path.is_empty() {
+        return None;
+    }
+
+    // Convert to Path for proper path handling
+    let path_buf = std::path::Path::new(path);
+
+    // Determine if this looks like a file path or directory path
+    // Common source file extensions that indicate this is a file
+    let source_file_extensions = ["rs", "py", "js", "jsx", "ts", "tsx", "java", "cpp", "c", "h", "cs", "php", "rb", "go", "rust"];
+
+    // Also check for common source file names without extensions
+    let source_file_names = ["main", "index", "app", "lib", "mod"];
+
+    let path_str = path.to_lowercase();
+    let is_file = path_buf.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| source_file_extensions.contains(&ext))
+        .unwrap_or(false) ||
+        path_buf.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| source_file_names.contains(&name))
+        .unwrap_or(false);
+
+    let project_dir = if is_file {
+        // Path ends with a source file, go up one level to get the containing directory
+        path_buf.parent()?
+    } else {
+        // Path is a directory (or unknown), use it directly
+        path_buf
+    };
+
+    // Get the file name (last component) of the path
+    let project_name = project_dir.file_name()?;
+
+    // Convert to string
+    let project_str = project_name.to_string_lossy();
+
+    // Return Some if not empty, None if empty
+    if project_str.is_empty() {
+        None
+    } else {
+        Some(project_str.to_string())
+    }
+}
+
+/// Detect project label from current working directory
+pub fn detect_project_label_from_current_dir() -> Option<String> {
+    match std::env::current_dir() {
+        Ok(current_dir) => detect_project_label_from_path(&current_dir.to_string_lossy()),
+        Err(_) => None,
+    }
+}
+
+#[cfg(test)]
+mod project_isolation_tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_project_label_from_path() {
+        // Test generic project detection - should extract folder name from any path
+        assert_eq!(
+            detect_project_label_from_path("/home/user/projects/syncore/src/main.rs"),
+            Some("syncore".to_string())
+        );
+
+        assert_eq!(
+            detect_project_label_from_path("/home/user/projects/odincode/lib/app.rs"),
+            Some("odincode".to_string())
+        );
+
+        assert_eq!(
+            detect_project_label_from_path("/home/user/projects/my-cool-app/src/main.rs"),
+            Some("my-cool-app".to_string())
+        );
+
+        // Test case sensitivity - should preserve original case
+        assert_eq!(
+            detect_project_label_from_path("/home/user/Projects/SynCore/src/main.rs"),
+            Some("SynCore".to_string())
+        );
+
+        assert_eq!(
+            detect_project_label_from_path("/home/user/projects/My-App/src/main.rs"),
+            Some("My-App".to_string())
+        );
+
+        // Test root-level paths
+        assert_eq!(
+            detect_project_label_from_path("/home/user/projects/syncore"),
+            Some("syncore".to_string())
+        );
+
+        assert_eq!(
+            detect_project_label_from_path("my-project"),
+            Some("my-project".to_string())
+        );
+
+        // Test edge cases
+        assert_eq!(
+            detect_project_label_from_path("src"), // No parent directory
+            None
+        );
+
+        assert_eq!(
+            detect_project_label_from_path("/"), // Root directory
+            None
+        );
+
+        assert_eq!(
+            detect_project_label_from_path(""), // Empty path
+            None
+        );
+    }
+
+    #[test]
+    fn test_detect_project_label_from_current_dir() {
+        // Test current directory detection
+        let project_label = detect_project_label_from_current_dir();
+
+        // We should detect "syncore" since we're running from within the syncore project
+        assert_eq!(project_label, Some("syncore".to_string()));
+    }
+
+    #[test]
+    fn test_project_label_from_env() {
+        // Test that project label is auto-detected from current directory
+        // We should be running from within the syncore project
+        let label = get_project_label(None);
+        assert!(label.is_some());
+        // Should detect "syncore" since we're in the syncore project directory
+        assert_eq!(label, Some("syncore".to_string()));
+    }
+
+    #[test]
+    fn test_project_root_from_env() {
+        // Test that project root is auto-detected from current directory
+        let root = get_project_root();
+        assert!(root.is_some());
+
+        // The detected root should be a valid directory
+        let root_path = root.unwrap();
+        assert!(root_path.exists());
+        assert!(root_path.is_dir());
     }
 }

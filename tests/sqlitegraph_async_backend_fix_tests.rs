@@ -10,10 +10,10 @@
 //! - No async blocking violations
 
 use std::sync::Arc;
-use tempfile::tempdir;
 use syncore::config::{GraphBackend as ConfigBackend, GraphConfig};
 use syncore::graph::backend_selector::create_graph_backend;
 use syncore::sqlitegraph::async_sqlite_backend::{AsyncSQLiteBackend, SyncGraphBackend};
+use tempfile::tempdir;
 use tokio::runtime::Handle;
 
 /// Create a test AsyncSQLiteBackend for testing
@@ -122,8 +122,10 @@ async fn test_join_error_mapping() {
 
     // Error should contain context about the operation
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("Failed to execute execute_query") ||
-               error_msg.contains("invalid") ||
-               error_msg.contains("syntax"),
-               "Error should contain meaningful context");
+    assert!(
+        error_msg.contains("Failed to execute execute_query")
+            || error_msg.contains("invalid")
+            || error_msg.contains("syntax"),
+        "Error should contain meaningful context"
+    );
 }

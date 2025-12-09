@@ -4,14 +4,15 @@
 //! They validate that both handlers use unified reasoning infrastructure correctly.
 
 use anyhow::Result;
-use syncore::mcp_server::server::MCPServerHandler;
-use syncore::mcp_server::types::{RagGraphMultihopRequest, RagGraphQueryRequest};
-use syncore::raggraph::{RagGraphConfig, RaggraphBackendMode};
-use syncore::config::{SyncoreConfig, GraphBackend};
-use syncore::code_graph::{RagGraphAPI, QueryScope};
-use std::sync::Arc;
 use rmcp::model::{CallToolResult, Content};
 use serde_json::json;
+use std::sync::Arc;
+use syncore::code_graph::rag_graph::RagGraphQueryRequest;
+use syncore::code_graph::{QueryScope, RagGraphAPI};
+use syncore::config::{GraphBackend, SyncoreConfig};
+use syncore::mcp_server::server::MCPServerHandler;
+use syncore::mcp_server::types::{RagGraphMultihopRequest, RagGraphQueryInput};
+use syncore::raggraph::{RagGraphConfig, RaggraphBackendMode};
 
 /// Test that raggraph_multihop uses unified backend selection
 #[tokio::test]
@@ -19,9 +20,12 @@ async fn test_raggraph_multihop_uses_unified_backend_selection() -> Result<()> {
     let state = Arc::new(syncore::router::SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    // Test request with seed nodes
+    // Test request with seed nodes (backward compatible - optional fields default to None)
     let request = RagGraphMultihopRequest {
         seed_nodes: vec![1, 2, 3],
+        max_hops: None,
+        max_entities: None,
+        decay_factor: None,
     };
 
     // Before migration: This should use complex manual backend selection
@@ -53,6 +57,9 @@ async fn test_raggraph_multihop_backward_compatibility() -> Result<()> {
     // Test with empty seed nodes
     let request = RagGraphMultihopRequest {
         seed_nodes: vec![],
+        max_hops: None,
+        max_entities: None,
+        decay_factor: None,
     };
 
     let result = handler.raggraph_multihop(syncore::mcp_server::Parameters(request)).await;
@@ -67,7 +74,10 @@ async fn test_raggraph_multihop_backward_compatibility() -> Result<()> {
     // Verify exact field names match pre-migration format
     assert!(response.get("top_nodes").is_array(), "top_nodes should be array");
     assert!(response.get("reasoning_path").is_array(), "reasoning_path should be array");
-    assert!(response.get("context_embedding_dim").is_number(), "context_embedding_dim should be number");
+    assert!(
+        response.get("context_embedding_dim").is_number(),
+        "context_embedding_dim should be number"
+    );
 
     Ok(())
 }
@@ -79,15 +89,14 @@ async fn test_raggraph_multihop_unified_request_parsing() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Test with various seed node configurations
-    let test_cases = vec![
-        vec![1],
-        vec![1, 5, 10],
-        vec![100, 200, 300, 400],
-    ];
+    let test_cases = vec![vec![1], vec![1, 5, 10], vec![100, 200, 300, 400]];
 
     for seed_nodes in test_cases {
         let request = RagGraphMultihopRequest {
             seed_nodes: seed_nodes.clone(),
+            max_hops: None,
+            max_entities: None,
+            decay_factor: None,
         };
 
         let result = handler.raggraph_multihop(syncore::mcp_server::Parameters(request)).await;
@@ -197,7 +206,8 @@ async fn test_code_graph_fusion_query_scope_parsing_preserved() -> Result<()> {
             local_root: None,
         };
 
-        let result = handler.code_graph_fusion_query(syncore::mcp_server::Parameters(request)).await;
+        let result =
+            handler.code_graph_fusion_query(syncore::mcp_server::Parameters(request)).await;
 
         assert!(result.is_ok(), "code_graph_fusion_query should handle scope: {}", input_scope);
 
@@ -210,7 +220,10 @@ async fn test_code_graph_fusion_query_scope_parsing_preserved() -> Result<()> {
         // Should preserve scope parsing behavior
         if let Some(applied_scope) = response.get("applied_scope") {
             // Scope parsing should work consistently
-            assert!(applied_scope.is_string() || applied_scope.is_null(), "applied_scope should be valid");
+            assert!(
+                applied_scope.is_string() || applied_scope.is_null(),
+                "applied_scope should be valid"
+            );
         }
     }
 
@@ -226,9 +239,13 @@ async fn test_unified_error_handling() -> Result<()> {
     // Test raggraph_multihop error handling
     let malformed_multihop = RagGraphMultihopRequest {
         seed_nodes: vec![999999], // Non-existent entity ID
+        max_hops: None,
+        max_entities: None,
+        decay_factor: None,
     };
 
-    let multihop_result = handler.raggraph_multihop(syncore::mcp_server::Parameters(malformed_multihop)).await;
+    let multihop_result =
+        handler.raggraph_multihop(syncore::mcp_server::Parameters(malformed_multihop)).await;
 
     // Should use unified error formatting, not custom error messages
     assert!(multihop_result.is_ok(), "Should return error result, not panic");
@@ -244,7 +261,8 @@ async fn test_unified_error_handling() -> Result<()> {
         local_root: None,
     };
 
-    let fusion_result = handler.code_graph_fusion_query(syncore::mcp_server::Parameters(malformed_fusion)).await;
+    let fusion_result =
+        handler.code_graph_fusion_query(syncore::mcp_server::Parameters(malformed_fusion)).await;
 
     // Should use unified error formatting
     assert!(fusion_result.is_ok(), "Should return error result, not panic");
@@ -283,10 +301,8 @@ async fn test_deterministic_scoring_ranking() -> Result<()> {
         assert!(result.is_ok(), "All queries should succeed");
     }
 
-    let response_texts: Vec<String> = results
-        .into_iter()
-        .map(|r| r.unwrap().content[0].text.as_ref().unwrap().clone())
-        .collect();
+    let response_texts: Vec<String> =
+        results.into_iter().map(|r| r.unwrap().content[0].text.as_ref().unwrap().clone()).collect();
 
     // All responses should be identical
     for i in 1..response_texts.len() {
@@ -313,9 +329,13 @@ async fn test_sqlitegraph_first_execution() -> Result<()> {
     // Test multihop with SQLiteGraph preference
     let multihop_request = RagGraphMultihopRequest {
         seed_nodes: vec![1, 2],
+        max_hops: None,
+        max_entities: None,
+        decay_factor: None,
     };
 
-    let multihop_result = handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await;
+    let multihop_result =
+        handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await;
     assert!(multihop_result.is_ok(), "raggraph_multihop should work with SQLiteGraph");
 
     // Test fusion query with SQLiteGraph preference
@@ -329,7 +349,8 @@ async fn test_sqlitegraph_first_execution() -> Result<()> {
         local_root: None,
     };
 
-    let fusion_result = handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await;
+    let fusion_result =
+        handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await;
     assert!(fusion_result.is_ok(), "code_graph_fusion_query should work with SQLiteGraph");
 
     // This test will FAIL before migration if handlers don't respect SQLiteGraph-first preference
@@ -356,9 +377,13 @@ async fn test_neo4j_fallback_functional() -> Result<()> {
     // Test multihop Neo4j fallback
     let multihop_request = RagGraphMultihopRequest {
         seed_nodes: vec![1],
+        max_hops: None,
+        max_entities: None,
+        decay_factor: None,
     };
 
-    let multihop_result = handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await;
+    let multihop_result =
+        handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await;
 
     // Should gracefully handle Neo4j unavailability and fall back to SQLiteGraph
     assert!(multihop_result.is_ok(), "raggraph_multihop should handle Neo4j fallback");
@@ -374,7 +399,8 @@ async fn test_neo4j_fallback_functional() -> Result<()> {
         local_root: None,
     };
 
-    let fusion_result = handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await;
+    let fusion_result =
+        handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await;
 
     // Should gracefully handle Neo4j unavailability and fall back to SQLiteGraph
     assert!(fusion_result.is_ok(), "code_graph_fusion_query should handle Neo4j fallback");
@@ -405,21 +431,18 @@ fn test_handler_file_size_constraints() -> Result<()> {
 
     // Find raggraph_multihop handler
     let multihop_start = server_content.find("async fn raggraph_multihop").unwrap();
-    let multihop_end = server_content[multihop_start..].find("async fn").unwrap_or_else(|| {
-        server_content[multihop_start..].find("}\n\n").unwrap()
-    });
-    let multihop_loc = server_content[multihop_start..multihop_start + multihop_end]
-        .lines()
-        .count();
+    let multihop_end = server_content[multihop_start..]
+        .find("async fn")
+        .unwrap_or_else(|| server_content[multihop_start..].find("}\n\n").unwrap());
+    let multihop_loc =
+        server_content[multihop_start..multihop_start + multihop_end].lines().count();
 
     // Find code_graph_fusion_query handler
     let fusion_start = server_content.find("async fn code_graph_fusion_query").unwrap();
-    let fusion_end = server_content[fusion_start..].find("async fn").unwrap_or_else(|| {
-        server_content[fusion_start..].find("}\n\n").unwrap()
-    });
-    let fusion_loc = server_content[fusion_start..fusion_start + fusion_end]
-        .lines()
-        .count();
+    let fusion_end = server_content[fusion_start..]
+        .find("async fn")
+        .unwrap_or_else(|| server_content[fusion_start..].find("}\n\n").unwrap());
+    let fusion_loc = server_content[fusion_start..fusion_start + fusion_end].lines().count();
 
     // Before migration: These handlers are likely > 150 LOC each
     // After migration: Should be < 50 LOC each using unified infrastructure

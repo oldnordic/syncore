@@ -226,7 +226,7 @@ pub async fn execute_graph_relate(
     let from_label = params.get("from_label").and_then(|v| v.as_str()).unwrap_or("Node");
     let to_label = params.get("to_label").and_then(|v| v.as_str()).unwrap_or("Node");
 
-    match neo4j.create_relationship(from_label, from_id, to_label, to_id, rel_type).await {
+    match neo4j.create_relationship(from_id, to_id, rel_type, std::collections::HashMap::new()).await {
         Ok(_) => Ok(wrap_success(
             "graph_relate",
             json!({

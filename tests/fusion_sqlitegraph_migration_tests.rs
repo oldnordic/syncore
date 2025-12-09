@@ -17,12 +17,12 @@ use tempfile::TempDir;
 
 use crate::agent::current_timestamp_ms;
 use crate::code_graph::{
-    CodeEntity, CodeGraph, EntityType, FusionReasoning, FusionRouter, FusionMode,
-    RagGraphAPI, QueryScope
+    CodeEntity, CodeGraph, EntityType, FusionMode, FusionReasoning, FusionRouter, QueryScope,
+    RagGraphAPI,
 };
+use crate::config::{GraphBackend as ConfigGraphBackend, GraphConfig};
 use crate::graph::{GraphBackend, SQLiteGraphBackend};
-use crate::vector::{VectorStore, StubEmbeddings};
-use crate::config::{GraphConfig, GraphBackend as ConfigGraphBackend};
+use crate::vector::{StubEmbeddings, VectorStore};
 
 /// Test setup for SQLiteGraph backend with sample data
 struct FusionTestSetup {
@@ -46,9 +46,8 @@ impl FusionTestSetup {
         let code_graph = Arc::new(CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?);
 
         // Create SQLiteGraph backend
-        let sqlite_backend = Arc::new(
-            SQLiteGraphBackend::new(db_path.to_str().unwrap(), "test_namespace").await?
-        );
+        let sqlite_backend =
+            Arc::new(SQLiteGraphBackend::new(db_path.to_str().unwrap(), "test_namespace").await?);
 
         let setup = Self {
             temp_dir,
@@ -83,7 +82,6 @@ impl FusionTestSetup {
                 updated_at: timestamp,
                 ..Default::default()
             },
-
             // Helper function
             CodeEntity {
                 id: Some(2),
@@ -98,7 +96,6 @@ impl FusionTestSetup {
                 updated_at: timestamp,
                 ..Default::default()
             },
-
             // Data structure
             CodeEntity {
                 id: Some(3),
@@ -113,7 +110,6 @@ impl FusionTestSetup {
                 updated_at: timestamp,
                 ..Default::default()
             },
-
             // Import module
             CodeEntity {
                 id: Some(4),
@@ -166,7 +162,7 @@ mod fusion_reasoning_tests {
         // Create FusionReasoning with SQLiteGraph backend
         let fusion = FusionReasoning::new(
             setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
-            setup.vector_store.clone()
+            setup.vector_store.clone(),
         );
 
         // Test basic reasoning
@@ -195,16 +191,12 @@ mod fusion_reasoning_tests {
 
         let fusion = FusionReasoning::new(
             setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
-            setup.vector_store.clone()
+            setup.vector_store.clone(),
         );
 
         // Test the public API with different queries
-        let test_queries = vec![
-            "main function",
-            "helper function",
-            "UserStruct definition",
-            "import statements",
-        ];
+        let test_queries =
+            vec!["main function", "helper function", "UserStruct definition", "import statements"];
 
         for query in test_queries {
             let results = fusion.reason(query, 5)?;
@@ -228,7 +220,7 @@ mod fusion_reasoning_tests {
 
         let fusion = FusionReasoning::new(
             setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
-            setup.vector_store.clone()
+            setup.vector_store.clone(),
         );
 
         // Run multiple times and verify deterministic results
@@ -260,7 +252,10 @@ mod fusion_reasoning_tests {
         assert_eq!(router.select_mode("src/main.rs"), FusionMode::Simple);
 
         // Test reasoning keywords → Reasoning mode
-        assert_eq!(router.select_mode("trace dependency from main to utils"), FusionMode::Reasoning);
+        assert_eq!(
+            router.select_mode("trace dependency from main to utils"),
+            FusionMode::Reasoning
+        );
         assert_eq!(router.select_mode("show path from function to struct"), FusionMode::Reasoning);
 
         // Test semantic keywords → Attention mode
@@ -285,7 +280,7 @@ mod raggraph_api_fusion_tests {
         // Create RagGraphAPI with SQLiteGraph backend
         let api = RagGraphAPI::new(
             setup.code_graph.clone(),
-            setup.sqlite_backend.clone() as Arc<dyn GraphBackend>
+            setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
         );
 
         // Test fusion query with different mode hints
@@ -296,15 +291,9 @@ mod raggraph_api_fusion_tests {
         ];
 
         for (query, mode_hint, top_k) in test_cases {
-            let response = api.query_with_mode_hint(
-                query,
-                None,
-                mode_hint,
-                top_k,
-                QueryScope::Global,
-                None,
-                None
-            ).await?;
+            let response = api
+                .query_with_mode_hint(query, None, mode_hint, top_k, QueryScope::Global, None, None)
+                .await?;
 
             assert!(!response.entities.is_empty(), "Query should return results for: {}", query);
 
@@ -314,8 +303,12 @@ mod raggraph_api_fusion_tests {
 
             // Check entity ordering by relevance score
             let mut sorted_entities = response.entities.clone();
-            sorted_entities.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap());
-            assert_eq!(response.entities, sorted_entities, "Entities should be sorted by relevance");
+            sorted_entities
+                .sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap());
+            assert_eq!(
+                response.entities, sorted_entities,
+                "Entities should be sorted by relevance"
+            );
         }
 
         Ok(())
@@ -327,28 +320,16 @@ mod raggraph_api_fusion_tests {
 
         let api = RagGraphAPI::new(
             setup.code_graph.clone(),
-            setup.sqlite_backend.clone() as Arc<dyn GraphBackend>
+            setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
         );
 
         // Test different scopes
         let query = "main";
-        let scopes = vec![
-            QueryScope::Local,
-            QueryScope::Project,
-            QueryScope::Workspace,
-            QueryScope::Global,
-        ];
+        let scopes =
+            vec![QueryScope::Local, QueryScope::Project, QueryScope::Workspace, QueryScope::Global];
 
         for scope in scopes {
-            let response = api.query_with_scope(
-                query,
-                None,
-                None,
-                5,
-                scope,
-                None,
-                None
-            ).await?;
+            let response = api.query_with_scope(query, None, None, 5, scope, None, None).await?;
 
             // Scope should be properly applied
             assert!(response.applied_scope.is_fully_qualified());
@@ -378,19 +359,13 @@ mod mcp_integration_tests {
         // Create API as would be done in MCP server
         let api = RagGraphAPI::new(
             setup.code_graph.clone(),
-            setup.sqlite_backend.clone() as Arc<dyn GraphBackend>
+            setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
         );
 
         // Execute query as would be done in MCP server
-        let response = api.query_with_scope(
-            query,
-            Some("test_namespace"),
-            mode_hint,
-            top_k,
-            scope,
-            None,
-            None
-        ).await?;
+        let response = api
+            .query_with_scope(query, Some("test_namespace"), mode_hint, top_k, scope, None, None)
+            .await?;
 
         // Verify MCP response structure
         assert!(!response.entities.is_empty(), "MCP query should return results");
@@ -416,8 +391,12 @@ mod mcp_integration_tests {
         match graph_config.backend {
             ConfigGraphBackend::SqliteGraph => {
                 // Should be able to create SQLiteGraph backend
-                let backend = crate::graph::backend_selector::create_default_graph_backend(&graph_config).await?;
-                assert!(backend.namespace().contains("test") || backend.namespace().contains("default"));
+                let backend =
+                    crate::graph::backend_selector::create_default_graph_backend(&graph_config)
+                        .await?;
+                assert!(
+                    backend.namespace().contains("test") || backend.namespace().contains("default")
+                );
             }
             ConfigGraphBackend::Neo4j => {
                 // Should handle Neo4j configuration gracefully
@@ -439,7 +418,7 @@ mod performance_validation_tests {
 
         let fusion = FusionReasoning::new(
             setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
-            setup.vector_store.clone()
+            setup.vector_store.clone(),
         );
 
         // Measure performance characteristics
@@ -467,7 +446,7 @@ mod performance_validation_tests {
 
         let fusion = FusionReasoning::new(
             setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
-            setup.vector_store.clone()
+            setup.vector_store.clone(),
         );
 
         // Test scalability with different k values
@@ -501,7 +480,7 @@ async fn test_complete_sqlitegraph_fusion_workflow() -> Result<()> {
     // 1. Create FusionReasoning with SQLiteGraph backend
     let fusion = FusionReasoning::new(
         setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
-        setup.vector_store.clone()
+        setup.vector_store.clone(),
     );
 
     // 2. Perform fusion reasoning
@@ -511,27 +490,32 @@ async fn test_complete_sqlitegraph_fusion_workflow() -> Result<()> {
     // 3. Create RagGraphAPI with same backend
     let api = RagGraphAPI::new(
         setup.code_graph.clone(),
-        setup.sqlite_backend.clone() as Arc<dyn GraphBackend>
+        setup.sqlite_backend.clone() as Arc<dyn GraphBackend>,
     );
 
     // 4. Perform API fusion query
-    let api_response = api.query_with_mode_hint(
-        "main function and its dependencies",
-        Some("test_namespace"),
-        Some("reasoning"),
-        8,
-        QueryScope::Global,
-        None,
-        None
-    ).await?;
+    let api_response = api
+        .query_with_mode_hint(
+            "main function and its dependencies",
+            Some("test_namespace"),
+            Some("reasoning"),
+            8,
+            QueryScope::Global,
+            None,
+            None,
+        )
+        .await?;
 
     println!("RagGraph API returned {} entities", api_response.entities.len());
 
     // 5. Verify both components work with SQLiteGraph backend
     // Note: Results may differ due to different algorithms, but both should work
-    assert!(api_response.entities.is_empty() || reasoning_results.is_empty() ||
-            api_response.entities.len() > 0 && reasoning_results.len() > 0,
-            "At least one component should return results");
+    assert!(
+        api_response.entities.is_empty()
+            || reasoning_results.is_empty()
+            || api_response.entities.len() > 0 && reasoning_results.len() > 0,
+        "At least one component should return results"
+    );
 
     // 6. Verify backend consistency - both use the same SQLiteGraph backend
     let backend_namespace = setup.sqlite_backend.namespace();

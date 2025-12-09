@@ -10,16 +10,16 @@
 //! - No deadlocks
 //! - Adapter correctly handles 10, 50, 100 concurrent queries
 
+use anyhow::{anyhow, Result};
 use std::sync::{Arc, Mutex};
-use tempfile::tempdir;
 use syncore::config::{GraphBackend as ConfigBackend, GraphConfig};
-use syncore::graph::{GraphBackend, backend_selector::create_graph_backend};
+use syncore::graph::{backend_selector::create_graph_backend, GraphBackend};
 use syncore::raggraph::{
-    RagGraphConfig, RagQuery, HopGraphTransformer, RagGraphResult,
-    SQLiteGraphStorageAdapter, StorageAdapter,
+    HopGraphTransformer, RagGraphConfig, RagGraphResult, RagQuery, SQLiteGraphStorageAdapter,
+    StorageAdapter,
 };
 use syncore::vector::traits::VectorIndex;
-use anyhow::{Result, anyhow};
+use tempfile::tempdir;
 
 /// Mock VectorIndex for testing
 struct MockVectorIndex {
@@ -65,17 +65,22 @@ async fn create_test_components() -> (Arc<dyn StorageAdapter>, Arc<dyn GraphBack
     // Create Mock VectorIndex with test data
     let vector_index = Arc::new(Mutex::new(MockVectorIndex {
         results: vec![
-            (1, 0.95), (2, 0.90), (3, 0.85), (4, 0.80), (5, 0.75),
-            (6, 0.70), (7, 0.65), (8, 0.60), (9, 0.55), (10, 0.50),
+            (1, 0.95),
+            (2, 0.90),
+            (3, 0.85),
+            (4, 0.80),
+            (5, 0.75),
+            (6, 0.70),
+            (7, 0.65),
+            (8, 0.60),
+            (9, 0.55),
+            (10, 0.50),
         ],
     }));
 
     // Create SQLiteGraphStorageAdapter - this is what currently has blocking issues
-    let storage_adapter = SQLiteGraphStorageAdapter::new(
-        vector_index,
-        graph_backend.clone(),
-        384,
-    ).expect("Failed to create SQLiteGraphStorageAdapter");
+    let storage_adapter = SQLiteGraphStorageAdapter::new(vector_index, graph_backend.clone(), 384)
+        .expect("Failed to create SQLiteGraphStorageAdapter");
 
     (Arc::new(storage_adapter), graph_backend)
 }
@@ -128,7 +133,10 @@ async fn test_raggraph_multihop_with_sqliteasync_real_mode() {
     let seed_nodes = vec![1, 2, 3];
     let result = transformer.multi_hop_reasoning(&seed_nodes);
 
-    assert!(result.is_ok(), "HopGraphTransformer with SQLiteGraph should succeed after async façade");
+    assert!(
+        result.is_ok(),
+        "HopGraphTransformer with SQLiteGraph should succeed after async façade"
+    );
 
     let hop_result = result.unwrap();
     assert!(!hop_result.top_nodes.is_empty(), "Should return top nodes");
@@ -156,9 +164,8 @@ async fn test_concurrent_raggraph_queries_10_concurrent() {
         let transformer_clone = transformer.clone();
         let seed_nodes = vec![i + 1, i + 2, i + 3];
 
-        let handle = tokio::spawn(async move {
-            transformer_clone.multi_hop_reasoning(&seed_nodes)
-        });
+        let handle =
+            tokio::spawn(async move { transformer_clone.multi_hop_reasoning(&seed_nodes) });
         handles.push(handle);
     }
 
@@ -199,9 +206,8 @@ async fn test_concurrent_raggraph_queries_50_concurrent() {
         let transformer_clone = transformer.clone();
         let seed_nodes = vec![(i % 10) + 1];
 
-        let handle = tokio::spawn(async move {
-            transformer_clone.multi_hop_reasoning(&seed_nodes)
-        });
+        let handle =
+            tokio::spawn(async move { transformer_clone.multi_hop_reasoning(&seed_nodes) });
         handles.push(handle);
     }
 
@@ -242,9 +248,8 @@ async fn test_concurrent_raggraph_queries_100_concurrent() {
         let transformer_clone = transformer.clone();
         let seed_nodes = vec![(i % 5) + 1];
 
-        let handle = tokio::spawn(async move {
-            transformer_clone.multi_hop_reasoning(&seed_nodes)
-        });
+        let handle =
+            tokio::spawn(async move { transformer_clone.multi_hop_reasoning(&seed_nodes) });
         handles.push(handle);
     }
 
@@ -297,9 +302,8 @@ async fn test_no_runtime_blocking_under_load() {
         let transformer_clone = transformer.clone();
         let seed_nodes = vec![i + 1];
 
-        let handle = tokio::spawn(async move {
-            transformer_clone.multi_hop_reasoning(&seed_nodes)
-        });
+        let handle =
+            tokio::spawn(async move { transformer_clone.multi_hop_reasoning(&seed_nodes) });
         handles.push(handle);
     }
 

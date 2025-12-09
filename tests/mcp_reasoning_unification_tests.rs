@@ -10,15 +10,14 @@
 
 use anyhow::Result;
 use std::sync::Arc;
-use tempfile::TempDir;
-use syncore::config::{GraphConfig, GraphBackend, SyncoreConfig};
+use syncore::config::{GraphBackend, GraphConfig, SyncoreConfig};
 use syncore::graph::{backend_selector::create_default_graph_backend, SQLiteGraphBackend};
 use syncore::mcp_server::{
-    types::{RagGraphQueryRequest, RagGraphMultihopRequest},
-    MCPServerHandler,
-    SynCoreState,
+    types::{RagGraphMultihopRequest, RagGraphQueryInput},
+    MCPServerHandler, SynCoreState,
 };
-use syncore::vector::{VectorStore, StubEmbeddings};
+use syncore::vector::{StubEmbeddings, VectorStore};
+use tempfile::TempDir;
 
 /// Test setup for MCP reasoning unification
 struct ReasoningTestSetup {
@@ -36,7 +35,8 @@ impl ReasoningTestSetup {
         let vector_store = Arc::new(std::sync::Mutex::new(VectorStore::new(embeddings)));
 
         // Create CodeGraph
-        let code_graph = syncore::graph::CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
+        let code_graph =
+            syncore::graph::CodeGraph::new(db_path.to_str().unwrap(), vector_store.clone())?;
 
         // Create state with graph components
         let state = Arc::new(SynCoreState {
@@ -86,7 +86,7 @@ mod backend_selection_consistency_tests {
         setup.set_backend_config(GraphBackend::SqliteGraph);
 
         // Test that raggraph_query uses SQLiteGraph backend when configured
-        let request = RagGraphQueryRequest {
+        let request = RagGraphQueryInput {
             query_text: "test query".to_string(),
         };
 
@@ -103,7 +103,10 @@ mod backend_selection_consistency_tests {
             ""
         };
 
-        assert!(!response_text.contains("Neo4j"), "Response should not reference Neo4j when SQLiteGraph is configured");
+        assert!(
+            !response_text.contains("Neo4j"),
+            "Response should not reference Neo4j when SQLiteGraph is configured"
+        );
         Ok(())
     }
 
@@ -128,7 +131,10 @@ mod backend_selection_consistency_tests {
             ""
         };
 
-        assert!(!response_text.contains("Neo4j"), "Response should not reference Neo4j when SQLiteGraph is configured");
+        assert!(
+            !response_text.contains("Neo4j"),
+            "Response should not reference Neo4j when SQLiteGraph is configured"
+        );
         Ok(())
     }
 
@@ -148,7 +154,8 @@ mod backend_selection_consistency_tests {
             local_root: None,
         };
 
-        let result = setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(request)).await;
+        let result =
+            setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(request)).await;
 
         assert!(result.is_ok(), "code_graph_fusion_query should succeed with SQLiteGraph backend");
 
@@ -159,7 +166,10 @@ mod backend_selection_consistency_tests {
             ""
         };
 
-        assert!(!response_text.contains("Neo4j"), "Response should not reference Neo4j when SQLiteGraph is configured");
+        assert!(
+            !response_text.contains("Neo4j"),
+            "Response should not reference Neo4j when SQLiteGraph is configured"
+        );
         Ok(())
     }
 
@@ -171,17 +181,19 @@ mod backend_selection_consistency_tests {
         // Test that all reasoning tools default to SQLiteGraph when no backend is configured
 
         // Test raggraph_query
-        let query_request = RagGraphQueryRequest {
+        let query_request = RagGraphQueryInput {
             query_text: "test query".to_string(),
         };
-        let query_result = setup.server.raggraph_query(syncore::mcp_server::Parameters(query_request)).await;
+        let query_result =
+            setup.server.raggraph_query(syncore::mcp_server::Parameters(query_request)).await;
         assert!(query_result.is_ok(), "raggraph_query should default to SQLiteGraph");
 
         // Test raggraph_multihop
         let multihop_request = RagGraphMultihopRequest {
             seed_nodes: vec![1, 2, 3],
         };
-        let multihop_result = setup.server.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await;
+        let multihop_result =
+            setup.server.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await;
         assert!(multihop_result.is_ok(), "raggraph_multihop should default to SQLiteGraph");
 
         // Test code_graph_fusion_query
@@ -194,7 +206,10 @@ mod backend_selection_consistency_tests {
             project_label: None,
             local_root: None,
         };
-        let fusion_result = setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await;
+        let fusion_result = setup
+            .server
+            .code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request))
+            .await;
         assert!(fusion_result.is_ok(), "code_graph_fusion_query should default to SQLiteGraph");
 
         Ok(())
@@ -210,7 +225,7 @@ mod backend_selection_consistency_tests {
         // All tools should handle missing Neo4j gracefully with consistent error messages
         let test_cases = vec![
             ("raggraph_query", async {
-                let request = RagGraphQueryRequest {
+                let request = RagGraphQueryInput {
                     query_text: "test query".to_string(),
                 };
                 setup.server.raggraph_query(syncore::mcp_server::Parameters(request)).await
@@ -242,8 +257,16 @@ mod backend_selection_consistency_tests {
             if let Err(ref e) = result {
                 // Error messages should be consistent across tools
                 let error_msg = format!("{}", e);
-                assert!(!error_msg.contains("panic"), "Error should not contain panic for {}", tool_name);
-                assert!(!error_msg.contains("unwrap"), "Error should not contain unwrap for {}", tool_name);
+                assert!(
+                    !error_msg.contains("panic"),
+                    "Error should not contain panic for {}",
+                    tool_name
+                );
+                assert!(
+                    !error_msg.contains("unwrap"),
+                    "Error should not contain unwrap for {}",
+                    tool_name
+                );
             }
         }
 
@@ -263,7 +286,7 @@ mod response_structure_consistency_tests {
         // Test that all reasoning tools return properly formatted JSON responses
         let test_cases = vec![
             ("raggraph_query", async {
-                let request = RagGraphQueryRequest {
+                let request = RagGraphQueryInput {
                     query_text: "test query".to_string(),
                 };
                 setup.server.raggraph_query(syncore::mcp_server::Parameters(request)).await
@@ -319,17 +342,21 @@ mod response_structure_consistency_tests {
         let mut responses = Vec::new();
 
         // raggraph_query response
-        let query_request = RagGraphQueryRequest {
+        let query_request = RagGraphQueryInput {
             query_text: "test query".to_string(),
         };
-        let query_result = setup.server.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
+        let query_result =
+            setup.server.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
         responses.push(("raggraph_query", &query_result.content[0].text.as_ref().unwrap()));
 
         // raggraph_multihop response
         let multihop_request = RagGraphMultihopRequest {
             seed_nodes: vec![1, 2, 3],
         };
-        let multihop_result = setup.server.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await?;
+        let multihop_result = setup
+            .server
+            .raggraph_multihop(syncore::mcp_server::Parameters(multihop_request))
+            .await?;
         responses.push(("raggraph_multihop", &multihop_result.content[0].text.as_ref().unwrap()));
 
         // code_graph_fusion_query response
@@ -342,8 +369,12 @@ mod response_structure_consistency_tests {
             project_label: None,
             local_root: None,
         };
-        let fusion_result = setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await?;
-        responses.push(("code_graph_fusion_query", &fusion_result.content[0].text.as_ref().unwrap()));
+        let fusion_result = setup
+            .server
+            .code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request))
+            .await?;
+        responses
+            .push(("code_graph_fusion_query", &fusion_result.content[0].text.as_ref().unwrap()));
 
         // Analyze response structure for consistency
         for (tool_name, response_text) in responses {
@@ -359,16 +390,29 @@ mod response_structure_consistency_tests {
                         // - "backend" or "metadata" for backend info
                         // - "error" should not be present in successful responses
 
-                        assert!(!obj.contains_key("error"), "{} response should not contain error field on success", tool_name);
+                        assert!(
+                            !obj.contains_key("error"),
+                            "{} response should not contain error field on success",
+                            tool_name
+                        );
 
                         // At minimum, should have some data field
                         let has_data_field = obj.keys().any(|k| {
-                            k.contains("result") || k.contains("entity") || k.contains("node") ||
-                            k.contains("data") || k.contains("top") || k.contains("query")
+                            k.contains("result")
+                                || k.contains("entity")
+                                || k.contains("node")
+                                || k.contains("data")
+                                || k.contains("top")
+                                || k.contains("query")
                         });
 
                         if !has_data_field {
-                            println!("{} response structure: {}", tool_name, serde_json::to_string_pretty(&obj).unwrap_or_else(|_| response_text.to_string()));
+                            println!(
+                                "{} response structure: {}",
+                                tool_name,
+                                serde_json::to_string_pretty(&obj)
+                                    .unwrap_or_else(|_| response_text.to_string())
+                            );
                         }
                     }
                 }
@@ -401,7 +445,10 @@ mod parameter_parsing_consistency_tests {
             local_root: None,
         };
 
-        let result = setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request_with_namespace)).await?;
+        let result = setup
+            .server
+            .code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request_with_namespace))
+            .await?;
         assert!(result.is_ok(), "code_graph_fusion_query should handle namespace parameter");
 
         // Test top_k parameter consistency
@@ -415,7 +462,10 @@ mod parameter_parsing_consistency_tests {
             local_root: None,
         };
 
-        let result = setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request_with_topk)).await?;
+        let result = setup
+            .server
+            .code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request_with_topk))
+            .await?;
         assert!(result.is_ok(), "code_graph_fusion_query should handle top_k parameter");
 
         Ok(())
@@ -440,8 +490,15 @@ mod parameter_parsing_consistency_tests {
                 local_root: None,
             };
 
-            let result = setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await?;
-            assert!(result.is_ok(), "code_graph_fusion_query should handle {} mode hint", mode_hint);
+            let result = setup
+                .server
+                .code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request))
+                .await?;
+            assert!(
+                result.is_ok(),
+                "code_graph_fusion_query should handle {} mode hint",
+                mode_hint
+            );
         }
 
         Ok(())
@@ -466,7 +523,10 @@ mod parameter_parsing_consistency_tests {
                 local_root: Some("/test/path".to_string()),
             };
 
-            let result = setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await?;
+            let result = setup
+                .server
+                .code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request))
+                .await?;
             assert!(result.is_ok(), "code_graph_fusion_query should handle {} scope", scope);
         }
 
@@ -487,21 +547,32 @@ mod end_to_end_unification_tests {
 
         // All should succeed when SQLiteGraph is configured
         let results = vec![
-            setup.server.raggraph_query(syncore::mcp_server::Parameters(RagGraphQueryRequest {
-                query_text: "test query".to_string(),
-            })).await,
-            setup.server.raggraph_multihop(syncore::mcp_server::Parameters(RagGraphMultihopRequest {
-                seed_nodes: vec![1, 2, 3],
-            })).await,
-            setup.server.code_graph_fusion_query(syncore::mcp_server::Parameters(syncore::code_graph::RagGraphQueryRequest {
-                query: "test fusion query".to_string(),
-                namespace: None,
-                mode_hint: Some("simple".to_string()),
-                top_k: Some(10),
-                scope: Some("project".to_string()),
-                project_label: None,
-                local_root: None,
-            })).await,
+            setup
+                .server
+                .raggraph_query(syncore::mcp_server::Parameters(RagGraphQueryInput {
+                    query_text: "test query".to_string(),
+                }))
+                .await,
+            setup
+                .server
+                .raggraph_multihop(syncore::mcp_server::Parameters(RagGraphMultihopRequest {
+                    seed_nodes: vec![1, 2, 3],
+                }))
+                .await,
+            setup
+                .server
+                .code_graph_fusion_query(syncore::mcp_server::Parameters(
+                    syncore::code_graph::RagGraphQueryRequest {
+                        query: "test fusion query".to_string(),
+                        namespace: None,
+                        mode_hint: Some("simple".to_string()),
+                        top_k: Some(10),
+                        scope: Some("project".to_string()),
+                        project_label: None,
+                        local_root: None,
+                    },
+                ))
+                .await,
         ];
 
         for (i, result) in results.iter().enumerate() {
@@ -517,20 +588,18 @@ mod end_to_end_unification_tests {
         let setup = ReasoningTestSetup::new().await?;
 
         // Test switching from SQLiteGraph to Neo4j (and back)
-        let backend_switches = vec![
-            GraphBackend::SqliteGraph,
-            GraphBackend::Neo4j,
-            GraphBackend::SqliteGraph,
-        ];
+        let backend_switches =
+            vec![GraphBackend::SqliteGraph, GraphBackend::Neo4j, GraphBackend::SqliteGraph];
 
         for backend in backend_switches {
             setup.set_backend_config(backend);
 
             // Each tool should handle the backend switch gracefully
-            let query_request = RagGraphQueryRequest {
+            let query_request = RagGraphQueryInput {
                 query_text: "test query".to_string(),
             };
-            let result = setup.server.raggraph_query(syncore::mcp_server::Parameters(query_request)).await;
+            let result =
+                setup.server.raggraph_query(syncore::mcp_server::Parameters(query_request)).await;
 
             // Should either succeed (if backend is available) or fail gracefully
             match result {
@@ -541,7 +610,10 @@ mod end_to_end_unification_tests {
                     // Error should be graceful, not a panic
                     let error_msg = format!("{}", e);
                     assert!(!error_msg.contains("panic"), "Backend switch should not cause panic");
-                    assert!(!error_msg.contains("unwrap"), "Backend switch should not cause unwrap panic");
+                    assert!(
+                        !error_msg.contains("unwrap"),
+                        "Backend switch should not cause unwrap panic"
+                    );
                 }
             }
         }

@@ -375,7 +375,9 @@ pub trait GraphBackend: Send + Sync {
     async fn link_embedding_to_task(&self, embedding_id: i64, task_id: i64) -> Result<()>;
 }
 
-/// Neo4j implementation of GraphBackend
+// Neo4j implementation of GraphBackend - DISABLED
+// Neo4j backend is frozen - see neo4j_backend_adapter.rs for stub implementation
+/*
 pub mod neo4j_impl {
     use super::*;
     use crate::databases::neo4j::{reader, schema, writer};
@@ -808,6 +810,7 @@ pub mod neo4j_impl {
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {

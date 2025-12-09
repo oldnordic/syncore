@@ -11,6 +11,10 @@ path = "src/mcp_stdio_main.rs"
 name = "syncore_graph_cli"
 path = "src/graph_cli_main.rs"
 
+[[bin]]
+name = "verify_integration"
+path = "verify_integration.rs"
+
 [build-dependencies]
 cc = "1.0"
 

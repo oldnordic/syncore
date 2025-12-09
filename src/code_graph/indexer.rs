@@ -52,8 +52,19 @@ impl CodeGraph {
         file_path: &Path,
         neo4j_opt: Option<&Neo4jClient>,
     ) -> Result<usize> {
-        let file_path_str =
+        let raw_path_str =
             file_path.to_str().ok_or_else(|| anyhow!("Invalid file path"))?.to_string();
+
+        let file_path_str = match file_path.canonicalize() {
+            Ok(canonical) => canonical.to_string_lossy().to_string(),
+            Err(err) => {
+                eprintln!(
+                    "[WARN] Failed to canonicalize file path {}: {}",
+                    raw_path_str, err
+                );
+                raw_path_str
+            }
+        };
 
         // PHASE 5: Incremental indexing - check if file has changed
         // Early exit if unchanged to avoid unnecessary parsing and indexing
@@ -78,7 +89,8 @@ impl CodeGraph {
         } // Release lock before parsing
 
         // Parse the file
-        let code_structure = self.parser.parse_file(file_path)?;
+        let mut code_structure = self.parser.parse_file(file_path)?;
+        code_structure.file_path = file_path_str.clone();
 
         // PHASE 3: Extract temporal metadata once for the entire file
         let temporal = extract_temporal_metadata(file_path.to_str().unwrap_or(""))?;
@@ -132,17 +144,26 @@ impl CodeGraph {
 
         // Store classes and their methods
         for class in &code_structure.classes {
+            // Determine the correct entity type based on class_type field
+            let entity_type = match class.class_type.as_str() {
+                "struct" => EntityType::Struct,
+                "trait" => EntityType::Trait,
+                "enum" => EntityType::Enum,
+                "class" => EntityType::Class,
+                _ => EntityType::Class, // Default fallback for backward compatibility
+            };
+
             let class_entity = CodeEntity {
                 id: None,
                 file_path: code_structure.file_path.clone(),
-                entity_type: EntityType::Class,
+                entity_type,
                 name: class.name.clone(),
                 signature: None,
                 line_start: class.line_number,
                 line_end: class.line_number,
                 docstring: None,
                 language: code_structure.language.clone(),
-                body_snippet: None, // Classes don't get body snippets
+                body_snippet: None, // Structs/Traits/Enums don't get body snippets
                 created_at: Some(temporal.created_at),
                 last_modified_at: Some(temporal.last_modified_at),
                 change_count: Some(temporal.change_count),
@@ -237,10 +258,10 @@ impl CodeGraph {
 
                 // PHASE 1a: Extract and store trait definitions (needed for Inherits edges)
                 // Traits aren't extracted by parser, so we extract them here
-                let trait_names = extract_trait_definitions(&source_code, tree.root_node());
-                for trait_name in &trait_names {
+                let trait_info = extract_trait_definitions(&source_code, tree.root_node());
+                for trait_data in &trait_info {
                     // Check if trait already indexed (prevents UNIQUE constraint violations)
-                    let key = ("trait".to_string(), trait_name.clone(), 0);
+                    let key = ("trait".to_string(), trait_data.name.clone(), trait_data.line_start);
                     if seen_entities.contains(&key) {
                         continue; // Skip duplicate
                     }
@@ -249,10 +270,10 @@ impl CodeGraph {
                         id: None,
                         file_path: code_structure.file_path.clone(),
                         entity_type: EntityType::Trait,
-                        name: trait_name.clone(),
+                        name: trait_data.name.clone(),
                         signature: None,
-                        line_start: 0, // TODO: extract actual line number
-                        line_end: 0,
+                        line_start: trait_data.line_start, // Use real line number
+                        line_end: trait_data.line_start, // For now, same as line_start
                         docstring: None,
                         language: code_structure.language.clone(),
                         body_snippet: None,
@@ -269,10 +290,11 @@ impl CodeGraph {
 
                 // PHASE 1b: Extract and store const/static definitions (needed for References edges)
                 // Constants aren't extracted by parser, so we extract them here
-                let const_names = extract_const_definitions(&source_code, tree.root_node());
-                for const_name in &const_names {
+                let const_info = extract_const_definitions(&source_code, tree.root_node());
+                for const_data in &const_info {
                     // Check if const already indexed (prevents UNIQUE constraint violations)
-                    let key = ("function".to_string(), const_name.clone(), 0);
+                    // Use "const" prefix in key to distinguish from functions with same name
+                    let key = ("const".to_string(), const_data.name.clone(), const_data.line_start);
                     if seen_entities.contains(&key) {
                         continue; // Skip duplicate
                     }
@@ -280,11 +302,11 @@ impl CodeGraph {
                     let const_entity = CodeEntity {
                         id: None,
                         file_path: code_structure.file_path.clone(),
-                        entity_type: EntityType::Function, // Use Function for now (no Constant type)
-                        name: const_name.clone(),
+                        entity_type: EntityType::Constant,
+                        name: const_data.name.clone(),
                         signature: Some("const".to_string()), // Mark as const via signature
-                        line_start: 0,                        // TODO: extract actual line number
-                        line_end: 0,
+                        line_start: const_data.line_start,    // Use real line number
+                        line_end: const_data.line_start,      // For now, same as line_start
                         docstring: None,
                         language: code_structure.language.clone(),
                         body_snippet: None,
@@ -505,15 +527,33 @@ impl CodeGraph {
         // Create text representation for embedding
         let text = format_entity_for_embedding(entity);
 
-        // Store in vector store (scope the lock to release it before using db)
-        {
-            let mut vector_store = self
-                .vector_store
-                .lock()
-                .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
+        // Create corresponding record in embeddings table and store vector
+        let vector_id = {
+            // First, insert record into embeddings table to get an ID
+            db.execute(
+                "INSERT INTO embeddings (task_id, kind, dim, created_at) VALUES (?, ?, ?, ?)",
+                rusqlite::params![
+                    Option::<i64>::None, // task_id - not associated with a task
+                    "code_entity",          // kind
+                    384,                    // dim - standard embedding dimension
+                    chrono::Utc::now().timestamp(),
+                ],
+            )?;
 
-            vector_store.insert_text(entity_id, None, &text, "code_entity")?;
-        } // vector_store lock released here
+            let embedding_id = db.last_insert_rowid();
+
+            // Store vector in vector store with the embedding_id
+            {
+                let mut vector_store = self
+                    .vector_store
+                    .lock()
+                    .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
+
+                vector_store.insert_text(embedding_id, None, &text, "code_entity")?;
+            } // vector_store lock released here
+
+            embedding_id
+        };
 
         // Get model name from vector store
         let model_version = {
@@ -530,7 +570,7 @@ impl CodeGraph {
              VALUES (?, ?, ?, ?)",
             rusqlite::params![
                 entity_id,
-                entity_id, // vector_id same as entity_id for now
+                vector_id,
                 model_version,
                 chrono::Utc::now().timestamp(),
             ],
@@ -635,28 +675,39 @@ impl CodeGraph {
     }
 }
 
-/// Extract trait definition names from Rust AST
-/// Returns a vector of trait names found in the file
-fn extract_trait_definitions(source_code: &str, root_node: tree_sitter::Node) -> Vec<String> {
-    let mut trait_names = Vec::new();
+/// Struct to hold entity name and line number
+#[derive(Debug, Clone)]
+struct EntityWithLine {
+    name: String,
+    line_start: usize,
+}
+
+/// Extract trait definitions with line numbers from Rust AST
+/// Returns a vector of (name, line_start) tuples found in the file
+fn extract_trait_definitions(source_code: &str, root_node: tree_sitter::Node) -> Vec<EntityWithLine> {
+    let mut trait_info = Vec::new();
     let mut cursor = root_node.walk();
 
     visit_nodes_for_traits(&mut cursor, source_code, &mut |node, src| {
         if node.kind() == "trait_item" {
             if let Some(name_node) = node.child_by_field_name("name") {
                 let name = &src[name_node.byte_range()];
-                trait_names.push(name.to_string());
+                let line_start = node.start_position().row + 1;
+                trait_info.push(EntityWithLine {
+                    name: name.to_string(),
+                    line_start,
+                });
             }
         }
     });
 
-    trait_names
+    trait_info
 }
 
-/// Extract const/static definition names from Rust AST
-/// Returns a vector of const/static names found in the file
-fn extract_const_definitions(source_code: &str, root_node: tree_sitter::Node) -> Vec<String> {
-    let mut const_names = Vec::new();
+/// Extract const/static definitions with line numbers from Rust AST
+/// Returns a vector of (name, line_start) tuples found in the file
+fn extract_const_definitions(source_code: &str, root_node: tree_sitter::Node) -> Vec<EntityWithLine> {
+    let mut const_info = Vec::new();
     let mut cursor = root_node.walk();
 
     visit_nodes_for_traits(&mut cursor, source_code, &mut |node, src| {
@@ -664,12 +715,16 @@ fn extract_const_definitions(source_code: &str, root_node: tree_sitter::Node) ->
         if kind == "const_item" || kind == "static_item" {
             if let Some(name_node) = node.child_by_field_name("name") {
                 let name = &src[name_node.byte_range()];
-                const_names.push(name.to_string());
+                let line_start = node.start_position().row + 1;
+                const_info.push(EntityWithLine {
+                    name: name.to_string(),
+                    line_start,
+                });
             }
         }
     });
 
-    const_names
+    const_info
 }
 
 /// Helper: Recursively visit all nodes in AST (for trait extraction)

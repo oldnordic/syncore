@@ -27,6 +27,7 @@ pub mod refactor_patterns;
 pub mod risk_score;
 pub mod rust_backend_ingestion;
 pub mod rust_macro_expander;
+pub mod sqlitegraph_audit;
 pub mod unused_imports;
 
 use serde::{Deserialize, Serialize};
@@ -224,4 +225,5 @@ pub use refactor_action_plan::*;
 pub use risk_score::*;
 pub use rust_backend_ingestion::*;
 pub use rust_macro_expander::*;
+pub use sqlitegraph_audit::*;
 pub use unused_imports::*;

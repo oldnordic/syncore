@@ -10,7 +10,7 @@
 //! - Symbol/path lookups
 //! - Fast recall operations
 
-/// Simple linear fusion combiner (PHASE 5: 4-component with GraphBERT)
+/// Simple linear fusion combiner (PHASE 5: 5-component with GraphBERT + Recency)
 pub struct FusionSimple {
     /// Weight for vector score (alpha)
     alpha: f32,
@@ -20,59 +20,78 @@ pub struct FusionSimple {
     tau: f32,
     /// Weight for graph embedding score (gamma) - GraphBERT
     gamma: f32,
+    /// Weight for recency score (delta) - creation time factor
+    delta: f32,
 }
 
 impl FusionSimple {
-    /// Create new simple fusion with given weights (PHASE 5: 4-component)
+    /// Create new simple fusion with given weights (PHASE 5: 5-component)
     ///
     /// # Arguments
     /// * `alpha` - Weight for vector score (0.0 to 1.0)
     /// * `beta` - Weight for graph score (0.0 to 1.0)
     /// * `tau` - Weight for temporal score (0.0 to 1.0)
     /// * `gamma` - Weight for graph embedding score (GraphBERT) (0.0 to 1.0)
+    /// * `delta` - Weight for recency score (0.0 to 1.0)
     ///
     /// # Returns
     /// New FusionSimple instance with normalized weights
-    pub fn new(alpha: f32, beta: f32, tau: f32, gamma: f32) -> Self {
-        let total = alpha + beta + tau + gamma;
+    pub fn new(alpha: f32, beta: f32, tau: f32, gamma: f32, delta: f32) -> Self {
+        let total = alpha + beta + tau + gamma + delta;
         Self {
             alpha: (alpha / total).clamp(0.0, 1.0),
             beta: (beta / total).clamp(0.0, 1.0),
             tau: (tau / total).clamp(0.0, 1.0),
             gamma: (gamma / total).clamp(0.0, 1.0),
+            delta: (delta / total).clamp(0.0, 1.0),
         }
     }
 
-    /// Combine vector, graph, temporal, and graph embedding scores (PHASE 5)
+    /// Combine vector, graph, temporal, graph embedding, and recency scores (PHASE 5)
     ///
     /// # Arguments
     /// * `vector_score` - Score from vector search (0.0 to 1.0)
     /// * `graph_score` - Score from graph traversal (0.0 to 1.0)
     /// * `temporal_score` - Score from temporal metadata (0.0 to 1.0)
     /// * `graph_embedding_score` - Score from GraphBERT/graph embeddings (0.0 to 1.0)
+    /// * `recency_score` - Score from creation time recency (0.0 to 1.0)
     ///
     /// # Returns
-    /// Combined score using S = α*S_v + β*S_g + τ*S_t + γ*S_ge, clamped to [0.0, 1.0]
+    /// Combined score using S = α*S_v + β*S_g + τ*S_t + γ*S_ge + δ*S_recency, clamped to [0.0, 1.0]
     pub fn combine(
         &self,
         vector_score: f32,
         graph_score: f32,
         temporal_score: f32,
         graph_embedding_score: f32,
+        recency_score: f32,
     ) -> f32 {
         let score = self.alpha * vector_score
             + self.beta * graph_score
             + self.tau * temporal_score
-            + self.gamma * graph_embedding_score;
+            + self.gamma * graph_embedding_score
+            + self.delta * recency_score;
         score.clamp(0.0, 1.0)
+    }
+
+    /// Legacy combine method for backward compatibility (4-component without recency)
+    pub fn combine_legacy(
+        &self,
+        vector_score: f32,
+        graph_score: f32,
+        temporal_score: f32,
+        graph_embedding_score: f32,
+    ) -> f32 {
+        // Use neutral recency score for backward compatibility
+        self.combine(vector_score, graph_score, temporal_score, graph_embedding_score, 0.5)
     }
 }
 
 impl Default for FusionSimple {
     fn default() -> Self {
-        // PHASE 5: Default weights (4-component with GraphBERT)
-        // α=0.5 (vector), β=0.2 (graph), τ=0.1 (temporal), γ=0.2 (GraphBERT)
-        Self::new(0.5, 0.2, 0.1, 0.2)
+        // PHASE 5: Default weights (5-component with GraphBERT + Recency)
+        // α=0.5 (vector), β=0.2 (graph), τ=0.1 (temporal), γ=0.15 (GraphBERT), δ=0.05 (recency)
+        Self::new(0.5, 0.2, 0.1, 0.15, 0.05)
     }
 }
 
@@ -178,53 +197,132 @@ pub fn compute_graph_embedding_score(features: &super::graph_embeddings::GraphFe
     score as f32
 }
 
+/// Extract recency score from created_at timestamp
+///
+/// Computes recency-based score using created_at timestamp.
+/// Formula: score = 1.0 / (1.0 + age_days)
+///
+/// # Arguments
+/// * `created_at` - Created at timestamp (Unix timestamp in seconds)
+///
+/// # Returns
+/// Recency score in range [0.0, 1.0]
+/// - Newer entities (created recently): Higher scores (closer to 1.0)
+/// - Older entities: Lower scores (closer to 0.0)
+/// - Missing created_at results in neutral score of 0.5
+///
+/// # Implementation Details
+/// - Computes age in days: age_days = (now - created_at) / 86400
+/// - Applies decay function: score = 1.0 / (1.0 + age_days)
+/// - Missing created_at results in neutral score of 0.5
+pub fn extract_recency_score_from_timestamp(created_at: Option<i64>) -> f32 {
+    let Some(created_timestamp) = created_at else {
+        return 0.5; // Neutral score for missing timestamp
+    };
+
+    // Get current time as Unix timestamp
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as f64;
+
+    // Compute age in days
+    let age_seconds = now - created_timestamp as f64;
+    let age_days = age_seconds / 86400.0; // 86400 seconds in a day
+
+    // Apply decay function: score = 1.0 / (1.0 + age_days)
+    let score = 1.0 / (1.0 + age_days);
+
+    // Clamp to valid range [0.0, 1.0]
+    score.clamp(0.0, 1.0) as f32
+}
+
+/// Extract recency score from node properties
+///
+/// Computes recency-based score using created_at timestamp.
+/// Formula: score = 1.0 / (1.0 + age_days)
+///
+/// # Arguments
+/// * `properties` - Node properties Map containing created_at
+///
+/// # Returns
+/// Recency score in range [0.0, 1.0]
+/// - Newer entities (created recently): Higher scores (closer to 1.0)
+/// - Older entities: Lower scores (closer to 0.0)
+///
+/// # Implementation Details
+/// - Reads "created_at" property (Unix timestamp in seconds)
+/// - Computes age in days: age_days = (now - created_at) / 86400
+/// - Applies decay function: score = 1.0 / (1.0 + age_days)
+/// - Missing created_at results in neutral score of 0.5
+pub fn extract_recency_score(properties: &serde_json::Map<String, serde_json::Value>) -> f32 {
+    // Extract created_at from properties
+    let created_at = properties
+        .get("created_at")
+        .and_then(|v| {
+            // Handle both number and string representations
+            match v {
+                serde_json::Value::Number(n) => n.as_i64(),
+                serde_json::Value::String(s) => s.parse().ok(),
+                _ => None,
+            }
+        });
+
+    extract_recency_score_from_timestamp(created_at)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_4component_combination() {
-        // PHASE 5: Test 4-component formula with GraphBERT
-        let fusion = FusionSimple::new(0.5, 0.2, 0.1, 0.2);
-        let result = fusion.combine(0.8, 0.4, 0.9, 0.7);
-        // Expected: 0.5*0.8 + 0.2*0.4 + 0.1*0.9 + 0.2*0.7 = 0.4 + 0.08 + 0.09 + 0.14 = 0.71
-        assert!((result - 0.71).abs() < 0.001);
+    fn test_5component_combination() {
+        // PHASE 5: Test 5-component formula with GraphBERT + Recency
+        let fusion = FusionSimple::new(0.5, 0.2, 0.1, 0.15, 0.05);
+        let result = fusion.combine(0.8, 0.4, 0.9, 0.7, 0.6);
+        // Expected: 0.5*0.8 + 0.2*0.4 + 0.1*0.9 + 0.15*0.7 + 0.05*0.6 = 0.4 + 0.08 + 0.09 + 0.105 + 0.03 = 0.705
+        assert!((result - 0.705).abs() < 0.001);
     }
 
     #[test]
     fn test_weight_normalization() {
-        // PHASE 5: Weights should be normalized to sum to 1.0 (4-component)
-        let fusion = FusionSimple::new(0.5, 0.2, 0.1, 0.2);
-        let total = fusion.alpha + fusion.beta + fusion.tau + fusion.gamma;
+        // PHASE 5: Weights should be normalized to sum to 1.0 (5-component)
+        let fusion = FusionSimple::new(0.5, 0.2, 0.1, 0.15, 0.05);
+        let total = fusion.alpha + fusion.beta + fusion.tau + fusion.gamma + fusion.delta;
         assert!((total - 1.0).abs() < 0.001);
     }
 
     #[test]
     fn test_clamping() {
         // PHASE 5: Result should be clamped to [0.0, 1.0]
-        let fusion = FusionSimple::new(0.5, 0.2, 0.1, 0.2);
-        let result = fusion.combine(1.2, 1.5, 1.8, 2.0);
+        let fusion = FusionSimple::new(0.5, 0.2, 0.1, 0.15, 0.05);
+        let result = fusion.combine(1.2, 1.5, 1.8, 2.0, 2.5);
         assert!(result <= 1.0);
         assert!(result >= 0.0);
     }
 
     #[test]
     fn test_default_weights() {
-        // PHASE 5: Default should use α=0.5, β=0.2, τ=0.1, γ=0.2
+        // PHASE 5: Default should use α=0.5, β=0.2, τ=0.1, γ=0.15, δ=0.05
         let fusion = FusionSimple::default();
         assert!((fusion.alpha - 0.5).abs() < 0.001);
         assert!((fusion.beta - 0.2).abs() < 0.001);
         assert!((fusion.tau - 0.1).abs() < 0.001);
-        assert!((fusion.gamma - 0.2).abs() < 0.001);
+        assert!((fusion.gamma - 0.15).abs() < 0.001);
+        assert!((fusion.delta - 0.05).abs() < 0.001);
     }
 
     #[test]
-    fn test_zero_graph_bert_backward_compat() {
-        // When graph_embedding_score is 0.0, behavior should match old 3-component
-        let fusion = FusionSimple::new(0.6, 0.3, 0.1, 0.0);
-        let result = fusion.combine(0.8, 0.4, 0.9, 0.0);
-        // Expected: 0.6*0.8 + 0.3*0.4 + 0.1*0.9 + 0.0*0.0 = 0.48 + 0.12 + 0.09 = 0.69
-        assert!((result - 0.69).abs() < 0.001);
+    fn test_zero_recency_backward_compat() {
+        // When recency_score is 0.0, behavior should match old 4-component
+        let fusion = FusionSimple::new(0.5, 0.2, 0.1, 0.15, 0.0);
+        let result = fusion.combine(0.8, 0.4, 0.9, 0.7, 0.0);
+        // After normalization: weights sum to 0.95, so normalized weights are:
+        // α=0.526, β=0.211, τ=0.105, γ=0.158, δ=0.0
+        // Expected: 0.526*0.8 + 0.211*0.4 + 0.105*0.9 + 0.158*0.7 + 0.0*0.0 = 0.421 + 0.084 + 0.095 + 0.111 = 0.711
+        let expected = 0.5263158 * 0.8 + 0.2105263 * 0.4 + 0.1052632 * 0.9 + 0.1578947 * 0.7;
+        println!("Actual result: {}, expected: {}", result, expected);
+        assert!((result - expected).abs() < 0.001);
     }
 
     // Tests for compute_graph_embedding_score function
@@ -335,5 +433,124 @@ mod tests {
 
         assert!(score_1 > score_2, "Depth 1 should score higher than depth 2");
         assert!(score_2 > score_3, "Depth 2 should score higher than depth 3");
+    }
+
+    // Tests for extract_recency_score function
+    #[test]
+    fn test_extract_recency_score_new_entity() {
+        use std::collections::HashMap;
+
+        let mut properties = serde_json::Map::new();
+
+        // Very recent entity (created 1 day ago)
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let one_day_ago = now - 86400; // 1 day ago
+
+        properties.insert("created_at".to_string(), serde_json::Value::Number(serde_json::Number::from(one_day_ago)));
+
+        let score = extract_recency_score(&properties);
+
+        // Should be high score for recent entity
+        assert!(score > 0.4, "1-day-old entity should have score > 0.4, got {}", score);
+        assert!(score <= 1.0, "Score should be <= 1.0");
+    }
+
+    #[test]
+    fn test_extract_recency_score_old_entity() {
+        use std::collections::HashMap;
+
+        let mut properties = serde_json::Map::new();
+
+        // Old entity (created 365 days ago = 1 year)
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let one_year_ago = now - (86400 * 365);
+
+        properties.insert("created_at".to_string(), serde_json::Value::Number(serde_json::Number::from(one_year_ago)));
+
+        let score = extract_recency_score(&properties);
+
+        // Should be low score for old entity
+        assert!(score < 0.01, "1-year-old entity should have score < 0.01, got {}", score);
+        assert!(score >= 0.0, "Score should be >= 0.0");
+    }
+
+    #[test]
+    fn test_extract_recency_score_missing_created_at() {
+        use std::collections::HashMap;
+
+        let properties = serde_json::Map::new(); // No created_at field
+
+        let score = extract_recency_score(&properties);
+
+        // Should return neutral score when created_at is missing
+        assert_eq!(score, 0.5, "Missing created_at should return neutral score 0.5");
+    }
+
+    #[test]
+    fn test_extract_recency_score_string_timestamp() {
+        use std::collections::HashMap;
+
+        let mut properties = serde_json::Map::new();
+
+        // Test with string representation
+        properties.insert("created_at".to_string(), serde_json::Value::String("1704067200".to_string())); // Jan 1, 2024
+
+        let score = extract_recency_score(&properties);
+
+        // Should be a valid score
+        assert!(score >= 0.0 && score <= 1.0, "String timestamp should produce valid score, got {}", score);
+    }
+
+    #[test]
+    fn test_extract_recency_score_from_timestamp_new_entity() {
+        // Test very recent entity (created 1 day ago)
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let one_day_ago = now - 86400; // 1 day ago
+
+        let score = extract_recency_score_from_timestamp(Some(one_day_ago));
+
+        // Should be high score for recent entity (> 0.4)
+        assert!(score > 0.4, "1-day-old entity should have score > 0.4, got {}", score);
+        assert!(score <= 1.0, "Score should be <= 1.0");
+
+        println!("✅ 1-day-old entity recency score: {:.6}", score);
+    }
+
+    #[test]
+    fn test_extract_recency_score_from_timestamp_old_entity() {
+        // Test old entity (created 1 year ago)
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        let one_year_ago = now - (86400 * 365);
+
+        let score = extract_recency_score_from_timestamp(Some(one_year_ago));
+
+        // Should be low score for old entity (< 0.01)
+        assert!(score < 0.01, "1-year-old entity should have score < 0.01, got {}", score);
+        assert!(score >= 0.0, "Score should be >= 0.0");
+
+        println!("✅ 1-year-old entity recency score: {:.6}", score);
+    }
+
+    #[test]
+    fn test_extract_recency_score_from_timestamp_missing() {
+        // Test missing timestamp
+        let score = extract_recency_score_from_timestamp(None);
+
+        // Should return neutral score when timestamp is missing
+        assert_eq!(score, 0.5, "Missing timestamp should return neutral score 0.5");
+
+        println!("✅ Missing timestamp recency score: {:.6}", score);
     }
 }

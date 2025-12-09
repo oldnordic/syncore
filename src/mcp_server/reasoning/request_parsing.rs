@@ -148,11 +148,12 @@ pub fn parse_unified_request(
 }
 
 /// Parse Query-specific parameters
-fn parse_query_params(raw_params: &serde_json::Map<String, serde_json::Value>) -> Result<RequestParameters> {
-    let include_connectivity = extract_bool_param(raw_params, "include_connectivity")?
-        .unwrap_or(true);
-    let include_embeddings = extract_bool_param(raw_params, "include_embeddings")?
-        .unwrap_or(true);
+fn parse_query_params(
+    raw_params: &serde_json::Map<String, serde_json::Value>,
+) -> Result<RequestParameters> {
+    let include_connectivity =
+        extract_bool_param(raw_params, "include_connectivity")?.unwrap_or(true);
+    let include_embeddings = extract_bool_param(raw_params, "include_embeddings")?.unwrap_or(true);
 
     Ok(RequestParameters::Query {
         include_connectivity,
@@ -161,15 +162,13 @@ fn parse_query_params(raw_params: &serde_json::Map<String, serde_json::Value>) -
 }
 
 /// Parse MultiHop-specific parameters
-fn parse_multihop_params(raw_params: &serde_json::Map<String, serde_json::Value>) -> Result<RequestParameters> {
-    let seed_entities = extract_array_param(raw_params, "seed_entities")?
-        .unwrap_or_default();
-    let max_hops = extract_numeric_param(raw_params, "max_hops")?
-        .map(|v| v as usize);
-    let max_entities = extract_numeric_param(raw_params, "max_entities")?
-        .map(|v| v as usize);
-    let decay_factor = extract_numeric_param(raw_params, "decay_factor")?
-        .map(|v| v as f32);
+fn parse_multihop_params(
+    raw_params: &serde_json::Map<String, serde_json::Value>,
+) -> Result<RequestParameters> {
+    let seed_entities = extract_array_param(raw_params, "seed_entities")?.unwrap_or_default();
+    let max_hops = extract_numeric_param(raw_params, "max_hops")?.map(|v| v as usize);
+    let max_entities = extract_numeric_param(raw_params, "max_entities")?.map(|v| v as usize);
+    let decay_factor = extract_numeric_param(raw_params, "decay_factor")?.map(|v| v as f32);
 
     Ok(RequestParameters::MultiHop {
         seed_entities,
@@ -180,11 +179,12 @@ fn parse_multihop_params(raw_params: &serde_json::Map<String, serde_json::Value>
 }
 
 /// Parse Fusion-specific parameters
-fn parse_fusion_params(raw_params: &serde_json::Map<String, serde_json::Value>) -> Result<RequestParameters> {
+fn parse_fusion_params(
+    raw_params: &serde_json::Map<String, serde_json::Value>,
+) -> Result<RequestParameters> {
     let fusion_mode = extract_optional_string_param(raw_params, "fusion_mode");
     let entity_boost = extract_optional_string_param(raw_params, "entity_boost");
-    let enable_temporal = extract_bool_param(raw_params, "enable_temporal")?
-        .unwrap_or(true);
+    let enable_temporal = extract_bool_param(raw_params, "enable_temporal")?.unwrap_or(true);
 
     Ok(RequestParameters::Fusion {
         fusion_mode,
@@ -200,19 +200,17 @@ fn extract_string_param(
     required: bool,
 ) -> Result<String> {
     match params.get(key) {
-        Some(value) => {
-            match value {
-                serde_json::Value::String(s) => Ok(s.clone()),
-                serde_json::Value::Null => {
-                    if required {
-                        Err(anyhow::anyhow!("Required parameter '{}' is null", key))
-                    } else {
-                        Err(anyhow::anyhow!("Parameter '{}' is null", key))
-                    }
+        Some(value) => match value {
+            serde_json::Value::String(s) => Ok(s.clone()),
+            serde_json::Value::Null => {
+                if required {
+                    Err(anyhow::anyhow!("Required parameter '{}' is null", key))
+                } else {
+                    Err(anyhow::anyhow!("Parameter '{}' is null", key))
                 }
-                _ => Err(anyhow::anyhow!("Parameter '{}' must be a string", key)),
             }
-        }
+            _ => Err(anyhow::anyhow!("Parameter '{}' must be a string", key)),
+        },
         None => {
             if required {
                 Err(anyhow::anyhow!("Required parameter '{}' is missing", key))
@@ -228,12 +226,11 @@ fn extract_optional_string_param(
     params: &serde_json::Map<String, serde_json::Value>,
     key: &str,
 ) -> Option<String> {
-    params.get(key)
-        .and_then(|value| match value {
-            serde_json::Value::String(s) => Some(s.clone()),
-            serde_json::Value::Null => None,
-            _ => None,
-        })
+    params.get(key).and_then(|value| match value {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Null => None,
+        _ => None,
+    })
 }
 
 /// Extract numeric parameter (can be integer or float)
@@ -242,13 +239,11 @@ fn extract_numeric_param(
     key: &str,
 ) -> Result<Option<f64>> {
     match params.get(key) {
-        Some(value) => {
-            match value {
-                serde_json::Value::Number(n) => Ok(Some(n.as_f64().unwrap_or(0.0))),
-                serde_json::Value::Null => Ok(None),
-                _ => Err(anyhow::anyhow!("Parameter '{}' must be numeric", key)),
-            }
-        }
+        Some(value) => match value {
+            serde_json::Value::Number(n) => Ok(Some(n.as_f64().unwrap_or(0.0))),
+            serde_json::Value::Null => Ok(None),
+            _ => Err(anyhow::anyhow!("Parameter '{}' must be numeric", key)),
+        },
         None => Ok(None),
     }
 }
@@ -259,13 +254,11 @@ fn extract_bool_param(
     key: &str,
 ) -> Result<Option<bool>> {
     match params.get(key) {
-        Some(value) => {
-            match value {
-                serde_json::Value::Bool(b) => Ok(Some(*b)),
-                serde_json::Value::Null => Ok(None),
-                _ => Err(anyhow::anyhow!("Parameter '{}' must be boolean", key)),
-            }
-        }
+        Some(value) => match value {
+            serde_json::Value::Bool(b) => Ok(Some(*b)),
+            serde_json::Value::Null => Ok(None),
+            _ => Err(anyhow::anyhow!("Parameter '{}' must be boolean", key)),
+        },
         None => Ok(None),
     }
 }
@@ -276,26 +269,29 @@ fn extract_array_param(
     key: &str,
 ) -> Result<Option<Vec<i64>>> {
     match params.get(key) {
-        Some(value) => {
-            match value {
-                serde_json::Value::Array(arr) => {
-                    let mut result = Vec::new();
-                    for (i, item) in arr.iter().enumerate() {
-                        match item {
-                            serde_json::Value::Number(n) => {
-                                result.push(n.as_i64().ok_or_else(|| {
-                                    anyhow::anyhow!("Array element at index {} is not an integer", i)
-                                })?);
-                            }
-                            _ => return Err(anyhow::anyhow!("Array element at index {} is not a number", i)),
+        Some(value) => match value {
+            serde_json::Value::Array(arr) => {
+                let mut result = Vec::new();
+                for (i, item) in arr.iter().enumerate() {
+                    match item {
+                        serde_json::Value::Number(n) => {
+                            result.push(n.as_i64().ok_or_else(|| {
+                                anyhow::anyhow!("Array element at index {} is not an integer", i)
+                            })?);
+                        }
+                        _ => {
+                            return Err(anyhow::anyhow!(
+                                "Array element at index {} is not a number",
+                                i
+                            ))
                         }
                     }
-                    Ok(Some(result))
                 }
-                serde_json::Value::Null => Ok(None),
-                _ => Err(anyhow::anyhow!("Parameter '{}' must be an array", key)),
+                Ok(Some(result))
             }
-        }
+            serde_json::Value::Null => Ok(None),
+            _ => Err(anyhow::anyhow!("Parameter '{}' must be an array", key)),
+        },
         None => Ok(None),
     }
 }
@@ -332,37 +328,15 @@ pub fn validate_top_k(top_k: Option<u32>, max_allowed: u32) -> Result<Option<u32
 pub mod converters {
     use super::*;
 
-    /// Convert unified request to RagGraphQueryRequest format
-    pub fn to_raggraph_query_request(request: UnifiedReasoningRequest) -> Result<crate::mcp_server::types::RagGraphQueryRequest> {
-        if request.request_type != RequestType::Query {
-            return Err(anyhow::anyhow!("Request type mismatch: expected Query, got {:?}", request.request_type));
-        }
-
-        Ok(crate::mcp_server::types::RagGraphQueryRequest {
-            query_text: request.query,
-        })
-    }
-
-    /// Convert unified request to RagGraphMultihopRequest format
-    pub fn to_raggraph_multihop_request(request: UnifiedReasoningRequest) -> Result<crate::mcp_server::types::RagGraphMultihopRequest> {
-        if request.request_type != RequestType::MultiHop {
-            return Err(anyhow::anyhow!("Request type mismatch: expected MultiHop, got {:?}", request.request_type));
-        }
-
-        let seed_entities = match request.parameters {
-            RequestParameters::MultiHop { seed_entities, .. } => seed_entities,
-            _ => return Err(anyhow::anyhow!("Invalid parameters for MultiHop request")),
-        };
-
-        Ok(crate::mcp_server::types::RagGraphMultihopRequest {
-            seed_nodes: seed_entities,
-        })
-    }
-
     /// Convert unified request to CodeGraphFusionQueryRequest format
-    pub fn to_codegraph_fusion_request(request: UnifiedReasoningRequest) -> Result<crate::code_graph::rag_graph::RagGraphQueryRequest> {
+    pub fn to_codegraph_fusion_request(
+        request: UnifiedReasoningRequest,
+    ) -> Result<crate::code_graph::rag_graph::RagGraphQueryRequest> {
         if request.request_type != RequestType::Fusion {
-            return Err(anyhow::anyhow!("Request type mismatch: expected Fusion, got {:?}", request.request_type));
+            return Err(anyhow::anyhow!(
+                "Request type mismatch: expected Fusion, got {:?}",
+                request.request_type
+            ));
         }
 
         Ok(crate::code_graph::rag_graph::RagGraphQueryRequest {
@@ -377,6 +351,122 @@ pub mod converters {
     }
 }
 
+/// Build a unified multihop request from typed RagGraphMultihopRequest
+///
+/// This helper eliminates the JSON roundtrip for multihop requests by converting
+/// the typed struct directly to a UnifiedReasoningRequest.
+pub fn build_unified_multihop_request_from_struct(
+    multihop_request: &crate::mcp_server::types::RagGraphMultihopRequest,
+) -> Result<UnifiedReasoningRequest> {
+    let mut raw_params = serde_json::Map::new();
+
+    // Always include seed_entities (required field)
+    raw_params.insert(
+        "seed_entities".to_string(),
+        serde_json::Value::Array(
+            multihop_request.seed_nodes
+                .iter()
+                .map(|&id| serde_json::Value::Number(serde_json::Number::from(id)))
+                .collect(),
+        ),
+    );
+
+    // Include optional fields only if they're Some
+    if let Some(max_hops) = multihop_request.max_hops {
+        raw_params.insert(
+            "max_hops".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(max_hops)),
+        );
+    }
+
+    if let Some(max_entities) = multihop_request.max_entities {
+        raw_params.insert(
+            "max_entities".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(max_entities)),
+        );
+    }
+
+    if let Some(decay_factor) = multihop_request.decay_factor {
+        raw_params.insert(
+            "decay_factor".to_string(),
+            serde_json::Value::Number(
+                serde_json::Number::from_f64(decay_factor as f64)
+                    .unwrap_or_else(|| serde_json::Number::from(0)),
+            ),
+        );
+    }
+
+    parse_unified_request(raw_params, RequestType::MultiHop, None)
+}
+
+/// Build a unified fusion request from typed RagGraphQueryRequest
+///
+/// This helper eliminates the JSON roundtrip for fusion requests by converting
+/// the typed struct directly to a UnifiedReasoningRequest, injecting enable_temporal=true.
+pub fn build_unified_fusion_request_from_struct(
+    fusion_request: &crate::code_graph::rag_graph::RagGraphQueryRequest,
+) -> Result<UnifiedReasoningRequest> {
+    let mut raw_params = serde_json::Map::new();
+
+    // Required query field
+    raw_params.insert(
+        "query".to_string(),
+        serde_json::Value::String(fusion_request.query.clone()),
+    );
+
+    // Optional fields
+    if let Some(namespace) = &fusion_request.namespace {
+        raw_params.insert(
+            "namespace".to_string(),
+            serde_json::Value::String(namespace.clone()),
+        );
+    }
+
+    if let Some(mode_hint) = &fusion_request.mode_hint {
+        raw_params.insert(
+            "mode_hint".to_string(),
+            serde_json::Value::String(mode_hint.clone()),
+        );
+    }
+
+    if let Some(top_k) = fusion_request.top_k {
+        raw_params.insert(
+            "top_k".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(top_k)),
+        );
+    }
+
+    if let Some(scope) = &fusion_request.scope {
+        raw_params.insert(
+            "scope".to_string(),
+            serde_json::Value::String(scope.clone()),
+        );
+    }
+
+    if let Some(project_label) = &fusion_request.project_label {
+        raw_params.insert(
+            "project_label".to_string(),
+            serde_json::Value::String(project_label.clone()),
+        );
+    }
+
+    if let Some(local_root) = &fusion_request.local_root {
+        raw_params.insert(
+            "local_root".to_string(),
+            serde_json::Value::String(local_root.clone()),
+        );
+    }
+
+    // Inject enable_temporal: true for fusion requests (preserve existing behavior)
+    raw_params.insert(
+        "enable_temporal".to_string(),
+        serde_json::Value::Bool(true),
+    );
+
+    parse_unified_request(raw_params, RequestType::Fusion, None)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_parse_query_request() {
-        let mut params = HashMap::new();
+        let mut params = serde_json::Map::new();
         params.insert("query".to_string(), json!("test query"));
         params.insert("top_k".to_string(), json!(5));
 
@@ -403,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_parse_multihop_request() {
-        let mut params = HashMap::new();
+        let mut params = serde_json::Map::new();
         params.insert("seed_entities".to_string(), json!([1, 2, 3]));
         params.insert("max_hops".to_string(), json!(5));
 
@@ -417,7 +507,12 @@ mod tests {
         let unified = request.unwrap();
         assert_eq!(unified.request_type, RequestType::MultiHop);
 
-        if let RequestParameters::MultiHop { seed_entities, max_hops, .. } = unified.parameters {
+        if let RequestParameters::MultiHop {
+            seed_entities,
+            max_hops,
+            ..
+        } = unified.parameters
+        {
             assert_eq!(seed_entities, vec![1, 2, 3]);
             assert_eq!(max_hops, Some(5));
         } else {

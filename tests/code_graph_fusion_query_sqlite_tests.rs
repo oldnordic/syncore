@@ -6,10 +6,10 @@
 //! TDD approach: Tests are written FIRST to define the expected behavior,
 //! then implementation follows to make them pass.
 
-use std::sync::{Arc, Mutex};
-use tempfile::tempdir;
 use rmcp::handler::server::wrapper::Parameters;
 use serde_json;
+use std::sync::{Arc, Mutex};
+use tempfile::tempdir;
 
 // Test utilities for creating mock components
 mod test_utils {
@@ -28,7 +28,8 @@ mod test_utils {
         let code_store = create_mock_vector_store();
         let general_store = create_mock_vector_store();
 
-        let mut state = syncore::mcp::SynCoreState::with_dual_stores(code_store, general_store).unwrap();
+        let mut state =
+            syncore::mcp::SynCoreState::with_dual_stores(code_store, general_store).unwrap();
 
         // Override with SQLiteGraph backend
         let temp_dir = tempdir().unwrap();
@@ -44,7 +45,8 @@ mod test_utils {
         let code_store = create_mock_vector_store();
         let general_store = create_mock_vector_store();
 
-        let state = syncore::mcp::SynCoreState::with_dual_stores(code_store, general_store).unwrap();
+        let state =
+            syncore::mcp::SynCoreState::with_dual_stores(code_store, general_store).unwrap();
 
         // Note: In real tests, we would set up a mock Neo4j client here
         // For these tests, we'll test the behavior when Neo4j is available
@@ -74,9 +76,8 @@ fn test_code_graph_fusion_query_sqlite_graph_backend() {
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        mcp_server.code_graph_fusion_query(Parameters(query_request)).await
-    });
+    let result =
+        rt.block_on(async { mcp_server.code_graph_fusion_query(Parameters(query_request)).await });
 
     // Assert
     assert!(result.is_ok(), "code_graph_fusion_query should succeed with SQLiteGraph backend");
@@ -86,17 +87,23 @@ fn test_code_graph_fusion_query_sqlite_graph_backend() {
 
     // Verify we get a real response (not "requires Neo4j connection" error)
     // Use the same text extraction pattern as the server code
-    let response_text = call_result.content.first()
+    let response_text = call_result
+        .content
+        .first()
         .and_then(|c| {
             let json = serde_json::to_value(c).ok()?;
             json.get("text").and_then(|t| t.as_str()).map(|s| s.to_string())
         })
         .unwrap_or_default();
 
-    assert!(!response_text.contains("requires Neo4j connection"),
-               "Should not return Neo4j error when SQLiteGraph is configured");
-    assert!(!response_text.contains("no available graph backend"),
-               "Should successfully create graph backend");
+    assert!(
+        !response_text.contains("requires Neo4j connection"),
+        "Should not return Neo4j error when SQLiteGraph is configured"
+    );
+    assert!(
+        !response_text.contains("no available graph backend"),
+        "Should successfully create graph backend"
+    );
 
     // Clean up
     std::env::remove_var("GRAPH_BACKEND");
@@ -127,9 +134,8 @@ fn test_code_graph_fusion_query_neo4j_preserved() {
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        mcp_server.code_graph_fusion_query(Parameters(query_request)).await
-    });
+    let result =
+        rt.block_on(async { mcp_server.code_graph_fusion_query(Parameters(query_request)).await });
 
     // Assert - currently this will fail because we don't have Neo4j setup,
     // but we can verify it attempts the Neo4j path
@@ -138,14 +144,18 @@ fn test_code_graph_fusion_query_neo4j_preserved() {
     let call_result = result.unwrap();
     // This should return a meaningful error about Neo4j not being available
     // rather than the old "requires Neo4j connection" generic message
-    let response_text = call_result.content.first()
+    let response_text = call_result
+        .content
+        .first()
         .and_then(|c| {
             let json = serde_json::to_value(c).ok()?;
             json.get("text").and_then(|t| t.as_str()).map(|s| s.to_string())
         })
         .unwrap_or_default();
-    assert!(response_text.contains("graph backend") || response_text.contains("Neo4j"),
-               "Should mention graph backend in error message");
+    assert!(
+        response_text.contains("graph backend") || response_text.contains("Neo4j"),
+        "Should mention graph backend in error message"
+    );
 
     // Clean up
     std::env::remove_var("GRAPH_BACKEND");
@@ -176,9 +186,8 @@ fn test_code_graph_fusion_query_defaults_to_sqlitegraph() {
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        mcp_server.code_graph_fusion_query(Parameters(query_request)).await
-    });
+    let result =
+        rt.block_on(async { mcp_server.code_graph_fusion_query(Parameters(query_request)).await });
 
     // Assert
     assert!(result.is_ok(), "MCP call should succeed with default backend");
@@ -187,16 +196,22 @@ fn test_code_graph_fusion_query_defaults_to_sqlitegraph() {
     assert!(!call_result.content.is_empty(), "Should return query results");
 
     // Should work successfully with default SQLiteGraph backend
-    let response_text = call_result.content.first()
+    let response_text = call_result
+        .content
+        .first()
         .and_then(|c| {
             let json = serde_json::to_value(c).ok()?;
             json.get("text").and_then(|t| t.as_str()).map(|s| s.to_string())
         })
         .unwrap_or_default();
-    assert!(!response_text.contains("error"),
-               "Should not return an error when using default backend");
-    assert!(!response_text.contains("requires Neo4j connection"),
-               "Should not require Neo4j when defaulting to SQLiteGraph");
+    assert!(
+        !response_text.contains("error"),
+        "Should not return an error when using default backend"
+    );
+    assert!(
+        !response_text.contains("requires Neo4j connection"),
+        "Should not require Neo4j when defaulting to SQLiteGraph"
+    );
 
     println!("✅ Default backend successfully defaults to SQLiteGraph");
 }
@@ -222,9 +237,8 @@ fn test_code_graph_fusion_query_scope_parsing() {
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        mcp_server.code_graph_fusion_query(Parameters(query_request)).await
-    });
+    let result =
+        rt.block_on(async { mcp_server.code_graph_fusion_query(Parameters(query_request)).await });
 
     // Assert
     assert!(result.is_ok(), "Query with scope should work");
@@ -257,9 +271,8 @@ fn test_code_graph_fusion_query_mode_hints() {
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        mcp_server.code_graph_fusion_query(Parameters(query_request)).await
-    });
+    let result =
+        rt.block_on(async { mcp_server.code_graph_fusion_query(Parameters(query_request)).await });
 
     // Assert
     assert!(result.is_ok(), "Query with mode hint should work");
@@ -292,9 +305,8 @@ fn test_code_graph_fusion_query_namespace_filtering() {
     };
 
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let result = rt.block_on(async {
-        mcp_server.code_graph_fusion_query(Parameters(query_request)).await
-    });
+    let result =
+        rt.block_on(async { mcp_server.code_graph_fusion_query(Parameters(query_request)).await });
 
     // Assert
     assert!(result.is_ok(), "Query with namespace should work");

@@ -65,7 +65,9 @@ pub fn normalize_metadata(meta: &mut ReasoningMetadata) -> anyhow::Result<()> {
         if vector_ms < meta.start_time_ms || vector_ms > meta.end_time_ms {
             return Err(anyhow::anyhow!(
                 "vector_search_ms ({}) must be between start_time_ms ({}) and end_time_ms ({})",
-                vector_ms, meta.start_time_ms, meta.end_time_ms
+                vector_ms,
+                meta.start_time_ms,
+                meta.end_time_ms
             ));
         }
     }
@@ -74,7 +76,9 @@ pub fn normalize_metadata(meta: &mut ReasoningMetadata) -> anyhow::Result<()> {
         if graph_ms < meta.start_time_ms || graph_ms > meta.end_time_ms {
             return Err(anyhow::anyhow!(
                 "graph_traversal_ms ({}) must be between start_time_ms ({}) and end_time_ms ({})",
-                graph_ms, meta.start_time_ms, meta.end_time_ms
+                graph_ms,
+                meta.start_time_ms,
+                meta.end_time_ms
             ));
         }
     }
@@ -83,7 +87,9 @@ pub fn normalize_metadata(meta: &mut ReasoningMetadata) -> anyhow::Result<()> {
         if fusion_ms < meta.start_time_ms || fusion_ms > meta.end_time_ms {
             return Err(anyhow::anyhow!(
                 "fusion_ms ({}) must be between start_time_ms ({}) and end_time_ms ({})",
-                fusion_ms, meta.start_time_ms, meta.end_time_ms
+                fusion_ms,
+                meta.start_time_ms,
+                meta.end_time_ms
             ));
         }
     }
@@ -123,13 +129,16 @@ mod phase6_tests {
         normalize_metadata(&mut metadata)?;
 
         // Check that debug flags are sorted alphabetically
-        assert_eq!(metadata.debug_flags, vec![
-            "backend:SQLiteGraph",
-            "formatting:ok",
-            "graph:completed",
-            "parsing:ok",
-            "vector:completed",
-        ]);
+        assert_eq!(
+            metadata.debug_flags,
+            vec![
+                "backend:SQLiteGraph",
+                "formatting:ok",
+                "graph:completed",
+                "parsing:ok",
+                "vector:completed",
+            ]
+        );
 
         Ok(())
     }
@@ -200,7 +209,10 @@ mod phase6_tests {
     fn test_reasoning_stage_debug_flags() {
         // Test all stage debug flag generation
         assert_eq!(ReasoningStage::Parsing.to_debug_flag("ok"), "parsing:ok");
-        assert_eq!(ReasoningStage::BackendSelection.to_debug_flag("SQLiteGraph"), "backend:SQLiteGraph");
+        assert_eq!(
+            ReasoningStage::BackendSelection.to_debug_flag("SQLiteGraph"),
+            "backend:SQLiteGraph"
+        );
         assert_eq!(ReasoningStage::VectorSearch.to_debug_flag("completed"), "vector:completed");
         assert_eq!(ReasoningStage::GraphTraversal.to_debug_flag("completed"), "graph:completed");
         assert_eq!(ReasoningStage::Fusion.to_debug_flag("completed"), "fusion:completed");

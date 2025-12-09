@@ -4,12 +4,12 @@
 //! and PASS after complete implementation.
 
 use anyhow::Result;
-use syncore::mcp_server::server::MCPServerHandler;
-use syncore::mcp_server::types::{RagGraphQueryRequest, RagGraphMultihopRequest};
-use syncore::router::SynCoreState;
-use std::sync::Arc;
 use rmcp::model::CallToolResult;
 use serde_json::{json, Value};
+use std::sync::Arc;
+use syncore::mcp_server::server::MCPServerHandler;
+use syncore::mcp_server::types::{RagGraphMultihopRequest, RagGraphQueryInput};
+use syncore::router::SynCoreState;
 
 /// Test 8.1: evaluation_score_is_deterministic
 #[tokio::test]
@@ -18,7 +18,7 @@ async fn evaluation_score_is_deterministic() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Create identical requests
-    let request1 = RagGraphQueryRequest {
+    let request1 = RagGraphQueryInput {
         query_text: "deterministic test query".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -27,7 +27,7 @@ async fn evaluation_score_is_deterministic() -> Result<()> {
         scope: Some("project".to_string()),
     };
 
-    let request2 = RagGraphQueryRequest {
+    let request2 = RagGraphQueryInput {
         query_text: "deterministic test query".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -47,14 +47,8 @@ async fn evaluation_score_is_deterministic() -> Result<()> {
     // 2. ReasoningEvaluation struct not implemented
     // 3. Deterministic scoring logic not implemented
 
-    assert!(
-        response1.get("evaluation").is_some(),
-        "Response should contain 'evaluation' field"
-    );
-    assert!(
-        response2.get("evaluation").is_some(),
-        "Response should contain 'evaluation' field"
-    );
+    assert!(response1.get("evaluation").is_some(), "Response should contain 'evaluation' field");
+    assert!(response2.get("evaluation").is_some(), "Response should contain 'evaluation' field");
 
     let eval1 = response1.get("evaluation").unwrap().as_object().unwrap();
     let eval2 = response2.get("evaluation").unwrap().as_object().unwrap();
@@ -85,7 +79,7 @@ async fn evaluation_flags_detect_missing_stages() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Request that should result in complete execution
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "complete execution test".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -134,7 +128,7 @@ async fn evaluation_flags_detect_unordered_stages() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "order validation test".to_string(),
         namespace: None,
         mode_hint: None,
@@ -157,11 +151,7 @@ async fn evaluation_flags_detect_unordered_stages() -> Result<()> {
 
     // Verify expected deterministic order
     let expected_order = vec!["parsing", "vector_search", "graph_traversal", "formatting"];
-    assert_eq!(
-        stages.len(),
-        expected_order.len(),
-        "Should have expected number of stages"
-    );
+    assert_eq!(stages.len(), expected_order.len(), "Should have expected number of stages");
 
     for (i, expected_stage) in expected_order.iter().enumerate() {
         let stage_obj = stages.get(i).unwrap().as_object().unwrap();
@@ -205,11 +195,11 @@ async fn evaluation_confidence_reduces_if_timings_erratic() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Request with potentially erratic timing behavior
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "timing erratic test".to_string(),
         namespace: Some("large_module".to_string()),
         mode_hint: Some("fusion".to_string()), // Should trigger fusion stage
-        top_k: Some(50), // Large top_k might cause timing issues
+        top_k: Some(50),                       // Large top_k might cause timing issues
         project_label: Some("complex_project".to_string()),
         scope: Some("project".to_string()),
     };
@@ -260,7 +250,7 @@ async fn evaluation_handles_failed_executions() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Create a request that should cause execution failure
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "".to_string(), // Empty query should cause failure
         namespace: None,
         mode_hint: None,
@@ -277,10 +267,7 @@ async fn evaluation_handles_failed_executions() -> Result<()> {
     // 2. Failed execution scoring rules not implemented
     // 3. Score/confidence caps for failures not implemented
 
-    assert!(
-        response.get("evaluation").is_some(),
-        "Error responses should also contain evaluation"
-    );
+    assert!(response.get("evaluation").is_some(), "Error responses should also contain evaluation");
 
     let evaluation = response.get("evaluation").unwrap().as_object().unwrap();
 
@@ -288,11 +275,7 @@ async fn evaluation_handles_failed_executions() -> Result<()> {
     let confidence = evaluation.get("confidence").unwrap().as_f64().unwrap();
 
     // Failed execution should have score capped at 60 and confidence capped at 0.5
-    assert!(
-        score <= 60,
-        "Failed execution score should be capped at 60, got {}",
-        score
-    );
+    assert!(score <= 60, "Failed execution score should be capped at 60, got {}", score);
 
     assert!(
         confidence <= 0.5,
@@ -314,7 +297,7 @@ async fn evaluation_ignores_non_deterministic_fields() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Create requests that are semantically identical but might have non-deterministic fields
-    let request1 = RagGraphQueryRequest {
+    let request1 = RagGraphQueryInput {
         query_text: "deterministic evaluation test".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -323,7 +306,7 @@ async fn evaluation_ignores_non_deterministic_fields() -> Result<()> {
         scope: Some("project".to_string()),
     };
 
-    let request2 = RagGraphQueryRequest {
+    let request2 = RagGraphQueryInput {
         query_text: "deterministic evaluation test".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -365,12 +348,10 @@ async fn evaluation_ignores_non_deterministic_fields() -> Result<()> {
     let flags2 = eval2.get("anomaly_flags").unwrap().as_array().unwrap();
 
     // Sort flags for comparison to handle potential ordering differences
-    let mut sorted_flags1: Vec<String> = flags1.iter()
-        .map(|f| f.as_str().unwrap().to_string())
-        .collect();
-    let mut sorted_flags2: Vec<String> = flags2.iter()
-        .map(|f| f.as_str().unwrap().to_string())
-        .collect();
+    let mut sorted_flags1: Vec<String> =
+        flags1.iter().map(|f| f.as_str().unwrap().to_string()).collect();
+    let mut sorted_flags2: Vec<String> =
+        flags2.iter().map(|f| f.as_str().unwrap().to_string()).collect();
     sorted_flags1.sort();
     sorted_flags2.sort();
 
@@ -388,7 +369,7 @@ async fn evaluation_serialization_roundtrip() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "serialization roundtrip test".to_string(),
         namespace: Some("test".to_string()),
         mode_hint: Some("evaluation".to_string()),
@@ -424,7 +405,8 @@ async fn evaluation_serialization_roundtrip() -> Result<()> {
     for field in required_fields {
         assert!(
             eval_obj.contains_key(field),
-            "Field '{}' should survive serialization roundtrip", field
+            "Field '{}' should survive serialization roundtrip",
+            field
         );
     }
 
@@ -444,7 +426,7 @@ async fn evaluation_integrates_into_unified_response() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Test all three reasoning tools to ensure evaluation integration
-    let query_request = RagGraphQueryRequest {
+    let query_request = RagGraphQueryInput {
         query_text: "evaluation integration test".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -457,7 +439,7 @@ async fn evaluation_integrates_into_unified_response() -> Result<()> {
         seed_nodes: vec![1, 2, 3, 4, 5],
     };
 
-    let fusion_request = RagGraphQueryRequest {
+    let fusion_request = RagGraphQueryInput {
         query_text: "evaluation fusion test".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("fusion".to_string()),
@@ -467,13 +449,19 @@ async fn evaluation_integrates_into_unified_response() -> Result<()> {
     };
 
     // Execute all three reasoning tools
-    let query_result = handler.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
-    let multihop_result = handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await?;
-    let fusion_result = handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await?;
+    let query_result =
+        handler.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
+    let multihop_result =
+        handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await?;
+    let fusion_result =
+        handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await?;
 
-    let query_response: Value = serde_json::from_str(&query_result.content[0].text.as_ref().unwrap())?;
-    let multihop_response: Value = serde_json::from_str(&multihop_result.content[0].text.as_ref().unwrap())?;
-    let fusion_response: Value = serde_json::from_str(&fusion_result.content[0].text.as_ref().unwrap())?;
+    let query_response: Value =
+        serde_json::from_str(&query_result.content[0].text.as_ref().unwrap())?;
+    let multihop_response: Value =
+        serde_json::from_str(&multihop_result.content[0].text.as_ref().unwrap())?;
+    let fusion_response: Value =
+        serde_json::from_str(&fusion_result.content[0].text.as_ref().unwrap())?;
 
     // This test will FAIL before Phase 8 because:
     // 1. evaluation field doesn't exist in any responses
@@ -481,10 +469,7 @@ async fn evaluation_integrates_into_unified_response() -> Result<()> {
     // 3. Consistent evaluation format across tools not enforced
 
     // All responses should contain evaluation
-    assert!(
-        query_response.get("evaluation").is_some(),
-        "Query response should contain evaluation"
-    );
+    assert!(query_response.get("evaluation").is_some(), "Query response should contain evaluation");
     assert!(
         multihop_response.get("evaluation").is_some(),
         "Multihop response should contain evaluation"
@@ -502,11 +487,7 @@ async fn evaluation_integrates_into_unified_response() -> Result<()> {
     let evaluation_fields = vec!["score", "confidence", "anomaly_flags", "summary"];
 
     for field in evaluation_fields {
-        assert!(
-            query_eval.contains_key(field),
-            "Query evaluation should contain field: {}",
-            field
-        );
+        assert!(query_eval.contains_key(field), "Query evaluation should contain field: {}", field);
         assert!(
             multihop_eval.contains_key(field),
             "Multihop evaluation should contain field: {}",
@@ -520,23 +501,23 @@ async fn evaluation_integrates_into_unified_response() -> Result<()> {
     }
 
     // All evaluations should be in valid ranges
-    for (tool_name, eval) in [
-        ("query", query_eval),
-        ("multihop", multihop_eval),
-        ("fusion", fusion_eval),
-    ] {
+    for (tool_name, eval) in
+        [("query", query_eval), ("multihop", multihop_eval), ("fusion", fusion_eval)]
+    {
         let score = eval.get("score").unwrap().as_u64().unwrap();
         let confidence = eval.get("confidence").unwrap().as_f64().unwrap();
 
         assert!(
             score >= 0 && score <= 100,
             "{} evaluation score should be between 0 and 100, got {}",
-            tool_name, score
+            tool_name,
+            score
         );
         assert!(
             confidence >= 0.0 && confidence <= 1.0,
             "{} evaluation confidence should be between 0.0 and 1.0, got {}",
-            tool_name, confidence
+            tool_name,
+            confidence
         );
     }
 

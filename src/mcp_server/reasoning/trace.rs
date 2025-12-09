@@ -4,9 +4,9 @@
 //! for introspection and cognitive analysis.
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
-use sha2::{Sha256, Digest};
 
 /// A trace entry representing a single stage in the reasoning pipeline
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -76,19 +76,13 @@ impl ReasoningTrace {
             return "No stages executed".to_string();
         }
 
-        let failed_stages: Vec<&ReasoningTraceStage> = stages
-            .iter()
-            .filter(|s| !s.ok)
-            .collect();
+        let failed_stages: Vec<&ReasoningTraceStage> = stages.iter().filter(|s| !s.ok).collect();
 
         if failed_stages.is_empty() {
             format!(
                 "Successfully completed {} stages: {}",
                 stages.len(),
-                stages.iter()
-                    .map(|s| s.stage.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                stages.iter().map(|s| s.stage.as_str()).collect::<Vec<_>>().join(", ")
             )
         } else {
             format!(
@@ -124,7 +118,7 @@ impl ReasoningTrace {
 /// Builder for constructing ReasoningTrace instances
 #[derive(Debug, Clone)]
 pub struct ReasoningTraceBuilder {
-    request_start_time_ms: u128,
+    _request_start_time_ms: u128,
     stages: Vec<ReasoningTraceStage>,
     backend: Option<String>,
     parameters_hash: Option<String>,
@@ -134,7 +128,7 @@ impl ReasoningTraceBuilder {
     /// Create a new trace builder with request start time
     pub fn new(parameters: &serde_json::Value) -> Self {
         Self {
-            request_start_time_ms: SystemTime::now()
+            _request_start_time_ms: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_millis(),
@@ -151,12 +145,20 @@ impl ReasoningTraceBuilder {
     }
 
     /// Add a successful stage
-    pub fn add_success(&mut self, stage: impl Into<String>, detail: impl Into<String>) -> &mut Self {
+    pub fn add_success(
+        &mut self,
+        stage: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> &mut Self {
         self.add_stage(ReasoningTraceStage::success(stage, detail))
     }
 
     /// Add a failed stage
-    pub fn add_failure(&mut self, stage: impl Into<String>, detail: impl Into<String>) -> &mut Self {
+    pub fn add_failure(
+        &mut self,
+        stage: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> &mut Self {
         self.add_stage(ReasoningTraceStage::failure(stage, detail))
     }
 
@@ -298,9 +300,7 @@ mod tests {
         let params = json!({"query": "test"});
         let mut builder = ReasoningTraceBuilder::new(&params);
 
-        builder
-            .add_success("parsing", "parsed")
-            .add_failure("validation", "invalid query");
+        builder.add_success("parsing", "parsed").add_failure("validation", "invalid query");
 
         assert!(builder.has_failures());
         let failure = builder.first_failure().unwrap();

@@ -10,20 +10,22 @@
 //! - code_index_directory: Batch index directory with glob pattern
 //! - code_search: Semantic code search using vector store
 
+use crate::code_graph::update_service::{CodeGraphUpdateEvent, CodeGraphUpdateService};
 use crate::code_graph::CodeGraph;
 use crate::common::db_paths;
+use crate::fs_watcher::FsEvent;
 use crate::mcp::types::ErrorType;
 use crate::parser::{Parser, RipgrepSearcher};
 use crate::router::SynCoreState;
 use crate::vector::SearchScope;
 use serde_json::{json, Value};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Helper: Extract string parameter from Value params
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
-        Some(v) if !v.is_empty() => Ok(v),
+        Some(v) if !v.trim().is_empty() => Ok(v),
         _ => Err(wrap_error_static(tool, &format!("Missing '{}' parameter", key))),
     }
 }
@@ -101,20 +103,8 @@ pub async fn execute_parser_analyze(
 
     // If persist=true, also index the file using CodeGraph (same as code_index)
     let persisted_count = if persist {
-        let code_graph_conn = state.db_manager.code_graph_conn();
-        let mut code_graph =
-            match CodeGraph::with_connection(code_graph_conn, Arc::clone(&state.general_store)) {
-                Ok(cg) => cg,
-                Err(e) => {
-                    return Ok(wrap_error(
-                        "parser_analyze",
-                        &format!("Failed to initialize code graph for persistence: {}", e),
-                    ));
-                }
-            };
-
-        match code_graph.index_file(Path::new(file_path)) {
-            Ok(count) => Some(count),
+        match reindex_file_via_update_service(state, Path::new(file_path)) {
+            Ok(count) => Some(count as usize),
             Err(e) => {
                 return Ok(wrap_error(
                     "parser_analyze",
@@ -209,23 +199,8 @@ pub async fn execute_code_index(
         return Ok(result);
     }
 
-    // REAL IMPLEMENTATION - Index file with persistent storage using DbManager
-    // Use DbManager's long-lived connection instead of creating a new one
-    let code_graph_conn = state.db_manager.code_graph_conn();
-    let mut code_graph =
-        match CodeGraph::with_connection(code_graph_conn, Arc::clone(&state.general_store)) {
-            Ok(cg) => cg,
-            Err(e) => {
-                return Ok(wrap_error(
-                    "code_index",
-                    &format!("Failed to initialize code graph: {}", e),
-                ));
-            }
-        };
-
-    // Index the file with persistent storage
     let path = Path::new(file_path);
-    match code_graph.index_file(path) {
+    match reindex_file_via_update_service(state, path) {
         Ok(entity_count) => {
             let db_path = db_paths::code_graph_db_path();
 
@@ -279,7 +254,19 @@ pub async fn execute_code_index_directory(
         Ok(v) => v,
         Err(e) => return Ok(e),
     };
-    let pattern = params.get("pattern").and_then(|p| p.as_str()).unwrap_or("*.rs");
+
+    // Validate pattern parameter - required and non-empty
+    let pattern = match params.get("pattern").and_then(|p| p.as_str()) {
+        Some(p) => {
+            if p.trim().is_empty() {
+                return Ok(wrap_error_static("code_index_directory", "Required parameter 'pattern' cannot be empty"));
+            }
+            p
+        },
+        None => {
+            return Ok(wrap_error_static("code_index_directory", "Missing required parameter: 'pattern'"));
+        }
+    };
 
     if dry_run {
         let result = wrap_success(
@@ -292,37 +279,32 @@ pub async fn execute_code_index_directory(
         return Ok(result);
     }
 
-    // Use DbManager's long-lived connection instead of creating a new one
-    let code_graph_conn = state.db_manager.code_graph_conn();
-    let mut code_graph =
-        match CodeGraph::with_connection(code_graph_conn, Arc::clone(&state.general_store)) {
-            Ok(cg) => cg,
-            Err(e) => {
-                return Ok(wrap_error(
-                    "code_index_directory",
-                    &format!("Failed to initialize code graph: {}", e),
-                ));
-            }
-        };
-
     // Recursively find files matching pattern
     use glob::glob;
-    let search_pattern = format!("{}/**/{}", directory, pattern);
+
+    // FIX: Avoid double pattern wrapping
+    // If the user's pattern already includes the directory prefix,
+    // use the pattern directly to avoid creating patterns like "src/**/src/**/*.rs"
+    let search_pattern = if pattern.starts_with(&format!("{}/", directory)) || pattern.starts_with(&format!("{}**/", directory)) {
+        // Pattern already includes directory (e.g., "src/**/*.rs"), use as-is
+        pattern.to_string()
+    } else {
+        // Pattern doesn't include directory, wrap it (e.g., "*.rs" -> "src/**/*.rs")
+        format!("{}/**/{}", directory, pattern)
+    };
     let mut indexed_count = 0;
     let mut total_entities = 0;
 
     for path in (glob(&search_pattern).map_err(|e| anyhow::anyhow!("Glob error: {}", e))?).flatten()
     {
         if path.is_file() {
-            if path.is_file() {
-                match code_graph.index_file(&path) {
-                    Ok(count) => {
-                        indexed_count += 1;
-                        total_entities += count;
-                    }
-                    Err(e) => {
-                        eprintln!("Warning: Failed to index {:?}: {}", path, e);
-                    }
+            match reindex_file_via_update_service(state, path.as_path()) {
+                Ok(count) => {
+                    indexed_count += 1;
+                    total_entities += count as usize;
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to index {:?}: {}", path, e);
                 }
             }
         }
@@ -393,4 +375,18 @@ pub async fn execute_code_search(
             "count": results.len()
         }),
     ))
+}
+
+fn reindex_file_via_update_service(
+    state: &Arc<SynCoreState>,
+    path: &Path,
+) -> anyhow::Result<u64> {
+    let code_graph_conn = state.db_manager.code_graph_conn();
+    let code_graph = CodeGraph::with_connection(code_graph_conn, Arc::clone(&state.general_store))?;
+    let mut update_service = CodeGraphUpdateService::new(code_graph, Arc::clone(&state.reindex_mutex))?;
+    let event = CodeGraphUpdateEvent {
+        fs_event: FsEvent::Modified(PathBuf::from(path)),
+        parse_delta: None,
+    };
+    update_service.apply_update(event)
 }

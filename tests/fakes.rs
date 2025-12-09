@@ -130,6 +130,7 @@ impl FakeParser {
                 methods: vec![],
                 fields: vec![],
                 docstring: None,
+                class_type: "class".to_string(),
             }],
             imports: vec![ImportInfo {
                 module: "std::collections::HashMap".to_string(),

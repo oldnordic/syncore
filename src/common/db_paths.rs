@@ -261,6 +261,30 @@ pub fn general_vector_index_path() -> String {
     default_path.to_string_lossy().to_string()
 }
 
+/// Get path for GRAPH domain vector index (graph entities, nodes, edges, relationships).
+///
+/// Resolution priority:
+/// 1. GRAPH_VECTOR_INDEX_PATH environment variable (absolute or relative to project root)
+/// 2. <project_root>/syncore_graph.index
+///
+/// APEX 2.9: GRAPH domain stores graph entities, nodes, edges, and relationships with graph-optimized embeddings.
+pub fn graph_vector_index_path() -> String {
+    // Check env var first
+    if let Ok(path) = std::env::var("GRAPH_VECTOR_INDEX_PATH") {
+        let path_buf = PathBuf::from(&path);
+        if path_buf.is_absolute() {
+            return path;
+        }
+        // If relative, resolve against binary directory
+        let absolute = BINARY_DIR.join(&path);
+        return absolute.to_string_lossy().to_string();
+    }
+
+    // Default: <binary_dir>/syncore_graph.index
+    let default_path = BINARY_DIR.join("syncore_graph.index");
+    default_path.to_string_lossy().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

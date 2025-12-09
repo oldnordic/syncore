@@ -35,7 +35,7 @@ pub mod rag_graph;
 pub mod rag_graph_api;
 mod searcher;
 pub mod semantic_extractor; // PHASE 1: Semantic edge extraction
-// pub mod streaming; // APEX 2.8: Streaming fusion query results (temporarily disabled for unification tests)
+                            // pub mod streaming; // APEX 2.8: Streaming fusion query results (temporarily disabled for unification tests)
 pub mod temporal_extractor; // PHASE 3: Temporal metadata extraction
 pub mod types;
 pub mod update_service; // APEX 2.3-CG: Incremental code graph updates

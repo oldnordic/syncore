@@ -33,7 +33,7 @@ impl HttpStreamServer {
         }
     }
 
-    /// Start HTTP streamable server with proper MCP protocol support
+    /// Start HTTP streamable server with proper MCP protocol support.
     pub async fn start(self, addr: SocketAddr) -> Result<()> {
         // Create the StreamableHttpService using rmcp's proper transport
         // This handles:
@@ -56,8 +56,9 @@ impl HttpStreamServer {
         let app = Router::new().nest_service("/mcp", service);
 
         let listener = tokio::net::TcpListener::bind(addr).await?;
-        tracing::info!("HTTP Streamable MCP server listening on {}", addr);
-        eprintln!("[MCP HTTP] Server listening on http://{}/mcp", addr);
+        let local_addr = listener.local_addr()?;
+        tracing::info!("HTTP Streamable MCP server listening on {}", local_addr);
+        eprintln!("[MCP HTTP] Server listening on http://{}/mcp", local_addr);
 
         axum::serve(listener, app).await?;
         Ok(())

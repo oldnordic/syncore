@@ -11,7 +11,7 @@
 
 use super::storage::StorageAdapter;
 use super::types::NodeId;
-use crate::sqlitegraph::async_sqlite_backend::{SyncGraphBackend, AsyncSQLiteBackend};
+use crate::graph::GraphBackend;
 use crate::vector::traits::VectorIndex;
 use anyhow::{anyhow, Context, Result};
 use std::collections::hash_map::DefaultHasher;
@@ -23,8 +23,8 @@ pub struct SQLiteGraphStorageAdapter {
     /// HNSW vector index for semantic search
     vector_index: Arc<Mutex<dyn VectorIndex>>,
 
-    /// SQLiteGraph backend for graph traversal (wrapped in sync interface)
-    graph_backend: Arc<AsyncSQLiteBackend>,
+    /// SQLiteGraph backend for graph traversal (canonical async interface)
+    graph_backend: Arc<dyn GraphBackend>,
 
     /// Embedding dimension (default: 384)
     dimension: usize,
@@ -35,19 +35,16 @@ impl SQLiteGraphStorageAdapter {
     ///
     /// # Arguments
     /// * `vector_index` - HNSW vector index (thread-safe)
-    /// * `graph_backend` - SQLiteGraph backend (Arc<dyn GraphBackend>)
+    /// * `graph_backend` - SQLiteGraph backend (canonical async interface)
     /// * `dimension` - Embedding dimension (default: 384)
     pub fn new(
         vector_index: Arc<Mutex<dyn VectorIndex>>,
-        graph_backend: Arc<dyn crate::graph::GraphBackend>,
+        graph_backend: Arc<dyn GraphBackend>,
         dimension: usize,
     ) -> Result<Self> {
-        let sync_backend = AsyncSQLiteBackend::new(graph_backend)
-            .context("Failed to create sync wrapper for GraphBackend")?;
-
         Ok(Self {
             vector_index,
-            graph_backend: Arc::new(sync_backend),
+            graph_backend,
             dimension,
         })
     }
@@ -83,7 +80,7 @@ impl SQLiteGraphStorageAdapter {
     /// Get node text from SQLiteGraph for embedding generation
     ///
     /// Extracts the body_snippet or name field from code_entities table
-    fn get_node_text(&self, node_id: NodeId) -> Result<Option<String>> {
+    async fn get_node_text(&self, node_id: NodeId) -> Result<Option<String>> {
         let cypher = r#"
             SELECT body_snippet, name
             FROM code_entities
@@ -91,9 +88,11 @@ impl SQLiteGraphStorageAdapter {
             LIMIT 1
         "#;
 
-        let results = self.graph_backend
+        let results = self
+            .graph_backend
             .execute_query(cypher, vec![("id", serde_json::json!(node_id))])
-        .context("Failed to query node text from SQLiteGraph")?;
+            .await
+            .context("Failed to query node text from SQLiteGraph")?;
 
         if let Some(result) = results.first() {
             if let Some(body_snippet) = result.get("body_snippet").and_then(|v| v.as_str()) {
@@ -135,8 +134,11 @@ impl StorageAdapter for SQLiteGraphStorageAdapter {
     }
 
     fn resolve_embedding(&self, node_id: NodeId) -> Result<Vec<f32>> {
-        // Get node text from SQLiteGraph
-        let text = self.get_node_text(node_id)?;
+        // Get node text from SQLiteGraph (using async internally)
+        let text = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(self.get_node_text(node_id))
+        })?;
 
         // Extract text and generate embedding
         if let Some(text) = text {
@@ -147,9 +149,11 @@ impl StorageAdapter for SQLiteGraphStorageAdapter {
     }
 
     fn neighbors_of(&self, node_id: NodeId) -> Result<Vec<(NodeId, f32)>> {
-        // Use SQLiteGraph get_neighbors method
-        let neighbors = self.graph_backend
-            .get_neighbors(node_id)
+        // Use SQLiteGraph get_neighbors method (async internally)
+        let neighbors = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(self.graph_backend.get_neighbors(node_id))
+        })
         .context("Failed to query neighbors from SQLiteGraph")?;
 
         // Convert EntityResult to (NodeId, weight) tuples

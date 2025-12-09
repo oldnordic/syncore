@@ -1,10 +1,9 @@
-//! Graph Backend Selector
+//! Graph Backend Selector - SQLiteGraph ONLY
 //!
-//! Provides runtime selection between Neo4j and SQLiteGraph backends
-//! based on configuration. Returns Arc<dyn GraphBackend> for
-//! unified access across the application.
+//! Neo4j backend is disabled. Only SQLiteGraph backend is supported.
+//! Returns Arc<dyn GraphBackend> for unified access across the application.
 
-use super::{GraphBackend, Neo4jBackend, SQLiteGraphBackend};
+use super::{GraphBackend, SQLiteGraphBackend};
 use crate::config::{GraphBackend as ConfigBackend, GraphConfig};
 use anyhow::{anyhow, Result};
 use std::sync::Arc;
@@ -16,29 +15,19 @@ use std::sync::Arc;
 /// * `namespace` - Namespace for multi-tenant isolation
 ///
 /// # Returns
-/// Arc<dyn GraphBackend> configured according to the specified backend
+/// Arc<dyn GraphBackend> configured for SQLiteGraph only
 ///
-/// # Panics
-/// Panics if an invalid backend is specified in configuration
+/// # Note
+/// Neo4j backend is disabled - always uses SQLiteGraph regardless of config
 pub async fn create_graph_backend(
     config: &GraphConfig,
     namespace: &str,
 ) -> Result<Arc<dyn GraphBackend>> {
-    match config.backend {
-        ConfigBackend::Neo4j => {
-            let backend =
-                Neo4jBackend::connect(&config.uri, &config.user, &config.password, namespace)
-                    .await
-                    .map_err(|e| anyhow!("Failed to connect to Neo4j: {}", e))?;
-            Ok(Arc::new(backend))
-        }
-        ConfigBackend::SqliteGraph => {
-            let backend = SQLiteGraphBackend::connect(&config.path, "", "", namespace)
-                .await
-                .map_err(|e| anyhow!("Failed to connect to SQLiteGraph: {}", e))?;
-            Ok(Arc::new(backend))
-        }
-    }
+    // Force SQLiteGraph regardless of config - Neo4j is disabled
+    let backend = SQLiteGraphBackend::connect(&config.path, "", "", namespace)
+        .await
+        .map_err(|e| anyhow!("Failed to connect to SQLiteGraph: {}", e))?;
+    Ok(Arc::new(backend))
 }
 
 /// Create a graph backend with default namespace
@@ -50,32 +39,19 @@ pub async fn create_default_graph_backend(config: &GraphConfig) -> Result<Arc<dy
 
 /// Validate graph configuration
 ///
-/// Checks that the configuration is valid for the selected backend
+/// Checks that the configuration is valid for SQLiteGraph backend only
 pub fn validate_graph_config(config: &GraphConfig) -> Result<()> {
-    match config.backend {
-        ConfigBackend::Neo4j => {
-            if config.uri.is_empty() {
-                return Err(anyhow!("Neo4j backend requires URI to be specified"));
-            }
-            if config.user.is_empty() {
-                return Err(anyhow!("Neo4j backend requires user to be specified"));
-            }
-        }
-        ConfigBackend::SqliteGraph => {
-            if config.path.is_empty() {
-                return Err(anyhow!("SQLiteGraph backend requires path to be specified"));
-            }
-        }
+    // Always validate for SQLiteGraph since Neo4j is disabled
+    if config.path.is_empty() {
+        return Err(anyhow!("SQLiteGraph backend requires path to be specified"));
     }
     Ok(())
 }
 
 /// Get backend description for logging/debugging
 pub fn get_backend_description(config: &GraphConfig) -> String {
-    match config.backend {
-        ConfigBackend::Neo4j => format!("Neo4j at {}", config.uri),
-        ConfigBackend::SqliteGraph => format!("SQLiteGraph at {}", config.path),
-    }
+    // Always return SQLiteGraph since Neo4j is disabled
+    format!("SQLiteGraph at {}", config.path)
 }
 
 /// Create a graph backend from full SyncoreConfig (Task 4 requirement)

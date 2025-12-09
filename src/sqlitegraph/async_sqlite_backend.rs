@@ -10,7 +10,9 @@
 //! - Handle runtime creation correctly for sync-to-async bridging
 //! - Maintain full backward compatibility
 
-use crate::graph::{GraphBackend, EntityResult, NodeProperties, NodeLabel, RelationType, GraphStats};
+use crate::graph::{
+    EntityResult, GraphBackend, GraphStats, NodeLabel, NodeProperties, RelationType,
+};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::sync::Arc;
@@ -43,13 +45,22 @@ pub trait SyncGraphBackend: Send + Sync {
     fn delete_file_entities(&self, file_path: &str) -> Result<usize>;
 
     /// Batch upsert entities
-    fn batch_upsert_entities(&self, label: NodeLabel, entities: Vec<NodeProperties>, batch_size: usize) -> Result<usize>;
+    fn batch_upsert_entities(
+        &self,
+        label: NodeLabel,
+        entities: Vec<NodeProperties>,
+        batch_size: usize,
+    ) -> Result<usize>;
 
     /// Create a relationship between entities
     fn create_relationship(&self, src_id: i64, dst_id: i64, rel_type: RelationType) -> Result<()>;
 
     /// Batch create relationships
-    fn batch_create_relationships(&self, relationships: Vec<(i64, i64, RelationType)>, batch_size: usize) -> Result<usize>;
+    fn batch_create_relationships(
+        &self,
+        relationships: Vec<(i64, i64, RelationType)>,
+        batch_size: usize,
+    ) -> Result<usize>;
 
     /// Create file dependency relationship
     fn create_file_dependency(&self, from_path: &str, to_path: &str) -> Result<()>;
@@ -88,7 +99,14 @@ pub trait SyncGraphBackend: Send + Sync {
     fn validate_structure(&self) -> Result<GraphStats>;
 
     /// Update git metadata
-    fn update_git_metadata(&self, id: i64, created_at: Option<String>, last_modified_at: Option<String>, change_count: Option<i64>, author_count: Option<i64>) -> Result<()>;
+    fn update_git_metadata(
+        &self,
+        id: i64,
+        created_at: Option<String>,
+        last_modified_at: Option<String>,
+        change_count: Option<i64>,
+        author_count: Option<i64>,
+    ) -> Result<()>;
 
     /// Create task node
     fn create_task_node(&self, id: i64, title: &str, status: &str) -> Result<()>;
@@ -162,7 +180,12 @@ impl AsyncSQLiteBackend {
     /// The result of the operation, with proper error mapping
     fn execute_sync<F, R>(&self, operation_name: &str, operation: F) -> Result<R>
     where
-        F: FnOnce(Arc<dyn GraphBackend>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<R>> + Send>> + Send + 'static,
+        F: FnOnce(
+                Arc<dyn GraphBackend>,
+            )
+                -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<R>> + Send>>
+            + Send
+            + 'static,
         R: Send + 'static,
     {
         let inner = self.inner.clone();
@@ -214,8 +237,8 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
         // This is a special case since we're creating the backend, not wrapping it
 
         // Import the backend selector function to create the async backend
-        use crate::graph::backend_selector::create_default_graph_backend;
         use crate::config::{GraphBackend as ConfigBackend, GraphConfig};
+        use crate::graph::backend_selector::create_default_graph_backend;
 
         // Create a temporary config for connection
         let graph_config = GraphConfig {
@@ -249,15 +272,13 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
 
     fn execute_query(&self, query: &str, params: Vec<(&str, Value)>) -> Result<Vec<Value>> {
         let query = query.to_string();
-        let owned_params: Vec<(String, Value)> = params.into_iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect();
+        let owned_params: Vec<(String, Value)> =
+            params.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
 
         self.execute_sync("execute_query", move |backend| {
             Box::pin(async move {
-                let param_refs: Vec<(&str, Value)> = owned_params.iter()
-                    .map(|(k, v)| (k.as_str(), v.clone()))
-                    .collect();
+                let param_refs: Vec<(&str, Value)> =
+                    owned_params.iter().map(|(k, v)| (k.as_str(), v.clone())).collect();
                 backend.execute_query(&query, param_refs).await
             })
         })
@@ -265,26 +286,20 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
 
     fn upsert_entity(&self, label: NodeLabel, props: NodeProperties) -> Result<()> {
         self.execute_sync("upsert_entity", move |backend| {
-            Box::pin(async move {
-                backend.upsert_entity(label, props).await
-            })
+            Box::pin(async move { backend.upsert_entity(label, props).await })
         })
     }
 
     fn delete_entity(&self, id: i64) -> Result<()> {
         self.execute_sync("delete_entity", move |backend| {
-            Box::pin(async move {
-                backend.delete_entity(id).await
-            })
+            Box::pin(async move { backend.delete_entity(id).await })
         })
     }
 
     fn delete_file_entities(&self, file_path: &str) -> Result<usize> {
         let file_path = file_path.to_string();
         self.execute_sync("delete_file_entities", move |backend| {
-            Box::pin(async move {
-                backend.delete_file_entities(&file_path).await
-            })
+            Box::pin(async move { backend.delete_file_entities(&file_path).await })
         })
     }
 
@@ -295,22 +310,15 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
         batch_size: usize,
     ) -> Result<usize> {
         self.execute_sync("batch_upsert_entities", move |backend| {
-            Box::pin(async move {
-                backend.batch_upsert_entities(label, entities, batch_size).await
-            })
+            Box::pin(
+                async move { backend.batch_upsert_entities(label, entities, batch_size).await },
+            )
         })
     }
 
-    fn create_relationship(
-        &self,
-        src_id: i64,
-        dst_id: i64,
-        rel_type: RelationType,
-    ) -> Result<()> {
+    fn create_relationship(&self, src_id: i64, dst_id: i64, rel_type: RelationType) -> Result<()> {
         self.execute_sync("create_relationship", move |backend| {
-            Box::pin(async move {
-                backend.create_relationship(src_id, dst_id, rel_type).await
-            })
+            Box::pin(async move { backend.create_relationship(src_id, dst_id, rel_type).await })
         })
     }
 
@@ -320,9 +328,9 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
         batch_size: usize,
     ) -> Result<usize> {
         self.execute_sync("batch_create_relationships", move |backend| {
-            Box::pin(async move {
-                backend.batch_create_relationships(relationships, batch_size).await
-            })
+            Box::pin(
+                async move { backend.batch_create_relationships(relationships, batch_size).await },
+            )
         })
     }
 
@@ -330,100 +338,76 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
         let from_path = from_path.to_string();
         let to_path = to_path.to_string();
         self.execute_sync("create_file_dependency", move |backend| {
-            Box::pin(async move {
-                backend.create_file_dependency(&from_path, &to_path).await
-            })
+            Box::pin(async move { backend.create_file_dependency(&from_path, &to_path).await })
         })
     }
 
     fn upsert_file_by_path(&self, file_path: &str) -> Result<()> {
         let file_path = file_path.to_string();
         self.execute_sync("upsert_file_by_path", move |backend| {
-            Box::pin(async move {
-                backend.upsert_file_by_path(&file_path).await
-            })
+            Box::pin(async move { backend.upsert_file_by_path(&file_path).await })
         })
     }
 
     fn get_entity_by_id(&self, id: i64) -> Result<Option<EntityResult>> {
         self.execute_sync("get_entity_by_id", move |backend| {
-            Box::pin(async move {
-                backend.get_entity_by_id(id).await
-            })
+            Box::pin(async move { backend.get_entity_by_id(id).await })
         })
     }
 
     fn get_file_entities(&self, file_path: &str) -> Result<Vec<EntityResult>> {
         let file_path = file_path.to_string();
         self.execute_sync("get_file_entities", move |backend| {
-            Box::pin(async move {
-                backend.get_file_entities(&file_path).await
-            })
+            Box::pin(async move { backend.get_file_entities(&file_path).await })
         })
     }
 
     fn get_function_callees(&self, function_id: i64) -> Result<Vec<EntityResult>> {
         self.execute_sync("get_function_callees", move |backend| {
-            Box::pin(async move {
-                backend.get_function_callees(function_id).await
-            })
+            Box::pin(async move { backend.get_function_callees(function_id).await })
         })
     }
 
     fn get_function_callers(&self, function_id: i64) -> Result<Vec<EntityResult>> {
         self.execute_sync("get_function_callers", move |backend| {
-            Box::pin(async move {
-                backend.get_function_callers(function_id).await
-            })
+            Box::pin(async move { backend.get_function_callers(function_id).await })
         })
     }
 
     fn find_entities_by_name(&self, name: &str) -> Result<Vec<EntityResult>> {
         let name = name.to_string();
         self.execute_sync("find_entities_by_name", move |backend| {
-            Box::pin(async move {
-                backend.find_entities_by_name(&name).await
-            })
+            Box::pin(async move { backend.find_entities_by_name(&name).await })
         })
     }
 
     fn get_entities_by_type(&self, label: NodeLabel) -> Result<Vec<EntityResult>> {
         self.execute_sync("get_entities_by_type", move |backend| {
-            Box::pin(async move {
-                backend.get_entities_by_type(label).await
-            })
+            Box::pin(async move { backend.get_entities_by_type(label).await })
         })
     }
 
     fn get_neighbors(&self, entity_id: i64) -> Result<Vec<EntityResult>> {
         self.execute_sync("get_neighbors", move |backend| {
-            Box::pin(async move {
-                backend.get_neighbors(entity_id).await
-            })
+            Box::pin(async move { backend.get_neighbors(entity_id).await })
         })
     }
 
     fn find_orphan_entities(&self) -> Result<Vec<EntityResult>> {
         self.execute_sync("find_orphan_entities", move |backend| {
-            Box::pin(async move {
-                backend.find_orphan_entities().await
-            })
+            Box::pin(async move { backend.find_orphan_entities().await })
         })
     }
 
     fn count_entities_by_type(&self) -> Result<Vec<(String, i64)>> {
         self.execute_sync("count_entities_by_type", move |backend| {
-            Box::pin(async move {
-                backend.count_entities_by_type().await
-            })
+            Box::pin(async move { backend.count_entities_by_type().await })
         })
     }
 
     fn validate_structure(&self) -> Result<GraphStats> {
         self.execute_sync("validate_structure", move |backend| {
-            Box::pin(async move {
-                backend.validate_structure().await
-            })
+            Box::pin(async move { backend.validate_structure().await })
         })
     }
 
@@ -437,7 +421,15 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
     ) -> Result<()> {
         self.execute_sync("update_git_metadata", move |backend| {
             Box::pin(async move {
-                backend.update_git_metadata(id, created_at, last_modified_at, change_count, author_count).await
+                backend
+                    .update_git_metadata(
+                        id,
+                        created_at,
+                        last_modified_at,
+                        change_count,
+                        author_count,
+                    )
+                    .await
             })
         })
     }
@@ -446,17 +438,13 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
         let title = title.to_string();
         let status = status.to_string();
         self.execute_sync("create_task_node", move |backend| {
-            Box::pin(async move {
-                backend.create_task_node(id, &title, &status).await
-            })
+            Box::pin(async move { backend.create_task_node(id, &title, &status).await })
         })
     }
 
     fn create_subtask_relationship(&self, parent_id: i64, child_id: i64) -> Result<()> {
         self.execute_sync("create_subtask_relationship", move |backend| {
-            Box::pin(async move {
-                backend.create_subtask_relationship(parent_id, child_id).await
-            })
+            Box::pin(async move { backend.create_subtask_relationship(parent_id, child_id).await })
         })
     }
 
@@ -464,9 +452,7 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
         let key = key.to_string();
         let value = value.to_string();
         self.execute_sync("create_memory_node", move |backend| {
-            Box::pin(async move {
-                backend.create_memory_node(&key, &value).await
-            })
+            Box::pin(async move { backend.create_memory_node(&key, &value).await })
         })
     }
 
@@ -474,17 +460,13 @@ impl SyncGraphBackend for AsyncSQLiteBackend {
         let text = text.to_string();
         let hash = hash.to_string();
         self.execute_sync("create_embedding_node", move |backend| {
-            Box::pin(async move {
-                backend.create_embedding_node(id, &text, &hash).await
-            })
+            Box::pin(async move { backend.create_embedding_node(id, &text, &hash).await })
         })
     }
 
     fn link_embedding_to_task(&self, embedding_id: i64, task_id: i64) -> Result<()> {
         self.execute_sync("link_embedding_to_task", move |backend| {
-            Box::pin(async move {
-                backend.link_embedding_to_task(embedding_id, task_id).await
-            })
+            Box::pin(async move { backend.link_embedding_to_task(embedding_id, task_id).await })
         })
     }
 }
@@ -510,9 +492,7 @@ mod tests {
             enabled: true,
         };
 
-        let sync_backend = create_default_graph_backend(&graph_config)
-            .await
-            .unwrap();
+        let sync_backend = create_default_graph_backend(&graph_config).await.unwrap();
 
         AsyncSQLiteBackend::new(sync_backend).unwrap()
     }
@@ -528,8 +508,7 @@ mod tests {
         let backend = create_test_backend().await;
 
         // Simple SELECT query should work
-        let result = backend
-            .execute_query("SELECT 1 as test", vec![]);
+        let result = backend.execute_query("SELECT 1 as test", vec![]);
 
         assert!(result.is_ok());
         let rows = result.unwrap();
@@ -556,9 +535,8 @@ mod tests {
         // Launch multiple concurrent operations
         for i in 0..10 {
             let backend_clone = backend.clone();
-            let handle = tokio::spawn(async move {
-                backend_clone.execute_query("SELECT 1", vec!())
-            });
+            let handle =
+                tokio::spawn(async move { backend_clone.execute_query("SELECT 1", vec![]) });
             handles.push(handle);
         }
 

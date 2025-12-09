@@ -257,15 +257,34 @@ impl IndexApplication {
         let text = format!("{}: {}", "entity", entity_name);
 
         // Store in vector store
-        {
-            let mut vector_store = self
-                .code_graph
-                .vector_store
-                .lock()
-                .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
+        // Create corresponding record in embeddings table and store vector
+        let vector_id = {
+            // First, insert record into embeddings table to get an ID
+            db.execute(
+                "INSERT INTO embeddings (task_id, kind, dim, created_at) VALUES (?, ?, ?, ?)",
+                rusqlite::params![
+                    Option::<i64>::None, // task_id - not associated with a task
+                    "code_entity",          // kind
+                    384,                    // dim - standard embedding dimension
+                    chrono::Utc::now().timestamp(),
+                ],
+            )?;
 
-            vector_store.insert_text(entity_id, None, &text, "code_entity")?;
-        }
+            let embedding_id = db.last_insert_rowid();
+
+            // Store vector in vector store with the embedding_id
+            {
+                let mut vector_store = self
+                    .code_graph
+                    .vector_store
+                    .lock()
+                    .map_err(|e| anyhow!("Failed to lock vector store: {}", e))?;
+
+                vector_store.insert_text(embedding_id, None, &text, "code_entity")?;
+            }
+
+            embedding_id
+        };
 
         // Link embedding to entity
         db.execute(
@@ -273,7 +292,7 @@ impl IndexApplication {
              VALUES (?, ?, ?, ?)",
             rusqlite::params![
                 entity_id,
-                entity_id,
+                vector_id,
                 "all-MiniLM-L6-v2",
                 chrono::Utc::now().timestamp(),
             ],

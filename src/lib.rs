@@ -5,6 +5,7 @@ pub mod bootstrap; // APEX 2.15: Cold/warm start bootstrap logic
 pub mod circuit_breaker;
 pub mod cli;
 pub mod code_directory_indexer;
+pub mod code_drift;
 pub mod code_graph;
 pub mod cognition;
 pub mod cognitive;
@@ -16,11 +17,11 @@ pub mod db;
 pub mod dlr;
 pub mod document_indexer;
 pub mod embedding_refresh; // APEX 2.9: Embedding refresh daemon
+pub mod embeddings; // GraphBERT Candle embeddings for GRAPH domain
 pub mod fs_watcher; // APEX 2.2-FW: Filesystem watcher
 pub mod global_store;
 pub mod graph;
 pub mod graph_cli;
-pub mod sqlitegraph;
 pub mod graph_rebuilder;
 pub mod http_stream_server;
 pub mod ingestion; // Global Ingestion Coordinator (GIC)
@@ -38,6 +39,7 @@ pub mod mcp_tools;
 pub mod memory;
 pub mod memory_service;
 pub mod message_bus;
+pub mod sqlitegraph;
 
 pub mod metrics;
 pub mod models; // GGUF Engine and model backends
@@ -74,6 +76,6 @@ pub use vector::{insert_text, search};
 
 // Re-export configuration types
 pub use config::{
-    Config, EmbeddingsConfig, HotspotWeights, HttpConfig, IndexingConfig, LlmConfig, Neo4jConfig,
+    Config, EmbeddingsConfig, GraphEmbeddingsConfig, HotspotWeights, HttpConfig, IndexingConfig, LlmConfig, Neo4jConfig,
     PathsConfig, ProjectAnalysisConfig, SyncoreConfig, VectorSearchConfig,
 };

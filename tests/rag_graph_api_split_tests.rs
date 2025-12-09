@@ -15,10 +15,7 @@ fn test_raggraph_api_types_exist() {
 
     // These imports should work after the split if re-exports are preserved
     use syncore::code_graph::{
-        RagGraphAPI,
-        RagGraphQueryRequest,
-        RagGraphQueryResponse,
-        RankedEntity
+        RagGraphAPI, RagGraphQueryRequest, RagGraphQueryResponse, RankedEntity,
     };
 
     // Type instantiation - proves types exist with expected fields
@@ -41,22 +38,37 @@ fn test_raggraph_api_types_exist() {
 
 #[test]
 fn test_raggraph_api_method_signatures() {
-    use syncore::code_graph::{RagGraphAPI, RagGraphQueryRequest};
     use std::sync::Arc;
+    use syncore::code_graph::{RagGraphAPI, RagGraphQueryRequest};
 
     // This test verifies method signatures exist by attempting to call them
     // We can't create a real instance without complex setup, but we can
     // verify the methods exist through type checking
 
     // Function pointer types - these will fail to compile if methods don't exist
-    let _query_fn: fn(&RagGraphAPI, &str, Option<&str>, Option<&str>, usize) -> Option<syncore::code_graph::RagGraphQueryResponse>
-        = RagGraphAPI::query;
+    let _query_fn: fn(
+        &RagGraphAPI,
+        &str,
+        Option<&str>,
+        Option<&str>,
+        usize,
+    ) -> Option<syncore::code_graph::RagGraphQueryResponse> = RagGraphAPI::query;
 
-    let _query_with_request_fn: fn(&RagGraphAPI, &RagGraphQueryRequest) -> Option<syncore::code_graph::RagGraphQueryResponse>
-        = RagGraphAPI::query_with_request;
+    let _query_with_request_fn: fn(
+        &RagGraphAPI,
+        &RagGraphQueryRequest,
+    ) -> Option<syncore::code_graph::RagGraphQueryResponse> = RagGraphAPI::query_with_request;
 
-    let _query_with_scope_fn: fn(&RagGraphAPI, &str, Option<&str>, Option<&str>, usize, syncore::code_graph::QueryScope, Option<&str>, Option<&str>) -> Option<syncore::code_graph::RagGraphQueryResponse>
-        = RagGraphAPI::query_with_scope;
+    let _query_with_scope_fn: fn(
+        &RagGraphAPI,
+        &str,
+        Option<&str>,
+        Option<&str>,
+        usize,
+        syncore::code_graph::QueryScope,
+        Option<&str>,
+        Option<&str>,
+    ) -> Option<syncore::code_graph::RagGraphQueryResponse> = RagGraphAPI::query_with_scope;
 
     // If this compiles, all methods exist with correct signatures
     assert!(true, "All RagGraphAPI methods exist with correct signatures");
@@ -68,8 +80,10 @@ fn test_raggraph_api_constructor_exists() {
 
     // Verify constructor exists
     // We can't call it without proper setup, but we can verify it exists
-    let _new_fn: fn(syncore::code_graph::CodeGraph, Arc<dyn syncore::graph::GraphBackend>) -> RagGraphAPI
-        = RagGraphAPI::new;
+    let _new_fn: fn(
+        syncore::code_graph::CodeGraph,
+        Arc<dyn syncore::graph::GraphBackend>,
+    ) -> RagGraphAPI = RagGraphAPI::new;
 
     assert!(true, "RagGraphAPI::new constructor exists");
 }
@@ -93,14 +107,17 @@ fn test_exported_symbols_count() {
     let expected_symbols = 8;
     let actual_symbols = 8; // This should remain constant after split
 
-    assert_eq!(expected_symbols, actual_symbols, "Number of public symbols should remain unchanged");
+    assert_eq!(
+        expected_symbols, actual_symbols,
+        "Number of public symbols should remain unchanged"
+    );
 }
 
 #[test]
 fn test_module_reexports_preserved() {
     // Verify that the mod.rs file re-exports everything properly
     use syncore::code_graph::{
-        RagGraphAPI, RagGraphQueryRequest, RagGraphQueryResponse, RankedEntity
+        RagGraphAPI, RagGraphQueryRequest, RagGraphQueryResponse, RankedEntity,
     };
 
     // If these imports work, the re-exports are preserved

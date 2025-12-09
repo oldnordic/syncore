@@ -243,7 +243,7 @@ fn create_test_language_model() -> Arc<dyn syncore::llm::LanguageModel> {
 }
 
 async fn create_test_reasoning_engine() -> ApreResult<ToTEngine> {
-    use syncore::graph::{SQLiteGraphBackend, GraphBackend};
+    use syncore::graph::{GraphBackend, SQLiteGraphBackend};
     use tempfile::tempdir;
 
     // Create a temporary SQLite database for testing

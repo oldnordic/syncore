@@ -62,28 +62,19 @@ pub fn build_tool_snapshot_from_unified_response(
     tool_name: &str,
     response: &crate::mcp_server::reasoning::UnifiedReasoningResponse,
 ) -> ToolReasoningSnapshot {
-    let metadata_backend = response.metadata
+    let metadata_backend = response
+        .metadata
         .as_ref()
         .map(|m| m.backend_used.clone())
         .unwrap_or_else(|| "unknown".to_string());
 
-    let trace_backend = response.trace
-        .as_ref()
-        .map(|t| t.backend.clone());
+    let trace_backend = response.trace.as_ref().map(|t| t.backend.clone());
 
-    let evaluation_score = response.evaluation
-        .as_ref()
-        .map(|e| e.score)
-        .unwrap_or(0);
+    let evaluation_score = response.evaluation.as_ref().map(|e| e.score).unwrap_or(0);
 
-    let evaluation_confidence = response.evaluation
-        .as_ref()
-        .map(|e| e.confidence)
-        .unwrap_or(0.0);
+    let evaluation_confidence = response.evaluation.as_ref().map(|e| e.confidence).unwrap_or(0.0);
 
-    let reflection_category = response.reflection
-        .as_ref()
-        .map(|r| r.category.clone());
+    let reflection_category = response.reflection.as_ref().map(|r| r.category.clone());
 
     ToolReasoningSnapshot {
         tool_name: tool_name.to_string(),
@@ -108,9 +99,7 @@ pub fn build_tool_snapshot_from_unified_response(
 ///
 /// # Returns
 /// ConsistencyReport with detected violations
-pub fn validate_snapshots_consistency(
-    snapshots: &[ToolReasoningSnapshot],
-) -> ConsistencyReport {
+pub fn validate_snapshots_consistency(snapshots: &[ToolReasoningSnapshot]) -> ConsistencyReport {
     let mut violations = Vec::new();
 
     if snapshots.is_empty() {
@@ -121,11 +110,11 @@ pub fn validate_snapshots_consistency(
     }
 
     // Rule 1: Backend consistency across metadata
-    let metadata_backends: Vec<String> = snapshots.iter()
-        .map(|s| s.metadata_backend.clone())
-        .collect();
+    let metadata_backends: Vec<String> =
+        snapshots.iter().map(|s| s.metadata_backend.clone()).collect();
 
-    let unique_metadata_backends: std::collections::HashSet<&String> = metadata_backends.iter().collect();
+    let unique_metadata_backends: std::collections::HashSet<&String> =
+        metadata_backends.iter().collect();
     if unique_metadata_backends.len() > 1 {
         violations.push(ConsistencyViolation {
             code: "backend_mismatch".to_string(),
@@ -161,25 +150,25 @@ pub fn validate_snapshots_consistency(
                 code: "score_divergence".to_string(),
                 detail: format!(
                     "Evaluation scores diverge beyond allowed range: min={}, max={}, difference={}",
-                    min_score, max_score, max_score.saturating_sub(min_score)
+                    min_score,
+                    max_score,
+                    max_score.saturating_sub(min_score)
                 ),
             });
         }
     }
 
     // Rule 4: Reflection category conflicts
-    let categories: Vec<Option<&String>> = snapshots.iter()
-        .map(|s| s.reflection_category.as_ref())
-        .collect();
+    let categories: Vec<Option<&String>> =
+        snapshots.iter().map(|s| s.reflection_category.as_ref()).collect();
 
     // Check for extreme category conflicts (stable vs anomalous)
     let has_stable = categories.iter().any(|c| matches!(c, Some(cat) if **cat == "stable"));
     let has_anomalous = categories.iter().any(|c| matches!(c, Some(cat) if **cat == "anomalous"));
 
     if has_stable && has_anomalous {
-        let category_strings: Vec<String> = categories.iter()
-            .filter_map(|c| c.map(|s| s.clone()))
-            .collect();
+        let category_strings: Vec<String> =
+            categories.iter().filter_map(|c| c.map(|s| s.clone())).collect();
 
         violations.push(ConsistencyViolation {
             code: "category_conflict".to_string(),
@@ -238,7 +227,13 @@ mod tests {
             trace_backend: Some(backend.to_string()),
             evaluation_score: score,
             evaluation_confidence: 0.8,
-            reflection_category: if score >= 90 { Some("stable".to_string()) } else if score >= 70 { Some("degraded".to_string()) } else { Some("anomalous".to_string()) },
+            reflection_category: if score >= 90 {
+                Some("stable".to_string())
+            } else if score >= 70 {
+                Some("degraded".to_string())
+            } else {
+                Some("anomalous".to_string())
+            },
         }
     }
 

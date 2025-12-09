@@ -32,6 +32,7 @@ pub struct ClassInfo {
     pub methods: Vec<FunctionInfo>,
     pub fields: Vec<VariableInfo>,
     pub docstring: Option<String>,
+    pub class_type: String, // "struct", "trait", "enum"
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -192,20 +193,28 @@ impl Parser {
                     }
                 }
                 "impl_item" => {
-                    // Extract methods from impl blocks
-                    // impl blocks contain a declaration_list with the actual methods
+                    // Extract methods and associated constants from impl blocks
+                    // impl blocks contain a declaration_list with the actual items
                     let mut impl_cursor = child.walk();
                     for impl_child in child.children(&mut impl_cursor) {
                         if impl_child.kind() == "declaration_list" {
                             // Found the declaration list, iterate through its children
                             let mut decl_cursor = impl_child.walk();
                             for decl_child in impl_child.children(&mut decl_cursor) {
-                                if decl_child.kind() == "function_item" {
-                                    if let Some(func) =
-                                        self.extract_rust_function(source, &decl_child)
-                                    {
-                                        functions.push(func);
+                                match decl_child.kind() {
+                                    "function_item" => {
+                                        if let Some(func) =
+                                            self.extract_rust_function(source, &decl_child)
+                                        {
+                                            functions.push(func);
+                                        }
                                     }
+                                    "const_item" => {
+                                        if let Some(const_info) = self.extract_rust_constant(source, &decl_child) {
+                                            variables.push(const_info);
+                                        }
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
@@ -224,6 +233,21 @@ impl Parser {
                 "let_declaration" => {
                     if let Some(var) = self.extract_rust_variable(source, &child) {
                         variables.push(var);
+                    }
+                }
+                "trait_item" => {
+                    if let Some(trait_info) = self.extract_rust_trait(source, &child) {
+                        classes.push(trait_info);
+                    }
+                }
+                "enum_item" => {
+                    if let Some(enum_info) = self.extract_rust_enum(source, &child) {
+                        classes.push(enum_info);
+                    }
+                }
+                "const_item" => {
+                    if let Some(const_info) = self.extract_rust_constant(source, &child) {
+                        variables.push(const_info);
                     }
                 }
                 _ => {}
@@ -312,6 +336,7 @@ impl Parser {
             methods: Vec::new(), // Methods are in impl blocks
             fields,
             docstring,
+            class_type: "struct".to_string(),
         })
     }
 
@@ -380,7 +405,7 @@ impl Parser {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "scoped_identifier" | "identifier" => {
+                "scoped_identifier" | "identifier" | "use_list" => {
                     if module.is_none() {
                         module = Some(self.node_text(source, &child));
                     }
@@ -402,6 +427,159 @@ impl Parser {
             alias,
             line_number: node.start_position().row + 1,
             import_type: "use".to_string(),
+        })
+    }
+
+    fn extract_rust_impl(&self, source: &str, node: &tree_sitter::Node) -> Option<FunctionInfo> {
+        let mut target_type = None;
+        let mut trait_name = None;
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "type_identifier" => {
+                    if target_type.is_none() {
+                        target_type = Some(self.node_text(source, &child));
+                    }
+                }
+                "generic_type" => {
+                    // Handle generics like Vec<T>
+                    if target_type.is_none() {
+                        target_type = Some(self.node_text(source, &child));
+                    }
+                }
+                "type" => {
+                    // Handle trait implementations like impl SomeTrait for Type
+                    let mut trait_cursor = child.walk();
+                    for trait_child in child.children(&mut trait_cursor) {
+                        if trait_child.kind() == "type_identifier" {
+                            trait_name = Some(self.node_text(source, &trait_child));
+                        }
+                    }
+                }
+                "for" => {
+                    // Skip 'for' keyword in trait implementations
+                }
+                _ => {}
+            }
+        }
+
+        // Create a function-like entry for the impl block to preserve architectural relationships
+        let name = match (&trait_name, &target_type) {
+            (Some(trait_name), Some(type_name)) => format!("impl {} for {}", trait_name, type_name),
+            (None, Some(type_name)) => format!("impl {}", type_name),
+            _ => return None,
+        };
+
+        Some(FunctionInfo {
+            name,
+            parameters: Vec::new(),
+            return_type: Some("impl".to_string()),
+            docstring: None,
+            visibility: None,
+            line_number: node.start_position().row + 1,
+            end_line: node.end_position().row + 1,
+        })
+    }
+
+    fn extract_rust_trait(&self, source: &str, node: &tree_sitter::Node) -> Option<ClassInfo> {
+        let mut name = None;
+        let mut docstring = None;
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "type_identifier" => {
+                    name = Some(self.node_text(source, &child));
+                }
+                _ => {}
+            }
+        }
+
+        // Look for docstring above the trait
+        if let Some(prev_sibling) = node.prev_sibling() {
+            if prev_sibling.kind() == "line_comment" {
+                docstring = Some(self.node_text(source, &prev_sibling));
+            }
+        }
+
+        name.map(|n| ClassInfo {
+            name: n,
+            line_number: node.start_position().row + 1,
+            methods: Vec::new(), // Methods are extracted separately in impl blocks
+            fields: Vec::new(),   // Traits don't have fields
+            docstring,
+            class_type: "trait".to_string(),
+        })
+    }
+
+    fn extract_rust_enum(&self, source: &str, node: &tree_sitter::Node) -> Option<ClassInfo> {
+        let mut name = None;
+        let mut docstring = None;
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "type_identifier" => {
+                    name = Some(self.node_text(source, &child));
+                }
+                _ => {}
+            }
+        }
+
+        // Look for docstring above the enum
+        if let Some(prev_sibling) = node.prev_sibling() {
+            if prev_sibling.kind() == "line_comment" {
+                docstring = Some(self.node_text(source, &prev_sibling));
+            }
+        }
+
+        name.map(|n| ClassInfo {
+            name: n,
+            line_number: node.start_position().row + 1,
+            methods: Vec::new(), // Enums don't have methods (only impl blocks)
+            fields: Vec::new(),   // Enums don't have fields like structs
+            docstring,
+            class_type: "enum".to_string(),
+        })
+    }
+
+    fn extract_rust_constant(&self, source: &str, node: &tree_sitter::Node) -> Option<VariableInfo> {
+        let mut name = None;
+        let mut var_type = None;
+        let mut value = None;
+        let mut visibility = None;
+
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            match child.kind() {
+                "visibility_modifier" => {
+                    visibility = Some(self.node_text(source, &child));
+                }
+                "identifier" => {
+                    if name.is_none() {
+                        name = Some(self.node_text(source, &child));
+                    }
+                }
+                "type_" => {
+                    var_type = Some(self.node_text(source, &child));
+                }
+                "=" => {
+                    // The value comes after this
+                }
+                _ if child.is_named() && value.is_none() => {
+                    value = Some(self.node_text(source, &child));
+                }
+                _ => {}
+            }
+        }
+
+        name.map(|n| VariableInfo {
+            name: n,
+            line_number: node.start_position().row + 1,
+            var_type,
+            value,
+            visibility,
         })
     }
 
@@ -566,6 +744,7 @@ impl Parser {
             methods,
             fields,
             docstring,
+            class_type: "class".to_string(),
         })
     }
 
@@ -777,6 +956,7 @@ impl Parser {
             methods,
             fields,
             docstring,
+            class_type: "class".to_string(),
         })
     }
 
@@ -1113,6 +1293,7 @@ impl TestStruct {
 
         assert_eq!(structure.classes.len(), 1);
         assert_eq!(structure.classes[0].name, "TestStruct");
+        assert_eq!(structure.classes[0].class_type, "struct");
     }
 
     #[test]

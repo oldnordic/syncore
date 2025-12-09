@@ -3,11 +3,11 @@
 //! These tests MUST FAIL before implementation and PASS after implementation.
 //! Tests ensure reflection is deterministic, passive, and additive only.
 
-use syncore::mcp_server::reasoning::{
-    ReasoningMetadata, ReasoningTrace, ReasoningTraceStage, ReasoningEvaluation,
-    build_reflection, normalize_reflection, ReasoningReflection,
-};
 use serde_json;
+use syncore::mcp_server::reasoning::{
+    build_reflection, normalize_reflection, ReasoningEvaluation, ReasoningMetadata,
+    ReasoningReflection, ReasoningTrace, ReasoningTraceStage,
+};
 
 /// Test 1: Reflection is deterministic for same input
 #[tokio::test]
@@ -46,8 +46,14 @@ async fn reflection_classifies_stable_reasoning_correctly() {
     // High score, no anomalies should be "stable"
     assert_eq!(reflection.category, "stable", "High score with no anomalies should be stable");
     assert!(reflection.regression_risk <= 0.1, "Stable reasoning should have low regression risk");
-    assert_eq!(reflection.recommended_top_k_delta, 0, "Stable reasoning should recommend no top_k changes");
-    assert!(reflection.improvement_hints.is_empty(), "Stable reasoning should have no improvement hints");
+    assert_eq!(
+        reflection.recommended_top_k_delta, 0,
+        "Stable reasoning should recommend no top_k changes"
+    );
+    assert!(
+        reflection.improvement_hints.is_empty(),
+        "Stable reasoning should have no improvement hints"
+    );
 }
 
 /// Test 3: Reflection flags high risk patterns
@@ -70,13 +76,21 @@ async fn reflection_flags_high_risk_patterns() {
 
     // Low score with multiple anomalies should be "anomalous"
     assert_eq!(reflection.category, "anomalous", "Low score with anomalies should be anomalous");
-    assert!(reflection.regression_risk >= 0.7, "Anomalous reasoning should have high regression risk");
-    assert!(!reflection.improvement_hints.is_empty(), "Anomalous reasoning should provide improvement hints");
+    assert!(
+        reflection.regression_risk >= 0.7,
+        "Anomalous reasoning should have high regression risk"
+    );
+    assert!(
+        !reflection.improvement_hints.is_empty(),
+        "Anomalous reasoning should provide improvement hints"
+    );
 
     // Should suggest specific improvements based on anomalies
     let hints_text = reflection.improvement_hints.join(" ");
-    assert!(hints_text.contains("verify") || hints_text.contains("check"),
-              "Should suggest verification or checking");
+    assert!(
+        hints_text.contains("verify") || hints_text.contains("check"),
+        "Should suggest verification or checking"
+    );
 }
 
 /// Test 4: Reflection recommends scope adjustments when appropriate
@@ -98,8 +112,10 @@ async fn reflection_recommends_scope_adjustments_when_appropriate() {
     assert!(reflection.recommended_scope_hint.is_some(), "Should recommend scope adjustment");
 
     let scope_hint = reflection.recommended_scope_hint.as_ref().unwrap();
-    assert!(scope_hint.contains("widen") || scope_hint.contains("expand"),
-              "Should recommend widening scope");
+    assert!(
+        scope_hint.contains("widen") || scope_hint.contains("expand"),
+        "Should recommend widening scope"
+    );
 }
 
 /// Test 5: Reflection proposes top_k adjustments for sparse results
@@ -117,7 +133,10 @@ async fn reflection_proposes_top_k_adjustments_for_sparse_results() {
     let reflection = build_reflection(&metadata, &trace, &evaluation);
 
     // Should recommend increasing top_k for sparse results
-    assert!(reflection.recommended_top_k_delta > 0, "Sparse results should recommend positive top_k delta");
+    assert!(
+        reflection.recommended_top_k_delta > 0,
+        "Sparse results should recommend positive top_k delta"
+    );
     assert!(reflection.recommended_top_k_delta <= 10, "Top_k delta should be reasonable");
 }
 
@@ -135,7 +154,7 @@ async fn reflection_handles_failed_executions_gracefully() {
     });
 
     let evaluation = ReasoningEvaluation {
-        score: 30, // Low due to failure caps
+        score: 30,       // Low due to failure caps
         confidence: 0.4, // Low due to failure caps
         anomaly_flags: vec!["execution_failure".to_string()],
         summary: "Failed execution".to_string(),
@@ -145,12 +164,19 @@ async fn reflection_handles_failed_executions_gracefully() {
 
     // Failed execution should be marked as anomalous
     assert_eq!(reflection.category, "anomalous", "Failed execution should be anomalous");
-    assert!(reflection.regression_risk >= 0.9, "Failed execution should have very high regression risk");
+    assert!(
+        reflection.regression_risk >= 0.9,
+        "Failed execution should have very high regression risk"
+    );
 
     // Should provide actionable hints for failed executions
     let hints_text = reflection.improvement_hints.join(" ");
-    assert!(hints_text.contains("verify") || hints_text.contains("check") || hints_text.contains("query"),
-              "Failed execution should provide actionable verification hints");
+    assert!(
+        hints_text.contains("verify")
+            || hints_text.contains("check")
+            || hints_text.contains("query"),
+        "Failed execution should provide actionable verification hints"
+    );
 }
 
 /// Test 7: Reflection serialization roundtrip
@@ -165,15 +191,21 @@ async fn reflection_serialization_roundtrip() {
 
     // Serialize and deserialize
     let reflection_json = serde_json::to_string_pretty(&normalized_reflection).unwrap();
-    let deserialized_reflection: ReasoningReflection = serde_json::from_str(&reflection_json).unwrap();
+    let deserialized_reflection: ReasoningReflection =
+        serde_json::from_str(&reflection_json).unwrap();
 
-    assert_eq!(normalized_reflection, deserialized_reflection,
-              "Reflection should serialize/deserialize correctly");
+    assert_eq!(
+        normalized_reflection, deserialized_reflection,
+        "Reflection should serialize/deserialize correctly"
+    );
 
     // All required fields should be present
     assert!(!deserialized_reflection.category.is_empty(), "Category should not be empty");
-    assert!(deserialized_reflection.regression_risk >= 0.0 && deserialized_reflection.regression_risk <= 1.0,
-              "Regression risk should be in valid range");
+    assert!(
+        deserialized_reflection.regression_risk >= 0.0
+            && deserialized_reflection.regression_risk <= 1.0,
+        "Regression risk should be in valid range"
+    );
 }
 
 /// Test 8: Reflection does not modify original results

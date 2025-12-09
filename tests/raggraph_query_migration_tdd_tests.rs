@@ -4,13 +4,13 @@
 //! They validate that raggraph_query uses unified reasoning helpers correctly.
 
 use anyhow::Result;
-use syncore::mcp_server::server::MCPServerHandler;
-use syncore::mcp_server::types::RagGraphQueryRequest;
-use syncore::state::SynCoreState;
-use syncore::raggraph::{RagGraphConfig, RaggraphBackendMode};
-use syncore::config::{SyncoreConfig, GraphBackend};
-use std::sync::Arc;
 use rmcp::model::{CallToolResult, Content};
+use std::sync::Arc;
+use syncore::config::{GraphBackend, SyncoreConfig};
+use syncore::mcp_server::server::MCPServerHandler;
+use syncore::mcp_server::types::RagGraphQueryInput;
+use syncore::raggraph::{RagGraphConfig, RaggraphBackendMode};
+use syncore::state::SynCoreState;
 
 /// Test that raggraph_query can be migrated to use unified backend selection
 #[tokio::test]
@@ -20,8 +20,14 @@ async fn test_raggraph_query_unified_backend_selection() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Test request
-    let request = RagGraphQueryRequest {
-        query_text: "test query".to_string(),
+    let request = RagGraphQueryInput {
+        query: "test query".to_string(),
+        namespace: None,
+        mode_hint: None,
+        top_k: None,
+        scope: None,
+        project_label: None,
+        local_root: None,
     };
 
     // Simulate current raggraph_query backend selection logic
@@ -64,20 +70,26 @@ async fn test_raggraph_query_unified_backend_selection() -> Result<()> {
 #[tokio::test]
 async fn test_raggraph_query_unified_request_parsing() -> Result<()> {
     // Test current request structure
-    let request = RagGraphQueryRequest {
-        query_text: "find functions that handle authentication".to_string(),
+    let request = RagGraphQueryInput {
+        query: "find functions that handle authentication".to_string(),
+        namespace: None,
+        mode_hint: None,
+        top_k: None,
+        scope: None,
+        project_label: None,
+        local_root: None,
     };
 
     // Simulate what unified request parsing should do after migration
-    // Current: RagGraphQueryRequest { query_text: String }
+    // Current: RagGraphQueryInput { query: String, ... }
     // After migration: Should map to unified request format with validation
 
     // Verify current request structure works
-    assert!(!request.query_text.is_empty(), "Query text should not be empty");
-    assert_eq!(request.query_text, "find functions that handle authentication");
+    assert!(!request.query.is_empty(), "Query text should not be empty");
+    assert_eq!(request.query, "find functions that handle authentication");
 
     // After migration, this should be converted to unified format with validation
-    let expected_query = request.query_text.clone();
+    let expected_query = request.query.clone();
     let expected_request_type = "raggraph_query";
 
     // Test parameter validation that should happen after migration
@@ -162,8 +174,14 @@ async fn test_raggraph_query_backward_compatibility() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Test request with current structure
-    let request = RagGraphQueryRequest {
-        query_text: "test backward compatibility".to_string(),
+    let request = RagGraphQueryInput {
+        query: "test backward compatibility".to_string(),
+        namespace: None,
+        mode_hint: None,
+        top_k: None,
+        scope: None,
+        project_label: None,
+        local_root: None,
     };
 
     // Simulate current raggraph_query behavior
@@ -210,14 +228,20 @@ async fn test_raggraph_query_error_handling() -> Result<()> {
 
     for (case_name, query_text) in error_cases {
         // Create request with problematic data
-        let request = RagGraphQueryRequest {
-            query_text: query_text.to_string(),
+        let request = RagGraphQueryInput {
+            query: query_text.to_string(),
+            namespace: None,
+            mode_hint: None,
+            top_k: None,
+            scope: None,
+            project_label: None,
+            local_root: None,
         };
 
         // Simulate validation that should happen after migration
         let is_valid = match case_name {
-            "empty query" => !request.query_text.trim().is_empty(),
-            "very long query" => request.query_text.len() < 10000,
+            "empty query" => !request.query.trim().is_empty(),
+            "very long query" => request.query.len() < 10000,
             "special characters" => true, // Should be allowed
             _ => true,
         };
@@ -226,7 +250,9 @@ async fn test_raggraph_query_error_handling() -> Result<()> {
         // After migration: should use unified error handling with consistent validation
         match case_name {
             "empty query" => assert!(!is_valid, "Empty query should be rejected after migration"),
-            "very long query" => assert!(!is_valid, "Very long query should be rejected after migration"),
+            "very long query" => {
+                assert!(!is_valid, "Very long query should be rejected after migration")
+            }
             "special characters" => assert!(is_valid, "Special characters should be allowed"),
             _ => {}
         }
@@ -243,10 +269,16 @@ async fn test_raggraph_query_migration_validation() -> Result<()> {
     // This test validates the migration requirements for raggraph_query
 
     // 1. Request structure compatibility
-    let request = RagGraphQueryRequest {
-        query_text: "find database connection code".to_string(),
+    let request = RagGraphQueryInput {
+        query: "find database connection code".to_string(),
+        namespace: None,
+        mode_hint: None,
+        top_k: None,
+        scope: None,
+        project_label: None,
+        local_root: None,
     };
-    assert_eq!(request.query_text, "find database connection code");
+    assert_eq!(request.query, "find database connection code");
 
     // 2. Configuration compatibility
     let config = RagGraphConfig::from_env();
@@ -300,8 +332,11 @@ async fn test_raggraph_query_performance_impact() -> Result<()> {
 
     // Performance impact should be minimal (< 2x overhead)
     let overhead_ratio = unified_time.as_nanos() as f64 / current_time.as_nanos() as f64;
-    assert!(overhead_ratio < 2.0,
-           "Unified backend selection should not significantly increase overhead: {}x", overhead_ratio);
+    assert!(
+        overhead_ratio < 2.0,
+        "Unified backend selection should not significantly increase overhead: {}x",
+        overhead_ratio
+    );
 
     // This test ensures migration doesn't introduce significant performance regressions
     Ok(())

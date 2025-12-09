@@ -4,12 +4,12 @@
 //! and PASS after complete implementation.
 
 use anyhow::Result;
-use syncore::mcp_server::server::MCPServerHandler;
-use syncore::mcp_server::types::{RagGraphQueryRequest, RagGraphMultihopRequest};
-use syncore::router::SynCoreState;
-use std::sync::Arc;
 use rmcp::model::CallToolResult;
 use serde_json::{json, Value};
+use std::sync::Arc;
+use syncore::mcp_server::server::MCPServerHandler;
+use syncore::mcp_server::types::{RagGraphMultihopRequest, RagGraphQueryInput};
+use syncore::router::SynCoreState;
 
 /// Test 3.1: test_metadata_fields_consistent_across_tools
 #[tokio::test]
@@ -18,7 +18,7 @@ async fn test_metadata_fields_consistent_across_tools() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Test raggraph_query
-    let query_request = RagGraphQueryRequest {
+    let query_request = RagGraphQueryInput {
         query_text: "test metadata consistency".to_string(),
         namespace: None,
         mode_hint: None,
@@ -27,19 +27,23 @@ async fn test_metadata_fields_consistent_across_tools() -> Result<()> {
         scope: None,
     };
 
-    let query_result = handler.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
-    let query_response: Value = serde_json::from_str(&query_result.content[0].text.as_ref().unwrap())?;
+    let query_result =
+        handler.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
+    let query_response: Value =
+        serde_json::from_str(&query_result.content[0].text.as_ref().unwrap())?;
 
     // Test raggraph_multihop
     let multihop_request = RagGraphMultihopRequest {
         seed_nodes: vec![1, 2, 3],
     };
 
-    let multihop_result = handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await?;
-    let multihop_response: Value = serde_json::from_str(&multihop_result.content[0].text.as_ref().unwrap())?;
+    let multihop_result =
+        handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await?;
+    let multihop_response: Value =
+        serde_json::from_str(&multihop_result.content[0].text.as_ref().unwrap())?;
 
     // Test code_graph_fusion_query
-    let fusion_request = RagGraphQueryRequest {
+    let fusion_request = RagGraphQueryInput {
         query_text: "test fusion metadata".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -48,8 +52,10 @@ async fn test_metadata_fields_consistent_across_tools() -> Result<()> {
         scope: Some("project".to_string()),
     };
 
-    let fusion_result = handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await?;
-    let fusion_response: Value = serde_json::from_str(&fusion_result.content[0].text.as_ref().unwrap())?;
+    let fusion_result =
+        handler.code_graph_fusion_query(syncore::mcp_server::Parameters(fusion_request)).await?;
+    let fusion_response: Value =
+        serde_json::from_str(&fusion_result.content[0].text.as_ref().unwrap())?;
 
     // Extract metadata from all responses
     let query_metadata = query_response.get("metadata").unwrap().as_object().unwrap();
@@ -63,27 +69,25 @@ async fn test_metadata_fields_consistent_across_tools() -> Result<()> {
 
     // Check that all required fields exist in all responses
     let required_fields = vec![
-        "request_id", "backend_used", "start_time_ms", "end_time_ms",
-        "vector_search_ms", "graph_traversal_ms", "fusion_ms",
-        "parameters", "debug_flags"
+        "request_id",
+        "backend_used",
+        "start_time_ms",
+        "end_time_ms",
+        "vector_search_ms",
+        "graph_traversal_ms",
+        "fusion_ms",
+        "parameters",
+        "debug_flags",
     ];
 
     for field in required_fields {
-        assert!(
-            query_metadata.contains_key(field),
-            "query metadata missing field: {}",
-            field
-        );
+        assert!(query_metadata.contains_key(field), "query metadata missing field: {}", field);
         assert!(
             multihop_metadata.contains_key(field),
             "multihop metadata missing field: {}",
             field
         );
-        assert!(
-            fusion_metadata.contains_key(field),
-            "fusion metadata missing field: {}",
-            field
-        );
+        assert!(fusion_metadata.contains_key(field), "fusion metadata missing field: {}", field);
     }
 
     // Check that field types are consistent
@@ -120,7 +124,7 @@ async fn test_metadata_optional_fields_present_even_if_none() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test optional fields".to_string(),
         namespace: None,
         mode_hint: None,
@@ -152,9 +156,12 @@ async fn test_metadata_optional_fields_present_even_if_none() -> Result<()> {
 
         // Should be either a number (Some(u128)) or null
         match field_value.unwrap() {
-            Value::Number(_) => {}, // Some timing value
-            Value::Null => {},       // None represented as null
-            _ => panic!("optional field '{}' should be number or null, found: {:?}", field, field_value)
+            Value::Number(_) => {} // Some timing value
+            Value::Null => {}      // None represented as null
+            _ => panic!(
+                "optional field '{}' should be number or null, found: {:?}",
+                field, field_value
+            ),
         }
     }
 
@@ -167,7 +174,7 @@ async fn test_metadata_stage_traces_present() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test stage traces".to_string(),
         namespace: None,
         mode_hint: None,
@@ -187,11 +194,8 @@ async fn test_metadata_stage_traces_present() -> Result<()> {
     // 2. Debug flags format is not standardized
     // 3. Stage naming is not consistent
 
-    let debug_flag_strings: Vec<String> = debug_flags
-        .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.to_string())
-        .collect();
+    let debug_flag_strings: Vec<String> =
+        debug_flags.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect();
 
     // Check for required stage markers
     let required_stages = vec!["parsing:ok", "backend:", "formatting:ok"];
@@ -201,8 +205,7 @@ async fn test_metadata_stage_traces_present() -> Result<()> {
         assert!(
             found,
             "debug_flags missing stage marker containing '{}'. Found flags: {:?}",
-            stage,
-            debug_flag_strings
+            stage, debug_flag_strings
         );
     }
 
@@ -215,7 +218,7 @@ async fn test_metadata_normalization_enforces_ordering() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test normalization ordering".to_string(),
         namespace: None,
         mode_hint: None,
@@ -235,11 +238,8 @@ async fn test_metadata_normalization_enforces_ordering() -> Result<()> {
     // 2. Debug flags are not sorted alphabetically
     // 3. Ordering is not enforced
 
-    let debug_flag_strings: Vec<String> = debug_flags
-        .iter()
-        .filter_map(|v| v.as_str())
-        .map(|s| s.to_string())
-        .collect();
+    let debug_flag_strings: Vec<String> =
+        debug_flags.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect();
 
     // Check that debug flags are sorted alphabetically
     let mut sorted_flags = debug_flag_strings.clone();
@@ -248,8 +248,7 @@ async fn test_metadata_normalization_enforces_ordering() -> Result<()> {
     assert_eq!(
         debug_flag_strings, sorted_flags,
         "debug_flags should be sorted alphabetically. Expected: {:?}, Found: {:?}",
-        sorted_flags,
-        debug_flag_strings
+        sorted_flags, debug_flag_strings
     );
 
     Ok(())
@@ -261,7 +260,7 @@ async fn test_timing_fields_always_increasing() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test timing ordering".to_string(),
         namespace: None,
         mode_hint: None,
@@ -335,7 +334,7 @@ async fn test_error_responses_include_full_metadata() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Create a request that should cause an error (empty query)
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "".to_string(), // Empty query should cause error
         namespace: None,
         mode_hint: None,
@@ -357,32 +356,28 @@ async fn test_error_responses_include_full_metadata() -> Result<()> {
     // 2. Error metadata might be incomplete or inconsistent
     // 3. Error metadata structure might differ from success responses
 
-    assert!(
-        response.get("metadata").is_some(),
-        "Error responses should contain 'metadata' field"
-    );
+    assert!(response.get("metadata").is_some(), "Error responses should contain 'metadata' field");
 
     // Should also have error information
-    assert!(
-        response.get("error").is_some(),
-        "Error responses should contain 'error' field"
-    );
+    assert!(response.get("error").is_some(), "Error responses should contain 'error' field");
 
     let metadata = response.get("metadata").unwrap().as_object().unwrap();
 
     // Error metadata should have all required fields
     let required_fields = vec![
-        "request_id", "backend_used", "start_time_ms", "end_time_ms",
-        "vector_search_ms", "graph_traversal_ms", "fusion_ms",
-        "parameters", "debug_flags"
+        "request_id",
+        "backend_used",
+        "start_time_ms",
+        "end_time_ms",
+        "vector_search_ms",
+        "graph_traversal_ms",
+        "fusion_ms",
+        "parameters",
+        "debug_flags",
     ];
 
     for field in required_fields {
-        assert!(
-            metadata.contains_key(field),
-            "error metadata missing field: {}",
-            field
-        );
+        assert!(metadata.contains_key(field), "error metadata missing field: {}", field);
     }
 
     Ok(())
@@ -397,7 +392,7 @@ async fn test_metadata_consistency_with_sqlitegraph_and_neo4j() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test sqlitegraph backend".to_string(),
         namespace: None,
         mode_hint: None,
@@ -429,7 +424,7 @@ async fn test_metadata_consistency_with_sqlitegraph_and_neo4j() -> Result<()> {
     let state2 = Arc::new(SynCoreState::new());
     let handler2 = MCPServerHandler::new(state2);
 
-    let request2 = RagGraphQueryRequest {
+    let request2 = RagGraphQueryInput {
         query_text: "test neo4j backend".to_string(),
         namespace: None,
         mode_hint: None,
@@ -464,7 +459,7 @@ async fn test_metadata_formatting_stable_across_runs() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test formatting stability".to_string(),
         namespace: None,
         mode_hint: None,
@@ -490,7 +485,8 @@ async fn test_metadata_formatting_stable_across_runs() -> Result<()> {
 
     // All fields except timestamps should be identical
     for field in ["request_id", "backend_used", "parameters", "debug_flags"] {
-        if field != "request_id" { // request_id will be different due to timestamp
+        if field != "request_id" {
+            // request_id will be different due to timestamp
             assert_eq!(
                 metadata1.get(field),
                 metadata2.get(field),
@@ -523,19 +519,13 @@ async fn test_metadata_formatting_stable_across_runs() -> Result<()> {
         .map(|s| s.to_string())
         .collect();
 
-    assert_eq!(
-        debug_flags1, debug_flags2,
-        "debug_flags should be identical across runs"
-    );
+    assert_eq!(debug_flags1, debug_flags2, "debug_flags should be identical across runs");
 
     // Check that debug flags are sorted
     let mut sorted_flags1 = debug_flags1.clone();
     sorted_flags1.sort();
 
-    assert_eq!(
-        debug_flags1, sorted_flags1,
-        "debug_flags should be sorted alphabetically"
-    );
+    assert_eq!(debug_flags1, sorted_flags1, "debug_flags should be sorted alphabetically");
 
     Ok(())
 }

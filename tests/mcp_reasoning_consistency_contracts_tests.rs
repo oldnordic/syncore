@@ -4,12 +4,11 @@
 //! Tests ensure that all three reasoning tools produce mutually consistent
 //! metadata, traces, evaluations, and reflections for comparable inputs.
 
-use syncore::mcp_server::reasoning::{
-    UnifiedReasoningResponse, ToolReasoningSnapshot, ConsistencyViolation,
-    ConsistencyReport, build_tool_snapshot_from_unified_response,
-    validate_snapshots_consistency,
-};
 use serde_json;
+use syncore::mcp_server::reasoning::{
+    build_tool_snapshot_from_unified_response, validate_snapshots_consistency, ConsistencyReport,
+    ConsistencyViolation, ToolReasoningSnapshot, UnifiedReasoningResponse,
+};
 
 /// Test 1: Consistency contracts for identical queries
 #[tokio::test]
@@ -17,12 +16,16 @@ async fn consistency_contracts_for_identical_queries() {
     // Create mock unified responses for each tool with identical query "test_function"
     let query_response = create_mock_unified_response("raggraph_query", "test_function", 85);
     let multihop_response = create_mock_unified_response("raggraph_multihop", "test_function", 88);
-    let fusion_response = create_mock_unified_response("code_graph_fusion_query", "test_function", 90);
+    let fusion_response =
+        create_mock_unified_response("code_graph_fusion_query", "test_function", 90);
 
     // Build snapshots from responses
-    let query_snapshot = build_tool_snapshot_from_unified_response("raggraph_query", &query_response);
-    let multihop_snapshot = build_tool_snapshot_from_unified_response("raggraph_multihop", &multihop_response);
-    let fusion_snapshot = build_tool_snapshot_from_unified_response("code_graph_fusion_query", &fusion_response);
+    let query_snapshot =
+        build_tool_snapshot_from_unified_response("raggraph_query", &query_response);
+    let multihop_snapshot =
+        build_tool_snapshot_from_unified_response("raggraph_multihop", &multihop_response);
+    let fusion_snapshot =
+        build_tool_snapshot_from_unified_response("code_graph_fusion_query", &fusion_response);
 
     let snapshots = &[query_snapshot, multihop_snapshot, fusion_snapshot];
 
@@ -33,24 +36,32 @@ async fn consistency_contracts_for_identical_queries() {
     assert!(report.is_consistent, "Tools should be consistent for identical queries");
 
     // Backend consistency
-    let backends: Vec<String> = snapshots.iter()
-        .map(|s| s.metadata_backend.clone())
-        .collect();
-    assert!(backends.windows(2).all(|w| w[0] == w[1]),
-              "All tools should use the same backend: {:?}", backends);
+    let backends: Vec<String> = snapshots.iter().map(|s| s.metadata_backend.clone()).collect();
+    assert!(
+        backends.windows(2).all(|w| w[0] == w[1]),
+        "All tools should use the same backend: {:?}",
+        backends
+    );
 
     // Score band consistency (within ±20 points)
     let scores: Vec<u8> = snapshots.iter().map(|s| s.evaluation_score).collect();
     let max_score = scores.iter().max().copied().unwrap_or(0);
     let min_score = scores.iter().min().copied().unwrap_or(100);
-    assert!(max_score.saturating_sub(min_score) <= 20,
-              "Scores should be within ±20 points: min={}, max={}", min_score, max_score);
+    assert!(
+        max_score.saturating_sub(min_score) <= 20,
+        "Scores should be within ±20 points: min={}, max={}",
+        min_score,
+        max_score
+    );
 
     // Valid reflection categories
     for snapshot in snapshots {
         if let Some(ref category) = snapshot.reflection_category {
-            assert!(["stable", "degraded", "anomalous"].contains(&category.as_str()),
-                    "Invalid reflection category: {}", category);
+            assert!(
+                ["stable", "degraded", "anomalous"].contains(&category.as_str()),
+                "Invalid reflection category: {}",
+                category
+            );
         }
     }
 }
@@ -65,12 +76,17 @@ async fn consistency_metadata_fields_are_present_for_all_tools() {
         let snapshot = build_tool_snapshot_from_unified_response(tool, &response);
 
         // Assert critical metadata fields are non-empty/non-zero
-        assert!(!snapshot.metadata_backend.is_empty(),
-                "{} should have non-empty backend field", tool);
-        assert!(snapshot.evaluation_score > 0,
-                "{} should have positive evaluation score", tool);
-        assert!(snapshot.evaluation_confidence > 0.0 && snapshot.evaluation_confidence <= 1.0,
-                "{} should have valid confidence range", tool);
+        assert!(
+            !snapshot.metadata_backend.is_empty(),
+            "{} should have non-empty backend field",
+            tool
+        );
+        assert!(snapshot.evaluation_score > 0, "{} should have positive evaluation score", tool);
+        assert!(
+            snapshot.evaluation_confidence > 0.0 && snapshot.evaluation_confidence <= 1.0,
+            "{} should have valid confidence range",
+            tool
+        );
     }
 }
 
@@ -88,8 +104,11 @@ async fn consistency_trace_stage_sets_overlap() {
         // Extract stages from response trace (would need access to trace data)
         // For now, verify trace backend consistency
         if let Some(ref trace_backend) = snapshot.trace_backend {
-            assert_eq!(trace_backend, &snapshot.metadata_backend,
-                      "Trace backend should match metadata backend for {}", tool);
+            assert_eq!(
+                trace_backend, &snapshot.metadata_backend,
+                "Trace backend should match metadata backend for {}",
+                tool
+            );
         }
 
         stage_sets.push((*tool, snapshot.metadata_backend.clone()));
@@ -97,17 +116,23 @@ async fn consistency_trace_stage_sets_overlap() {
 
     // Verify at least backend consistency across tools
     let backends: Vec<String> = stage_sets.iter().map(|(_, backend)| backend.clone()).collect();
-    assert!(backends.windows(2).all(|w| w[0] == w[1]),
-              "All tools should use consistent backends: {:?}", backends);
+    assert!(
+        backends.windows(2).all(|w| w[0] == w[1]),
+        "All tools should use consistent backends: {:?}",
+        backends
+    );
 }
 
 /// Test 4: Consistency evaluation monotonicity for more complex query
 #[tokio::test]
 async fn consistency_evaluation_monotonicity_for_more_complex_query() {
     // Complex query responses
-    let query_response = create_mock_unified_response("raggraph_query", "complex_multi_step_query", 92);
-    let multihop_response = create_mock_unified_response("raggraph_multihop", "complex_multi_step_query", 95);
-    let fusion_response = create_mock_unified_response("code_graph_fusion_query", "complex_multi_step_query", 90);
+    let query_response =
+        create_mock_unified_response("raggraph_query", "complex_multi_step_query", 92);
+    let multihop_response =
+        create_mock_unified_response("raggraph_multihop", "complex_multi_step_query", 95);
+    let fusion_response =
+        create_mock_unified_response("code_graph_fusion_query", "complex_multi_step_query", 90);
 
     let snapshots = vec![
         build_tool_snapshot_from_unified_response("raggraph_query", &query_response),
@@ -125,8 +150,12 @@ async fn consistency_evaluation_monotonicity_for_more_complex_query() {
     let max_conf = confidences.iter().reduce(|a, b| a.max(*b)).copied().unwrap_or(0.0);
     let min_conf = confidences.iter().reduce(|a, b| a.min(*b)).copied().unwrap_or(1.0);
 
-    assert!(max_conf - min_conf <= 0.3,
-              "Confidence values should not diverge wildly: min={}, max={}", min_conf, max_conf);
+    assert!(
+        max_conf - min_conf <= 0.3,
+        "Confidence values should not diverge wildly: min={}, max={}",
+        min_conf,
+        max_conf
+    );
 }
 
 /// Test 5: Consistency reflection categories align with evaluation
@@ -141,19 +170,34 @@ async fn consistency_reflection_categories_align_with_evaluation() {
     ];
 
     for (tool_name, score, expected_category) in test_cases {
-        let response = create_mock_unified_response_with_reflection(tool_name, "test_query", score, expected_category);
+        let response = create_mock_unified_response_with_reflection(
+            tool_name,
+            "test_query",
+            score,
+            expected_category,
+        );
         let snapshot = build_tool_snapshot_from_unified_response(tool_name, &response);
 
         // If evaluation score >= 90 → reflection.category must be "stable"
         if score >= 90 {
-            assert_eq!(snapshot.reflection_category.as_deref(), Some("stable"),
-                      "High score ({}), should have 'stable' reflection for {}", score, tool_name);
+            assert_eq!(
+                snapshot.reflection_category.as_deref(),
+                Some("stable"),
+                "High score ({}), should have 'stable' reflection for {}",
+                score,
+                tool_name
+            );
         }
 
         // If evaluation score < 70 → reflection.category must NOT be "stable"
         if score < 70 && snapshot.reflection_category.is_some() {
-            assert_ne!(snapshot.reflection_category.as_deref(), Some("stable"),
-                      "Low score ({}), should not have 'stable' reflection for {}", score, tool_name);
+            assert_ne!(
+                snapshot.reflection_category.as_deref(),
+                Some("stable"),
+                "Low score ({}), should not have 'stable' reflection for {}",
+                score,
+                tool_name
+            );
         }
     }
 }
@@ -173,7 +217,7 @@ async fn consistency_contract_detects_backend_mismatches() {
         },
         ToolReasoningSnapshot {
             tool_name: "raggraph_multihop".to_string(),
-            metadata_backend: "Neo4j".to_string(),  // Different backend!
+            metadata_backend: "Neo4j".to_string(), // Different backend!
             trace_backend: Some("Neo4j".to_string()),
             evaluation_score: 88,
             evaluation_confidence: 0.85,
@@ -193,8 +237,10 @@ async fn consistency_contract_detects_backend_mismatches() {
 
     // Should detect backend mismatch
     assert!(!report.is_consistent, "Should detect backend mismatch");
-    assert!(report.violations.iter().any(|v| v.code == "backend_mismatch"),
-              "Should have backend_mismatch violation");
+    assert!(
+        report.violations.iter().any(|v| v.code == "backend_mismatch"),
+        "Should have backend_mismatch violation"
+    );
 }
 
 /// Test 7: Consistency serialization roundtrip of snapshot
@@ -214,8 +260,8 @@ async fn consistency_serialization_roundtrip_of_snapshot() {
         .expect("Should serialize snapshot to JSON");
 
     // Deserialize back
-    let deserialized: ToolReasoningSnapshot = serde_json::from_str(&json_str)
-        .expect("Should deserialize snapshot from JSON");
+    let deserialized: ToolReasoningSnapshot =
+        serde_json::from_str(&json_str).expect("Should deserialize snapshot from JSON");
 
     // Verify roundtrip equality
     assert_eq!(original_snapshot.tool_name, deserialized.tool_name);
@@ -244,16 +290,23 @@ async fn consistency_does_not_modify_original_responses() {
     assert_eq!(original_response.response_type, response_copy.response_type);
     assert_eq!(original_response.request_metadata.query, response_copy.request_metadata.query);
     assert_eq!(original_response.results.len(), response_copy.results.len());
-    assert_eq!(original_response.backend_info.backend_type, response_copy.backend_info.backend_type);
+    assert_eq!(
+        original_response.backend_info.backend_type,
+        response_copy.backend_info.backend_type
+    );
     assert_eq!(original_response.success, response_copy.success);
 
     // If metadata, trace, evaluation, reflection are present, they should be unchanged
-    if let (Some(ref orig_meta), Some(ref copy_meta)) = (&original_response.metadata, &response_copy.metadata) {
+    if let (Some(ref orig_meta), Some(ref copy_meta)) =
+        (&original_response.metadata, &response_copy.metadata)
+    {
         assert_eq!(orig_meta.request_id, copy_meta.request_id);
         assert_eq!(orig_meta.backend_used, copy_meta.backend_used);
     }
 
-    if let (Some(ref orig_eval), Some(ref copy_eval)) = (&original_response.evaluation, &response_copy.evaluation) {
+    if let (Some(ref orig_eval), Some(ref copy_eval)) =
+        (&original_response.evaluation, &response_copy.evaluation)
+    {
         assert_eq!(orig_eval.score, copy_eval.score);
         assert_eq!(orig_eval.confidence, copy_eval.confidence);
     }
@@ -261,7 +314,11 @@ async fn consistency_does_not_modify_original_responses() {
 
 // Helper functions for creating mock unified responses
 
-fn create_mock_unified_response(tool_name: &str, query: &str, score: u8) -> UnifiedReasoningResponse {
+fn create_mock_unified_response(
+    tool_name: &str,
+    query: &str,
+    score: u8,
+) -> UnifiedReasoningResponse {
     UnifiedReasoningResponse {
         response_type: tool_name.to_string(),
         request_metadata: create_mock_request_metadata(query),
@@ -277,7 +334,12 @@ fn create_mock_unified_response(tool_name: &str, query: &str, score: u8) -> Unif
     }
 }
 
-fn create_mock_unified_response_with_reflection(tool_name: &str, query: &str, score: u8, category: Option<&str>) -> UnifiedReasoningResponse {
+fn create_mock_unified_response_with_reflection(
+    tool_name: &str,
+    query: &str,
+    score: u8,
+    category: Option<&str>,
+) -> UnifiedReasoningResponse {
     let response = create_mock_unified_response(tool_name, query, score);
     UnifiedReasoningResponse {
         reflection: category.map(|cat| create_mock_reasoning_reflection_with_category(score, cat)),
@@ -285,7 +347,11 @@ fn create_mock_unified_response_with_reflection(tool_name: &str, query: &str, sc
     }
 }
 
-fn create_mock_unified_response_with_stages(tool_name: &str, query: &str, score: u8) -> UnifiedReasoningResponse {
+fn create_mock_unified_response_with_stages(
+    tool_name: &str,
+    query: &str,
+    score: u8,
+) -> UnifiedReasoningResponse {
     create_mock_unified_response(tool_name, query, score)
 }
 
@@ -390,23 +456,59 @@ fn create_mock_reasoning_trace() -> syncore::mcp_server::reasoning::ReasoningTra
     }
 }
 
-fn create_mock_reasoning_evaluation(score: u8) -> syncore::mcp_server::reasoning::ReasoningEvaluation {
+fn create_mock_reasoning_evaluation(
+    score: u8,
+) -> syncore::mcp_server::reasoning::ReasoningEvaluation {
     syncore::mcp_server::reasoning::ReasoningEvaluation {
         score,
-        confidence: if score >= 90 { 0.95 } else if score >= 70 { 0.8 } else { 0.6 },
-        anomaly_flags: if score >= 90 { vec![] } else { vec!["minor_timing_issue".to_string()] },
-        summary: if score >= 90 { "Excellent execution".to_string() } else { "Acceptable execution".to_string() },
+        confidence: if score >= 90 {
+            0.95
+        } else if score >= 70 {
+            0.8
+        } else {
+            0.6
+        },
+        anomaly_flags: if score >= 90 {
+            vec![]
+        } else {
+            vec!["minor_timing_issue".to_string()]
+        },
+        summary: if score >= 90 {
+            "Excellent execution".to_string()
+        } else {
+            "Acceptable execution".to_string()
+        },
     }
 }
 
-fn create_mock_reasoning_reflection(score: u8) -> syncore::mcp_server::reasoning::reflection::ReasoningReflection {
-    create_mock_reasoning_reflection_with_category(score, if score >= 90 { "stable" } else if score >= 70 { "degraded" } else { "anomalous" })
+fn create_mock_reasoning_reflection(
+    score: u8,
+) -> syncore::mcp_server::reasoning::reflection::ReasoningReflection {
+    create_mock_reasoning_reflection_with_category(
+        score,
+        if score >= 90 {
+            "stable"
+        } else if score >= 70 {
+            "degraded"
+        } else {
+            "anomalous"
+        },
+    )
 }
 
-fn create_mock_reasoning_reflection_with_category(_score: u8, category: &str) -> syncore::mcp_server::reasoning::reflection::ReasoningReflection {
+fn create_mock_reasoning_reflection_with_category(
+    _score: u8,
+    category: &str,
+) -> syncore::mcp_server::reasoning::reflection::ReasoningReflection {
     syncore::mcp_server::reasoning::reflection::ReasoningReflection {
         category: category.to_string(),
-        regression_risk: if category == "stable" { 0.05 } else if category == "degraded" { 0.4 } else { 0.8 },
+        regression_risk: if category == "stable" {
+            0.05
+        } else if category == "degraded" {
+            0.4
+        } else {
+            0.8
+        },
         recommended_top_k_delta: 0,
         recommended_scope_hint: None,
         improvement_hints: vec![],

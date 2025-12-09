@@ -72,7 +72,9 @@ pub fn normalize_metadata(meta: &mut ReasoningMetadata) -> anyhow::Result<()> {
         if vector_ms < meta.start_time_ms || vector_ms > meta.end_time_ms {
             return Err(anyhow::anyhow!(
                 "vector_search_ms ({}) must be between start_time_ms ({}) and end_time_ms ({})",
-                vector_ms, meta.start_time_ms, meta.end_time_ms
+                vector_ms,
+                meta.start_time_ms,
+                meta.end_time_ms
             ));
         }
     }
@@ -81,7 +83,9 @@ pub fn normalize_metadata(meta: &mut ReasoningMetadata) -> anyhow::Result<()> {
         if graph_ms < meta.start_time_ms || graph_ms > meta.end_time_ms {
             return Err(anyhow::anyhow!(
                 "graph_traversal_ms ({}) must be between start_time_ms ({}) and end_time_ms ({})",
-                graph_ms, meta.start_time_ms, meta.end_time_ms
+                graph_ms,
+                meta.start_time_ms,
+                meta.end_time_ms
             ));
         }
     }
@@ -90,7 +94,9 @@ pub fn normalize_metadata(meta: &mut ReasoningMetadata) -> anyhow::Result<()> {
         if fusion_ms < meta.start_time_ms || fusion_ms > meta.end_time_ms {
             return Err(anyhow::anyhow!(
                 "fusion_ms ({}) must be between start_time_ms ({}) and end_time_ms ({})",
-                fusion_ms, meta.start_time_ms, meta.end_time_ms
+                fusion_ms,
+                meta.start_time_ms,
+                meta.end_time_ms
             ));
         }
     }

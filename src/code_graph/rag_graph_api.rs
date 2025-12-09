@@ -5,6 +5,5 @@
 
 // Re-export main public API types
 pub use super::rag_graph::{
-    RagGraphAPI, RagGraphQueryRequest, RagGraphQueryResponse, RankedEntity,
-    FusionMode,
+    FusionMode, RagGraphAPI, RagGraphQueryRequest, RagGraphQueryResponse, RankedEntity,
 };

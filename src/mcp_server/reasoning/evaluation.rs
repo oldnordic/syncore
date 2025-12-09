@@ -73,10 +73,8 @@ impl ReasoningEvaluation {
 
     /// Detect missing required stages
     fn detect_missing_stages(trace: &super::trace::ReasoningTrace) -> Vec<String> {
-        let trace_stages: std::collections::HashSet<&str> = trace.stages
-            .iter()
-            .map(|s| s.stage.as_str())
-            .collect();
+        let trace_stages: std::collections::HashSet<&str> =
+            trace.stages.iter().map(|s| s.stage.as_str()).collect();
 
         let required_stages = vec!["parsing", "vector_search", "graph_traversal", "formatting"];
         let mut flags = Vec::new();
@@ -143,10 +141,9 @@ impl ReasoningEvaluation {
         }
 
         // Check vector timing against metadata
-        if let (Some(vector_ms), Some(trace_vector_ms)) = (
-            metadata.vector_search_ms,
-            trace.timing_breakdown.get("vector_search"),
-        ) {
+        if let (Some(vector_ms), Some(trace_vector_ms)) =
+            (metadata.vector_search_ms, trace.timing_breakdown.get("vector_search"))
+        {
             let trace_vector_ms = *trace_vector_ms as u128;
             let ratio = if vector_ms > 0 {
                 trace_vector_ms as f64 / vector_ms as f64
@@ -188,7 +185,9 @@ impl ReasoningEvaluation {
         let mut flags = Vec::new();
 
         // If graph traversal took significantly longer than vector search, mark as erratic
-        if let (Some(vector_ms), Some(graph_ms)) = (metadata.vector_search_ms, metadata.graph_traversal_ms) {
+        if let (Some(vector_ms), Some(graph_ms)) =
+            (metadata.vector_search_ms, metadata.graph_traversal_ms)
+        {
             if vector_ms > 0 {
                 let ratio = graph_ms as f64 / vector_ms as f64;
                 if ratio > 2.0 {
@@ -259,7 +258,8 @@ pub fn evaluate_reasoning(
     }
 
     // Generate summary
-    evaluation.summary = ReasoningEvaluation::generate_summary(evaluation.score, &evaluation.anomaly_flags);
+    evaluation.summary =
+        ReasoningEvaluation::generate_summary(evaluation.score, &evaluation.anomaly_flags);
 
     evaluation
 }
@@ -292,6 +292,7 @@ mod tests {
     use super::*;
     use crate::mcp_server::reasoning::metadata::ReasoningMetadata;
     use crate::mcp_server::reasoning::trace::{ReasoningTrace, ReasoningTraceStage};
+    use std::collections::HashMap;
 
     fn create_test_metadata() -> ReasoningMetadata {
         ReasoningMetadata {
@@ -350,7 +351,10 @@ mod tests {
         let evaluation = evaluate_reasoning(&metadata, &trace);
 
         assert!(evaluation.score < 100);
-        assert!(evaluation.anomaly_flags.iter().any(|f| f.contains("missing_stage:graph_traversal")));
+        assert!(evaluation
+            .anomaly_flags
+            .iter()
+            .any(|f| f.contains("missing_stage:graph_traversal")));
     }
 
     #[test]
@@ -384,7 +388,7 @@ mod tests {
     #[test]
     fn test_normalize_evaluation() {
         let evaluation = ReasoningEvaluation {
-            score: 150, // Invalid > 100
+            score: 150,      // Invalid > 100
             confidence: 1.5, // Invalid > 1.0
             anomaly_flags: vec!["flag1".to_string(), "flag2".to_string(), "flag1".to_string()], // Duplicate
             summary: "".to_string(), // Empty

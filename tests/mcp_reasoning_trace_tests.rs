@@ -4,12 +4,12 @@
 //! and PASS after complete implementation.
 
 use anyhow::Result;
-use syncore::mcp_server::server::MCPServerHandler;
-use syncore::mcp_server::types::{RagGraphQueryRequest, RagGraphMultihopRequest};
-use syncore::router::SynCoreState;
-use std::sync::Arc;
 use rmcp::model::CallToolResult;
 use serde_json::{json, Value};
+use std::sync::Arc;
+use syncore::mcp_server::server::MCPServerHandler;
+use syncore::mcp_server::types::{RagGraphMultihopRequest, RagGraphQueryInput};
+use syncore::router::SynCoreState;
 
 /// Test 7.1: test_trace_structure_present
 #[tokio::test]
@@ -17,7 +17,7 @@ async fn test_trace_structure_present() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test trace structure".to_string(),
         namespace: None,
         mode_hint: None,
@@ -34,40 +34,22 @@ async fn test_trace_structure_present() -> Result<()> {
     // 2. ReasoningTrace struct not implemented
     // 3. Response format hasn't been extended
 
-    assert!(
-        response.get("trace").is_some(),
-        "Response should contain 'trace' field"
-    );
+    assert!(response.get("trace").is_some(), "Response should contain 'trace' field");
 
     let trace = response.get("trace").unwrap().as_object().unwrap();
 
     // Check trace structure
-    assert!(
-        trace.contains_key("stages"),
-        "trace should contain 'stages' field"
-    );
-    assert!(
-        trace.contains_key("summary"),
-        "trace should contain 'summary' field"
-    );
-    assert!(
-        trace.contains_key("backend"),
-        "trace should contain 'backend' field"
-    );
+    assert!(trace.contains_key("stages"), "trace should contain 'stages' field");
+    assert!(trace.contains_key("summary"), "trace should contain 'summary' field");
+    assert!(trace.contains_key("backend"), "trace should contain 'backend' field");
     assert!(
         trace.contains_key("timing_breakdown"),
         "trace should contain 'timing_breakdown' field"
     );
-    assert!(
-        trace.contains_key("parameters_hash"),
-        "trace should contain 'parameters_hash' field"
-    );
+    assert!(trace.contains_key("parameters_hash"), "trace should contain 'parameters_hash' field");
 
     // Check stages is an array
-    assert!(
-        trace.get("stages").unwrap().is_array(),
-        "trace.stages should be an array"
-    );
+    assert!(trace.get("stages").unwrap().is_array(), "trace.stages should be an array");
 
     Ok(())
 }
@@ -78,7 +60,7 @@ async fn test_trace_stages_in_deterministic_order() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test deterministic order".to_string(),
         namespace: None,
         mode_hint: None,
@@ -99,18 +81,14 @@ async fn test_trace_stages_in_deterministic_order() -> Result<()> {
     let stages = trace.get("stages").unwrap().as_array().unwrap();
 
     // Should have expected stages in deterministic order
-    let expected_order = vec![
-        "parsing",
-        "backend_selection",
-        "vector_search",
-        "graph_traversal",
-        "formatting"
-    ];
+    let expected_order =
+        vec!["parsing", "backend_selection", "vector_search", "graph_traversal", "formatting"];
 
     assert_eq!(
         stages.len(),
         expected_order.len(),
-        "Should have exactly {} stages", expected_order.len()
+        "Should have exactly {} stages",
+        expected_order.len()
     );
 
     for (i, stage) in stages.iter().enumerate() {
@@ -118,24 +96,22 @@ async fn test_trace_stages_in_deterministic_order() -> Result<()> {
         let stage_name = stage_obj.get("stage").unwrap().as_str().unwrap();
 
         assert_eq!(
-            stage_name,
-            expected_order[i],
+            stage_name, expected_order[i],
             "Stage {} should be '{}' but found '{}'",
             i, expected_order[i], stage_name
         );
 
         // Each stage should have required fields
-        assert!(
-            stage_obj.get("ok").is_some(),
-            "Stage '{}' should have 'ok' field", stage_name
-        );
+        assert!(stage_obj.get("ok").is_some(), "Stage '{}' should have 'ok' field", stage_name);
         assert!(
             stage_obj.get("detail").is_some(),
-            "Stage '{}' should have 'detail' field", stage_name
+            "Stage '{}' should have 'detail' field",
+            stage_name
         );
         assert!(
             stage_obj.get("timestamp_ms").is_some(),
-            "Stage '{}' should have 'timestamp_ms' field", stage_name
+            "Stage '{}' should have 'timestamp_ms' field",
+            stage_name
         );
     }
 
@@ -149,7 +125,7 @@ async fn test_trace_parameters_hash_consistency() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Test identical requests produce identical hashes
-    let request1 = RagGraphQueryRequest {
+    let request1 = RagGraphQueryInput {
         query_text: "test hash consistency".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -158,7 +134,7 @@ async fn test_trace_parameters_hash_consistency() -> Result<()> {
         scope: Some("project".to_string()),
     };
 
-    let request2 = RagGraphQueryRequest {
+    let request2 = RagGraphQueryInput {
         query_text: "test hash consistency".to_string(),
         namespace: Some("src".to_string()),
         mode_hint: Some("reasoning".to_string()),
@@ -184,10 +160,7 @@ async fn test_trace_parameters_hash_consistency() -> Result<()> {
     let hash1 = trace1.get("parameters_hash").unwrap().as_str().unwrap();
     let hash2 = trace2.get("parameters_hash").unwrap().as_str().unwrap();
 
-    assert_eq!(
-        hash1, hash2,
-        "Identical requests should produce identical parameters hashes"
-    );
+    assert_eq!(hash1, hash2, "Identical requests should produce identical parameters hashes");
 
     // Hash should be SHA256 format (64 hex characters)
     assert_eq!(
@@ -213,7 +186,7 @@ async fn test_trace_stage_failure_propagation() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Create a request that should cause a parsing failure
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "".to_string(), // Empty query should cause parsing failure
         namespace: None,
         mode_hint: None,
@@ -230,28 +203,17 @@ async fn test_trace_stage_failure_propagation() -> Result<()> {
     // 2. Error responses don't include traces yet
     // 3. Stage failure tracking not implemented
 
-    assert!(
-        response.get("trace").is_some(),
-        "Error responses should also contain traces"
-    );
+    assert!(response.get("trace").is_some(), "Error responses should also contain traces");
 
     let trace = response.get("trace").unwrap().as_object().unwrap();
     let stages = trace.get("stages").unwrap().as_array().unwrap();
 
     // Should have at least parsing stage
-    let parsing_stage = stages.iter().find(|s| {
-        s.as_object()
-            .unwrap()
-            .get("stage")
-            .unwrap()
-            .as_str()
-            .unwrap() == "parsing"
-    });
+    let parsing_stage = stages
+        .iter()
+        .find(|s| s.as_object().unwrap().get("stage").unwrap().as_str().unwrap() == "parsing");
 
-    assert!(
-        parsing_stage.is_some(),
-        "Should have parsing stage even in error responses"
-    );
+    assert!(parsing_stage.is_some(), "Should have parsing stage even in error responses");
 
     let parsing_obj = parsing_stage.unwrap().as_object().unwrap();
 
@@ -264,10 +226,7 @@ async fn test_trace_stage_failure_propagation() -> Result<()> {
 
     // Should have detail explaining the failure
     let detail = parsing_obj.get("detail").unwrap().as_str().unwrap();
-    assert!(
-        !detail.is_empty(),
-        "Failed stage should have non-empty detail explaining failure"
-    );
+    assert!(!detail.is_empty(), "Failed stage should have non-empty detail explaining failure");
     assert!(
         detail.to_lowercase().contains("empty") || detail.to_lowercase().contains("invalid"),
         "Error detail should mention the cause of failure: {}",
@@ -283,7 +242,7 @@ async fn test_trace_backend_matches_metadata() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test backend consistency".to_string(),
         namespace: None,
         mode_hint: None,
@@ -328,7 +287,7 @@ async fn test_trace_timing_alignment() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test timing alignment".to_string(),
         namespace: None,
         mode_hint: None,
@@ -363,9 +322,11 @@ async fn test_trace_timing_alignment() -> Result<()> {
     // Allow small tolerance for timing differences
     let tolerance = total_duration / 100; // 1% tolerance
     assert!(
-        stage_sum >= total_duration.saturating_sub(tolerance) && stage_sum <= total_duration + tolerance,
+        stage_sum >= total_duration.saturating_sub(tolerance)
+            && stage_sum <= total_duration + tolerance,
         "Stage timing sum ({}) should approximately equal total duration ({})",
-        stage_sum, total_duration
+        stage_sum,
+        total_duration
     );
 
     // Should have timing entries for major stages
@@ -374,7 +335,8 @@ async fn test_trace_timing_alignment() -> Result<()> {
         if metadata.get(&format!("{}_ms", stage)).is_some() {
             assert!(
                 timing_breakdown.get(stage).is_some(),
-                "Should have timing breakdown for stage: {}", stage
+                "Should have timing breakdown for stage: {}",
+                stage
             );
         }
     }
@@ -388,7 +350,7 @@ async fn test_trace_serialization_roundtrip() -> Result<()> {
     let state = Arc::new(SynCoreState::new());
     let handler = MCPServerHandler::new(state);
 
-    let request = RagGraphQueryRequest {
+    let request = RagGraphQueryInput {
         query_text: "test serialization roundtrip".to_string(),
         namespace: Some("serialization".to_string()),
         mode_hint: Some("test".to_string()),
@@ -419,12 +381,14 @@ async fn test_trace_serialization_roundtrip() -> Result<()> {
 
     // All required fields should survive roundtrip
     let trace_obj = deserialized_trace.as_object().unwrap();
-    let required_fields = vec!["stages", "summary", "backend", "timing_breakdown", "parameters_hash"];
+    let required_fields =
+        vec!["stages", "summary", "backend", "timing_breakdown", "parameters_hash"];
 
     for field in required_fields {
         assert!(
             trace_obj.contains_key(field),
-            "Field '{}' should survive serialization roundtrip", field
+            "Field '{}' should survive serialization roundtrip",
+            field
         );
     }
 
@@ -437,7 +401,9 @@ async fn test_trace_serialization_roundtrip() -> Result<()> {
         for field in stage_fields {
             assert!(
                 stage_obj.contains_key(field),
-                "Stage {} field '{}' should survive roundtrip", i, field
+                "Stage {} field '{}' should survive roundtrip",
+                i,
+                field
             );
         }
     }
@@ -452,7 +418,7 @@ async fn test_trace_for_error_responses() -> Result<()> {
     let handler = MCPServerHandler::new(state);
 
     // Test raggraph_query with invalid parameters
-    let query_request = RagGraphQueryRequest {
+    let query_request = RagGraphQueryInput {
         query_text: "".to_string(), // Invalid - empty query
         namespace: None,
         mode_hint: None,
@@ -461,16 +427,20 @@ async fn test_trace_for_error_responses() -> Result<()> {
         scope: None,
     };
 
-    let query_result = handler.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
-    let query_response: Value = serde_json::from_str(&query_result.content[0].text.as_ref().unwrap())?;
+    let query_result =
+        handler.raggraph_query(syncore::mcp_server::Parameters(query_request)).await?;
+    let query_response: Value =
+        serde_json::from_str(&query_result.content[0].text.as_ref().unwrap())?;
 
     // Test raggraph_multihop with invalid parameters
     let multihop_request = RagGraphMultihopRequest {
         seed_nodes: vec![], // Invalid - empty seed nodes
     };
 
-    let multihop_result = handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await?;
-    let multihop_response: Value = serde_json::from_str(&multihop_result.content[0].text.as_ref().unwrap())?;
+    let multihop_result =
+        handler.raggraph_multihop(syncore::mcp_server::Parameters(multihop_request)).await?;
+    let multihop_response: Value =
+        serde_json::from_str(&multihop_result.content[0].text.as_ref().unwrap())?;
 
     // This test will FAIL before Phase 7 because:
     // 1. trace field doesn't exist in error responses
@@ -478,10 +448,7 @@ async fn test_trace_for_error_responses() -> Result<()> {
     // 3. Different error types may not be traced consistently
 
     // Both error responses should contain traces
-    assert!(
-        query_response.get("trace").is_some(),
-        "Query error response should contain trace"
-    );
+    assert!(query_response.get("trace").is_some(), "Query error response should contain trace");
     assert!(
         multihop_response.get("trace").is_some(),
         "Multihop error response should contain trace"
@@ -501,16 +468,15 @@ async fn test_trace_for_error_responses() -> Result<()> {
     let query_trace = query_response.get("trace").unwrap().as_object().unwrap();
     let multihop_trace = multihop_response.get("trace").unwrap().as_object().unwrap();
 
-    let required_fields = vec!["stages", "summary", "backend", "timing_breakdown", "parameters_hash"];
+    let required_fields =
+        vec!["stages", "summary", "backend", "timing_breakdown", "parameters_hash"];
 
     for field in required_fields {
-        assert!(
-            query_trace.contains_key(field),
-            "Query trace should contain field: {}", field
-        );
+        assert!(query_trace.contains_key(field), "Query trace should contain field: {}", field);
         assert!(
             multihop_trace.contains_key(field),
-            "Multihop trace should contain field: {}", field
+            "Multihop trace should contain field: {}",
+            field
         );
     }
 
@@ -519,12 +485,16 @@ async fn test_trace_for_error_responses() -> Result<()> {
     let multihop_summary = multihop_trace.get("summary").unwrap().as_str().unwrap();
 
     assert!(
-        query_summary.to_lowercase().contains("error") || query_summary.to_lowercase().contains("failed"),
-        "Query trace summary should indicate error: {}", query_summary
+        query_summary.to_lowercase().contains("error")
+            || query_summary.to_lowercase().contains("failed"),
+        "Query trace summary should indicate error: {}",
+        query_summary
     );
     assert!(
-        multihop_summary.to_lowercase().contains("error") || multihop_summary.to_lowercase().contains("failed"),
-        "Multihop trace summary should indicate error: {}", multihop_summary
+        multihop_summary.to_lowercase().contains("error")
+            || multihop_summary.to_lowercase().contains("failed"),
+        "Multihop trace summary should indicate error: {}",
+        multihop_summary
     );
 
     Ok(())

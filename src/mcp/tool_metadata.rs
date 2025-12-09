@@ -372,6 +372,18 @@ pub static TOOL_REGISTRY: Lazy<HashMap<&'static str, ToolMetadata>> = Lazy::new(
         },
     );
 
+    registry.insert(
+        "code_graph_audit_sqlitegraph",
+        ToolMetadata {
+            name: "code_graph_audit_sqlitegraph",
+            version: "1.0.0",
+            category: ToolCategory::Graph,
+            cost: ToolCost::High,
+            side_effects: SideEffects::read_only(),
+            description: "Audit SQLiteGraph consistency (read-only)",
+        },
+    );
+
     // Debug suite
     registry.insert(
         "debug_suite",

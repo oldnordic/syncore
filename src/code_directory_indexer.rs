@@ -1,4 +1,5 @@
 use crate::code_graph::CodeGraph;
+use crate::macro_tools::path_filter;
 use crate::vector::VectorStore;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
@@ -107,6 +108,12 @@ impl DirectoryIndexer {
 
             // Check if file matches pattern
             if !pattern.matches_path(relative_path) {
+                continue;
+            }
+
+            // Apply path filtering to exclude build artifacts and non-source files
+            let file_path_str = file_path.to_str().unwrap_or_default();
+            if !path_filter::should_index_path(file_path_str) {
                 continue;
             }
 

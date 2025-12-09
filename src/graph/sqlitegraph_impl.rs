@@ -55,6 +55,7 @@ impl SQLiteGraphBackend {
             EntityType::Class => NodeLabel::Struct, // Map Class to Struct for compatibility
             EntityType::Method => NodeLabel::Function, // Map Method to Function
             EntityType::Import => NodeLabel::Import,
+            EntityType::Constant => NodeLabel::Struct, // Map Constant to Struct for now
         }
     }
 

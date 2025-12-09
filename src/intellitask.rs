@@ -6,6 +6,7 @@ use crate::reasoning::{ReasoningError, ReasoningResult, ToTEngine};
 use anyhow::{anyhow, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -343,7 +344,24 @@ impl IntelliTask {
 
         // Parse JSON response through translator (strip markdown wrapper if present)
         let cleaned_response = Self::strip_markdown_json(&response);
-        let translated = translate_llm_output(&cleaned_response, TargetSchema::SubtaskBreakdown)
+        // MIGRATION PATH: Use TaskBreakdown schema for subtask data
+        let subtask_task_breakdown = json!({
+            "prd_title": "Subtask Generation",
+            "parent_tasks": [{
+                "id": "subtask_parent",
+                "title": "Subtask Generation",
+                "description": "Generated subtasks",
+                "subtasks": serde_json::from_str::<serde_json::Value>(&cleaned_response)
+                    .unwrap_or_else(|_| json!([])),
+                "dependencies": [],
+                "complexity": "Simple",
+                "estimated_hours": 1.0
+            }],
+            "relevant_files": [],
+            "estimated_complexity": "Simple"
+        });
+
+        let translated = translate_llm_output(&subtask_task_breakdown.to_string(), TargetSchema::TaskBreakdown)
             .map_err(|e| {
                 anyhow!("Failed to translate subtasks response: {}. Response was: {}", e, response)
             })?;
@@ -576,26 +594,16 @@ impl IntelliTask {
             reasoning: String,
         }
 
-        // Parse JSON response through translator
-        let translated =
-            translate_llm_output(json_str, TargetSchema::NextTaskSuggestion).map_err(|e| {
-                anyhow!(
-                    "Failed to translate next task suggestion: {}. Response was: {}",
-                    e,
-                    json_str
-                )
-            })?;
-
-        if let Some(error) = translated.get("error") {
-            return Err(anyhow!("Next task translation failed: {:?}", error));
-        }
+        // Parse JSON directly - NextTaskSuggestion doesn't need complex validation
+        let parsed_value: serde_json::Value = serde_json::from_str(json_str)
+            .map_err(|e| anyhow!("Failed to parse next task JSON: {}", e))?;
 
         let suggestion: NextTaskSuggestion =
-            serde_json::from_value(translated.clone()).map_err(|e| {
+            serde_json::from_value(parsed_value.clone()).map_err(|e| {
                 anyhow!(
-                    "Failed to deserialize translated next task: {}. Translated was: {}",
+                    "Failed to deserialize next task: {}. Parsed was: {}",
                     e,
-                    translated
+                    parsed_value
                 )
             })?;
 

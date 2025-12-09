@@ -12,6 +12,8 @@ pub enum Domain {
     Code,
     /// GENERAL domain: documents, tasks, notes with general embeddings
     General,
+    /// GRAPH domain: graph entities, nodes, edges, relationships
+    Graph,
 }
 
 impl From<crate::vector::domain::EmbeddingDomain> for Domain {
@@ -19,6 +21,7 @@ impl From<crate::vector::domain::EmbeddingDomain> for Domain {
         match domain {
             crate::vector::domain::EmbeddingDomain::Code => Domain::Code,
             crate::vector::domain::EmbeddingDomain::General => Domain::General,
+            crate::vector::domain::EmbeddingDomain::Graph => Domain::Graph,
         }
     }
 }
@@ -28,6 +31,7 @@ impl From<Domain> for crate::vector::domain::EmbeddingDomain {
         match domain {
             Domain::Code => crate::vector::domain::EmbeddingDomain::Code,
             Domain::General => crate::vector::domain::EmbeddingDomain::General,
+            Domain::Graph => crate::vector::domain::EmbeddingDomain::Graph,
         }
     }
 }

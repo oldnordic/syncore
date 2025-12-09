@@ -346,6 +346,112 @@ fn test_code_index_directory_respects_dry_run() {
 }
 
 // ============================================================================
+// Parameter Validation Tests for code_index_directory
+// ============================================================================
+
+#[test]
+fn test_code_index_directory_requires_directory_parameter() {
+    let executor = create_test_executor("dir_required");
+
+    // Test with missing directory parameter
+    let params_missing = json!({
+        "pattern": "*.rs"
+        // directory is missing
+    });
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(async {
+        executor.execute_real_tool_async("code_index_directory", &params_missing).await
+    });
+
+    assert!(result.is_ok());
+    let envelope = result.unwrap();
+
+    // Should return an error, not success
+    assert!(!envelope.get("ok").unwrap_or(&json!(false)).as_bool().unwrap_or(true));
+    let error_msg = envelope.get("error").and_then(|e| e.get("message")).and_then(|m| m.as_str());
+    assert!(error_msg.is_some());
+    assert!(error_msg.unwrap().to_lowercase().contains("directory"));
+}
+
+#[test]
+fn test_code_index_directory_requires_pattern_parameter() {
+    let executor = create_test_executor("pattern_required");
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+
+    // Test with missing pattern parameter
+    let params_missing = json!({
+        "directory": temp_dir.path().to_string_lossy().to_string()
+        // pattern is missing
+    });
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(async {
+        executor.execute_real_tool_async("code_index_directory", &params_missing).await
+    });
+
+    assert!(result.is_ok());
+    let envelope = result.unwrap();
+
+    // Should return an error, not success
+    assert!(!envelope.get("ok").unwrap_or(&json!(false)).as_bool().unwrap_or(true));
+    let error_msg = envelope.get("error").and_then(|e| e.get("message")).and_then(|m| m.as_str());
+    assert!(error_msg.is_some());
+    assert!(error_msg.unwrap().to_lowercase().contains("pattern"));
+}
+
+#[test]
+fn test_code_index_directory_rejects_empty_directory() {
+    let executor = create_test_executor("empty_dir");
+
+    // Test with empty directory parameter
+    let params_empty = json!({
+        "directory": "",
+        "pattern": "*.rs"
+    });
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(async {
+        executor.execute_real_tool_async("code_index_directory", &params_empty).await
+    });
+
+    assert!(result.is_ok());
+    let envelope = result.unwrap();
+
+    // Should return an error
+    assert!(!envelope.get("ok").unwrap_or(&json!(false)).as_bool().unwrap_or(true));
+    let error_msg = envelope.get("error").and_then(|e| e.get("message")).and_then(|m| m.as_str());
+    assert!(error_msg.is_some());
+    assert!(error_msg.unwrap().to_lowercase().contains("directory"));
+}
+
+#[test]
+fn test_code_index_directory_rejects_empty_pattern() {
+    let executor = create_test_executor("empty_pattern");
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+
+    // Test with empty pattern parameter
+    let params_empty = json!({
+        "directory": temp_dir.path().to_string_lossy().to_string(),
+        "pattern": ""
+    });
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(async {
+        executor.execute_real_tool_async("code_index_directory", &params_empty).await
+    });
+
+    assert!(result.is_ok());
+    let envelope = result.unwrap();
+
+    // Should return an error
+    assert!(!envelope.get("ok").unwrap_or(&json!(false)).as_bool().unwrap_or(true));
+    let error_msg = envelope.get("error").and_then(|e| e.get("message")).and_then(|m| m.as_str());
+    assert!(error_msg.is_some());
+    assert!(error_msg.unwrap().to_lowercase().contains("pattern"));
+}
+
+// ============================================================================
 // Test 9: code_search real execution
 // ============================================================================
 

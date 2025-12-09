@@ -3,9 +3,9 @@
 //! Comprehensive tests to ensure deterministic behavior and correct
 //! implementation of core planner and reflection functionality.
 
-use syncore::agent::planner::{PlanNode, PlanTree, PlanNodeStatus};
-use syncore::agent::reflection::FailureCategory;
 use std::sync::Arc;
+use syncore::agent::planner::{PlanNode, PlanNodeStatus, PlanTree};
+use syncore::agent::reflection::FailureCategory;
 
 #[cfg(test)]
 mod planner_stabilization_tests {

@@ -1815,6 +1815,157 @@ pub use traits::VectorIndex;
 // Re-export warmup types for public API
 pub use warmup::{HnswWarmupState, WarmupController};
 
+// ============================================================================
+// GraphBERT Embeddings Implementation
+// ============================================================================
+
+/// GraphBERT-compatible embeddings for GRAPH domain
+///
+/// This implementation bridges the existing GraphBertModel with the Embeddings trait,
+/// allowing seamless integration with the TripleEmbeddingService architecture.
+/// Currently uses feature engineering; future versions will support ONNX GraphBERT models.
+pub struct GraphBertEmbeddings {
+    /// Core GraphBertModel for graph-aware transformations
+    graph_model: crate::code_graph::graph_bert::GraphBertModel,
+
+    /// Embedding dimension (typically 384)
+    dimension: usize,
+
+    /// Model name identifier
+    model_name: String,
+}
+
+impl GraphBertEmbeddings {
+    /// Create new GraphBERT embeddings with default dimension (384)
+    pub fn new() -> Result<Self> {
+        let graph_model = crate::code_graph::graph_bert::GraphBertModel::new()?;
+        let dimension = 384; // Standard embedding dimension
+
+        Ok(Self {
+            graph_model,
+            dimension,
+            model_name: "graphbert-base".to_string(),
+        })
+    }
+
+    /// Create GraphBERT embeddings with custom dimension
+    pub fn with_dimension(dimension: usize) -> Result<Self> {
+        let graph_model = crate::code_graph::graph_bert::GraphBertModel::with_dimension(dimension)?;
+
+        Ok(Self {
+            graph_model,
+            dimension,
+            model_name: format!("graphbert-base-{}", dimension),
+        })
+    }
+
+    /// Create GraphBERT embeddings from configuration
+    pub fn from_config(config: &crate::config::GraphEmbeddingsConfig) -> Result<Self> {
+        let graph_model = crate::code_graph::graph_bert::GraphBertModel::with_dimension(config.dimensions)?;
+
+        Ok(Self {
+            graph_model,
+            dimension: config.dimensions,
+            model_name: config.model_name.clone(),
+        })
+    }
+}
+
+impl Embeddings for GraphBertEmbeddings {
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        // For GraphBERT embeddings, we need to:
+        // 1. Create a base embedding (simulated as normalized text representation)
+        // 2. Extract graph features from the text (if it contains graph information)
+        // 3. Apply GraphBERT transformation
+
+        // Parse text for graph features (simple heuristic)
+        let graph_features = self.extract_graph_features(text);
+
+        // Create a simple base embedding (normalized text hash)
+        let base_embedding = self.create_base_embedding(text);
+
+        // Apply GraphBERT transformation using existing GraphBertModel
+        use crate::code_graph::graph_embeddings::GraphEmbeddingStrategy;
+        let graph_embedding = self.graph_model.embed_with_graph(&base_embedding, &graph_features);
+
+        Ok(graph_embedding)
+    }
+
+    fn dim(&self) -> usize {
+        self.dimension
+    }
+
+    fn model_name(&self) -> &str {
+        &self.model_name
+    }
+}
+
+impl GraphBertEmbeddings {
+    /// Extract simple graph features from text
+    /// In a real implementation, this would parse structured graph data
+    fn extract_graph_features(&self, text: &str) -> crate::code_graph::graph_embeddings::GraphFeatures {
+        use crate::code_graph::graph_embeddings::GraphFeatures;
+        use crate::common::fast_map::FastHashMap;
+
+        // Simple heuristics to extract graph structure from text
+        let calls_count = text.matches("Calls:").count() as u32;
+        let uses_count = text.matches("Uses:").count() as u32;
+        let imports_count = text.matches("Imports:").count() as u32;
+        let defines_count = text.matches("Defines:").count() as u32;
+
+        // Create edge type distribution
+        let mut edge_types = FastHashMap::default();
+        edge_types.insert("CALLS".to_string(), calls_count);
+        edge_types.insert("USES".to_string(), uses_count);
+        edge_types.insert("IMPORTS".to_string(), imports_count);
+        edge_types.insert("DEFINES".to_string(), defines_count);
+
+        // Simple heuristic: incoming edges from being called/used, outgoing from calling/using
+        let degree_in = calls_count + uses_count; // This entity is called/used by others
+        let degree_out = imports_count + defines_count; // This entity calls/defines others
+
+        GraphFeatures {
+            degree_in,
+            degree_out,
+            edge_types,
+        }
+    }
+
+    /// Create a base embedding from text using normalized features
+    fn create_base_embedding(&self, text: &str) -> Vec<f32> {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        // Create a deterministic base vector from text
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        // Generate base vector using hash
+        let mut base_vector = Vec::with_capacity(self.dimension);
+        for i in 0..self.dimension {
+            let mut value = ((hash >> (i % 64)) % 1000) as f32 / 1000.0;
+
+            // Add some text-based variation
+            if i < text.len() {
+                value += (text.as_bytes()[i] as f32) / 255.0;
+            }
+
+            base_vector.push(value);
+        }
+
+        // Normalize the base vector
+        let norm: f32 = base_vector.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if norm > 0.0 {
+            for v in base_vector.iter_mut() {
+                *v /= norm;
+            }
+        }
+
+        base_vector
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -224,71 +224,13 @@ impl CodeGraph {
         let has_table = stmt.exists([])?;
 
         if !has_table {
-            // Create code_graph schema inline
-            db.execute_batch(
-                "
-                PRAGMA foreign_keys=ON;
-
-                CREATE TABLE IF NOT EXISTS code_entities (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    file_path TEXT NOT NULL,
-                    entity_type TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    signature TEXT,
-                    line_start INTEGER NOT NULL,
-                    line_end INTEGER NOT NULL,
-                    docstring TEXT,
-                    language TEXT NOT NULL,
-                    indexed_at INTEGER NOT NULL,
-                    created_at INTEGER,
-                    last_modified_at INTEGER,
-                    change_count INTEGER,
-                    author_count INTEGER,
-                    UNIQUE(file_path, entity_type, name, line_start)
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_entities_name ON code_entities(name);
-                CREATE INDEX IF NOT EXISTS idx_entities_file ON code_entities(file_path);
-                CREATE INDEX IF NOT EXISTS idx_entities_type ON code_entities(entity_type);
-                CREATE INDEX IF NOT EXISTS idx_entities_lang ON code_entities(language);
-
-                CREATE TABLE IF NOT EXISTS code_edges (
-                    src_entity_id INTEGER NOT NULL REFERENCES code_entities(id) ON DELETE CASCADE,
-                    dst_entity_id INTEGER NOT NULL REFERENCES code_entities(id) ON DELETE CASCADE,
-                    edge_type TEXT NOT NULL,
-                    PRIMARY KEY (src_entity_id, dst_entity_id, edge_type)
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_edges_src ON code_edges(src_entity_id);
-                CREATE INDEX IF NOT EXISTS idx_edges_dst ON code_edges(dst_entity_id);
-                CREATE INDEX IF NOT EXISTS idx_edges_type ON code_edges(edge_type);
-
-                CREATE TABLE IF NOT EXISTS code_embeddings (
-                    entity_id INTEGER PRIMARY KEY REFERENCES code_entities(id) ON DELETE CASCADE,
-                    vector_id INTEGER NOT NULL,
-                    model_version TEXT NOT NULL,
-                    created_at INTEGER NOT NULL
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_code_embeddings_vector ON code_embeddings(vector_id);
-            ",
-            )?;
+            anyhow::bail!(
+                "code_entities table missing. Ensure database migrations have been executed before initializing CodeGraph"
+            );
         }
 
-        // PHASE 3: Migrate existing databases to add temporal columns if missing
-        let has_created_at: bool =
-            db.prepare("SELECT created_at FROM code_entities LIMIT 1").is_ok();
-
-        if !has_created_at {
-            db.execute_batch(
-                "
-                ALTER TABLE code_entities ADD COLUMN created_at INTEGER;
-                ALTER TABLE code_entities ADD COLUMN last_modified_at INTEGER;
-                ALTER TABLE code_entities ADD COLUMN change_count INTEGER;
-                ALTER TABLE code_entities ADD COLUMN author_count INTEGER;
-                ",
-            )?;
-        }
+        // Note: Temporal fields (created_at, last_modified_at, change_count, author_count)
+        // are now added via migration 007 - removed runtime ALTER TABLE to prevent schema drift
 
         // APEX v1.7 Phase 3: Add body_snippet column for function body indexing
         let has_body_snippet: bool =

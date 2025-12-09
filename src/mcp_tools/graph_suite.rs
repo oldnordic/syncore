@@ -269,10 +269,16 @@ impl GraphSuite {
                 return SuiteResult::err("rag_query", format!("Validation failed: {}", e));
             }
 
-            let storage = match SQLiteGraphStorageAdapter::new(vector_index, graph_backend, dimension) {
-                Ok(storage) => Arc::new(storage),
-                Err(e) => return SuiteResult::err("rag_query", format!("Failed to create storage adapter: {}", e)),
-            };
+            let storage =
+                match SQLiteGraphStorageAdapter::new(vector_index, graph_backend, dimension) {
+                    Ok(storage) => Arc::new(storage),
+                    Err(e) => {
+                        return SuiteResult::err(
+                            "rag_query",
+                            format!("Failed to create storage adapter: {}", e),
+                        )
+                    }
+                };
 
             RagQuery::with_storage(config.clone(), storage)
         } else {
@@ -368,10 +374,16 @@ impl GraphSuite {
                 return SuiteResult::err("rag_multihop", format!("Validation failed: {}", e));
             }
 
-            let storage = match SQLiteGraphStorageAdapter::new(vector_index, graph_backend, dimension) {
-                Ok(storage) => Arc::new(storage),
-                Err(e) => return SuiteResult::err("rag_multihop", format!("Failed to create storage adapter: {}", e)),
-            };
+            let storage =
+                match SQLiteGraphStorageAdapter::new(vector_index, graph_backend, dimension) {
+                    Ok(storage) => Arc::new(storage),
+                    Err(e) => {
+                        return SuiteResult::err(
+                            "rag_multihop",
+                            format!("Failed to create storage adapter: {}", e),
+                        )
+                    }
+                };
 
             HopGraphTransformer::with_storage(config.clone(), storage)
         } else {

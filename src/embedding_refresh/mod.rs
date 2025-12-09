@@ -47,6 +47,7 @@ impl EmbeddingRefreshDaemon {
     pub fn spawn(
         code_store: Arc<Mutex<VectorStore>>,
         general_store: Arc<Mutex<VectorStore>>,
+        graph_store: Arc<Mutex<VectorStore>>,
         config: EmbeddingRefreshConfig,
     ) -> Result<(Self, Sender<FsEvent>)> {
         let (event_tx, event_rx) = channel::bounded(config.max_batch_size * 2);
@@ -54,7 +55,7 @@ impl EmbeddingRefreshDaemon {
 
         let task_handle = tokio::spawn(async move {
             if let Err(e) =
-                Self::run_daemon_loop(event_rx, shutdown_rx, code_store, general_store, config)
+                Self::run_daemon_loop(event_rx, shutdown_rx, code_store, general_store, graph_store, config)
                     .await
             {
                 eprintln!("[EmbeddingRefreshDaemon] Error in daemon loop: {}", e);
@@ -83,6 +84,7 @@ impl EmbeddingRefreshDaemon {
         mut shutdown_rx: mpsc::Receiver<()>,
         code_store: Arc<Mutex<VectorStore>>,
         general_store: Arc<Mutex<VectorStore>>,
+        graph_store: Arc<Mutex<VectorStore>>,
         config: EmbeddingRefreshConfig,
     ) -> Result<()> {
         let mut batch: Vec<FsEvent> = Vec::with_capacity(config.max_batch_size);
@@ -94,7 +96,7 @@ impl EmbeddingRefreshDaemon {
                 _ = shutdown_rx.recv() => {
                     // Process remaining batch before shutdown
                     if !batch.is_empty() {
-                        Self::process_batch(&batch, &code_store, &general_store).await;
+                        Self::process_batch(&batch, &code_store, &general_store, &graph_store).await;
                     }
                     break;
                 }
@@ -102,7 +104,7 @@ impl EmbeddingRefreshDaemon {
                 // Flush timer
                 _ = flush_timer.tick() => {
                     if !batch.is_empty() {
-                        Self::process_batch(&batch, &code_store, &general_store).await;
+                        Self::process_batch(&batch, &code_store, &general_store, &graph_store).await;
                         batch.clear();
                     }
                 }
@@ -113,7 +115,7 @@ impl EmbeddingRefreshDaemon {
                     while let Ok(event) = event_rx.try_recv() {
                         batch.push(event);
                         if batch.len() >= config.max_batch_size {
-                            Self::process_batch(&batch, &code_store, &general_store).await;
+                            Self::process_batch(&batch, &code_store, &general_store, &graph_store).await;
                             batch.clear();
                         }
                     }
@@ -129,9 +131,10 @@ impl EmbeddingRefreshDaemon {
         events: &[FsEvent],
         code_store: &Arc<Mutex<VectorStore>>,
         general_store: &Arc<Mutex<VectorStore>>,
+        graph_store: &Arc<Mutex<VectorStore>>,
     ) {
         for event in events {
-            if let Err(e) = Self::process_single_event(event, code_store, general_store).await {
+            if let Err(e) = Self::process_single_event(event, code_store, general_store, graph_store).await {
                 eprintln!("[EmbeddingRefreshDaemon] Error processing event: {}", e);
                 // Continue with other events
             }
@@ -143,6 +146,7 @@ impl EmbeddingRefreshDaemon {
         event: &FsEvent,
         code_store: &Arc<Mutex<VectorStore>>,
         general_store: &Arc<Mutex<VectorStore>>,
+        graph_store: &Arc<Mutex<VectorStore>>,
     ) -> Result<()> {
         // Determine domain based on path
         let domain = Self::classify_path(event.path());
@@ -150,7 +154,7 @@ impl EmbeddingRefreshDaemon {
         match event {
             FsEvent::Created(_) | FsEvent::Modified(_) => {
                 // Re-embed the content
-                Self::refresh_embedding(event.path(), domain, code_store, general_store)?;
+                Self::refresh_embedding(event.path(), domain, code_store, general_store, graph_store)?;
             }
             FsEvent::Removed(_) => {
                 // Handle deletion (currently no-op due to HNSW limitations)
@@ -186,6 +190,7 @@ impl EmbeddingRefreshDaemon {
         domain: EmbeddingDomain,
         code_store: &Arc<Mutex<VectorStore>>,
         general_store: &Arc<Mutex<VectorStore>>,
+        graph_store: &Arc<Mutex<VectorStore>>,
     ) -> Result<()> {
         // Generate synthetic content for testing
         // In production, would read actual file content
@@ -198,6 +203,7 @@ impl EmbeddingRefreshDaemon {
         let store = match domain {
             EmbeddingDomain::Code => code_store,
             EmbeddingDomain::General => general_store,
+            EmbeddingDomain::Graph => graph_store,
         };
 
         // Insert or update embedding

@@ -56,6 +56,15 @@ pub struct DebugSuiteArgs {
     pub fan_out_threshold: Option<u32>,
     #[serde(default)]
     pub entity_threshold: Option<u32>,
+    #[serde(default)]
+    pub max_examples: Option<usize>,
+    #[serde(default)]
+    pub project_root: Option<String>,
+    #[serde(default)]
+    pub excluded_dirs: Option<Vec<String>>,
+    /// Cursor for pagination (0-based index)
+    #[serde(default)]
+    pub cursor: Option<String>,
 }
 
 /// Debug suite implementation
@@ -85,6 +94,7 @@ impl DebugSuite {
             "project_refactor_suggestions" => self.cmd_project_refactor_suggestions(args),
             "project_code_smells" => self.cmd_project_code_smells(args),
             "project_cleanup_excluded" => self.cmd_project_cleanup_excluded(args),
+            "code_graph_audit_sqlitegraph" => self.cmd_code_graph_audit_sqlitegraph(args),
             "help" => self.cmd_help(),
             _ => SuiteResult::err(
                 &args.command,
@@ -433,14 +443,14 @@ impl DebugSuite {
         }
     }
 
-    fn cmd_project_cleanup_excluded(&self, _args: DebugSuiteArgs) -> SuiteResult {
+    fn cmd_project_cleanup_excluded(&self, args: DebugSuiteArgs) -> SuiteResult {
         use crate::project_analysis::{cleanup::CleanupExcludedRequest, ProjectAnalysisEngine};
 
         let engine =
             ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
         let request = CleanupExcludedRequest {
             dry_run: true, // Default to dry_run for safety
-            excluded_dirs: None,
+            excluded_dirs: args.excluded_dirs,
         };
 
         let result = tokio::task::block_in_place(|| {
@@ -455,6 +465,34 @@ impl DebugSuite {
                 }),
             ),
             Err(e) => SuiteResult::err("project_cleanup_excluded", e.to_string()),
+        }
+    }
+
+    fn cmd_code_graph_audit_sqlitegraph(&self, args: DebugSuiteArgs) -> SuiteResult {
+        use crate::project_analysis::{
+            sqlitegraph_audit::SQLiteGraphAuditRequest, ProjectAnalysisEngine,
+        };
+
+        let engine =
+            ProjectAnalysisEngine::new(self.state.db_manager.clone(), self.state.neo4j.clone());
+        let request = SQLiteGraphAuditRequest {
+            max_examples: args.max_examples.or_else(|| args.limit.map(|value| value as usize)),
+            project_root: args.project_root,
+            excluded_dirs: args.excluded_dirs,
+        };
+
+        let result = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(engine.audit_sqlitegraph(request))
+        });
+
+        match result {
+            Ok(response) => SuiteResult::ok(
+                "code_graph_audit_sqlitegraph",
+                serde_json::json!({
+                    "report": response.data
+                }),
+            ),
+            Err(e) => SuiteResult::err("code_graph_audit_sqlitegraph", e.to_string()),
         }
     }
 
@@ -477,7 +515,8 @@ impl DebugSuite {
                         "project_unused_imports",
                         "project_refactor_suggestions",
                         "project_code_smells",
-                        "project_cleanup_excluded"
+                        "project_cleanup_excluded",
+                        "code_graph_audit_sqlitegraph"
                     ]
                 }
             }),

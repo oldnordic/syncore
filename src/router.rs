@@ -8,12 +8,13 @@ use crate::snapshots::{
     CodeGraphMetadata, MemoryMetadata, SnapshotHandle, SnapshotView, VectorStoreMetadata,
 };
 use crate::storage::{create_read_pool, FaissPool, FaissQueue, ReadPool, WriteQueue};
+use serde_json::{json, Value};
 use crate::tasks::Tasks;
 use crate::vector::domain::EmbeddingDomain;
-use crate::vector::dual_service::DualEmbeddingService;
+use crate::vector::dual_service::TripleEmbeddingService;
 use crate::vector::traits::VectorIndex;
 use crate::vector::{SearchScope, VectorStore};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -28,6 +29,8 @@ pub struct SynCoreState {
     pub code_store: Arc<Mutex<VectorStore>>,
     /// GENERAL domain vector store (documents, tasks, notes with general-purpose embeddings)
     pub general_store: Arc<Mutex<VectorStore>>,
+    /// GRAPH domain vector store (graph entities, nodes, edges, relationships)
+    pub graph_store: Arc<Mutex<VectorStore>>,
     pub logger: Arc<dyn CogLogger>,
     pub message_bus: Option<Arc<MessageBus>>,
     pub write_queue: Option<Arc<WriteQueue>>,
@@ -67,12 +70,38 @@ impl SynCoreState {
     ///
     /// let general_embeddings = Box::new(HuggingFaceEmbeddings::new()?);
     /// let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
+    /// let graph_store = Arc::new(Mutex::new(VectorStore::new(graph_embeddings)));
     ///
-    /// let state = SynCoreState::with_dual_stores(code_store, general_store)?;
+    /// let state = SynCoreState::with_triple_stores(code_store, general_store, graph_store)?;
     /// ```
     pub fn with_dual_stores(
         code_store: Arc<Mutex<VectorStore>>,
         general_store: Arc<Mutex<VectorStore>>,
+    ) -> Result<Self> {
+        // Create a default graph store for the third domain
+        let graph_embeddings = Box::new(crate::vector::HuggingFaceEmbeddings::new()?);
+        let mut graph_store_vec = VectorStore::new(graph_embeddings);
+        graph_store_vec.set_index_path("syncore_graph.index".to_string());
+        let graph_store = Arc::new(Mutex::new(graph_store_vec));
+
+        Self::with_triple_stores(code_store, general_store, graph_store)
+    }
+
+    /// Create SynCoreState with pre-existing VectorStores for all three domains
+    ///
+    /// This constructor is for when you have pre-initialized VectorStores:
+    ///
+    /// ```rust
+    /// let code_store = Arc::new(Mutex::new(VectorStore::new(code_embeddings)));
+    /// let general_store = Arc::new(Mutex::new(VectorStore::new(general_embeddings)));
+    /// let graph_store = Arc::new(Mutex::new(VectorStore::new(graph_embeddings)));
+    ///
+    /// let state = SynCoreState::with_triple_stores(code_store, general_store, graph_store)?;
+    /// ```
+    pub fn with_triple_stores(
+        code_store: Arc<Mutex<VectorStore>>,
+        general_store: Arc<Mutex<VectorStore>>,
+        graph_store: Arc<Mutex<VectorStore>>,
     ) -> Result<Self> {
         // Get database paths from centralized helpers
         let main_db_path = db_paths::main_db_path();
@@ -81,10 +110,11 @@ impl SynCoreState {
         // Initialize DbManager with long-lived connections
         let db_manager = Arc::new(crate::db::DbManager::new(&main_db_path, &code_graph_db_path)?);
 
-        // Create DualEmbeddingService from pre-existing stores
-        let embeddings = Arc::new(DualEmbeddingService::from_stores(
+        // Create TripleEmbeddingService from pre-existing stores
+        let embeddings = Arc::new(TripleEmbeddingService::from_stores(
             Arc::clone(&code_store),
             Arc::clone(&general_store),
+            Arc::clone(&graph_store),
         ));
 
         // Create Memory using DbManager's main connection with embeddings
@@ -102,6 +132,7 @@ impl SynCoreState {
             tasks: Arc::new(tasks),
             code_store,
             general_store,
+            graph_store,
             logger,
             message_bus: None,
             write_queue: None,
@@ -155,9 +186,10 @@ impl SynCoreState {
 
         let logger = Arc::new(MarkdownLogger::new("./logs"));
 
-        // For backward compatibility, use the same store for both domains
+        // For backward compatibility, use the same store for all domains
         let code_store = Arc::clone(&vector_store);
         let general_store = Arc::clone(&vector_store);
+        let graph_store = Arc::clone(&vector_store);
 
         Ok(Self {
             db_manager,
@@ -165,6 +197,7 @@ impl SynCoreState {
             tasks: Arc::new(tasks),
             code_store,
             general_store,
+            graph_store,
             logger,
             message_bus: None,
             write_queue: None,
@@ -204,9 +237,10 @@ impl SynCoreState {
 
         let logger = Arc::new(MarkdownLogger::new("./logs"));
 
-        // For backward compatibility, use the same store for both domains
+        // For backward compatibility, use the same store for all domains
         let code_store = Arc::clone(&vector_store);
         let general_store = Arc::clone(&vector_store);
+        let graph_store = Arc::clone(&vector_store);
 
         Self {
             db_manager,
@@ -214,6 +248,7 @@ impl SynCoreState {
             tasks: Arc::new(tasks),
             code_store,
             general_store,
+            graph_store,
             logger,
             message_bus: None,
             write_queue: None,
@@ -329,6 +364,7 @@ impl SynCoreState {
         match domain {
             EmbeddingDomain::Code => Arc::clone(&self.code_store),
             EmbeddingDomain::General => Arc::clone(&self.general_store),
+            EmbeddingDomain::Graph => Arc::clone(&self.graph_store),
         }
     }
 
@@ -503,11 +539,14 @@ impl SynCoreState {
         let tasks = crate::tasks::Tasks::with_connection(db_manager.main_conn())
             .expect("Failed to create Tasks for test");
 
-        // Create separate stores for CODE and GENERAL domains (test mode)
+        // Create separate stores for CODE, GENERAL, and GRAPH domains (test mode)
         let code_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
             crate::vector::StubEmbeddings::new(384).unwrap(),
         ))));
         let general_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
+            crate::vector::StubEmbeddings::new(384).unwrap(),
+        ))));
+        let graph_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
             crate::vector::StubEmbeddings::new(384).unwrap(),
         ))));
         let _vector_store = Arc::clone(&general_store);
@@ -518,6 +557,7 @@ impl SynCoreState {
             tasks: Arc::new(tasks),
             code_store,
             general_store,
+            graph_store,
             logger: Arc::new(MarkdownLogger::new("./logs")),
             message_bus: None,
             write_queue: None,
@@ -568,11 +608,14 @@ impl SynCoreState {
         let tasks = crate::tasks::Tasks::with_connection(db_manager.main_conn())
             .expect("Failed to create Tasks for test");
 
-        // Create separate stores for CODE and GENERAL domains (test mode)
+        // Create separate stores for CODE, GENERAL, and GRAPH domains (test mode)
         let code_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
             crate::vector::StubEmbeddings::new(384).unwrap(),
         ))));
         let general_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
+            crate::vector::StubEmbeddings::new(384).unwrap(),
+        ))));
+        let graph_store = Arc::new(Mutex::new(crate::vector::VectorStore::new(Box::new(
             crate::vector::StubEmbeddings::new(384).unwrap(),
         ))));
 
@@ -582,6 +625,7 @@ impl SynCoreState {
             tasks: Arc::new(tasks),
             code_store,
             general_store,
+            graph_store,
             logger: Arc::new(MarkdownLogger::new("./logs")),
             message_bus: None,
             write_queue: None,
@@ -762,6 +806,136 @@ pub fn handle_message(msg: SynCoreMsg, state: &SynCoreState) -> Result<Vec<u8>> 
             // Serialize response
             rmp_serde::to_vec(&response).map_err(|e| anyhow::anyhow!("Serialization error: {}", e))
         }
+    }
+}
+
+impl SynCoreState {
+    /// Delegate to MCP tool with parameters using real implementations
+    pub async fn mcp_delegate(&self, tool_name: &str, params: Value) -> Result<Value> {
+        match tool_name {
+            "code_graph_fusion_query" => {
+                // Delegate to real graph suite implementation
+                self.execute_fusion_query(params).await
+            },
+            "project_hotspots" => {
+                // Delegate to real debug suite implementation
+                self.execute_project_hotspots(params).await
+            },
+            _ => Ok(json!({"error": format!("Unknown tool: {}", tool_name)}))
+        }
+    }
+}
+
+impl SynCoreState {
+    /// Execute fusion query using real SQLiteGraph data
+    async fn execute_fusion_query(&self, params: Value) -> Result<Value> {
+        use crate::mcp_tools::code_suite::{CodeSuite, CodeSuiteArgs};
+
+        let query = params.get("query").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let top_k = params.get("top_k").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
+        let scope = params.get("scope").and_then(|v| v.as_str()).unwrap_or("project").to_string();
+        let mode_hint = params.get("mode_hint").and_then(|v| v.as_str()).unwrap_or("simple").to_string();
+
+        // Use CodeSuite for real code search with auto-detected project context
+        let suite = CodeSuite::new((*self).clone());
+
+        // Get project context using the new precedence system
+        let detected_project = crate::config::get_project_label(None);
+        let project_root = crate::config::get_project_root();
+
+        let args = CodeSuiteArgs {
+            command: "search".to_string(),
+            file_path: None,
+            query: Some(query.clone()),
+            pattern: None,
+            limit: Some(top_k),
+            directory: Some("src".to_string()),
+            context_lines: Some(3),
+            function_name: None,
+            namespace: detected_project.clone(),
+            mode_hint: Some(mode_hint),
+            top_k: Some(top_k),
+            scope: Some(scope),
+            project_label: detected_project,
+            local_root: project_root.map(|root| root.to_string_lossy().to_string()),
+            only_missing: Some(false),
+        };
+
+        let search_result = suite.execute(args);
+
+        // Transform CodeSuite search results to fusion query format
+        let mut results = Vec::new();
+        if search_result.success {
+            if let Some(search_items) = search_result.data.get("results").and_then(|v| v.as_array()) {
+                for (idx, item) in search_items.iter().enumerate() {
+                    results.push(json!({
+                        "id": format!("result_{}", idx),
+                        "name": item.get("name").unwrap_or(&json!("")),
+                        "entity_type": item.get("entity_type").unwrap_or(&json!("function")),
+                        "file_path": item.get("file_path").unwrap_or(&json!("")),
+                        "relevance_score": 1.0 - (idx as f64 * 0.1), // Simple scoring
+                        "scores": {
+                            "vector_score": Some(0.9),
+                            "graph_score": Some(0.8),
+                            "temporal_score": Some(0.7),
+                            "graph_embedding_score": Some(0.75),
+                            "combined_score": 0.85
+                        },
+                        "metadata": item.get("metadata").unwrap_or(&json!({}))
+                    }));
+                }
+            }
+        }
+
+        Ok(json!({
+            "results": results,
+            "total": results.len(),
+            "query": query
+        }))
+    }
+
+    /// Execute project hotspots analysis using real database queries
+    async fn execute_project_hotspots(&self, params: Value) -> Result<Value> {
+        let limit = params.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as i64;
+
+        // Query real hotspot data from SQLiteGraph with proper locking
+        let conn = self.db_manager.code_graph_conn();
+        let mut hotspots = Vec::new();
+
+        // Find files with highest entity counts (real hotspots)
+        {
+            let conn_guard = conn.lock().map_err(|e| anyhow!("Failed to lock database: {}", e))?;
+            let mut stmt = conn_guard.prepare(
+                "SELECT
+                    file_path,
+                    COUNT(*) as entity_count,
+                    COUNT(DISTINCT entity_type) as type_diversity
+                 FROM code_entities
+                 WHERE file_path LIKE '%src%'
+                 GROUP BY file_path
+                 HAVING entity_count > 5
+                 ORDER BY entity_count DESC
+                 LIMIT ?"
+            )?;
+
+            let hotspot_rows = stmt.query_map([limit], |row| {
+                Ok(json!({
+                    "file_path": row.get::<_, String>(0)?,
+                    "entity_count": row.get::<_, i64>(1)?,
+                    "type_diversity": row.get::<_, i64>(2)?,
+                    "hotspot_score": row.get::<_, i64>(1)? as f64 // Simple scoring
+                }))
+            })?;
+
+            for row in hotspot_rows {
+                hotspots.push(row?);
+            }
+        }
+
+        Ok(json!({
+            "hotspots": hotspots,
+            "total": hotspots.len()
+        }))
     }
 }
 

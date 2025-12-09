@@ -7,8 +7,8 @@
 //! then implementation follows to make them pass.
 
 use std::sync::{Arc, Mutex};
-use tempfile::tempdir;
 use syncore::code_graph::fusion_reasoning::FusionReasoning;
+use tempfile::tempdir;
 
 /// Create a mock VectorStore for testing
 fn create_mock_vector_store() -> Arc<Mutex<syncore::vector::VectorStore>> {
@@ -23,7 +23,8 @@ fn create_mock_code_graph() -> syncore::code_graph::CodeGraph {
     let vector_store = create_mock_vector_store();
     let temp_dir = tempdir().unwrap();
     let db_path = temp_dir.path().join("test_code_graph.db");
-    syncore::code_graph::CodeGraph::new(db_path.to_str().unwrap(), vector_store).expect("Failed to create CodeGraph")
+    syncore::code_graph::CodeGraph::new(db_path.to_str().unwrap(), vector_store)
+        .expect("Failed to create CodeGraph")
 }
 
 #[test]
@@ -125,12 +126,17 @@ fn test_sqlitegraph_backend_creation() {
     assert!(backend_result.is_ok(), "SQLiteGraph backend should be created successfully");
 
     let backend = backend_result.unwrap();
-    println!("✅ SQLiteGraph backend created successfully: {:?}", std::any::type_name_of_val(&backend));
+    println!(
+        "✅ SQLiteGraph backend created successfully: {:?}",
+        std::any::type_name_of_val(&backend)
+    );
 
     // Verify it's a trait object (abstracted properly)
     let backend_type = format!("{:?}", std::any::type_name_of_val(&backend));
-    assert!(backend_type.contains("Arc") && backend_type.contains("GraphBackend"),
-            "Should be trait object Arc<dyn GraphBackend>");
+    assert!(
+        backend_type.contains("Arc") && backend_type.contains("GraphBackend"),
+        "Should be trait object Arc<dyn GraphBackend>"
+    );
 
     // Clean up
     std::env::remove_var("GRAPH_BACKEND");
@@ -160,15 +166,19 @@ fn test_neo4j_backend_still_possible() {
     match backend_result {
         Ok(backend) => {
             let backend_type = format!("{:?}", std::any::type_name_of_val(&backend));
-            assert!(backend_type.contains("Arc") && backend_type.contains("GraphBackend"),
-                    "Should be trait object Arc<dyn GraphBackend>");
+            assert!(
+                backend_type.contains("Arc") && backend_type.contains("GraphBackend"),
+                "Should be trait object Arc<dyn GraphBackend>"
+            );
             println!("✅ Neo4j backend created successfully");
         }
         Err(e) => {
             // Expected since Neo4j isn't running in test environment
             println!("✅ Neo4j backend correctly returned connection error: {}", e);
-            assert!(e.to_string().contains("connection") || e.to_string().contains("neo4j"),
-                    "Should return Neo4j connection error");
+            assert!(
+                e.to_string().contains("connection") || e.to_string().contains("neo4j"),
+                "Should return Neo4j connection error"
+            );
         }
     }
 
@@ -205,8 +215,10 @@ fn test_backend_selector_defaults_to_sqlitegraph() {
 
     let backend = backend_result.unwrap();
     let backend_type = format!("{:?}", std::any::type_name_of_val(&backend));
-    assert!(backend_type.contains("Arc") && backend_type.contains("GraphBackend"),
-            "Should be trait object Arc<dyn GraphBackend>");
+    assert!(
+        backend_type.contains("Arc") && backend_type.contains("GraphBackend"),
+        "Should be trait object Arc<dyn GraphBackend>"
+    );
 
     println!("✅ Default backend correctly defaults to SQLiteGraph");
 

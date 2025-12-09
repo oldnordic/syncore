@@ -44,6 +44,12 @@ const DEFAULT_EXCLUDED_DIRS: &[&str] = &[
     "cmake-build-release",
     // Cargo registry (absolute path component)
     ".cargo",
+    // Database files (by extension)
+    "*.db",
+    "*.sqlite",
+    "*.sqlite3",
+    // Log files (by extension)
+    "*.log",
 ];
 
 /// Check if a path should be indexed using the global config.
@@ -95,6 +101,14 @@ pub fn should_index_path_with_excludes(path: &str, excluded_dirs: &[String]) -> 
             if excluded.starts_with("cmake-build-") && component.starts_with("cmake-build-") {
                 return false;
             }
+            // Handle file pattern exclusions (e.g., "*.db", "*.sqlite", "*.log")
+            if excluded.starts_with("*.") && component.contains('.') {
+                let extension = component.split('.').last().unwrap_or("");
+                let pattern_ext = excluded.trim_start_matches('*').trim_start_matches('.');
+                if extension.to_lowercase() == pattern_ext.to_lowercase() {
+                    return false;
+                }
+            }
         }
     }
 
@@ -118,6 +132,14 @@ fn should_index_path_with_defaults(path: &str) -> bool {
             // Handle cmake-build-* variants
             if excluded.starts_with("cmake-build-") && component.starts_with("cmake-build-") {
                 return false;
+            }
+            // Handle file pattern exclusions (e.g., "*.db", "*.sqlite", "*.log")
+            if excluded.starts_with("*.") && component.contains('.') {
+                let extension = component.split('.').last().unwrap_or("");
+                let pattern_ext = excluded.trim_start_matches('*').trim_start_matches('.');
+                if extension.to_lowercase() == pattern_ext.to_lowercase() {
+                    return false;
+                }
             }
         }
     }

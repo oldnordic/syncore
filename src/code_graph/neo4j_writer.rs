@@ -73,6 +73,7 @@ fn entity_type_to_node_label(entity_type: &EntityType) -> NodeLabel {
         EntityType::Struct => NodeLabel::Struct,
         EntityType::Enum => NodeLabel::Enum,
         EntityType::Trait => NodeLabel::Trait,
+        EntityType::Constant => NodeLabel::Struct, // Map Constant to Struct for now
     }
 }
 

@@ -101,10 +101,12 @@ impl HopGraphTransformer {
             format!("Computed attention scale: {:.3}", attention_scale),
         ];
 
+        let reasoning_trace = Some(reasoning_path.join(" | "));
         Ok(RagGraphResult {
             top_nodes,
             context_embedding,
             reasoning_path,
+            reasoning_trace,
         })
     }
 

@@ -43,7 +43,10 @@ impl FusionReasoning {
     ///
     /// # Returns
     /// New FusionReasoning instance
-    pub fn new(graph_backend: Arc<dyn GraphBackend>, vector_store: Arc<Mutex<VectorStore>>) -> Self {
+    pub fn new(
+        graph_backend: Arc<dyn GraphBackend>,
+        vector_store: Arc<Mutex<VectorStore>>,
+    ) -> Self {
         Self {
             _graph_backend: graph_backend,
             _vector_store: vector_store,
@@ -146,15 +149,12 @@ impl FusionReasoning {
     fn get_neighbors(&self, entity_id: i64) -> Result<Vec<i64>> {
         // Use GraphBackend trait to get neighbors regardless of backend implementation
         let neighbor_results = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                self._graph_backend.get_neighbors(entity_id).await
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async { self._graph_backend.get_neighbors(entity_id).await })
         })?;
 
         // Convert EntityResult to entity IDs for fusion logic
-        let neighbor_ids: Vec<i64> = neighbor_results.into_iter()
-            .map(|entity| entity.id)
-            .collect();
+        let neighbor_ids: Vec<i64> = neighbor_results.into_iter().map(|entity| entity.id).collect();
 
         Ok(neighbor_ids)
     }
@@ -265,10 +265,8 @@ mod tests {
 
         // Create SQLiteGraph backend for testing
         let graph_backend = Arc::new(
-            crate::graph::SQLiteGraphBackend::new(
-                db_path.to_str().unwrap(),
-                "test_namespace"
-            ).await?
+            crate::graph::SQLiteGraphBackend::new(db_path.to_str().unwrap(), "test_namespace")
+                .await?,
         );
 
         let fusion = FusionReasoning::new(graph_backend, vector_store);
@@ -289,10 +287,8 @@ mod tests {
 
         let graph_backend = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
-                crate::graph::SQLiteGraphBackend::new(
-                    db_path.to_str().unwrap(),
-                    "test_namespace"
-                ).await
+                crate::graph::SQLiteGraphBackend::new(db_path.to_str().unwrap(), "test_namespace")
+                    .await
             })
         })?;
 

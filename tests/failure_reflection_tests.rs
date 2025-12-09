@@ -51,7 +51,7 @@ mod failure_reflection_tests {
 
     // Implement the minimal mock reasoning engine needed for tests
     async fn create_mock_reasoning_engine() -> syncore::reasoning::ToTEngine {
-        use syncore::graph::{SQLiteGraphBackend, GraphBackend};
+        use syncore::graph::{GraphBackend, SQLiteGraphBackend};
         use syncore::reasoning::ToTEngine;
         use tempfile::tempdir;
 

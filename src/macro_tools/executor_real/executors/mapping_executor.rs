@@ -14,6 +14,9 @@ use crate::router::SynCoreState;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
+// Import common wrapper to eliminate duplication
+use super::super::wrap_success;
+
 /// Helper: Extract string parameter from Value params
 fn param_str<'a>(tool: &str, params: &'a Value, key: &str) -> Result<&'a str, Value> {
     match params.get(key).and_then(|v| v.as_str()) {
@@ -33,16 +36,6 @@ fn wrap_error_static(tool: &str, msg: &str) -> Value {
             "tool": tool,
             "executor": "real"
         }
-    })
-}
-
-/// Helper: Wrap success response
-fn wrap_success(tool: &str, data: Value) -> Value {
-    json!({
-        "ok": true,
-        "tool": tool,
-        "executor": "real",
-        "data": data
     })
 }
 

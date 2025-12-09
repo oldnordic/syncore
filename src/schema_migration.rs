@@ -2,10 +2,10 @@
 // Ensures backward compatibility and automatic schema upgrades
 
 use anyhow::{anyhow, Context, Result};
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
 /// Current schema version
-pub const CURRENT_SCHEMA_VERSION: i32 = 6;
+pub const CURRENT_SCHEMA_VERSION: i32 = 8;
 
 /// Get the current schema version from the database
 /// Returns 0 if version table doesn't exist (brand new database)
@@ -96,6 +96,14 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
     if current_version < 6 {
         migration_006_code_graph_nullable_lines(conn).context("Failed to run migration 006")?;
+    }
+
+    if current_version < 7 {
+        migration_007_code_entities_temporal_fields(conn).context("Failed to run migration 007")?;
+    }
+
+    if current_version < 8 {
+        migration_008_timestamp_standardization(conn).context("Failed to run migration 008")?;
     }
 
     // Verify we're at the expected version
@@ -249,6 +257,249 @@ fn migration_006_code_graph_nullable_lines(conn: &Connection) -> Result<()> {
         6,
         "Allow NULL values for line_start and line_end in code_entities (File entities)",
     )?;
+    Ok(())
+}
+
+/// Migration 007: Add temporal fields to code_entities table
+pub fn migration_007_code_entities_temporal_fields(conn: &Connection) -> Result<()> {
+    // Enable foreign keys for this migration
+    conn.execute("PRAGMA foreign_keys=ON", [])?;
+
+    // Ensure code_entities table exists
+    let table_exists: bool = conn
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='code_entities' LIMIT 1")?
+        .exists([])?;
+
+    if !table_exists {
+        anyhow::bail!("code_entities table not found when applying migration 007");
+    }
+
+    // Helper: returns true if column exists
+    fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool> {
+        let sql = format!("SELECT 1 FROM pragma_table_info('{}') WHERE name = ?1 LIMIT 1", table);
+        let mut stmt = conn.prepare(&sql)?;
+        Ok(stmt.exists([column])?)
+    }
+
+    // For each temporal column, add it ONLY if it does not already exist
+    if !column_exists(conn, "code_entities", "created_at")? {
+        conn.execute("ALTER TABLE code_entities ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0", [])?;
+        eprintln!("[schema] Added created_at column to code_entities");
+    } else {
+        eprintln!("[schema] created_at column already exists in code_entities");
+    }
+
+    if !column_exists(conn, "code_entities", "last_modified_at")? {
+        conn.execute("ALTER TABLE code_entities ADD COLUMN last_modified_at INTEGER NOT NULL DEFAULT 0", [])?;
+        eprintln!("[schema] Added last_modified_at column to code_entities");
+    } else {
+        eprintln!("[schema] last_modified_at column already exists in code_entities");
+    }
+
+    if !column_exists(conn, "code_entities", "change_count")? {
+        conn.execute("ALTER TABLE code_entities ADD COLUMN change_count INTEGER NOT NULL DEFAULT 0", [])?;
+        eprintln!("[schema] Added change_count column to code_entities");
+    } else {
+        eprintln!("[schema] change_count column already exists in code_entities");
+    }
+
+    if !column_exists(conn, "code_entities", "author_count")? {
+        conn.execute("ALTER TABLE code_entities ADD COLUMN author_count INTEGER NOT NULL DEFAULT 0", [])?;
+        eprintln!("[schema] Added author_count column to code_entities");
+    } else {
+        eprintln!("[schema] author_count column already exists in code_entities");
+    }
+
+    // Create indexes IF NOT EXISTS
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_code_entities_created_at ON code_entities(created_at)",
+        [],
+    )?;
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_code_entities_last_modified_at ON code_entities(last_modified_at)",
+        [],
+    )?;
+
+    eprintln!("[schema] Created temporal indexes for code_entities");
+
+    set_schema_version(
+        conn,
+        7,
+        "Add temporal fields to code_entities: created_at, last_modified_at, change_count, author_count (idempotent)",
+    )?;
+    Ok(())
+}
+
+/// Migration 008: Standardize all timestamp fields to INTEGER type (Unix epoch)
+pub fn migration_008_timestamp_standardization(conn: &Connection) -> Result<()> {
+    // Enable foreign keys for this migration
+    conn.execute("PRAGMA foreign_keys=ON", [])?;
+
+    // Always standardize code_diagnostics timestamps
+    standardize_code_diagnostics_timestamps(conn)?;
+
+    // Check if code_macro_expansions table exists before attempting to standardize it
+    let macro_table_exists: bool = conn
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='code_macro_expansions' LIMIT 1")?
+        .exists([])?;
+
+    if macro_table_exists {
+        standardize_code_macro_expansions_timestamps(conn)?;
+    } else {
+        // Log informational message about skipping macro expansions table
+        eprintln!("[schema] Skipping timestamp standardization for code_macro_expansions (table not found)");
+    }
+
+    set_schema_version(
+        conn,
+        8,
+        "Standardize timestamp fields to INTEGER type: fix code_diagnostics and code_macro_expansions created_at fields",
+    )?;
+    Ok(())
+}
+
+/// Standardize code_diagnostics.created_at from TEXT to INTEGER
+fn standardize_code_diagnostics_timestamps(conn: &Connection) -> Result<()> {
+    // Check if code_diagnostics table exists
+    let table_exists: bool = conn
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='code_diagnostics' LIMIT 1")?
+        .exists([])?;
+
+    if !table_exists {
+        eprintln!("[schema] Skipping timestamp standardization for code_diagnostics (table not found)");
+        return Ok(());
+    }
+
+    // Check if the created_at column is still TEXT type
+    let created_at_type: Option<String> = conn
+        .prepare("SELECT type FROM pragma_table_info('code_diagnostics') WHERE name = 'created_at' LIMIT 1")?
+        .query_row([], |row| row.get::<_, String>(0))
+        .optional()?;
+
+    // Handle missing column gracefully
+    let created_at_is_text = match created_at_type {
+        Some(col_type) => {
+            let normalized_type = col_type.to_lowercase();
+            normalized_type != "integer"
+        }
+        None => {
+            eprintln!("[schema] Skipping timestamp standardization for code_diagnostics (created_at column not found)");
+            return Ok(());
+        }
+    };
+
+    if !created_at_is_text {
+        eprintln!("[schema] Skipping timestamp standardization for code_diagnostics (created_at already INTEGER)");
+        return Ok(());
+    }
+
+    // Apply the standardization: recreate table with INTEGER timestamp
+    conn.execute_batch(
+        r#"
+        -- Add new INTEGER column with default current timestamp
+        ALTER TABLE code_diagnostics ADD COLUMN created_at_new INTEGER NOT NULL DEFAULT (strftime('%s','now'));
+
+        -- Copy existing data, setting current timestamp for all rows
+        UPDATE code_diagnostics SET created_at_new = (strftime('%s','now')) WHERE created_at_new = (strftime('%s','now'));
+
+        -- Recreate table with INTEGER timestamp
+        CREATE TABLE code_diagnostics_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_path TEXT NOT NULL,
+            line_start INTEGER NOT NULL,
+            severity TEXT NOT NULL,
+            diagnostic_type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            tool TEXT NOT NULL,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        );
+
+        -- Copy data from old table to new table
+        INSERT INTO code_diagnostics_new (id, file_path, line_start, severity, diagnostic_type, message, tool, created_at)
+        SELECT id, file_path, line_start, severity, diagnostic_type, message, tool, created_at_new
+        FROM code_diagnostics;
+
+        -- Drop old table and rename new table
+        DROP TABLE code_diagnostics;
+        ALTER TABLE code_diagnostics_new RENAME TO code_diagnostics;
+
+        -- Recreate indexes for code_diagnostics
+        CREATE INDEX IF NOT EXISTS idx_diagnostics_file ON code_diagnostics(file_path);
+        CREATE INDEX IF NOT EXISTS idx_diagnostics_tool ON code_diagnostics(tool);
+        CREATE INDEX IF NOT EXISTS idx_diagnostics_type ON code_diagnostics(diagnostic_type);
+        CREATE INDEX IF NOT EXISTS idx_diagnostics_severity ON code_diagnostics(severity);
+        "#,
+    ).context("Failed to standardize code_diagnostics timestamps")?;
+
+    eprintln!("[schema] Successfully standardized code_diagnostics timestamps from TEXT to INTEGER");
+    Ok(())
+}
+
+/// Standardize code_macro_expansions.created_at from TEXT to INTEGER
+fn standardize_code_macro_expansions_timestamps(conn: &Connection) -> Result<()> {
+    // Check if the created_at column is still TEXT type
+    let created_at_type: Option<String> = conn
+        .prepare("SELECT type FROM pragma_table_info('code_macro_expansions') WHERE name = 'created_at' LIMIT 1")?
+        .query_row([], |row| row.get::<_, String>(0))
+        .optional()?;
+
+    // Handle missing column gracefully
+    let created_at_is_text = match created_at_type {
+        Some(col_type) => {
+            let normalized_type = col_type.to_lowercase();
+            normalized_type != "integer"
+        }
+        None => {
+            eprintln!("[schema] Skipping timestamp standardization for code_macro_expansions (created_at column not found)");
+            return Ok(());
+        }
+    };
+
+    if !created_at_is_text {
+        eprintln!("[schema] Skipping timestamp standardization for code_macro_expansions (created_at already INTEGER)");
+        return Ok(());
+    }
+
+    // Apply the standardization: recreate table with INTEGER timestamp
+    conn.execute_batch(
+        r#"
+        -- Add new INTEGER column with default current timestamp
+        ALTER TABLE code_macro_expansions ADD COLUMN created_at_new INTEGER NOT NULL DEFAULT (strftime('%s','now'));
+
+        -- Copy existing data, setting current timestamp for all rows
+        UPDATE code_macro_expansions SET created_at_new = (strftime('%s','now')) WHERE created_at_new = (strftime('%s','now'));
+
+        -- Recreate table with INTEGER timestamp
+        CREATE TABLE code_macro_expansions_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_path TEXT NOT NULL,
+            macro_name TEXT NOT NULL,
+            span_start INTEGER NOT NULL,
+            span_end INTEGER NOT NULL,
+            original_code TEXT NOT NULL,
+            expanded_code TEXT NOT NULL,
+            expansion_type TEXT NOT NULL,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        );
+
+        -- Copy data from old table to new table
+        INSERT INTO code_macro_expansions_new (id, file_path, macro_name, span_start, span_end, original_code, expanded_code, expansion_type, created_at)
+        SELECT id, file_path, macro_name, span_start, span_end, original_code, expanded_code, expansion_type, created_at_new
+        FROM code_macro_expansions;
+
+        -- Drop old table and rename new table
+        DROP TABLE code_macro_expansions;
+        ALTER TABLE code_macro_expansions_new RENAME TO code_macro_expansions;
+
+        -- Recreate indexes for code_macro_expansions
+        CREATE INDEX IF NOT EXISTS idx_macro_expansions_file ON code_macro_expansions(file_path);
+        CREATE INDEX IF NOT EXISTS idx_macro_expansions_name ON code_macro_expansions(macro_name);
+        CREATE INDEX IF NOT EXISTS idx_macro_expansions_type ON code_macro_expansions(expansion_type);
+        CREATE INDEX IF NOT EXISTS idx_macro_expansions_span ON code_macro_expansions(span_start, span_end);
+        "#,
+    ).context("Failed to standardize code_macro_expansions timestamps")?;
+
+    eprintln!("[schema] Successfully standardized code_macro_expansions timestamps from TEXT to INTEGER");
     Ok(())
 }
 

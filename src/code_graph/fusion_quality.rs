@@ -21,6 +21,8 @@ pub struct FusionQualityConfig {
     pub max_snippet_tokens: usize,
     /// Maximum tokens to return in deep-read mode
     pub max_deep_read_tokens: usize,
+    /// Weight for recency scoring in fusion evaluation (0.0 to 1.0)
+    pub recency: f32,
 }
 
 impl Default for FusionQualityConfig {
@@ -30,6 +32,7 @@ impl Default for FusionQualityConfig {
             deep_read_threshold: 0.4,
             max_snippet_tokens: 500,
             max_deep_read_tokens: 2000,
+            recency: 0.05,
         }
     }
 }

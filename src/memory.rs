@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use sled::Db;
 use std::sync::{Arc, Mutex};
 
-// NEW: Import DualEmbeddingService and Neo4j for semantic capabilities
-use crate::vector::dual_service::DualEmbeddingService;
+// NEW: Import TripleEmbeddingService and Neo4j for semantic capabilities
+use crate::vector::dual_service::TripleEmbeddingService;
 use crate::vector::{SearchScope, VectorStore};
 
 /// Memory configuration
@@ -57,7 +57,7 @@ pub struct Memory {
     db: Arc<Mutex<Connection>>,
     cache: Arc<Db>,
     // NEW: Semantic search infrastructure
-    embeddings: Option<Arc<DualEmbeddingService>>,
+    embeddings: Option<Arc<TripleEmbeddingService>>,
     config: MemoryConfig,
     /// MVCC-lite version counter for snapshot consistency
     version: std::sync::atomic::AtomicU64,
@@ -112,14 +112,14 @@ impl Memory {
         Self::with_connection_and_config(db, cache_path, MemoryConfig::default())
     }
 
-    /// Create Memory with pre-existing DualEmbeddingService
+    /// Create Memory with pre-existing TripleEmbeddingService
     ///
     /// This is the preferred constructor when embeddings are already initialized
     /// (e.g., in SynCoreState). Avoids creating duplicate embedding services.
     pub fn with_embeddings(
         db: Arc<Mutex<Connection>>,
         cache_path: &str,
-        embeddings: Arc<DualEmbeddingService>,
+        embeddings: Arc<TripleEmbeddingService>,
     ) -> Result<Self> {
         let cache = match sled::open(cache_path) {
             Ok(cache) => cache,
@@ -176,7 +176,7 @@ impl Memory {
 
         // Initialize embeddings if semantic search is enabled
         let embeddings = if config.enable_semantic_search {
-            match DualEmbeddingService::new() {
+            match TripleEmbeddingService::new() {
                 Ok(service) => Some(Arc::new(service)),
                 Err(e) => {
                     eprintln!("Warning: Failed to initialize embeddings: {}", e);

@@ -5,6 +5,7 @@
 //! - server: Server implementation with tool handlers
 
 mod server;
+mod stdio_backcompat;
 pub mod types;
 
 // Unified reasoning module for consistent MCP tool behavior
@@ -12,3 +13,4 @@ pub mod reasoning;
 
 // Re-export server components
 pub use server::*;
+pub use stdio_backcompat::BackcompatStdIo;

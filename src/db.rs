@@ -1,6 +1,5 @@
 use crate::schema_migration;
 use rusqlite::Connection;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 // Export DbManager module (new centralized SQLite connection manager)
@@ -31,73 +30,9 @@ pub fn run_migration(db: &Connection, migration_path: &str) -> anyhow::Result<()
 pub fn ensure_schema(db_path: &str) -> anyhow::Result<()> {
     let db = open_db_with_wal(db_path)?;
 
-    // Check if tasks table exists to determine if we need to run migration
-    let mut stmt =
-        db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")?;
-    let has_tasks = stmt.exists([])?;
-
-    if !has_tasks {
-        // Run the v1 migration
-        let migration_path = "migrations/01_core.sql";
-        if Path::new(migration_path).exists() {
-            run_migration(&db, migration_path)?;
-        } else {
-            // Fallback: create basic schema inline
-            db.execute_batch(include_str!("../migrations/01_core.sql"))?;
-        }
-    }
-
-    // Check if code_entities table exists for code graph migration
-    let mut stmt =
-        db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='code_entities'")?;
-    let has_code_entities = stmt.exists([])?;
-
-    if !has_code_entities {
-        // Run the v2 code graph migration
-        let migration_path = "migrations/02_code_graph.sql";
-        if Path::new(migration_path).exists() {
-            run_migration(&db, migration_path)?;
-        } else {
-            // Fallback: create code graph schema inline
-            db.execute_batch(include_str!("../migrations/02_code_graph.sql"))?;
-        }
-    }
-
-    // Check if 'summary' column exists in memory table for semantic memory migration
-    // APEX 2.4-CG-SCHEMA-FIX: Check for column existence instead of memory_tags table
-    // to prevent duplicate column errors when migration partially fails
-    let has_summary_column: bool = db
-        .prepare("SELECT name FROM pragma_table_info('memory') WHERE name='summary'")
-        .and_then(|mut stmt| stmt.exists([]))
-        .unwrap_or(false);
-
-    if !has_summary_column {
-        // Run the v3 semantic memory migration
-        let migration_path = "migrations/03_semantic_memory.sql";
-        if Path::new(migration_path).exists() {
-            run_migration(&db, migration_path)?;
-        } else {
-            // Fallback: create semantic memory schema inline
-            db.execute_batch(include_str!("../migrations/03_semantic_memory.sql"))?;
-        }
-    }
-
-    // Check if namespace isolation fix has been applied (v4 migration)
-    let mut stmt = db.prepare(
-        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_memory_k_namespace'",
-    )?;
-    let has_namespace_index = stmt.exists([])?;
-
-    if !has_namespace_index {
-        // Run the v4 namespace isolation fix migration
-        let migration_path = "migrations/04_namespace_isolation_fix.sql";
-        if Path::new(migration_path).exists() {
-            run_migration(&db, migration_path)?;
-        } else {
-            // Fallback: apply namespace fix inline
-            db.execute_batch(include_str!("../migrations/04_namespace_isolation_fix.sql"))?;
-        }
-    }
+    // Use the proper migration system instead of ad-hoc column sniffing
+    // This eliminates SCHEMA_MIGRATION_DRIFT by using deterministic version tracking
+    crate::schema_migration::run_migrations(&db)?;
 
     Ok(())
 }

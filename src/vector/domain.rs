@@ -18,7 +18,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Embedding domain - CODE or GENERAL
+/// Embedding domain - CODE, GENERAL, or GRAPH
 ///
 /// This enum enforces type-safe domain routing throughout the codebase.
 /// Every vector operation must specify a domain to prevent mixing embeddings.
@@ -32,6 +32,10 @@ pub enum EmbeddingDomain {
     /// GENERAL domain - documents, tasks, notes, reasoning steps
     /// Namespaces: "documents", "plan", "sequential_cycle", etc.
     General,
+
+    /// GRAPH domain - graph entities, nodes, edges, relationships
+    /// Namespaces: "graph_entity", "rag_graph", "hop_graph", "code_graph"
+    Graph,
 }
 
 impl EmbeddingDomain {
@@ -46,11 +50,15 @@ impl EmbeddingDomain {
     /// assert_eq!(EmbeddingDomain::from_namespace("rust_code"), EmbeddingDomain::Code);
     /// assert_eq!(EmbeddingDomain::from_namespace("documents"), EmbeddingDomain::General);
     /// assert_eq!(EmbeddingDomain::from_namespace("plan"), EmbeddingDomain::General);
+    /// assert_eq!(EmbeddingDomain::from_namespace("graph_entity"), EmbeddingDomain::Graph);
+    /// assert_eq!(EmbeddingDomain::from_namespace("rag_graph"), EmbeddingDomain::Graph);
     /// ```
     pub fn from_namespace(namespace: &str) -> Self {
         match namespace {
             // CODE domain namespaces
             "code_entity" | "rust_code" | "python_code" | "javascript_code" => Self::Code,
+            // GRAPH domain namespaces
+            "graph_entity" | "rag_graph" | "hop_graph" | "code_graph" => Self::Graph,
             // GENERAL domain (default for all others)
             _ => Self::General,
         }
@@ -61,6 +69,7 @@ impl EmbeddingDomain {
         match self {
             Self::Code => "syncore_code.index",
             Self::General => "syncore_general.index",
+            Self::Graph => "syncore_graph.index",
         }
     }
 
@@ -70,6 +79,8 @@ impl EmbeddingDomain {
             // Start with all-MiniLM-L6-v2 for both, can upgrade CODE to GraphCodeBERT later
             Self::Code => "all-MiniLM-L6-v2",
             Self::General => "all-MiniLM-L6-v2",
+            // GRAPH domain uses same model initially (real implementation, not mock)
+            Self::Graph => "all-MiniLM-L6-v2",
         }
     }
 }
@@ -79,6 +90,7 @@ impl fmt::Display for EmbeddingDomain {
         match self {
             Self::Code => write!(f, "code"),
             Self::General => write!(f, "general"),
+            Self::Graph => write!(f, "graph"),
         }
     }
 }
@@ -123,11 +135,36 @@ impl EmbeddingConfig {
         }
     }
 
+    /// Create default config for GRAPH domain
+    /// Uses GraphBERT-compatible settings from SyncoreConfig or defaults
+    pub fn for_graph() -> Self {
+        // Try to get graph configuration from global config, fall back to defaults
+        let graph_config = if let Some(config) = crate::config::SyncoreConfig::try_global() {
+            &config.graph_embeddings
+        } else {
+            // Use default GraphBERT settings
+            return Self {
+                domain: EmbeddingDomain::Graph,
+                model_name: "graphbert-base".to_string(),
+                index_path: crate::common::db_paths::graph_vector_index_path(),
+                dimension: 384,
+            };
+        };
+
+        Self {
+            domain: EmbeddingDomain::Graph,
+            model_name: graph_config.model_name.clone(),
+            index_path: crate::common::db_paths::graph_vector_index_path(),
+            dimension: graph_config.dimensions,
+        }
+    }
+
     /// Create config for specific domain with defaults
     pub fn for_domain(domain: EmbeddingDomain) -> Self {
         match domain {
             EmbeddingDomain::Code => Self::for_code(),
             EmbeddingDomain::General => Self::for_general(),
+            EmbeddingDomain::Graph => Self::for_graph(),
         }
     }
 
@@ -198,6 +235,14 @@ mod tests {
     }
 
     #[test]
+    fn test_domain_from_namespace_graph() {
+        assert_eq!(EmbeddingDomain::from_namespace("graph_entity"), EmbeddingDomain::Graph);
+        assert_eq!(EmbeddingDomain::from_namespace("rag_graph"), EmbeddingDomain::Graph);
+        assert_eq!(EmbeddingDomain::from_namespace("hop_graph"), EmbeddingDomain::Graph);
+        assert_eq!(EmbeddingDomain::from_namespace("code_graph"), EmbeddingDomain::Graph);
+    }
+
+    #[test]
     fn test_domain_from_namespace_unknown_defaults_to_general() {
         assert_eq!(EmbeddingDomain::from_namespace("unknown_namespace"), EmbeddingDomain::General);
     }
@@ -206,23 +251,31 @@ mod tests {
     fn test_domain_display() {
         assert_eq!(format!("{}", EmbeddingDomain::Code), "code");
         assert_eq!(format!("{}", EmbeddingDomain::General), "general");
+        assert_eq!(format!("{}", EmbeddingDomain::Graph), "graph");
     }
 
     #[test]
     fn test_domain_default_index_paths_differ() {
         let code_path = EmbeddingDomain::Code.default_index_path();
         let general_path = EmbeddingDomain::General.default_index_path();
+        let graph_path = EmbeddingDomain::Graph.default_index_path();
 
-        assert_ne!(code_path, general_path, "Domains must have separate indices");
+        assert_ne!(code_path, general_path, "CODE and GENERAL must have separate indices");
+        assert_ne!(code_path, graph_path, "CODE and GRAPH must have separate indices");
+        assert_ne!(general_path, graph_path, "GENERAL and GRAPH must have separate indices");
         assert!(code_path.contains("code"));
         assert!(general_path.contains("general"));
+        assert!(graph_path.contains("graph"));
     }
 
     #[test]
     fn test_domain_equality() {
         assert_eq!(EmbeddingDomain::Code, EmbeddingDomain::Code);
         assert_eq!(EmbeddingDomain::General, EmbeddingDomain::General);
+        assert_eq!(EmbeddingDomain::Graph, EmbeddingDomain::Graph);
         assert_ne!(EmbeddingDomain::Code, EmbeddingDomain::General);
+        assert_ne!(EmbeddingDomain::Code, EmbeddingDomain::Graph);
+        assert_ne!(EmbeddingDomain::General, EmbeddingDomain::Graph);
     }
 
     #[test]
@@ -234,6 +287,10 @@ mod tests {
         let general = EmbeddingDomain::General;
         let json = serde_json::to_string(&general).unwrap();
         assert_eq!(json, r#""general""#);
+
+        let graph = EmbeddingDomain::Graph;
+        let json = serde_json::to_string(&graph).unwrap();
+        assert_eq!(json, r#""graph""#);
     }
 
     #[test]
@@ -243,6 +300,9 @@ mod tests {
 
         let general: EmbeddingDomain = serde_json::from_str(r#""general""#).unwrap();
         assert_eq!(general, EmbeddingDomain::General);
+
+        let graph: EmbeddingDomain = serde_json::from_str(r#""graph""#).unwrap();
+        assert_eq!(graph, EmbeddingDomain::Graph);
     }
 
     // ------------------------------------------------------------------------
@@ -270,22 +330,44 @@ mod tests {
     }
 
     #[test]
+    fn test_config_for_graph() {
+        let config = EmbeddingConfig::for_graph();
+
+        assert_eq!(config.domain, EmbeddingDomain::Graph);
+        assert!(!config.model_name.is_empty());
+        assert!(config.index_path.contains("graph"));
+        assert_eq!(config.dimension, 384);
+    }
+
+    #[test]
     fn test_config_for_domain() {
         let code_config = EmbeddingConfig::for_domain(EmbeddingDomain::Code);
         assert_eq!(code_config.domain, EmbeddingDomain::Code);
 
         let general_config = EmbeddingConfig::for_domain(EmbeddingDomain::General);
         assert_eq!(general_config.domain, EmbeddingDomain::General);
+
+        let graph_config = EmbeddingConfig::for_domain(EmbeddingDomain::Graph);
+        assert_eq!(graph_config.domain, EmbeddingDomain::Graph);
     }
 
     #[test]
     fn test_config_index_paths_differ_by_domain() {
         let code_config = EmbeddingConfig::for_code();
         let general_config = EmbeddingConfig::for_general();
+        let graph_config = EmbeddingConfig::for_graph();
 
         assert_ne!(
             code_config.index_path, general_config.index_path,
             "CODE and GENERAL must use separate HNSW indices"
+        );
+        assert_ne!(
+            code_config.index_path, graph_config.index_path,
+            "CODE and GRAPH must use separate HNSW indices"
+        );
+        assert_ne!(
+            general_config.index_path, graph_config.index_path,
+            "GENERAL and GRAPH must use separate HNSW indices"
         );
     }
 
@@ -295,6 +377,9 @@ mod tests {
         assert!(config.validate().is_ok());
 
         let config = EmbeddingConfig::for_general();
+        assert!(config.validate().is_ok());
+
+        let config = EmbeddingConfig::for_graph();
         assert!(config.validate().is_ok());
     }
 
@@ -369,6 +454,7 @@ mod tests {
     struct MockEmbeddingService {
         code_config: EmbeddingConfig,
         general_config: EmbeddingConfig,
+        graph_config: EmbeddingConfig,
     }
 
     impl MockEmbeddingService {
@@ -376,6 +462,7 @@ mod tests {
             Self {
                 code_config: EmbeddingConfig::for_code(),
                 general_config: EmbeddingConfig::for_general(),
+                graph_config: EmbeddingConfig::for_graph(),
             }
         }
     }
@@ -385,12 +472,14 @@ mod tests {
             // Mock: return different embeddings based on domain
             // CODE: embedding starts with 1.0
             // GENERAL: embedding starts with 0.5
+            // GRAPH: embedding starts with 0.25
             let dim = self.dimension(domain);
             let mut vec = vec![0.0; dim];
 
             vec[0] = match domain {
                 EmbeddingDomain::Code => 1.0,
                 EmbeddingDomain::General => 0.5,
+                EmbeddingDomain::Graph => 0.25,
             };
 
             // Add text-specific variation
@@ -404,6 +493,7 @@ mod tests {
             match domain {
                 EmbeddingDomain::Code => self.code_config.dimension,
                 EmbeddingDomain::General => self.general_config.dimension,
+                EmbeddingDomain::Graph => self.graph_config.dimension,
             }
         }
 
@@ -411,6 +501,7 @@ mod tests {
             match domain {
                 EmbeddingDomain::Code => &self.code_config,
                 EmbeddingDomain::General => &self.general_config,
+                EmbeddingDomain::Graph => &self.graph_config,
             }
         }
     }
@@ -421,11 +512,15 @@ mod tests {
 
         let code_vec = service.embed("fn main() {}", EmbeddingDomain::Code).unwrap();
         let general_vec = service.embed("fn main() {}", EmbeddingDomain::General).unwrap();
+        let graph_vec = service.embed("fn main() {}", EmbeddingDomain::Graph).unwrap();
 
         // Different domains produce different embeddings for same text
         assert_ne!(code_vec[0], general_vec[0]);
+        assert_ne!(code_vec[0], graph_vec[0]);
+        assert_ne!(general_vec[0], graph_vec[0]);
         assert_eq!(code_vec[0], 1.0); // CODE marker
         assert_eq!(general_vec[0], 0.5); // GENERAL marker
+        assert_eq!(graph_vec[0], 0.25); // GRAPH marker
     }
 
     #[test]
@@ -434,10 +529,12 @@ mod tests {
 
         let code_dim = service.dimension(EmbeddingDomain::Code);
         let general_dim = service.dimension(EmbeddingDomain::General);
+        let graph_dim = service.dimension(EmbeddingDomain::Graph);
 
-        // Both default to 384, but could be different
+        // All default to 384, but could be different
         assert_eq!(code_dim, 384);
         assert_eq!(general_dim, 384);
+        assert_eq!(graph_dim, 384);
     }
 
     #[test]
@@ -446,9 +543,11 @@ mod tests {
 
         let code_cfg = service.config(EmbeddingDomain::Code);
         let general_cfg = service.config(EmbeddingDomain::General);
+        let graph_cfg = service.config(EmbeddingDomain::Graph);
 
         assert_eq!(code_cfg.domain, EmbeddingDomain::Code);
         assert_eq!(general_cfg.domain, EmbeddingDomain::General);
+        assert_eq!(graph_cfg.domain, EmbeddingDomain::Graph);
     }
 
     #[test]
@@ -483,5 +582,53 @@ mod tests {
 
         // Same text + same domain = same embedding (deterministic)
         assert_eq!(vec1, vec2);
+    }
+
+    #[test]
+    fn test_embedding_service_graph_domain_consistent() {
+        let service = MockEmbeddingService::new();
+
+        let vec1 = service.embed("test", EmbeddingDomain::Graph).unwrap();
+        let vec2 = service.embed("test", EmbeddingDomain::Graph).unwrap();
+
+        // Same text + same domain = same embedding (deterministic)
+        assert_eq!(vec1, vec2);
+    }
+
+    #[test]
+    fn test_embedding_service_graph_domain_unique_marker() {
+        let service = MockEmbeddingService::new();
+
+        let graph_vec = service.embed("node relationship", EmbeddingDomain::Graph).unwrap();
+
+        // GRAPH domain should have unique marker 0.25
+        assert_eq!(graph_vec[0], 0.25);
+    }
+
+    #[test]
+    fn test_embedding_service_all_domains_different() {
+        let service = MockEmbeddingService::new();
+
+        let code_vec = service.embed("test", EmbeddingDomain::Code).unwrap();
+        let general_vec = service.embed("test", EmbeddingDomain::General).unwrap();
+        let graph_vec = service.embed("test", EmbeddingDomain::Graph).unwrap();
+
+        // All three domains should produce different embeddings
+        assert_ne!(code_vec, general_vec);
+        assert_ne!(code_vec, graph_vec);
+        assert_ne!(general_vec, graph_vec);
+    }
+
+    #[test]
+    fn test_embedding_service_graph_config_valid() {
+        let service = MockEmbeddingService::new();
+
+        let graph_cfg = service.config(EmbeddingDomain::Graph);
+
+        // Verify GRAPH domain has correct configuration
+        assert_eq!(graph_cfg.domain, EmbeddingDomain::Graph);
+        assert!(!graph_cfg.model_name.is_empty());
+        assert!(graph_cfg.index_path.contains("graph"));
+        assert_eq!(graph_cfg.dimension, 384);
     }
 }

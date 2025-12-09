@@ -94,12 +94,16 @@ pub fn build_reflection(
     }
 
     // Analyze timing patterns for scope hints
-    let has_timing_issues = evaluation.anomaly_flags.iter()
+    let has_timing_issues = evaluation
+        .anomaly_flags
+        .iter()
         .any(|flag| flag.contains("timing") || flag.contains("slow"));
 
     if has_timing_issues {
         // Check if graph traversal was much slower than vector search
-        if let (Some(vector_ms), Some(graph_ms)) = (metadata.vector_search_ms, metadata.graph_traversal_ms) {
+        if let (Some(vector_ms), Some(graph_ms)) =
+            (metadata.vector_search_ms, metadata.graph_traversal_ms)
+        {
             if vector_ms > 0 && graph_ms > vector_ms * 3 {
                 reflection.recommended_scope_hint = Some("narrow:local".to_string());
                 reflection.improvement_hints.push("consider local-only search".to_string());
@@ -131,7 +135,9 @@ pub fn build_reflection(
 
     // Add confidence-based hints
     if evaluation.confidence < 0.5 {
-        reflection.improvement_hints.push("increase result confidence with broader queries".to_string());
+        reflection
+            .improvement_hints
+            .push("increase result confidence with broader queries".to_string());
     }
 
     reflection
@@ -208,7 +214,9 @@ fn extract_result_count_from_metadata(metadata: &super::ReasoningMetadata) -> Op
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mcp_server::reasoning::{ReasoningMetadata, ReasoningTrace, ReasoningTraceStage, ReasoningEvaluation};
+    use crate::mcp_server::reasoning::{
+        ReasoningEvaluation, ReasoningMetadata, ReasoningTrace, ReasoningTraceStage,
+    };
 
     #[test]
     fn test_reflection_new() {

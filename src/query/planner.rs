@@ -30,6 +30,7 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use crate::config::{get_project_label, get_project_root, ProjectContext};
 use std::collections::HashMap;
 
 /// Query planner step enumeration
@@ -77,6 +78,115 @@ impl Default for QueryConstraints {
             allow_vector: true,
             project_label: None,
             local_root: None,
+        }
+    }
+}
+
+impl QueryConstraints {
+    /// Create QueryConstraints with precedence-based project context resolution
+    ///
+    /// Precedence order:
+    /// 1. User-provided explicit parameters (highest priority)
+    /// 2. Environment variables (for expert override)
+    /// 3. Automatic project detection from current directory
+    /// 4. None values (no project filtering)
+    pub fn with_project_context(
+        scope: Option<String>,
+        max_results: Option<usize>,
+        project_label: Option<String>,
+        local_root: Option<String>,
+        graph_required: Option<bool>,
+        allow_hopgraph: Option<bool>,
+        allow_raggraph: Option<bool>,
+        allow_vector: Option<bool>,
+    ) -> Self {
+        // Resolve project_label using precedence logic
+        let resolved_project_label = if project_label.is_some() {
+            // 1. User-provided explicit parameter
+            project_label
+        } else {
+            // 2. Automatic detection (env is handled inside get_project_label)
+            get_project_label(None)
+        };
+
+        // Resolve local_root using precedence logic
+        let resolved_local_root = if local_root.is_some() {
+            // 1. User-provided explicit parameter
+            local_root
+        } else {
+            // 2. Automatic detection from current directory
+            get_project_root().map(|root| root.to_string_lossy().to_string())
+        };
+
+        // Handle 'auto' scope resolution
+        let resolved_scope = if let Some(scope) = scope {
+            if scope == "auto" {
+                // Auto-scope: prefer project-scoped when we have project context
+                if resolved_project_label.is_some() {
+                    "project".to_string()
+                } else {
+                    "global".to_string()
+                }
+            } else {
+                scope
+            }
+        } else {
+            // Default scope for backward compatibility
+            "project".to_string()
+        };
+
+        Self {
+            scope: resolved_scope,
+            max_results: max_results.or(Some(10)), // Default limit
+            graph_required: graph_required.unwrap_or(false),
+            allow_hopgraph: allow_hopgraph.unwrap_or(true),
+            allow_raggraph: allow_raggraph.unwrap_or(true),
+            allow_vector: allow_vector.unwrap_or(true),
+            project_label: resolved_project_label,
+            local_root: resolved_local_root,
+        }
+    }
+
+    /// Create QueryConstraints from user-facing MCP tool parameters
+    /// This is the main entry point for MCP tools that accept project context parameters
+    pub fn from_mcp_params(
+        query: &str,
+        scope: Option<String>,
+        top_k: Option<usize>,
+        project_label: Option<String>,
+        local_root: Option<String>,
+    ) -> Self {
+        // Use the precedence-based constructor for MCP parameters
+        Self::with_project_context(
+            scope,
+            top_k,
+            project_label,
+            local_root,
+            None, // graph_required - use default
+            None, // allow_hopgraph - use default
+            None, // allow_raggraph - use default
+            None, // allow_vector - use default
+        )
+    }
+
+    /// Get the effective namespace for this query
+    /// Derives namespace from project_label for consistency
+    pub fn get_effective_namespace(&self) -> Option<String> {
+        self.project_label.clone()
+    }
+
+    /// Check if this query has project-scoped constraints
+    pub fn is_project_scoped(&self) -> bool {
+        self.project_label.is_some() || matches!(self.scope.as_str(), "project" | "file")
+    }
+
+    /// Get the effective local root for file-scoped queries
+    pub fn get_effective_local_root(&self) -> Option<String> {
+        if self.scope == "file" && self.local_root.is_none() {
+            // For file scope without explicit local_root, try current directory
+            get_project_root().map(|root| root.to_string_lossy().to_string())
+        } else {
+            self.local_root.clone()
         }
     }
 }
@@ -500,5 +610,185 @@ mod tests {
         // Same input should produce same plan
         assert_eq!(plan1.steps, plan2.steps);
         assert_eq!(plan1.metadata, plan2.metadata);
+    }
+
+    // ========== PROJECT ISOLATION TESTS ==========
+
+    #[test]
+    fn test_query_constraints_precedence_user_provided() {
+        // Test that user-provided parameters take highest precedence
+        let constraints = QueryConstraints::with_project_context(
+            Some("project".to_string()),
+            Some(20),
+            Some("my-custom-project".to_string()),
+            Some("/custom/path".to_string()),
+            Some(true),
+            Some(false),
+            Some(true),
+            Some(false),
+        );
+
+        assert_eq!(constraints.scope, "project");
+        assert_eq!(constraints.max_results, Some(20));
+        assert_eq!(constraints.project_label, Some("my-custom-project".to_string()));
+        assert_eq!(constraints.local_root, Some("/custom/path".to_string()));
+        assert_eq!(constraints.graph_required, true);
+        assert_eq!(constraints.allow_hopgraph, false);
+        assert_eq!(constraints.allow_raggraph, true);
+        assert_eq!(constraints.allow_vector, false);
+    }
+
+    #[test]
+    fn test_query_constraints_precedence_auto_detection() {
+        // Test that when no user parameters are provided, auto-detection kicks in
+        let constraints = QueryConstraints::with_project_context(
+            None, // scope - should default to "project"
+            None, // max_results - should default to Some(10)
+            None, // project_label - should auto-detect
+            None, // local_root - should auto-detect
+            None, // graph_required - should default to false
+            None, // allow_hopgraph - should default to true
+            None, // allow_raggraph - should default to true
+            None, // allow_vector - should default to true
+        );
+
+        assert_eq!(constraints.scope, "project");
+        assert_eq!(constraints.max_results, Some(10));
+        assert_eq!(constraints.graph_required, false);
+        assert_eq!(constraints.allow_hopgraph, true);
+        assert_eq!(constraints.allow_raggraph, true);
+        assert_eq!(constraints.allow_vector, true);
+
+        // Project detection should find "syncore" since we're running from within the syncore project
+        assert_eq!(constraints.project_label, Some("syncore".to_string()));
+
+        // Local root should be detected and be a valid path
+        assert!(constraints.local_root.is_some());
+        let local_root = constraints.local_root.unwrap();
+        assert!(!local_root.is_empty());
+    }
+
+    #[test]
+    fn test_query_constraints_auto_scope_resolution() {
+        // Test 'auto' scope resolution
+        let constraints_with_project = QueryConstraints::with_project_context(
+            Some("auto".to_string()),
+            None,
+            Some("test-project".to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+
+        // Auto should resolve to "project" when project label is available
+        assert_eq!(constraints_with_project.scope, "project");
+
+        let constraints_without_project = QueryConstraints::with_project_context(
+            Some("auto".to_string()),
+            None,
+            None, // No project label
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+
+        // Auto should resolve to "global" when no project label is available
+        assert_eq!(constraints_without_project.scope, "global");
+    }
+
+    #[test]
+    fn test_query_constraints_from_mcp_params() {
+        // Test the MCP parameter constructor
+        let constraints = QueryConstraints::from_mcp_params(
+            "test query",
+            Some("project".to_string()),
+            Some(15),
+            Some("user-project".to_string()),
+            Some("/user/path".to_string()),
+        );
+
+        assert_eq!(constraints.scope, "project");
+        assert_eq!(constraints.max_results, Some(15));
+        assert_eq!(constraints.project_label, Some("user-project".to_string()));
+        assert_eq!(constraints.local_root, Some("/user/path".to_string()));
+        assert_eq!(constraints.graph_required, false); // Should use defaults
+        assert_eq!(constraints.allow_hopgraph, true);  // Should use defaults
+        assert_eq!(constraints.allow_raggraph, true); // Should use defaults
+        assert_eq!(constraints.allow_vector, true);   // Should use defaults
+    }
+
+    #[test]
+    fn test_query_constraints_effective_namespace() {
+        // Test effective namespace derivation
+        let constraints_with_project = QueryConstraints {
+            project_label: Some("test-project".to_string()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            constraints_with_project.get_effective_namespace(),
+            Some("test-project".to_string())
+        );
+
+        let constraints_without_project = QueryConstraints::default();
+        assert_eq!(constraints_without_project.get_effective_namespace(), None);
+    }
+
+    #[test]
+    fn test_query_constraints_is_project_scoped() {
+        // Test project scoping detection
+        let constraints_project = QueryConstraints {
+            scope: "project".to_string(),
+            project_label: Some("test".to_string()),
+            ..Default::default()
+        };
+        assert!(constraints_project.is_project_scoped());
+
+        let constraints_file = QueryConstraints {
+            scope: "file".to_string(),
+            ..Default::default()
+        };
+        assert!(constraints_file.is_project_scoped());
+
+        let constraints_global = QueryConstraints {
+            scope: "global".to_string(),
+            project_label: None,
+            ..Default::default()
+        };
+        assert!(!constraints_global.is_project_scoped());
+    }
+
+    #[test]
+    fn test_query_constraints_effective_local_root() {
+        // Test effective local root for file scope
+        let constraints_file_with_root = QueryConstraints {
+            scope: "file".to_string(),
+            local_root: Some("/explicit/root".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            constraints_file_with_root.get_effective_local_root(),
+            Some("/explicit/root".to_string())
+        );
+
+        let constraints_file_without_root = QueryConstraints {
+            scope: "file".to_string(),
+            local_root: None,
+            ..Default::default()
+        };
+        // Should auto-detect current directory
+        assert!(constraints_file_without_root.get_effective_local_root().is_some());
+
+        let constraints_project_scope = QueryConstraints {
+            scope: "project".to_string(),
+            local_root: None,
+            ..Default::default()
+        };
+        // Should return None for non-file scopes without explicit root
+        assert_eq!(constraints_project_scope.get_effective_local_root(), None);
     }
 }

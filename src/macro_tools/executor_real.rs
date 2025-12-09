@@ -18,6 +18,16 @@ use std::sync::{Arc, Mutex};
 
 mod executors;
 
+/// Common success wrapper for all executors - eliminates duplication
+pub fn wrap_success(tool: &str, data: Value) -> Value {
+    json!({
+        "ok": true,
+        "tool": tool,
+        "executor": "real",
+        "data": data
+    })
+}
+
 /// Executed step with real result
 #[derive(Debug, Clone)]
 pub struct RealExecutedStep {
@@ -50,6 +60,28 @@ impl RealExecutor {
         }
     }
 
+    // ========================================================================
+    // PARAMETER MAPPING INVARIANT
+    // ========================================================================
+    //
+    // This executor is responsible for mapping incoming JSON parameters to
+    // MemorySuiteArgs for ALL tools that route through the generic executor.
+    //
+    // COVERAGE:
+    // - Memory tools: memory_store, memory_query, memory_search_semantic, etc.
+    // - Vector tools: vector_insert, vector_search
+    // - Task tools: task_create, intellitask_*
+    // - Sequential tools: sequential_*
+    // - Agent tools: agent_*
+    // - IntelliTask tools: intellitask_generate, intellitask_prioritize, etc.
+    //
+    // INVARIANT: All fields present in incoming params that map to the
+    // MemorySuiteArgs type MUST be preserved and never silently dropped.
+    //
+    // The build_memory_suite_args() method ensures this invariant by
+    // explicitly mapping every field from JSON to the struct.
+    // ========================================================================
+
     /// Get executed steps (for testing/validation)
     pub fn get_executed_steps(&self) -> Vec<RealExecutedStep> {
         self.steps.lock().unwrap().clone()
@@ -59,6 +91,98 @@ impl RealExecutor {
     #[cfg(test)]
     pub fn get_state(&self) -> Arc<SynCoreState> {
         Arc::clone(&self.state)
+    }
+
+    /// Build MemorySuiteArgs from tool name and JSON parameters (private)
+    ///
+    /// This helper eliminates the parameter mapping drift by properly
+    /// preserving ALL fields present in the incoming params.
+    ///
+    /// INVARIANT: All fields present in incoming params that map to the
+    /// MemorySuiteArgs type MUST be preserved and never silently dropped.
+    fn build_memory_suite_args_private(&self, tool_name: &str, params: &Value) -> crate::mcp_tools::memory_suite::MemorySuiteArgs {
+        crate::mcp_tools::memory_suite::MemorySuiteArgs {
+            // Always set the command
+            command: tool_name.to_string(),
+
+            // Basic parameters
+            key: params.get("key").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            value: params.get("value").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            text: params.get("text").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            query: params.get("query").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            limit: params.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize),
+            namespace: params.get("namespace").and_then(|v| v.as_str()).map(|s| s.to_string()),
+
+            // Task parameters
+            goal: params.get("goal").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            priority: params.get("priority").and_then(|v| v.as_i64()).map(|v| v as i32),
+            task_id: params.get("task_id").and_then(|v| v.as_i64()),
+            depends_on_task_id: params.get("depends_on_task_id").and_then(|v| v.as_i64()),
+            step_number: params.get("step_number").and_then(|v| v.as_i64()).map(|v| v as i32),
+            thought: params.get("thought").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            reasoning: params.get("reasoning").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            action: params.get("action").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            observation: params.get("observation").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            max_cycles: params.get("max_cycles").and_then(|v| v.as_u64()).map(|v| v as usize),
+
+            // Sequential parameters
+            sequence_id: params.get("sequence_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            context: params.get("context").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            depth: params.get("depth").and_then(|v| v.as_i64()).map(|v| v as i32),
+            max_steps: params.get("max_steps").and_then(|v| v.as_u64()).map(|v| v as usize),
+
+            // Agent parameters
+            to: params.get("to").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            from: params.get("from").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            agent: params.get("agent").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            id: params.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            message: params.get("message").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            capabilities: params.get("capabilities").and_then(|v| v.as_array()).map(|arr| {
+                arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
+            }),
+            status: params.get("status").cloned(),
+            task_type: params.get("task_type").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            payload: params.get("payload").cloned(),
+            result: params.get("result").cloned(),
+            timeout_ms: params.get("timeout_ms").and_then(|v| v.as_u64()),
+
+            // IntelliTask parameters
+            prd_content: params.get("prd_content").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            parent_task_id: params.get("parent_task_id").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            parent_task_json: params.get("parent_task_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            tasks_json: params.get("tasks_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            business_context: params.get("business_context").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            completed_tasks: params.get("completed_tasks").and_then(|v| v.as_array()).map(|arr| {
+                arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
+            }),
+            remaining_tasks_json: params.get("remaining_tasks_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            breakdown_json: params.get("breakdown_json").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            parent_id: params.get("parent_id").and_then(|v| v.as_i64()),
+            prd_title: params.get("prd_title").and_then(|v| v.as_str()).map(|s| s.to_string()),
+
+            // ADVANCED MEMORY PARAMETERS - These were being dropped!
+            keywords: params.get("keywords").and_then(|v| v.as_array()).map(|arr| {
+                arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
+            }),
+            tags: params.get("tags").and_then(|v| v.as_array()).map(|arr| {
+                arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect()
+            }),
+            min_importance: params.get("min_importance").and_then(|v| v.as_f64()).map(|v| v as f32),
+            unix_timestamp: params.get("unix_timestamp").and_then(|v| v.as_u64()),
+            seconds: params.get("seconds").and_then(|v| v.as_u64()),
+            threshold: params.get("threshold").and_then(|v| v.as_f64()).map(|v| v as f32),
+
+            // Common parameters
+            dry_run: params.get("dry_run").and_then(|v| v.as_bool()),
+        }
+    }
+
+    /// Build MemorySuiteArgs from tool name and JSON parameters (test-only)
+    ///
+    /// Test wrapper around the private implementation to verify parameter mapping.
+    #[cfg(test)]
+    pub fn build_memory_suite_args(&self, tool_name: &str, params: &Value) -> crate::mcp_tools::memory_suite::MemorySuiteArgs {
+        self.build_memory_suite_args_private(tool_name, params)
     }
 
     /// Centralized parameter extraction helper for Value params
@@ -75,11 +199,7 @@ impl RealExecutor {
             use crate::mcp_tools::memory_suite::MemorySuite;
 
             let suite = MemorySuite::new((*self.state).clone());
-            let args = crate::mcp_tools::memory_suite::MemorySuiteArgs {
-                command: tool_name.to_string(),
-                // Map params to suite args based on tool
-                ..Default::default()
-            };
+            let args = self.build_memory_suite_args_private(tool_name, params);
 
             match suite.execute(args) {
                 crate::mcp_tools::SuiteResult {

@@ -58,6 +58,28 @@ pub struct CodeSuiteArgs {
     pub only_missing: Option<bool>,
 }
 
+impl Default for CodeSuiteArgs {
+    fn default() -> Self {
+        Self {
+            command: String::new(),
+            file_path: None,
+            query: None,
+            pattern: None,
+            limit: None,
+            directory: None,
+            context_lines: None,
+            function_name: None,
+            namespace: None,
+            mode_hint: None,
+            top_k: None,
+            scope: None,
+            project_label: None,
+            local_root: None,
+            only_missing: None,
+        }
+    }
+}
+
 /// Code suite implementation
 pub struct CodeSuite {
     state: SynCoreState,
@@ -193,12 +215,27 @@ impl CodeSuite {
 
     fn cmd_index_directory(&self, args: CodeSuiteArgs) -> SuiteResult {
         let directory = match args.directory {
-            Some(d) => d,
+            Some(d) => {
+                if d.trim().is_empty() {
+                    return SuiteResult::err("index_directory", "Required parameter 'directory' cannot be empty");
+                }
+                d
+            },
             None => {
                 return SuiteResult::err("index_directory", "Missing required parameter: directory")
             }
         };
-        let pattern = args.pattern.unwrap_or_else(|| "**/*.rs".to_string());
+        let pattern = match args.pattern {
+            Some(p) => {
+                if p.trim().is_empty() {
+                    return SuiteResult::err("index_directory", "Required parameter 'pattern' cannot be empty");
+                }
+                p
+            },
+            None => {
+                return SuiteResult::err("index_directory", "Missing required parameter: pattern")
+            }
+        };
 
         use crate::code_graph::CodeGraph;
         use glob::glob;
@@ -223,16 +260,10 @@ impl CodeSuite {
                         let config = crate::config::SyncoreConfig::default();
 
                         for entry in paths.flatten() {
-                            // BUGFIX: Skip excluded directories (target/, node_modules/, etc.)
+                            // Apply centralized path filtering to exclude build artifacts and non-source files
                             let entry_str = entry.to_string_lossy();
-                            let should_skip = config
-                                .indexing
-                                .excluded_dirs
-                                .iter()
-                                .any(|excluded| entry_str.contains(excluded));
-
-                            if should_skip {
-                                continue; // Skip this file
+                            if !crate::macro_tools::path_filter::should_index_path(&entry_str) {
+                                continue; // Skip this file according to centralized filtering
                             }
 
                             match code_graph.index_file(&entry) {
@@ -418,17 +449,21 @@ impl CodeSuite {
         // Create query planner
         let planner = QueryPlanner::new();
 
-        // Build constraints from args
-        let constraints = QueryConstraints {
-            scope: args.scope.unwrap_or_else(|| "project".to_string()),
-            max_results: args.top_k,
-            project_label: args.project_label.clone(),
-            local_root: args.local_root.clone(),
-            graph_required: self.state.neo4j.is_some(),
-            allow_hopgraph: true,
-            allow_raggraph: true,
-            allow_vector: true,
-        };
+        // Build constraints from args using precedence logic
+        let constraints = QueryConstraints::from_mcp_params(
+            &query,
+            args.scope.clone(),
+            args.top_k,
+            args.project_label.clone(),
+            args.local_root.clone(),
+        );
+
+        // Override graph settings based on available infrastructure
+        let mut constraints = constraints;
+        constraints.graph_required = self.state.neo4j.is_some();
+        constraints.allow_hopgraph = true;
+        constraints.allow_raggraph = true;
+        constraints.allow_vector = true;
 
         // Plan the query
         let plan = match planner.plan_with_constraints(&query, constraints) {
@@ -635,7 +670,7 @@ impl CodeSuite {
                     },
                     "index_directory": {
                         "description": "Index all files matching pattern in directory",
-                        "params": ["directory (required)", "pattern (optional, default: **/*.rs)"]
+                        "params": ["directory (required)", "pattern (required)"]
                     },
                     "search": {
                         "description": "Semantic code search",
@@ -738,7 +773,7 @@ impl SuiteDispatcher for CodeSuite {
     fn help(&self, command: &str) -> Option<&'static str> {
         match command {
             "index" => Some("Index a single code file. Params: file_path"),
-            "index_directory" => Some("Index directory. Params: directory, pattern"),
+            "index_directory" => Some("Index directory. Params: directory (required), pattern (required)"),
             "search" => Some("Semantic code search. Params: query, limit"),
             "parse" => Some("Parse code structure. Params: file_path"),
             "grep" => Some("Ripgrep search. Params: pattern, file_path, context_lines"),

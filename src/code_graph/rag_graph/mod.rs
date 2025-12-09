@@ -18,15 +18,15 @@ use std::sync::Arc;
 
 // Declare submodules
 mod backend;
-mod query;
-pub mod multihop;
 mod fusion_bridge;
+pub mod multihop;
+mod query;
 
 // Re-export all the split modules
 pub use backend::*;
-pub use query::*;
-pub use multihop::*;
 pub use fusion_bridge::*;
+pub use multihop::*;
+pub use query::*;
 
 // Re-export fusion types for compatibility
 pub use super::fusion_router::FusionMode;
@@ -59,6 +59,7 @@ pub struct RagGraphQueryRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub local_root: Option<String>,
 }
+
 
 /// Response structure for RAGGraph queries
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -162,10 +163,7 @@ impl RagGraphAPI {
     ///
     /// # Returns
     /// New RagGraphAPI instance with the specified backend
-    pub fn new_with_backend(
-        code_graph: CodeGraph,
-        graph_backend: Arc<dyn GraphBackend>,
-    ) -> Self {
+    pub fn new_with_backend(code_graph: CodeGraph, graph_backend: Arc<dyn GraphBackend>) -> Self {
         Self {
             code_graph,
             graph_backend,
@@ -173,4 +171,3 @@ impl RagGraphAPI {
         }
     }
 }
-

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use std::env;
+use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
@@ -69,9 +70,10 @@ async fn main() -> Result<()> {
     // Log all registered MCP tools
     log_registered_tools().await;
 
-    // Initialize dual VectorStores for domain-aware embedding routing (APEX 1.7)
+    // Initialize triple VectorStores for domain-aware embedding routing (APEX 2.9)
     // CODE domain: code entities with code-optimized embeddings
     // GENERAL domain: documents, tasks, notes with general-purpose embeddings
+    // GRAPH domain: graph entities, nodes, edges, relationships with graph-optimized embeddings
     use syncore::common::db_paths;
 
     // Create CODE domain store with BGE embeddings (optimized for code)
@@ -119,9 +121,30 @@ async fn main() -> Result<()> {
 
     let general_store = std::sync::Arc::new(std::sync::Mutex::new(general_store));
 
-    // Initialize state with dual stores
-    let mut state = SynCoreState::with_dual_stores(code_store, general_store)?;
-    eprintln!("[syncore] Dual-embedding architecture initialized (CODE + GENERAL domains)");
+    // Create GRAPH domain store with BGE embeddings (optimized for graph entities)
+    eprintln!("[syncore] Initializing GRAPH domain VectorStore (BGE-small-en-v1.5 for graph entities)...");
+    let graph_embeddings = Box::new(HuggingFaceEmbeddings::new_bge()?);
+    let mut graph_store = VectorStore::new(graph_embeddings);
+    let graph_index_path = db_paths::graph_vector_index_path();
+    eprintln!("[syncore] GRAPH vector index path: {}", graph_index_path);
+    graph_store.set_index_path(graph_index_path);
+
+    // BUGFIX #3: Load snapshot from disk to restore embeddings state
+    if let Err(e) = graph_store.load_snapshot() {
+        eprintln!("[syncore] Warning: Failed to load GRAPH vector snapshot: {}", e);
+        eprintln!("[syncore] Will start with empty GRAPH vector store");
+    } else {
+        eprintln!(
+            "[syncore] Successfully loaded GRAPH vector snapshot ({} vectors)",
+            graph_store.len()
+        );
+    }
+
+    let graph_store = std::sync::Arc::new(std::sync::Mutex::new(graph_store));
+
+    // Initialize state with triple stores
+    let mut state = SynCoreState::with_triple_stores(code_store, general_store, graph_store)?;
+    eprintln!("[syncore] Triple-embedding architecture initialized (CODE + GENERAL + GRAPH domains)");
 
     {
         use syncore::message_bus::MessageBus;
@@ -367,14 +390,15 @@ async fn main() -> Result<()> {
     let _priority_handle = priority_consumer.start().await?;
     eprintln!("[SynCore] Phase 8: Priority-aware ingestion consumer started");
 
-    // Step 8: Start EmbeddingRefreshDaemon (dual-domain: CODE + GENERAL)
+    // Step 8: Start EmbeddingRefreshDaemon (triple-domain: CODE + GENERAL + GRAPH)
     let refresh_config = EmbeddingRefreshConfig::default();
     let (daemon, _daemon_tx) = EmbeddingRefreshDaemon::spawn(
         state.code_store.clone(),
         state.general_store.clone(),
+        state.graph_store.clone(),
         refresh_config,
     )?;
-    eprintln!("[SynCore] EmbeddingRefreshDaemon spawned (dual-domain: CODE + GENERAL)");
+    eprintln!("[SynCore] EmbeddingRefreshDaemon spawned (triple-domain: CODE + GENERAL + GRAPH)");
 
     // Step 9: Store handles to keep subsystems alive
     // Handles are kept in scope until program exits for graceful shutdown
@@ -501,10 +525,35 @@ async fn main() -> Result<()> {
     {
         let http_state = state.clone();
         tokio::spawn(async move {
-            let server = HttpStreamServer::new(http_state);
-            eprintln!("HTTP Streamable MCP server listening on http://{}/mcp", http_bind);
-            if let Err(e) = server.start(http_bind).await {
-                eprintln!("HTTP Streamable server error: {:?}", e);
+            // First attempt uses configured port. If it's already in use, fall back to an OS-assigned port.
+            let mut current_bind = http_bind;
+            let mut retried = false;
+            loop {
+                let server = HttpStreamServer::new(http_state.clone());
+                match server.start(current_bind).await {
+                    Ok(_) => break,
+                    Err(e) => {
+                        // Check if address is already in use; only retry once with port 0
+                        let addr_in_use = e
+                            .root_cause()
+                            .downcast_ref::<std::io::Error>()
+                            .map(|io_err| io_err.kind() == ErrorKind::AddrInUse)
+                            .unwrap_or(false);
+
+                        if addr_in_use && !retried {
+                            retried = true;
+                            eprintln!(
+                                "[MCP HTTP] Port {} is in use, falling back to an ephemeral port.",
+                                current_bind.port()
+                            );
+                            current_bind = SocketAddr::from(([127, 0, 0, 1], 0));
+                            continue;
+                        }
+
+                        eprintln!("HTTP Streamable server error: {:?}", e);
+                        break;
+                    }
+                }
             }
         });
     }
@@ -525,7 +574,7 @@ async fn main() -> Result<()> {
 
     // Keep the process alive for HTTP clients even if STDIO is closed
     // Wait for ctrl-c signal to shut down
-    eprintln!("STDIO closed, HTTP Streamable MCP server still running at http://{}/mcp. Press Ctrl-C to stop.", http_bind);
+    eprintln!("STDIO closed, HTTP Streamable MCP server still running (see [MCP HTTP] log for bound port). Press Ctrl-C to stop.");
     tokio::signal::ctrl_c().await?;
 
     eprintln!("MCP servers shut down");

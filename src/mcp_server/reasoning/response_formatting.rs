@@ -4,9 +4,9 @@
 //! across all reasoning tools (raggraph_query, raggraph_multihop, code_graph_fusion_query).
 
 use anyhow::Result;
+use rmcp::model::{CallToolResult, Content};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use rmcp::model::{CallToolResult, Content};
 
 /// Unified response structure for all reasoning tools
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -154,7 +154,7 @@ pub struct ErrorInfo {
 }
 
 /// Error categories for programmatic handling
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ErrorCategory {
     /// Invalid request parameters
     Validation,
@@ -237,9 +237,10 @@ pub fn format_success_response(
 
     // Build reflection if all required components are available
     let reflection = if let (Some(ref meta), Some(ref trace), Some(ref eval)) =
-        (normalized_metadata.as_ref(), trace.as_ref(), evaluation.as_ref()) {
+        (normalized_metadata.as_ref(), trace.as_ref(), evaluation.as_ref())
+    {
         Some(crate::mcp_server::reasoning::normalize_reflection(
-            crate::mcp_server::reasoning::build_reflection(meta, trace, eval)
+            crate::mcp_server::reasoning::build_reflection(meta, trace, eval),
         ))
     } else {
         None
@@ -325,9 +326,10 @@ pub fn format_error_response(
 
     // Build reflection if all required components are available (even in error cases)
     let reflection = if let (Some(ref meta), Some(ref trace), Some(ref eval)) =
-        (normalized_metadata.as_ref(), trace.as_ref(), evaluation.as_ref()) {
+        (normalized_metadata.as_ref(), trace.as_ref(), evaluation.as_ref())
+    {
         Some(crate::mcp_server::reasoning::normalize_reflection(
-            crate::mcp_server::reasoning::build_reflection(meta, trace, eval)
+            crate::mcp_server::reasoning::build_reflection(meta, trace, eval),
         ))
     } else {
         None
@@ -378,9 +380,7 @@ pub fn to_mcp_call_tool_result(
         serde_json::to_string(&response)?
     };
 
-    Ok(CallToolResult::success(vec![
-        Content::text(json_str),
-    ]))
+    Ok(CallToolResult::success(vec![Content::text(json_str)]))
 }
 
 /// Convert MCP CallToolResult error to unified format
@@ -389,6 +389,44 @@ pub fn from_mcp_error(
     request_metadata: RequestMetadata,
 ) -> Result<UnifiedReasoningResponse> {
     format_error_response(request_metadata, error, ErrorCategory::Internal, None, None, None, None)
+}
+
+/// Simple wrapper for format_error_response with minimal parameters
+/// For use when full reasoning context is not available
+pub fn format_error_simple(
+    request_metadata: RequestMetadata,
+    error: anyhow::Error,
+    category: ErrorCategory,
+) -> Result<UnifiedReasoningResponse> {
+    format_error_response(request_metadata, error, category, None, None, None, None)
+}
+
+/// Simple wrapper for format_success_response with minimal parameters
+/// For use when full reasoning context is not available
+pub fn format_success_simple(
+    request_metadata: RequestMetadata,
+    results: Vec<ReasoningResult>,
+    backend_info: BackendInfo,
+) -> Result<UnifiedReasoningResponse> {
+    let debug_info = DebugInfo {
+        processing_time_ms: None,
+        entities_examined: None,
+        graph_depth: None,
+        vector_search_info: None,
+        graph_expansion_info: None,
+        metadata: std::collections::HashMap::new(),
+    };
+
+    format_success_response(
+        request_metadata,
+        results,
+        backend_info,
+        debug_info,
+        None,
+        None,
+        None,
+        None,
+    )
 }
 
 /// Generate error code from anyhow::Error
@@ -487,21 +525,15 @@ pub mod converters {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::code_graph::rag_graph::RankedEntity;
     use serde_json::json;
 
     #[test]
     fn test_format_success_response() {
-        let request_metadata = create_request_metadata(
-            "test query".to_string(),
-            "query".to_string(),
-            HashMap::new(),
-        );
+        let request_metadata =
+            create_request_metadata("test query".to_string(), "query".to_string(), HashMap::new());
 
-        let backend_info = create_backend_info(
-            "SQLiteGraph".to_string(),
-            "auto".to_string(),
-            true,
-        );
+        let backend_info = create_backend_info("SQLiteGraph".to_string(), "auto".to_string(), true);
 
         let debug_info = DebugInfo {
             processing_time_ms: Some(100),

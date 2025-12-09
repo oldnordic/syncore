@@ -11,10 +11,10 @@
 //! - adapter does not block the runtime
 
 use std::sync::{Arc, Mutex};
-use tempfile::tempdir;
 use syncore::config::{GraphBackend as ConfigBackend, GraphConfig};
 use syncore::graph::backend_selector::create_graph_backend;
 use syncore::sqlitegraph::async_sqlite_backend::{AsyncSQLiteBackend, SyncGraphBackend};
+use tempfile::tempdir;
 
 /// Create a test async SQLite backend
 async fn create_test_async_backend() -> AsyncSQLiteBackend {
@@ -52,11 +52,10 @@ async fn test_async_backend_execute_query() {
 
     // This should now work with the sync wrapper
     let results = tokio::task::spawn_blocking(move || {
-        async_backend.execute_query(
-            "SELECT 1 as test",
-            vec![]
-        )
-    }).await.unwrap();
+        async_backend.execute_query("SELECT 1 as test", vec![])
+    })
+    .await
+    .unwrap();
 
     assert!(results.is_ok(), "Sync execute_query should succeed");
     let results = results.unwrap();
@@ -68,9 +67,8 @@ async fn test_async_backend_get_neighbors() {
     let async_backend = create_test_async_backend().await;
 
     // This should now work with the sync wrapper
-    let neighbors = tokio::task::spawn_blocking(move || {
-        async_backend.get_neighbors(1)
-    }).await.unwrap();
+    let neighbors =
+        tokio::task::spawn_blocking(move || async_backend.get_neighbors(1)).await.unwrap();
 
     // Should not panic - even if no neighbors exist
     assert!(neighbors.is_ok(), "Sync get_neighbors should succeed without panicking");
@@ -89,7 +87,7 @@ async fn test_concurrent_async_calls() {
         let handle = tokio::task::spawn_blocking(move || {
             // Each task performs different operations concurrently
             match i % 3 {
-                0 => backend_clone.execute_query("SELECT 1", vec!()).map(|_| ()),
+                0 => backend_clone.execute_query("SELECT 1", vec![]).map(|_| ()),
                 1 => backend_clone.get_neighbors(i as i64).map(|_| ()),
                 2 => backend_clone.get_entity_by_id(i as i64).map(|_| ()),
                 _ => unreachable!(),
@@ -115,7 +113,9 @@ async fn test_async_backend_error_propagation() {
     // This should FAIL initially - errors should be properly propagated
     let invalid_query_result = tokio::task::spawn_blocking(move || {
         async_backend.execute_query("INVALID SQL QUERY", vec![])
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
 
     // Should return an error, not panic
     assert!(invalid_query_result.is_err(), "Invalid query should return error");
@@ -135,7 +135,7 @@ async fn test_async_backend_thread_safety() {
             let backend = backend_clone.lock().unwrap();
             // This simulates what the sync StorageAdapter would do
             // Should not deadlock or cause runtime issues
-            backend.execute_query("SELECT 1", vec!())
+            backend.execute_query("SELECT 1", vec![])
         });
         handles.push(handle);
     }
@@ -164,9 +164,10 @@ async fn test_no_runtime_blocking() {
     });
 
     // Perform async database operation
-    let db_result = tokio::task::spawn_blocking(move || {
-        async_backend.execute_query("SELECT 1", vec![])
-    }).await.unwrap();
+    let db_result =
+        tokio::task::spawn_blocking(move || async_backend.execute_query("SELECT 1", vec![]))
+            .await
+            .unwrap();
     assert!(db_result.is_ok());
 
     // Background task should have completed without being blocked
@@ -185,9 +186,8 @@ async fn test_spawn_blocking_usage() {
     // This test verifies that the async façade properly uses spawn_blocking internally
     // We can't directly observe this, but we can verify the behavior
 
-    let operation_result = tokio::task::spawn_blocking(move || {
-        async_backend.get_neighbors(1)
-    }).await.unwrap();
+    let operation_result =
+        tokio::task::spawn_blocking(move || async_backend.get_neighbors(1)).await.unwrap();
 
     // Should succeed without runtime errors about blocking calls
     assert!(operation_result.is_ok(), "Operation using spawn_blocking should succeed");

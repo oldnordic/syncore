@@ -2,10 +2,10 @@
 //!
 //! Implements multi-hop expansion and reasoning capabilities for deep graph traversal.
 
-use std::sync::Arc;
 use crate::graph::GraphBackend;
 use anyhow::Result;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// Configuration for multi-hop expansion
 #[derive(Debug, Clone)]
@@ -60,9 +60,8 @@ pub fn multi_hop_expand(
         for (entity_id, base_score) in &current_level {
             // Get neighbors from graph backend
             let neighbors = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    graph_backend.get_neighbors(*entity_id).await
-                })
+                tokio::runtime::Handle::current()
+                    .block_on(async { graph_backend.get_neighbors(*entity_id).await })
             })?;
 
             for neighbor in neighbors {
@@ -135,9 +134,8 @@ pub fn find_shortest_path(
 
         for (current_id, path) in queue {
             let neighbors = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(async {
-                    graph_backend.get_neighbors(current_id).await
-                })
+                tokio::runtime::Handle::current()
+                    .block_on(async { graph_backend.get_neighbors(current_id).await })
             })?;
 
             for neighbor in neighbors {

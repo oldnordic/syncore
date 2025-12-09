@@ -52,6 +52,8 @@ pub struct ParserAnalyzeRequest {
     /// If true, persist entities to SQLite, update HNSW index, and sync to Neo4j
     #[serde(default)]
     pub persist: bool,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -59,11 +61,15 @@ pub struct ParserSearchRequest {
     pub pattern: String,
     pub path: Option<String>,
     pub context_lines: Option<usize>,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct CodeIndexRequest {
     pub file_path: String,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -71,11 +77,15 @@ pub struct CodeSearchRequest {
     pub query: String,
     #[serde(default = "default_search_limit")]
     pub limit: usize,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct DocumentIndexRequest {
     pub directory: String,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -83,6 +93,8 @@ pub struct DocumentSearchRequest {
     pub query: String,
     #[serde(default = "default_doc_search_limit")]
     pub limit: usize,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 fn default_search_limit() -> usize {
@@ -349,14 +361,54 @@ pub struct ApplicationSearchRequest {
 }
 
 // RagGraph Tools
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct RagGraphQueryRequest {
-    pub query_text: String,
-}
+pub type RagGraphQueryInput = crate::code_graph::rag_graph::RagGraphQueryRequest;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct RagGraphMultihopRequest {
+    /// Primary query text (auto-normalized from query_text if needed)
+    pub query: String,
+    /// Legacy query_text field for backward compatibility
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query_text: Option<String>,
+    /// Seed node IDs for multihop expansion
     pub seed_nodes: Vec<i64>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_hops: Option<usize>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_entities: Option<usize>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decay_factor: Option<f32>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub namespace: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
+}
+
+impl RagGraphMultihopRequest {
+    /// Normalize query_text to query field for backward compatibility
+    pub fn normalize_query_text(&mut self) {
+        if self.query.is_empty() {
+            if let Some(ref query_text) = self.query_text {
+                self.query = query_text.clone();
+            }
+        } else if self.query_text.is_none() {
+            self.query_text = Some(self.query.clone());
+        }
+    }
+
+    /// Get the effective query text
+    pub fn effective_query(&self) -> &str {
+        if self.query.is_empty() {
+            self.query_text.as_deref().unwrap_or("")
+        } else {
+            &self.query
+        }
+    }
 }
 
 // CodeGraph Neo4j Sync Tool
@@ -444,6 +496,16 @@ pub struct ProjectCleanupExcludedRequest {
     #[serde(default)]
     pub dry_run: bool,
     /// Override excluded directories (uses config if not provided)
+    pub excluded_dirs: Option<Vec<String>>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct CodeGraphAuditSqlitegraphRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_examples: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_root: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub excluded_dirs: Option<Vec<String>>,
 }
 
@@ -541,6 +603,19 @@ pub struct MemorySuiteRequest {
     pub parent_id: Option<i64>,
     #[serde(default)]
     pub prd_title: Option<String>,
+    // Advanced memory operations
+    #[serde(default)]
+    pub keywords: Option<Vec<String>>,
+    #[serde(default)]
+    pub tags: Option<Vec<String>>,
+    #[serde(default)]
+    pub min_importance: Option<f32>,
+    #[serde(default)]
+    pub unix_timestamp: Option<u64>,
+    #[serde(default)]
+    pub seconds: Option<u64>,
+    #[serde(default)]
+    pub threshold: Option<f32>,
     // Common
     #[serde(default)]
     pub dry_run: Option<bool>,
@@ -584,6 +659,10 @@ pub struct GraphSuiteRequest {
     pub from_label: Option<String>,
     #[serde(default)]
     pub to_label: Option<String>,
+    #[serde(default)]
+    pub query_text: Option<String>,
+    #[serde(default)]
+    pub seed_nodes: Option<Vec<i64>>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -604,6 +683,22 @@ pub struct MappingSuiteRequest {
     pub dependencies: Option<Vec<String>>,
     #[serde(default)]
     pub query: Option<String>,
+    #[serde(default)]
+    pub file_path: Option<String>,
+    #[serde(default)]
+    pub change_type: Option<String>,
+    #[serde(default)]
+    pub old_content: Option<String>,
+    #[serde(default)]
+    pub new_content: Option<String>,
+    #[serde(default)]
+    pub line_start: Option<i32>,
+    #[serde(default)]
+    pub line_end: Option<i32>,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub task_id: Option<i64>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -642,6 +737,15 @@ pub struct DebugSuiteRequest {
     pub fan_out_threshold: Option<u32>,
     #[serde(default)]
     pub entity_threshold: Option<u32>,
+    #[serde(default)]
+    pub max_examples: Option<u32>,
+    #[serde(default)]
+    pub project_root: Option<String>,
+    #[serde(default)]
+    pub excluded_dirs: Option<Vec<String>>,
+    /// Cursor for pagination (0-based index)
+    #[serde(default)]
+    pub cursor: Option<String>,
 }
 
 /// APEX 1.8 REFRAG Suite request
@@ -659,4 +763,54 @@ pub struct RefragSuiteRequest {
     pub max_tokens: Option<usize>,
     #[serde(default)]
     pub policy: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct CodeDriftSuiteRequest {
+    /// Command to execute: semantic, architecture, aging, patterns, crossrepo, comprehensive, functions, help
+    pub command: String,
+    #[serde(default)]
+    pub query: Option<String>,
+    #[serde(default)]
+    pub similarity_threshold: Option<f64>,
+    #[serde(default)]
+    pub fan_in_threshold: Option<u64>,
+    #[serde(default)]
+    pub fan_out_threshold: Option<u64>,
+    #[serde(default)]
+    pub loc_threshold: Option<u64>,
+    #[serde(default)]
+    pub max_age_days: Option<u64>,
+    #[serde(default)]
+    pub min_change_count: Option<u64>,
+    #[serde(default)]
+    pub pattern_types: Option<Vec<String>>,
+    #[serde(default)]
+    pub severity: Option<String>,
+    #[serde(default)]
+    pub baseline_repo: Option<String>,
+    #[serde(default)]
+    pub comparison_repo: Option<String>,
+    #[serde(default)]
+    pub function_name: Option<String>,
+    #[serde(default)]
+    pub compare_signatures: Option<bool>,
+    #[serde(default)]
+    pub compare_bodies: Option<bool>,
+    #[serde(default)]
+    pub include_semantic: Option<bool>,
+    #[serde(default)]
+    pub include_architectural: Option<bool>,
+    #[serde(default)]
+    pub include_temporal: Option<bool>,
+    #[serde(default)]
+    pub include_patterns: Option<bool>,
+    #[serde(default)]
+    pub include_crossrepo: Option<bool>,
+    /// Maximum items to return (for pagination)
+    #[serde(default)]
+    pub max_items: Option<usize>,
+    /// Cursor for pagination (0-based index)
+    #[serde(default)]
+    pub cursor: Option<String>,
 }

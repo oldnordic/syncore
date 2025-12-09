@@ -6,15 +6,13 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
+use syncore::mcp_server::reasoning::{
+    create_backend_info, create_request_metadata, execute_reasoning_request, format_error_response,
+    format_success_response, parse_unified_request, select_reasoning_backend,
+    BackendSelectionConfig, BackendType, RequestType, UnifiedReasoningRequest,
+};
 use syncore::mcp_server::MCPServerHandler;
 use syncore::router::SynCoreState;
-use syncore::mcp_server::reasoning::{
-    select_reasoning_backend, BackendSelectionConfig, BackendType,
-    parse_unified_request, RequestType,
-    format_success_response, format_error_response,
-    execute_reasoning_request, UnifiedReasoningRequest,
-    create_request_metadata, create_backend_info,
-};
 use tempfile::TempDir;
 use tokio_test;
 
@@ -75,11 +73,7 @@ fn test_request_parsing_consistency_across_tools() -> Result<()> {
     query_params.insert("query".to_string(), serde_json::json!("test query"));
     query_params.insert("top_k".to_string(), serde_json::json!(10));
 
-    let query_request = parse_unified_request(
-        query_params.clone(),
-        RequestType::Query,
-        None,
-    )?;
+    let query_request = parse_unified_request(query_params.clone(), RequestType::Query, None)?;
 
     assert_eq!(query_request.request_type, RequestType::Query);
     assert_eq!(query_request.query, "test query");
@@ -90,15 +84,16 @@ fn test_request_parsing_consistency_across_tools() -> Result<()> {
     multihop_params.insert("seed_entities".to_string(), serde_json::json!([1, 2, 3]));
     multihop_params.insert("max_hops".to_string(), serde_json::json!(5));
 
-    let multihop_request = parse_unified_request(
-        multihop_params,
-        RequestType::MultiHop,
-        None,
-    )?;
+    let multihop_request = parse_unified_request(multihop_params, RequestType::MultiHop, None)?;
 
     assert_eq!(multihop_request.request_type, RequestType::MultiHop);
 
-    if let syncore::mcp_server::reasoning::RequestParameters::MultiHop { seed_entities, max_hops, .. } = multihop_request.parameters {
+    if let syncore::mcp_server::reasoning::RequestParameters::MultiHop {
+        seed_entities,
+        max_hops,
+        ..
+    } = multihop_request.parameters
+    {
         assert_eq!(seed_entities, vec![1, 2, 3]);
         assert_eq!(max_hops, Some(5));
     } else {
@@ -111,11 +106,7 @@ fn test_request_parsing_consistency_across_tools() -> Result<()> {
     fusion_params.insert("mode_hint".to_string(), serde_json::json!("attention"));
     fusion_params.insert("scope".to_string(), serde_json::json!("project"));
 
-    let fusion_request = parse_unified_request(
-        fusion_params,
-        RequestType::Fusion,
-        None,
-    )?;
+    let fusion_request = parse_unified_request(fusion_params, RequestType::Fusion, None)?;
 
     assert_eq!(fusion_request.request_type, RequestType::Fusion);
     assert_eq!(fusion_request.query, "fusion test");
@@ -127,17 +118,10 @@ fn test_request_parsing_consistency_across_tools() -> Result<()> {
 
 #[test]
 fn test_response_formatting_consistency_across_tools() -> Result<()> {
-    let request_metadata = create_request_metadata(
-        "test query".to_string(),
-        "query".to_string(),
-        HashMap::new(),
-    );
+    let request_metadata =
+        create_request_metadata("test query".to_string(), "query".to_string(), HashMap::new());
 
-    let backend_info = create_backend_info(
-        "SQLiteGraph".to_string(),
-        "auto".to_string(),
-        true,
-    );
+    let backend_info = create_backend_info("SQLiteGraph".to_string(), "auto".to_string(), true);
 
     let results = vec![syncore::mcp_server::reasoning::ReasoningResult {
         id: "1".to_string(),
@@ -159,12 +143,14 @@ fn test_response_formatting_consistency_across_tools() -> Result<()> {
         processing_time_ms: Some(100),
         entities_examined: Some(1),
         graph_depth: Some(2),
-        vector_search_info: Some(syncore::mcp_server::reasoning::response_formatting::VectorSearchInfo {
-            model: Some("default".to_string()),
-            search_method: "exact".to_string(),
-            total_entities: Some(1000),
-            candidates_examined: Some(50),
-        }),
+        vector_search_info: Some(
+            syncore::mcp_server::reasoning::response_formatting::VectorSearchInfo {
+                model: Some("default".to_string()),
+                search_method: "exact".to_string(),
+                total_entities: Some(1000),
+                candidates_examined: Some(50),
+            },
+        ),
         graph_expansion_info: None,
         metadata: HashMap::new(),
     };
@@ -200,7 +186,10 @@ fn test_response_formatting_consistency_across_tools() -> Result<()> {
 
     // Verify error structure consistency
     let error_info = error_response.error.unwrap();
-    assert_eq!(error_info.category, syncore::mcp_server::reasoning::response_formatting::ErrorCategory::Validation);
+    assert_eq!(
+        error_info.category,
+        syncore::mcp_server::reasoning::response_formatting::ErrorCategory::Validation
+    );
     assert!(error_info.message.contains("Test error"));
     assert_eq!(error_info.context, Some("Additional context".to_string()));
 
@@ -254,11 +243,11 @@ fn test_backend_selection_error_consistency() -> Result<()> {
 fn test_top_k_validation_consistency() -> Result<()> {
     // Test that top_k validation is consistent across tools
     let test_cases = vec![
-        (Some(10), 100, Some(10)),   // Normal case
-        (Some(0), 100, None),       // Zero means no limit
-        (Some(150), 100, None),     // Should be filtered out
-        (Some(50), 100, Some(50)),  // Normal case
-        (None, 100, None),          // No top_k specified
+        (Some(10), 100, Some(10)), // Normal case
+        (Some(0), 100, None),      // Zero means no limit
+        (Some(150), 100, None),    // Should be filtered out
+        (Some(50), 100, Some(50)), // Normal case
+        (None, 100, None),         // No top_k specified
     ];
 
     for (top_k, max_allowed, expected) in test_cases {
@@ -293,17 +282,10 @@ fn test_top_k_validation_consistency() -> Result<()> {
 #[test]
 fn test_backward_compatibility_of_responses() -> Result<()> {
     // Test that response structure maintains backward compatibility
-    let request_metadata = create_request_metadata(
-        "legacy test".to_string(),
-        "query".to_string(),
-        HashMap::new(),
-    );
+    let request_metadata =
+        create_request_metadata("legacy test".to_string(), "query".to_string(), HashMap::new());
 
-    let backend_info = create_backend_info(
-        "SQLiteGraph".to_string(),
-        "legacy".to_string(),
-        false,
-    );
+    let backend_info = create_backend_info("SQLiteGraph".to_string(), "legacy".to_string(), false);
 
     let results = vec![];
     let debug_info = syncore::mcp_server::reasoning::response_formatting::DebugInfo {
@@ -315,13 +297,8 @@ fn test_backward_compatibility_of_responses() -> Result<()> {
         metadata: HashMap::new(),
     };
 
-    let response = format_success_response(
-        request_metadata,
-        results,
-        backend_info,
-        debug_info,
-        None,
-    )?;
+    let response =
+        format_success_response(request_metadata, results, backend_info, debug_info, None)?;
 
     // Verify backward compatibility fields exist
     assert!(response.success);
@@ -418,18 +395,16 @@ fn test_module_size_limits() {
     let modules = vec![
         ("backend_selection.rs", include_str!("../src/mcp_server/reasoning/backend_selection.rs")),
         ("request_parsing.rs", include_str!("../src/mcp_server/reasoning/request_parsing.rs")),
-        ("response_formatting.rs", include_str!("../src/mcp_server/reasoning/response_formatting.rs")),
+        (
+            "response_formatting.rs",
+            include_str!("../src/mcp_server/reasoning/response_formatting.rs"),
+        ),
         ("mod.rs", include_str!("../src/mcp_server/reasoning/mod.rs")),
     ];
 
     for (module_name, source) in modules {
         let line_count = source.lines().count();
-        assert!(
-            line_count <= 300,
-            "Module {} exceeds 300 LOC: {} lines",
-            module_name,
-            line_count
-        );
+        assert!(line_count <= 300, "Module {} exceeds 300 LOC: {} lines", module_name, line_count);
         println!("{}: {} lines (within 300 LOC limit)", module_name, line_count);
     }
 }

@@ -1,13 +1,13 @@
 //! Backend selection utilities for unified MCP reasoning tools
 //!
-//! Provides a consistent interface for backend selection across all reasoning tools,
-//! ensuring SQLiteGraph-first approach with Neo4j fallback when explicitly configured.
+//! Provides a consistent interface for backend selection across all reasoning tools.
+//! Neo4j backend is disabled - only SQLiteGraph is supported.
 
-use std::sync::Arc;
-use anyhow::Result;
-use crate::graph::{GraphBackend, Neo4jBackend};
+use crate::graph::{GraphBackend, SQLiteGraphBackend};
 use crate::raggraph::config::RagGraphConfig;
 use crate::raggraph::config::RaggraphBackendMode as RagGraphBackendMode;
+use anyhow::Result;
+use std::sync::Arc;
 
 /// Configuration for backend selection
 #[derive(Debug, Clone)]
@@ -24,8 +24,8 @@ impl Default for BackendSelectionConfig {
     fn default() -> Self {
         Self {
             prefer_sqlite: true,
-            allow_neo4j_fallback: true,
-            require_explicit_neo4j: false,
+            allow_neo4j_fallback: false, // HARDENED: No implicit Neo4j fallback
+            require_explicit_neo4j: true, // HARDENED: Require explicit Neo4j usage
         }
     }
 }
@@ -118,7 +118,11 @@ pub fn select_reasoning_backend(
                 Err(e) => {
                     // Fallback to Neo4j if allowed and available
                     if config.allow_neo4j_fallback {
-                        fallback_to_neo4j(neo4j_connection, "SQLiteGraph creation failed".to_string(), config)
+                        fallback_to_neo4j(
+                            neo4j_connection,
+                            "SQLiteGraph creation failed".to_string(),
+                            config,
+                        )
                     } else {
                         Err(e)
                     }
@@ -128,7 +132,9 @@ pub fn select_reasoning_backend(
         BackendType::Neo4j => {
             // TODO: Implement proper Neo4j backend when Neo4jClient supports cloning
             // For now, return an error since we can't create async backends in sync context
-            Err(anyhow::anyhow!("Neo4j backend not yet implemented for synchronous reasoning execution"))
+            Err(anyhow::anyhow!(
+                "Neo4j backend not yet implemented for synchronous reasoning execution"
+            ))
         }
     }
 }
@@ -140,9 +146,13 @@ fn determine_preferred_backend() -> Result<BackendType> {
     match rag_config.backend_mode {
         RagGraphBackendMode::Real => {
             // Real mode means use actual graph backend - check environment for which one
-            if std::env::var("NEO4J_URI").is_ok() ||
-               std::env::var("NEO4J_HOST").is_ok() ||
-               std::env::var("GRAPH_BACKEND").unwrap_or_default().to_lowercase().contains("neo4j") {
+            if std::env::var("NEO4J_URI").is_ok()
+                || std::env::var("NEO4J_HOST").is_ok()
+                || std::env::var("GRAPH_BACKEND")
+                    .unwrap_or_default()
+                    .to_lowercase()
+                    .contains("neo4j")
+            {
                 return Ok(BackendType::Neo4j);
             }
             // Default to SQLiteGraph for Real mode
@@ -191,14 +201,24 @@ fn fallback_to_neo4j(
 ) -> Result<BackendSelection> {
     if let Some(neo4j) = neo4j_connection {
         if !config.require_explicit_neo4j || check_neo4j_explicit_config() {
-            // Try to extract Neo4jClient from Arc if possible
+            // Create Neo4jBackend - since Neo4jClient can't be cloned, we need to check if we have exclusive access
             let backend = if Arc::strong_count(&neo4j) == 1 {
                 match Arc::try_unwrap(neo4j) {
-                    Ok(client) => Arc::new(Neo4jBackend::new(client)),
-                    Err(arc) => Arc::new(Neo4jBackend::new((**arc).clone())),
+                    Ok(_client) => {
+                        // Neo4j backend is disabled - return error
+                        return Err(anyhow::anyhow!("Neo4j backend is disabled"));
+                    },
+                    Err(_arc) => {
+                        // If we can't get exclusive access, we need to create a new connection
+                        // For now, return an error to indicate this limitation
+                        return Err(anyhow::anyhow!(
+                            "Cannot create Neo4jBackend from shared Arc<Neo4jClient>"
+                        ));
+                    }
                 }
             } else {
-                Arc::new(Neo4jBackend::new((**neo4j).clone()))
+                // If there are multiple references, we can't extract the client
+                return Err(anyhow::anyhow!("Cannot create Neo4jBackend from shared Arc<Neo4jClient> with multiple references"));
             };
             Ok(BackendSelection {
                 backend_type: BackendType::Neo4j,

@@ -52,9 +52,11 @@ enum SessionManagerVariant {
 }
 
 /// Convert SQLite ThoughtNodeProperties to Neo4j ThoughtNodeProperties
-fn convert_sqlite_to_graph_node(sqlite_node: crate::databases::cognition_sqlite::ThoughtNodeProperties) -> ThoughtNodeProperties {
+fn convert_sqlite_to_graph_node(
+    sqlite_node: crate::databases::cognition_sqlite::ThoughtNodeProperties,
+) -> ThoughtNodeProperties {
     ThoughtNodeProperties {
-        id: format!("sqlite_{}", sqlite_node.id),  // Prefix to avoid conflicts
+        id: format!("sqlite_{}", sqlite_node.id), // Prefix to avoid conflicts
         session_id: sqlite_node.session_id,
         parent_id: sqlite_node.parent_id.map(|id| format!("sqlite_parent_{}", id)),
         step_index: sqlite_node.depth,

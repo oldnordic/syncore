@@ -32,43 +32,37 @@
 
 // Public submodules for unified reasoning infrastructure
 pub mod backend_selection;
+pub mod consistency;
+pub mod evaluation;
+pub mod execution;
+pub mod metadata;
+pub mod reflection;
 pub mod request_parsing;
 pub mod response_formatting;
-pub mod metadata;
-pub mod execution;
 pub mod trace;
-pub mod evaluation;
-pub mod reflection;
-pub mod consistency;
 
 // Re-export all submodules for public API
 pub use backend_selection::{
-    select_reasoning_backend, BackendSelection, BackendSelectionConfig, BackendType,
-    BackendMetadata,
-};
-pub use metadata::{ReasoningMetadata, ReasoningStage, normalize_metadata};
-pub use request_parsing::{
-    parse_unified_request, UnifiedReasoningRequest, RequestType, RequestParameters,
-    RequestParsingConfig, normalize_scope, validate_top_k,
-};
-pub use request_parsing::converters::to_codegraph_fusion_request;
-pub use response_formatting::{
-    format_success_response, format_error_response, to_mcp_call_tool_result,
-    from_mcp_error, UnifiedReasoningResponse, RequestMetadata, ReasoningResult, ScoreComponents,
-    BackendInfo, DebugInfo, VectorSearchInfo, GraphExpansionInfo, ErrorInfo, ErrorCategory,
-    ResponseFormattingConfig, create_request_metadata, create_backend_info,
-};
-pub use execution::{execute_reasoning_request, validate_reasoning_request, get_backend_metrics};
-pub use trace::{
-    ReasoningTrace, ReasoningTraceStage, ReasoningTraceBuilder,
-};
-pub use evaluation::{
-    ReasoningEvaluation, evaluate_reasoning, normalize_evaluation,
-};
-pub use reflection::{
-    ReasoningReflection, build_reflection, normalize_reflection,
+    select_reasoning_backend, BackendMetadata, BackendSelection, BackendSelectionConfig,
+    BackendType,
 };
 pub use consistency::{
-    ToolReasoningSnapshot, ConsistencyViolation, ConsistencyReport,
-    build_tool_snapshot_from_unified_response, validate_snapshots_consistency,
+    build_tool_snapshot_from_unified_response, validate_snapshots_consistency, ConsistencyReport,
+    ConsistencyViolation, ToolReasoningSnapshot,
 };
+pub use evaluation::{evaluate_reasoning, normalize_evaluation, ReasoningEvaluation};
+pub use execution::{execute_reasoning_request, get_backend_metrics, validate_reasoning_request};
+pub use metadata::{normalize_metadata, ReasoningMetadata, ReasoningStage};
+pub use reflection::{build_reflection, normalize_reflection, ReasoningReflection};
+pub use request_parsing::converters::to_codegraph_fusion_request;
+pub use request_parsing::{
+    normalize_scope, parse_unified_request, validate_top_k, RequestParameters,
+    RequestParsingConfig, RequestType, UnifiedReasoningRequest,
+};
+pub use response_formatting::{
+    create_backend_info, create_request_metadata, format_error_response, format_success_response,
+    format_error_simple, format_success_simple, from_mcp_error, to_mcp_call_tool_result, BackendInfo, DebugInfo, ErrorCategory, ErrorInfo,
+    GraphExpansionInfo, ReasoningResult, RequestMetadata, ResponseFormattingConfig,
+    ScoreComponents, UnifiedReasoningResponse, VectorSearchInfo,
+};
+pub use trace::{ReasoningTrace, ReasoningTraceBuilder, ReasoningTraceStage};

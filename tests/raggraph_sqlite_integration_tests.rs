@@ -5,11 +5,13 @@
 //! architecture is fully functional.
 
 use std::sync::{Arc, Mutex};
-use syncore::raggraph::{RagGraphConfig, RagQuery, HopGraphTransformer, SQLiteGraphStorageAdapter, StorageAdapter};
-use syncore::config::{SyncoreConfig, GraphBackend, GraphConfig};
+use syncore::config::{GraphBackend, GraphConfig, SyncoreConfig};
 use syncore::graph::backend_selector::create_default_graph_backend;
-use syncore::vector::VectorStore;
+use syncore::raggraph::{
+    HopGraphTransformer, RagGraphConfig, RagQuery, SQLiteGraphStorageAdapter, StorageAdapter,
+};
 use syncore::vector::traits::VectorIndex;
+use syncore::vector::VectorStore;
 use tempfile::tempdir;
 
 /// Create a mock VectorStore for testing
@@ -125,11 +127,8 @@ async fn test_ragquery_with_sqlitegraph_backend() {
     let graph_backend = create_default_graph_backend(&graph_config).await.unwrap();
 
     // Create SQLiteGraphStorageAdapter
-    let storage = Arc::new(SQLiteGraphStorageAdapter::new(
-        vector_index.clone(),
-        graph_backend,
-        384,
-    ));
+    let storage =
+        Arc::new(SQLiteGraphStorageAdapter::new(vector_index.clone(), graph_backend, 384));
 
     // Create RagQuery with SQLiteGraph storage
     let rag_config = RagGraphConfig {
@@ -180,11 +179,8 @@ async fn test_hopgraph_transformer_with_sqlitegraph_backend() {
     let graph_backend = create_default_graph_backend(&graph_config).await.unwrap();
 
     // Create SQLiteGraphStorageAdapter
-    let storage = Arc::new(SQLiteGraphStorageAdapter::new(
-        vector_index.clone(),
-        graph_backend,
-        384,
-    ));
+    let storage =
+        Arc::new(SQLiteGraphStorageAdapter::new(vector_index.clone(), graph_backend, 384));
 
     // Create HopGraphTransformer with SQLiteGraph storage
     let rag_config = RagGraphConfig {

@@ -1,7 +1,17 @@
 //! Data model types for code graph entities and relationships
 
 /// Query scope for fusion queries - controls search breadth across projects
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
 pub enum QueryScope {
     /// Restrict to current project + local file/directory focus
     Local,
@@ -104,6 +114,7 @@ pub enum EntityType {
     Struct,
     Enum,
     Trait,
+    Constant,
 }
 
 impl EntityType {
@@ -116,6 +127,7 @@ impl EntityType {
             EntityType::Struct => "struct",
             EntityType::Enum => "enum",
             EntityType::Trait => "trait",
+            EntityType::Constant => "constant",
         }
     }
 
@@ -128,6 +140,7 @@ impl EntityType {
             "struct" => Some(EntityType::Struct),
             "enum" => Some(EntityType::Enum),
             "trait" => Some(EntityType::Trait),
+            "constant" => Some(EntityType::Constant),
             _ => None,
         }
     }

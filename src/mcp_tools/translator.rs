@@ -9,9 +9,7 @@
 //! - NEVER create missing titles, descriptions, IDs, etc.
 
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 
 /// Translator configuration
 #[derive(Debug, Clone)]
@@ -80,8 +78,6 @@ impl LlmOutputTranslator {
         match target_schema {
             TargetSchema::TaskBreakdown => self.translate_task_breakdown(json_value),
             TargetSchema::PriorityResult => self.translate_priority_result(json_value),
-            TargetSchema::SubtaskBreakdown => self.translate_subtask_breakdown(json_value),
-            TargetSchema::NextTaskSuggestion => self.translate_next_task_suggestion(json_value),
             TargetSchema::SequentialStep => self.translate_sequential_step(json_value),
         }
     }
@@ -250,39 +246,7 @@ impl LlmOutputTranslator {
         self.validate_priority_result(&value)
     }
 
-    /// Translate to SubtaskBreakdown schema (simplified)
-    fn translate_subtask_breakdown(&self, mut value: Value) -> Result<Value> {
-        let mut errors = Vec::new();
-
-        if !value.get("subtasks").and_then(Value::as_array).is_some() {
-            errors.push("Missing required field: subtasks array".to_string());
-        }
-
-        if !errors.is_empty() {
-            return Err(anyhow!("SubtaskBreakdown validation failed: {}", errors.join(", ")));
-        }
-
-        Ok(value)
-    }
-
-    /// Translate to NextTaskSuggestion schema (simplified)
-    fn translate_next_task_suggestion(&self, mut value: Value) -> Result<Value> {
-        let mut errors = Vec::new();
-
-        if !value.get("task_id").and_then(Value::as_str).is_some() {
-            errors.push("Missing required field: task_id".to_string());
-        }
-        if !value.get("reasoning").and_then(Value::as_str).is_some() {
-            errors.push("Missing required field: reasoning".to_string());
-        }
-
-        if !errors.is_empty() {
-            return Err(anyhow!("NextTaskSuggestion validation failed: {}", errors.join(", ")));
-        }
-
-        Ok(value)
-    }
-
+  
     /// Translate to SequentialStep schema
     fn translate_sequential_step(&self, mut value: Value) -> Result<Value> {
         let mut errors = Vec::new();
@@ -356,7 +320,14 @@ impl LlmOutputTranslator {
             return Err(anyhow!("SequentialStep validation failed: {}", errors.join(", ")));
         }
 
-        Ok(value)
+        // Add schema versioning metadata
+        let mut result = value;
+        if let Value::Object(ref mut map) = result {
+            map.insert("_schema_version".to_string(), Value::String("1.0".to_string()));
+            map.insert("_schema_type".to_string(), Value::String("SequentialStep".to_string()));
+            map.insert("_contract_version".to_string(), Value::String("1.0".to_string()));
+        }
+        Ok(result)
     }
 
     /// Normalize Complexity enum values
@@ -556,8 +527,14 @@ impl LlmOutputTranslator {
             return Err(anyhow!("TaskBreakdown validation failed: {}", errors.join(", ")));
         }
 
-        // Return the value as-is since we've been working with a mutable reference
-        Ok(value.clone())
+        // Add schema versioning metadata
+        let mut result = value.clone();
+        if let Value::Object(ref mut map) = result {
+            map.insert("_schema_version".to_string(), Value::String("1.0".to_string()));
+            map.insert("_schema_type".to_string(), Value::String("TaskBreakdown".to_string()));
+            map.insert("_contract_version".to_string(), Value::String("1.0".to_string()));
+        }
+        Ok(result)
     }
 
     /// Helper: coerce value to f32
@@ -641,7 +618,14 @@ impl LlmOutputTranslator {
             return Err(anyhow!("PriorityResult validation failed: {}", errors.join(", ")));
         }
 
-        Ok(value.clone())
+        // Add schema versioning metadata
+        let mut result = value.clone();
+        if let Value::Object(ref mut map) = result {
+            map.insert("_schema_version".to_string(), Value::String("1.0".to_string()));
+            map.insert("_schema_type".to_string(), Value::String("PriorityResult".to_string()));
+            map.insert("_contract_version".to_string(), Value::String("1.0".to_string()));
+        }
+        Ok(result)
     }
 
     /// Create structured error response
@@ -660,8 +644,6 @@ impl LlmOutputTranslator {
 pub enum TargetSchema {
     TaskBreakdown,
     PriorityResult,
-    SubtaskBreakdown,
-    NextTaskSuggestion,
     SequentialStep,
 }
 

@@ -4,20 +4,21 @@
 
 use super::super::fusion_attention::FusionAttention;
 use super::super::fusion_reasoning::FusionReasoning;
-use super::super::fusion_simple::FusionSimple;
 use super::super::fusion_router::{FusionMode, FusionRouter};
+use super::super::fusion_simple::FusionSimple;
 use crate::graph::GraphBackend;
 use std::collections::HashMap;
 
-/// Apply simple linear fusion (PHASE 5: 4-component with GraphBERT)
+/// Apply simple linear fusion (PHASE 5: 5-component with GraphBERT + Recency)
 pub fn apply_simple_fusion(
     vector_score: f32,
     graph_score: f32,
     temporal_score: f32,
     graph_embedding_score: f32,
+    recency_score: f32,
 ) -> f32 {
     let fusion = FusionSimple::default();
-    fusion.combine_scores(vector_score, graph_score, temporal_score, graph_embedding_score)
+    fusion.combine(vector_score, graph_score, temporal_score, graph_embedding_score, recency_score)
 }
 
 /// Apply attention-based fusion with context awareness
@@ -27,8 +28,11 @@ pub fn apply_attention_fusion(
     context: &str,
     debug_info: &mut HashMap<String, String>,
 ) -> f32 {
-    let attention = FusionAttention::default();
-    attention.combine_with_context(vector_score, graph_score, context, debug_info)
+    // For now, use simple weighted average as fallback
+    // TODO: Implement proper attention-based fusion when Embeddings dependency is resolved
+    debug_info.insert("fusion_method".to_string(), "simple_weighted_fallback".to_string());
+    let combined = 0.7 * vector_score + 0.3 * graph_score;
+    combined.clamp(0.0, 1.0)
 }
 
 /// Apply reasoning fusion with higher-order terms
@@ -51,6 +55,7 @@ pub fn apply_selected_fusion(
     graph_score: f32,
     temporal_score: Option<f32>,
     graph_embedding_score: Option<f32>,
+    recency_score: Option<f32>,
     query: &str,
     debug_info: &mut HashMap<String, String>,
 ) -> f32 {
@@ -60,24 +65,38 @@ pub fn apply_selected_fusion(
         FusionMode::Simple => {
             let temporal = temporal_score.unwrap_or(0.0);
             let graph_emb = graph_embedding_score.unwrap_or(0.0);
-            let result = apply_simple_fusion(vector_score, graph_score, temporal, graph_emb);
-            debug_info.insert("fusion_components".to_string(),
-                format!("vector:{:.3}, graph:{:.3}, temporal:{:.3}, embedding:{:.3}",
-                    vector_score, graph_score, temporal, graph_emb));
+            let recency = recency_score.unwrap_or(0.0);
+            let result = apply_simple_fusion(vector_score, graph_score, temporal, graph_emb, recency);
+            debug_info.insert(
+                "fusion_components".to_string(),
+                format!(
+                    "vector:{:.3}, graph:{:.3}, temporal:{:.3}, embedding:{:.3}, recency:{:.3}",
+                    vector_score, graph_score, temporal, graph_emb, recency
+                ),
+            );
             result
         }
         FusionMode::Attention => {
+            let recency = recency_score.unwrap_or(0.5); // Use recency as context factor
             let result = apply_attention_fusion(vector_score, graph_score, query, debug_info);
-            debug_info.insert("fusion_components".to_string(),
-                format!("vector:{:.3}, graph:{:.3}, context:{}",
-                    vector_score, graph_score, query));
-            result
+            let adjusted_result = result * (0.7 + 0.3 * recency); // Boost recent results
+            debug_info.insert(
+                "fusion_components".to_string(),
+                format!("vector:{:.3}, graph:{:.3}, context:{}, recency:{:.3}", vector_score, graph_score, query, recency),
+            );
+            debug_info.insert("recency_boost".to_string(), format!("{:.3}", adjusted_result - result));
+            adjusted_result
         }
         FusionMode::Reasoning => {
+            let recency = recency_score.unwrap_or(0.5);
             let result = apply_reasoning_fusion(vector_score, graph_score, debug_info);
-            debug_info.insert("fusion_components".to_string(),
-                format!("vector:{:.3}, graph:{:.3}", vector_score, graph_score));
-            result
+            let adjusted_result = result * (0.8 + 0.2 * recency); // Slight boost for recent results
+            debug_info.insert(
+                "fusion_components".to_string(),
+                format!("vector:{:.3}, graph:{:.3}, recency:{:.3}", vector_score, graph_score, recency),
+            );
+            debug_info.insert("recency_boost".to_string(), format!("{:.3}", adjusted_result - result));
+            adjusted_result
         }
     }
 }
@@ -126,9 +145,16 @@ pub fn apply_configured_fusion(
         + config.temporal_weight * temporal
         + config.embedding_weight * graph_emb;
 
-    debug_info.insert("fusion_config".to_string(),
-        format!("weights: vector={:.2}, graph={:.2}, temporal={:.2}, embedding={:.2}",
-            config.vector_weight, config.graph_weight, config.temporal_weight, config.embedding_weight));
+    debug_info.insert(
+        "fusion_config".to_string(),
+        format!(
+            "weights: vector={:.2}, graph={:.2}, temporal={:.2}, embedding={:.2}",
+            config.vector_weight,
+            config.graph_weight,
+            config.temporal_weight,
+            config.embedding_weight
+        ),
+    );
 
     combined_score.min(1.0) // Ensure score doesn't exceed 1.0
 }
@@ -148,11 +174,9 @@ pub fn normalize_scores(scores: &mut [f32]) {
 }
 
 /// Apply score calibration based on historical performance
-pub fn calibrate_scores(
-    scores: &[f32],
-    calibration_factor: f32,
-) -> Vec<f32> {
-    scores.iter()
+pub fn calibrate_scores(scores: &[f32], calibration_factor: f32) -> Vec<f32> {
+    scores
+        .iter()
         .map(|&score| {
             // Apply sigmoid-like calibration
             let calibrated = 1.0 / (1.0 + (-((score - 0.5) * calibration_factor)).exp());
